@@ -38,8 +38,8 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-020 | PLAT | System plane: bootstrap, system roles, workspaces lifecycle, quotas | P0 | R1 | Platform | FR-S01–S04 | J8 passes | L | BPMS-011 | Done |
 | BPMS-021 | IAM | Local auth (Argon2id), email verify, lockout, sessions | P0 | R1 | Platform | 12 §3, FX-I01 | SEC tests green | M | BPMS-020 | Done |
 | BPMS-022 | IAM | MFA TOTP + WebAuthn, recovery codes, step-up | P0 | R1 | Platform | 12 §3/§11 | MFA required by role works | M | BPMS-021 | In progress |
-| BPMS-023 | IAM | Memberships, invites, directory (departments/groups/positions/managers), CSV import | P0 | R1 | Platform | FR-W01/W02 | Manager cycles rejected | M | BPMS-020 | Not started |
-| BPMS-024 | IAM | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | P0 | R1 | Platform | FR-W03, ADR-0011 | No-escalation property test | L | BPMS-023 | Not started |
+| BPMS-023 | IAM | Memberships, invites, directory (departments/groups/positions/managers), CSV import | P0 | R1 | Platform | FR-W01/W02 | Manager cycles rejected | M | BPMS-020 | In progress |
+| BPMS-024 | IAM | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | P0 | R1 | Platform | FR-W03, ADR-0011 | No-escalation property test | L | BPMS-023 | In progress |
 | BPMS-025 | SEC | Forced RLS + repository WsCtx + CI cross-workspace sweep | P0 | R1 | Platform | 03 §7, SEC-01/02 | Sweep green in CI | M | BPMS-020 | Done |
 | BPMS-026 | AUD | Audit chain append + coverage contract test | P0 | R1 | Platform | FR-T01, AUD-01/07 | Every mutating route emits 1 event | M | BPMS-025 | In progress |
 | BPMS-027 | CFG | Settings layering, floors, profiles, explainer | P0 | R1 | Platform | FR-S05, FR-W04/W06, CFG-001..003 | Never looser than floor | M | BPMS-020 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 14 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 90 · Deferred: 0 (of 109)
+**Progress:** Done: 14 · In review: 0 · In progress: 7 · Blocked: 0 · Not started: 88 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -150,6 +150,8 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-020 | System plane: bootstrap, system roles, workspaces lifecycle, quotas | Done | procera-platform + /sysapi/v1: one-time bootstrap token (printed at startup until bootstrapped), system.owner/admin/operator/auditor fixed authz table, MFA required for system plane, workspace create/list/get/rename/suspend/restore/schedule-deletion with If-Match + ETag, profile quotas, platform setting floors seeded, all audited; E2E-R1-SYS-01..05 |
 | BPMS-021 | Local auth (Argon2id), email verify, lockout, sessions | Done | procera-identity + /api/v1/auth: users, Argon2id (policy, rehash, enumeration-safe), JWT access (ADR-0020) + rotating refresh with reuse detection, DB login throttling + per-IP rate limit, logout, sign-out-everywhere, deactivation via token_version; audited; E2E-R1-AUTH-01..05,07 |
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | In progress | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
+| BPMS-023 | Memberships, invites, directory (departments/groups/positions/managers), CSV import | In progress | procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use), register-by-invite, owner onboarding activates the provisioning workspace, workspace switch (ws-scoped JWT), member list, deactivation with last-owner/self guards, state gate (423 when suspended); audited; E2E-R1-MEM-01..03,05,06. Remaining: directory (departments/groups/positions/managers), CSV import, invitation revoke/resend |
+| BPMS-024 | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | In progress | procera-access: permission catalogue + 12 role templates, custom roles (no escalation, built-ins immutable, clone lineage), scoped grants with expiry compiled to Cedar, invariants (workspace isolation, active members only), per-workspace access_revisions cache; /api/v1 roles, role-grants, permission-catalog, me/permissions; E2E-R1-MEM-04. Remaining: access preview/explain endpoint, no-escalation property test |
 | BPMS-025 | Forced RLS + repository WsCtx + CI cross-workspace sweep | Done | procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests |
 | BPMS-026 | Audit chain append + coverage contract test | In progress | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | In progress | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
@@ -164,7 +166,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 100 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 106 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

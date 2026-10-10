@@ -110,17 +110,18 @@ async fn main() -> anyhow::Result<()> {
             );
             // One state, one clock: identity, platform and test controls must share it (E2E time travel).
             let base = http::AppState::new(cache).with_db(db.clone());
-            let identity = match (&db, master_key.as_deref()) {
-                (Some(db), Some(k)) => {
-                    let keys = std::sync::Arc::new(procera_crypto::LocalKey::from_base64(k)?);
-                    Some(procera_identity::Identity::new(
-                        db.clone(),
-                        keys,
-                        base.clock.clone(),
-                        std::sync::Arc::new(procera_kernel::UuidV7Gen),
-                        procera_identity::IdentityConfig::default(),
-                    )?)
-                }
+            let keys: Option<std::sync::Arc<dyn procera_crypto::KeyProvider>> = match master_key.as_deref() {
+                Some(k) => Some(std::sync::Arc::new(procera_crypto::LocalKey::from_base64(k)?)),
+                None => None,
+            };
+            let identity = match (&db, keys.clone()) {
+                (Some(db), Some(keys)) => Some(procera_identity::Identity::new(
+                    db.clone(),
+                    keys,
+                    base.clock.clone(),
+                    std::sync::Arc::new(procera_kernel::UuidV7Gen),
+                    procera_identity::IdentityConfig::default(),
+                )?),
                 (Some(_), None) => anyhow::bail!(
                     "PROCERA_MASTER_KEY is required when a database is configured (generate one with `procera keygen`)"
                 ),
@@ -129,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
             if insecure_cookies {
                 tracing::warn!("insecure cookies enabled: local HTTP development / E2E only");
             }
-            let mut state = base.with_identity(identity, !insecure_cookies);
+            let mut state = base.with_identity(identity, !insecure_cookies).with_services(keys);
             state.login_rate_per_min = login_rate_per_min;
             // FR-S01: until a system owner exists, print a one-time bootstrap token (24 h) to the log.
             if let Some(p) = &state.platform

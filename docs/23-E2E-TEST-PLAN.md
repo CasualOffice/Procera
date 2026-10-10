@@ -111,6 +111,17 @@ Implemented in `e2e/packs/r1/auth.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/system.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-MEM-01 | Owner registers through the system-created invitation; workspace becomes `active`; owner holds owner permissions; invitation is single-use | FR-S01, FR-W01 |
+| E2E-R1-MEM-02 | Invite → accept only by the invited email; the token is never returned to the inviter; member appears in the list | FR-W01, docs/06 §3 |
+| E2E-R1-MEM-03 | A non-member cannot switch into another workspace (404); workspace APIs need a selected workspace | docs/12 §1, SEC-01 |
+| E2E-R1-MEM-04 | Custom role: no escalation, built-ins immutable, grant/revoke takes effect on the next request | FR-W03, ADR-0011 |
+| E2E-R1-MEM-05 | Admin cannot invite an owner, cannot remove the last owner or themselves; a deactivated member loses access at once | FR-W01, docs/12 §6 |
+| E2E-R1-MEM-06 | Read-only suspension blocks workspace writes with 423, reads still work; restore re-enables writes | FR-S02 |
+
+Implemented in `e2e/packs/r1/members.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

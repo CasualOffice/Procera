@@ -176,6 +176,12 @@ E2E scenarios (E2E),E2E-R1-SYS-02,"System API returns 404 to non-system users an
 E2E scenarios (E2E),E2E-R1-SYS-03,"Create workspaces A (starter) and B (enterprise): 201 + Location + ETag, profile quotas, duplicate slug 409, invalid slug 422, listing | FR-S02/S04 (= E2E-R1-02)",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-SYS-04,Suspend read-only with reason; stale `If-Match` → 412; restore with current ETag; invalid transition 409; schedule deletion (grace validated) | FR-S02 (= E2E-R1-17),23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-SYS-05,"`system.operator` can read but not write; system audit chain verifies | docs/12 §4.1, FR-S09",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-01,"Owner registers through the system-created invitation; workspace becomes `active`; owner holds owner permissions; invitation is single-use | FR-S01, FR-W01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-02,"Invite → accept only by the invited email; the token is never returned to the inviter; member appears in the list | FR-W01, docs/06 §3",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-03,"A non-member cannot switch into another workspace (404); workspace APIs need a selected workspace | docs/12 §1, SEC-01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-04,"Custom role: no escalation, built-ins immutable, grant/revoke takes effect on the next request | FR-W03, ADR-0011",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-05,"Admin cannot invite an owner, cannot remove the last owner or themselves; a deactivated member loses access at once | FR-W01, docs/12 §6",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-MEM-06,"Read-only suspension blocks workspace writes with 423, reads still work; restore re-enables writes | FR-S02",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

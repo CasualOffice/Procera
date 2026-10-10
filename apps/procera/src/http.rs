@@ -11,6 +11,7 @@ pub mod error;
 pub mod system;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
+pub mod workspace;
 
 /// Shared application state. Grows as adapters (Postgres, object store, cache) arrive.
 #[derive(Debug, Clone)]
@@ -20,6 +21,7 @@ pub struct AppState {
     pub db: Option<procera_db::Db>,
     pub identity: Option<procera_identity::Identity>,
     pub platform: Option<procera_platform::Platform>,
+    pub members: Option<procera_members::Members>,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
     pub secure_cookies: bool,
     /// Per-IP login attempts per minute, in front of the per-account backoff (default 30).
@@ -39,17 +41,32 @@ impl AppState {
         identity: Option<procera_identity::Identity>,
         secure_cookies: bool,
     ) -> Self {
-        self.platform = match (&self.db, &identity) {
-            (Some(db), Some(id)) => Some(procera_platform::Platform::new(
-                db.clone(),
-                id.clone(),
-                self.clock.clone(),
-                Arc::new(procera_kernel::UuidV7Gen),
-            )),
-            _ => None,
-        };
         self.identity = identity;
         self.secure_cookies = secure_cookies;
+        self
+    }
+
+    /// Wires members (and through it access) and the platform once the database, identity and keys exist.
+    pub fn with_services(mut self, keys: Option<Arc<dyn procera_crypto::KeyProvider>>) -> Self {
+        if let (Some(db), Some(id), Some(keys)) = (&self.db, &self.identity, keys) {
+            let ids: Arc<dyn procera_kernel::IdGen> = Arc::new(procera_kernel::UuidV7Gen);
+            let members = procera_members::Members::new(
+                db.clone(),
+                id.clone(),
+                procera_access::Access::new(),
+                keys,
+                self.clock.clone(),
+                ids.clone(),
+            );
+            self.platform = Some(procera_platform::Platform::new(
+                db.clone(),
+                id.clone(),
+                members.clone(),
+                self.clock.clone(),
+                ids,
+            ));
+            self.members = Some(members);
+        }
         self
     }
 
@@ -62,6 +79,7 @@ impl AppState {
             db: None,
             identity: None,
             platform: None,
+            members: None,
             secure_cookies: true,
             login_rate_per_min: 30,
         }
@@ -84,6 +102,7 @@ impl AppState {
             db: None,
             identity: None,
             platform: None,
+            members: None,
             secure_cookies: true,
             login_rate_per_min: 30,
         }
@@ -102,6 +121,7 @@ pub fn router(state: AppState) -> Router {
         .route("/readyz", get(readyz))
         .route("/version", get(version))
         .nest("/api/v1", auth::router())
+        .nest("/api/v1", workspace::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

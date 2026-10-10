@@ -4,7 +4,7 @@
 use super::AppState;
 use axum::{
     Json, Router,
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
     routing::{get, post},
@@ -21,6 +21,7 @@ pub fn router() -> Router<AppState> {
         .route("/users", post(create_user))
         .route("/bootstrap-token", post(bootstrap_token))
         .route("/system-roles", post(grant_system_role))
+        .route("/invitations/token", get(invitation_token))
 }
 
 /// Issues a bootstrap token if the platform is not bootstrapped yet (E2E only; prod prints it to the log).
@@ -216,5 +217,23 @@ mod tests {
         for bad in ["", "P", "PT", "30D", "P1Y", "P1M", "PxD", "P1DT", "P1H"] {
             assert_eq!(parse_duration(bad), None, "{bad}");
         }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct InvitationQuery {
+    workspace: uuid::Uuid,
+    email: String,
+}
+
+/// Reads the plaintext token of the latest pending invitation (stands in for the mailbox until BPMS-048).
+async fn invitation_token(State(s): State<AppState>, Query(q): Query<InvitationQuery>) -> Response {
+    let Some(m) = s.members.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match m.pending_invitation_token(procera_db::WsCtx { workspace_id: q.workspace }, &q.email).await {
+        Ok(Some(token)) => Json(serde_json::json!({ "token": token })).into_response(),
+        Ok(None) => problem(Problem::not_found()),
+        Err(e) => super::error::ApiError::from(e).into_response(),
     }
 }

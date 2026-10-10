@@ -7,7 +7,7 @@
 
 ```text
 Overall   ████░░░░░░░░░░░░░░░░░░░░░░░░░░  14/109 epics done  (13%)
-Status    done 14 · in review 0 · in progress 5 · blocked 0 · not started 90 · deferred 0
+Status    done 14 · in review 0 · in progress 7 · blocked 0 · not started 88 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -29,6 +29,8 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | ID | Item | Status | Note |
 |---|---|---|---|
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
+| BPMS-023 | Memberships, invites, directory (departments/groups/positions/managers), CSV import | **In progress** | procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use), register-by-invite, owner onboarding activates the provisioning workspace, workspace switch (ws-scoped JWT), member list, deactivation with last-owner/self guards, state gate (423 when suspended); audited; E2E-R1-MEM-01..03,05,06. Remaining: directory (departments/groups/positions/managers), CSV import, invitation revoke/resend |
+| BPMS-024 | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | **In progress** | procera-access: permission catalogue + 12 role templates, custom roles (no escalation, built-ins immutable, clone lineage), scoped grants with expiry compiled to Cedar, invariants (workspace isolation, active members only), per-workspace access_revisions cache; /api/v1 roles, role-grants, permission-catalog, me/permissions; E2E-R1-MEM-04. Remaining: access preview/explain endpoint, no-escalation property test |
 | BPMS-026 | Audit chain append + coverage contract test | **In progress** | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
@@ -85,8 +87,8 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [x] **BPMS-020** (P0, L) System plane: bootstrap, system roles, workspaces lifecycle, quotas
 - [x] **BPMS-021** (P0, M) Local auth (Argon2id), email verify, lockout, sessions
 - [ ] **BPMS-022** (P0, M) MFA TOTP + WebAuthn, recovery codes, step-up **[In progress]**
-- [ ] **BPMS-023** (P0, M) Memberships, invites, directory (departments/groups/positions/managers), CSV import
-- [ ] **BPMS-024** (P0, L) Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar
+- [ ] **BPMS-023** (P0, M) Memberships, invites, directory (departments/groups/positions/managers), CSV import **[In progress]**
+- [ ] **BPMS-024** (P0, L) Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar **[In progress]**
 - [x] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
 - [ ] **BPMS-026** (P0, M) Audit chain append + coverage contract test **[In progress]**
 - [ ] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer
@@ -237,7 +239,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 100 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 106 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

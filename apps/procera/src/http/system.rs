@@ -50,6 +50,7 @@ impl From<PlatformError> for ApiError {
                 Self::new(412, "precondition_failed", "The workspace changed; reload and retry")
             }
             PlatformError::Identity(i) => Self::from(i),
+            PlatformError::Members(m) => Self::from(m),
             PlatformError::Internal(m) => {
                 tracing::error!(error = %m, "platform internal error");
                 Self::new(500, "internal", "Internal error")
