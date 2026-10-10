@@ -242,7 +242,7 @@ System plane → separate route, separate principal type; cannot obtain workspac
 
 RLS rules:
 - The app role is not the table owner and has no `BYPASSRLS`. `FORCE ROW LEVEL SECURITY` is set on all tenant tables.
-- Policies use `current_setting('app.workspace_id', true)::uuid`, so a missing context means zero rows.
+- Policies use `NULLIF(current_setting('app.workspace_id', true), '')::uuid`, so a missing context means zero rows. The `NULLIF` matters: pooled connections keep the setting as `''` after a transaction-local set ([SP-09](spikes/SP-09-authz-rls-pool.md)).
 - Views use `security_invoker`.
 
 ## 13. Required tests (subset of 15-TEST-STRATEGY)

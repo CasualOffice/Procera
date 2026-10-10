@@ -124,8 +124,10 @@ The common RLS policy:
 ```sql
 ALTER TABLE <t> ENABLE ROW LEVEL SECURITY; ALTER TABLE <t> FORCE ROW LEVEL SECURITY;
 CREATE POLICY ws_isolation ON <t>
-  USING (workspace_id = current_setting('app.workspace_id', true)::uuid)
-  WITH CHECK (workspace_id = current_setting('app.workspace_id', true)::uuid);
+  USING (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid)
+  WITH CHECK (workspace_id = NULLIF(current_setting('app.workspace_id', true), '')::uuid);
+-- NULLIF: after a tx-local set_config commits, the GUC stays defined as '' on the pooled
+-- connection; ''::uuid would error instead of yielding zero rows (SP-09 finding A-1).
 ```
 
 Roles:

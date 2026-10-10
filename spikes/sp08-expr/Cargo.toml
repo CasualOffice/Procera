@@ -1,0 +1,13 @@
+[package]
+name = "sp08-expr"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+dsntk-feel = "0.3"
+dsntk-feel-parser = "0.3"
+dsntk-feel-evaluator = "0.3"
+cel = "0.15"
+serde_json = "1"

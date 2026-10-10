@@ -143,3 +143,9 @@ Full ADRs are in [`adr/`](adr/). Status after this research:
 | SP-10 | Audit chain at 10 M events: append contention, explorer queries | Append ≥ 2 000 ev/s/workspace with batching; explorer P95 < 2 s |
 
 Details are in [15-TEST-STRATEGY](15-TEST-STRATEGY-AND-CONFORMANCE.md).
+
+**Results so far:**
+- [SP-08 expression language](spikes/SP-08-expression-language.md): CEL recommended.
+- [SP-09 Cedar + RLS + pool](spikes/SP-09-authz-rls-pool.md): validated, with the NULLIF fix.
+- [SP-10 audit chain](spikes/SP-10-audit-chain.md).
+- [BPMS-002 reference processes](spikes/BPMS-002-reference-processes.md).

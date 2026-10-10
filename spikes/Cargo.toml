@@ -1,0 +1,10 @@
+# Phase-0 spikes (docs/01 §8). Throwaway code that answers a design question; never shipped.
+# Each spike has a report in docs/spikes/.
+[workspace]
+resolver = "3"
+members = ["sp08-expr", "sp09-authz-rls", "sp10-audit-chain"]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+publish = false
