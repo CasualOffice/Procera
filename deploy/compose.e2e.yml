@@ -1,0 +1,68 @@
+# E2E stack (docs/23 §2–3). Same file locally and in CI:
+#   docker compose -f deploy/compose.e2e.yml up -d --build --wait
+#   cd e2e && PROCERA_BASE_URL=http://127.0.0.1:18080 npx playwright test
+# Images are dev/test-only; ClamAV (GPL) runs as a separate container and is never linked or shipped.
+name: procera-e2e
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: procera
+      POSTGRES_PASSWORD: procera-e2e-only
+      POSTGRES_DB: procera
+    ports: ["127.0.0.1:15432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U procera -d procera"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  valkey:
+    image: valkey/valkey:8
+    ports: ["127.0.0.1:16379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      retries: 30
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    command: ["server", "-s3", "-dir=/data", "-ip.bind=0.0.0.0"]
+    ports: ["127.0.0.1:18333:8333"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9333/cluster/status >/dev/null || exit 1"]
+      interval: 3s
+      retries: 40
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["127.0.0.1:18025:8025", "127.0.0.1:11025:1025"]
+
+  clamav:
+    image: clamav/clamav:stable
+    ports: ["127.0.0.1:13310:3310"]
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 10s
+      retries: 30
+      start_period: 120s
+
+  procera:
+    build:
+      context: ..
+      args:
+        FEATURES: e2e
+    environment:
+      PROCERA_BIND: 0.0.0.0:8080
+      PROCERA_LOG: info
+      # Wired up by their tracker items (BPMS-020, -033, -048, -060):
+      PROCERA_DATABASE_URL: postgres://procera:procera-e2e-only@postgres:5432/procera
+      PROCERA_CACHE_URL: redis://valkey:6379
+      PROCERA_S3_ENDPOINT: http://seaweedfs:8333
+      PROCERA_SMTP_URL: smtp://mailpit:1025
+      PROCERA_CLAMD_ADDR: clamav:3310
+    ports: ["127.0.0.1:18080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }

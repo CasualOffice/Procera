@@ -1,0 +1,16 @@
+{
+  "name": "@procera/e2e",
+  "private": true,
+  "description": "Procera end-to-end tests (docs/23-E2E-TEST-PLAN.md)",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:smoke": "playwright test --grep @smoke",
+    "lint:no-sleeps": "node scripts/no-fixed-sleeps.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.0",
+    "typescript": "7.0.2"
+  }
+}

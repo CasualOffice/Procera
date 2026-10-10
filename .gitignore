@@ -6,8 +6,8 @@ node_modules/
 dist/
 .pnpm-store/
 # Test artefacts
-/test-results/
-/playwright-report/
+test-results/
+playwright-report/
 /e2e/.auth/
 # Env & secrets
 .env

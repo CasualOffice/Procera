@@ -64,6 +64,18 @@ Built only with the `e2e` cargo feature, which the release pipeline verifies is 
 
 ID format: `E2E-<release>-<nn>`. Every row lists the PRD/catalogue refs it proves. **Packs are cumulative**: a release must pass its own pack and every earlier one.
 
+### E2E-P0: harness smoke (gate G1)
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-P0-01 | `/healthz` and `/readyz` return 200 | Harness boots the stack |
+| E2E-P0-02 | `/version` reports name and server time | Clock wiring |
+| E2E-P0-03 | `__test/clock` advances only forward and drives server time; invalid durations get a 422 problem+json | docs/23 §4 controls |
+| E2E-P0-04 | `__test/drain` reports idle; unknown routes return 404 | Drain control; routing baseline |
+| E2E-P0-REL | The release binary returns 404 for `/__test/clock` (CI step) | docs/24 §5.4 |
+
+Implemented in `e2e/packs/p0/harness.api.spec.ts` and `.github/workflows/ci.yml` (job `e2e-smoke`).
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

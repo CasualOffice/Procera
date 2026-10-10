@@ -161,6 +161,7 @@ CORE.sort(key=lambda r: ([m[0] for m in MILESTONES].index(r[4]), r[0]))
 STATUS = {
  "BPMS-014": ("Done", "CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main"),
  "BPMS-034": ("In progress", "Raster assets + brand guide merged; SVG masters and trademark search pending"),
+ "BPMS-013": ("In review", "procera e2e feature + /__test controls, Playwright harness, P0 smoke pack, compose.e2e stack, CI e2e-smoke job: PR feat/BPMS-013-e2e-harness (stacked on BPMS-011)"),
  "BPMS-011": ("In review", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM): PR feat/BPMS-011-monorepo-ci"),
 }
 def status_of(i): return STATUS.get(i, ("Not started", ""))
@@ -207,7 +208,7 @@ DOMAIN = {
  "Integrations (INT)": parse_ids(r"INT-\d", [DOCS/"13-INTEGRATIONS.md"]),
  "Config (CFG)": parse_ids(r"CFG-\d", [DOCS/"20-WORKSPACE-CONFIGURATION.md"]),
  "AI (AI)": parse_ids(r"AI-\d", [DOCS/"16-AI-ASSISTANCE.md"]),
- "E2E scenarios (E2E)": parse_ids(r"E2E-R\d-", [DOCS/"23-E2E-TEST-PLAN.md"]),
+ "E2E scenarios (E2E)": parse_ids(r"E2E-(?:R\d|P0)-", [DOCS/"23-E2E-TEST-PLAN.md"]),
 }
 SECTESTS = parse_ids(r"SEC-\d", [DOCS/"06-SECURITY-AND-OPERATIONS.md"])
 TESTS = parse_ids(r"T\d\d\b", [DOCS/"15-TEST-STRATEGY-AND-CONFORMANCE.md"])

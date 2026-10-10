@@ -37,7 +37,13 @@ async fn main() -> anyhow::Result<()> {
         Command::Serve { bind, all } => {
             tracing::info!(%bind, all, "starting procera");
             let listener = tokio::net::TcpListener::bind(bind).await?;
-            axum::serve(listener, http::router()).with_graceful_shutdown(shutdown_signal()).await?;
+            #[cfg(feature = "e2e")]
+            tracing::warn!(
+                "built with the `e2e` feature: test-only controls are enabled — never use in production"
+            );
+            axum::serve(listener, http::router(http::AppState::new()))
+                .with_graceful_shutdown(shutdown_signal())
+                .await?;
         }
     }
     Ok(())
