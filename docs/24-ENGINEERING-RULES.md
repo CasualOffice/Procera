@@ -83,7 +83,7 @@ A context MUST NOT write another context's tables. Cross-context reactions go th
 
 3.3 **Transactions:** a state change, its domain events, the outbox row and the audit append MUST commit in **one** transaction. External side effects (email, HTTP, webhooks) MUST happen only after commit and MUST carry an idempotency key.
 
-3.4 **Authorization:** every handler, job, deep link, list, search and export MUST call the policy evaluator (Cedar). Hand-rolled permission checks are forbidden. Redaction MUST use the single shared serializer.
+3.4 **Authorization:** every workspace-plane handler, job, deep link, list, search and export MUST call the policy evaluator (Cedar). Hand-rolled permission checks are forbidden. The system plane uses the single fixed role table in `platform::authz` (ADR-0011 amendment); no other ad-hoc checks. Redaction MUST use the single shared serializer.
 
 3.5 **Audit:** every mutating endpoint MUST emit exactly one audit event, and every read of `restricted`/`confidential` data by a non-participant MUST emit a `data_access` event. The audit-coverage contract test enforces both.
 

@@ -23,3 +23,7 @@ See [docs/spikes/SP-09](../spikes/SP-09-authz-rls-pool.md).
   - `NULLIF(current_setting(...), '')` in policies;
   - pipelined `set_config`;
   - explicit policy ids for explainable audit.
+
+## Amendment (2026-10-11): system plane uses a fixed table
+
+The system plane has exactly four built-in roles and no custom roles (docs/12 §4.1). It is authorized by one fixed role → action table in `crates/platform/src/authz.rs`, which is unit-tested exhaustively. **Cedar remains mandatory for the workspace plane**, where custom roles, scopes and invariants live (BPMS-024). This follows the owner's "don't complicate" direction without weakening workspace authorization.

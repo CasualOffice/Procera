@@ -18,7 +18,7 @@ The OpenAPI 3.1 document is **generated from code** (`utoipa`) and published per
 
 - **Versioning.** The major version goes in the path. Changes within a major are additive only: new fields, endpoints and enum values (clients must tolerate unknown enum values). Deprecation is announced with `Deprecation` and `Sunset` headers at least 6 months ahead.
 - **Resources.** Plural nouns. Ids are opaque strings, UUIDv7, with a prefixed human `display_id` where useful (`PR-2026-000123`).
-- **Methods.** `GET` is safe and never mutates (this includes email links). `POST` creates and runs commands (`/…/{id}:cancel` style or `/…/{id}/decisions`). `PATCH` uses JSON Merge Patch for drafts and settings. `DELETE` applies only where retention allows.
+- **Methods.** `GET` is safe and never mutates (this includes email links). `POST` creates resources and runs commands as **action sub-resources**: `POST /…/{id}/cancel`, `/…/{id}/suspend`, `/…/{id}/decisions` (plain paths; no `:verb` syntax). `PATCH` uses JSON Merge Patch for drafts and settings. `DELETE` applies only where retention allows.
 - **Concurrency.** Every mutable resource returns `ETag: "<revision>"`. Updates require `If-Match`, and a stale revision returns `412` (or `409` for domain conflicts).
 - **Idempotency.** `Idempotency-Key` is required on all non-idempotent `POST` commands. The scope is (workspace, actor, operation, key) and keys are kept for 24 h. A replay with the same body gets the stored response. A different body gets `409 idempotency_key_reused`.
 - **Pagination.** Cursor-based: `?page[size]=50&page[cursor]=…`. Responses include `next_cursor`. There are no offset pages on large collections.
@@ -65,34 +65,34 @@ Content-Type: application/problem+json
 | Area | Endpoints (abridged) | Key permissions |
 |---|---|---|
 | Session/me | `GET /me`, `GET /me/workspaces`, `POST /session/switch-workspace`, `POST /session/step-up`, `GET/PUT /me/preferences`, `POST /me/out-of-office` | self |
-| Members | `GET/POST /members`, `POST /members:import`, `PATCH /members/{id}`, `POST /members/{id}:deactivate` | `member:*` |
+| Members | `GET/POST /members`, `POST /members/import`, `PATCH /members/{id}`, `POST /members/{id}/deactivate` | `member:*` |
 | Directory | `/departments`, `/groups`, `/groups/{id}/members`, `/positions` | `directory:*` |
-| Roles | `GET /permission-catalog`, `GET/POST /roles`, `PATCH /roles/{id}`, `POST /roles/{id}:preview`, `GET/POST /role-grants`, `DELETE /role-grants/{id}`, `/access-reviews` | `role:*`, `member:manage_roles` |
-| Settings | `GET /settings/effective?scope=…`, `PATCH /settings`, `GET /settings/history`, `POST /config:export`, `POST /config:import` (dry-run diff) | `workspace:settings.*` |
-| Library | `GET/POST /artifacts?kind=process\|sop\|policy\|form\|rule\|calendar\|document_template`, `GET /artifacts/{id}`, `POST /artifacts/{id}/versions`, `PATCH /versions/{id}` (draft only), `POST /versions/{id}:compile`, `:submit`, `:withdraw`, `POST /versions/{id}/reviews`, `POST /versions/{id}:publish {effective_at, change_reason}`, `:retire`, `GET /versions/{a}/diff/{b}`, `POST /artifacts:import` (BPMN/CSV/DOCX), `GET /versions/{id}/export?format=pdf\|docx\|bpmn` | `process:*`, `sop:*`, … |
+| Roles | `GET /permission-catalog`, `GET/POST /roles`, `PATCH /roles/{id}`, `POST /roles/{id}/preview`, `GET/POST /role-grants`, `DELETE /role-grants/{id}`, `/access-reviews` | `role:*`, `member:manage_roles` |
+| Settings | `GET /settings/effective?scope=…`, `PATCH /settings`, `GET /settings/history`, `POST /config/export`, `POST /config/import` (dry-run diff) | `workspace:settings.*` |
+| Library | `GET/POST /artifacts?kind=process\|sop\|policy\|form\|rule\|calendar\|document_template`, `GET /artifacts/{id}`, `POST /artifacts/{id}/versions`, `PATCH /versions/{id}` (draft only), `POST /versions/{id}/compile`, `:submit`, `:withdraw`, `POST /versions/{id}/reviews`, `POST /versions/{id}/publish {effective_at, change_reason}`, `:retire`, `GET /versions/{a}/diff/{b}`, `POST /artifacts/import` (BPMN/CSV/DOCX), `GET /versions/{id}/export?format=pdf\|docx\|bpmn` | `process:*`, `sop:*`, … |
 | Collections | `/collections` | `collection:*` |
 | Templates | `GET /templates` (gallery), `GET /templates/{key}@{ver}`, `POST /templates/{key}:install {mapping}`, `GET /artifacts/{id}/template-updates` | `template:*` |
-| Requests | `POST /requests {process_key, input}`, `POST /requests:test-run`, `GET /requests` + `POST /requests/query`, `GET /requests/{id}`, `GET /requests/{id}/timeline`, `POST /requests/{id}:cancel\|suspend\|resume\|retry`, `POST /requests/{id}/comments`, `POST /requests/{id}/signals/{name}` | `request:*` |
-| Work | `GET /work` (my inbox; `?scope=team\|all` for managers/admins), `POST /work/{id}:claim\|unclaim`, `POST /work/{id}/decisions`, `POST /work/{id}:delegate`, `POST /work:bulk-reassign` (with preview) | `work:*` |
-| Campaigns | `GET/POST /campaigns`, `GET /campaigns/{id}/recipients`, `POST /campaigns/{id}:activate\|close\|remind`, `GET /me/acknowledgements`, `POST /acknowledgements/{id}:complete` | `sop:acknowledge`, campaign perms |
-| Announcements | `GET/POST /announcements`, `POST /announcements/{id}:publish`, `GET /announcements/feed`, `POST /announcements/{id}/reads` | announcement perms (20) |
-| Signing | `GET/POST /envelopes`, `POST /envelopes:bulk-send`, `POST /envelopes/{id}:send\|void\|remind`, `GET /envelopes/{id}/signing-session` (ceremony), `POST /envelopes/{id}/signers/{ord}:sign\|decline`, `GET /envelopes/{id}/certificate` | signing perms (20) |
-| Cases | `GET/POST /cases`, `/cases/{id}/items`, `POST /cases/{id}:close\|reopen`, `POST /cases/{id}/pins` | `case:*` |
-| Investigations | `POST /investigations`, `POST /investigations/{id}/pins {audit_seq\|file\|request}`, `POST /investigations/{id}:hold`, `POST /investigations/{id}/export` | `audit:investigate` |
-| Files | `POST /files/uploads` (presign/multipart), `POST /files/uploads/{id}:complete`, `GET /files` (admin view), `GET /files/{id}`, `GET /files/{id}/content` (→ short-lived URL), `GET /files/{id}/preview`, `POST /files:bulk {action}` | `file:*` |
+| Requests | `POST /requests {process_key, input}`, `POST /requests/test-run`, `GET /requests` + `POST /requests/query`, `GET /requests/{id}`, `GET /requests/{id}/timeline`, `POST /requests/{id}/cancel\|suspend\|resume\|retry`, `POST /requests/{id}/comments`, `POST /requests/{id}/signals/{name}` | `request:*` |
+| Work | `GET /work` (my inbox; `?scope=team\|all` for managers/admins), `POST /work/{id}/claim\|unclaim`, `POST /work/{id}/decisions`, `POST /work/{id}/delegate`, `POST /work/bulk-reassign` (with preview) | `work:*` |
+| Campaigns | `GET/POST /campaigns`, `GET /campaigns/{id}/recipients`, `POST /campaigns/{id}/activate\|close\|remind`, `GET /me/acknowledgements`, `POST /acknowledgements/{id}/complete` | `sop:acknowledge`, campaign perms |
+| Announcements | `GET/POST /announcements`, `POST /announcements/{id}/publish`, `GET /announcements/feed`, `POST /announcements/{id}/reads` | announcement perms (20) |
+| Signing | `GET/POST /envelopes`, `POST /envelopes/bulk-send`, `POST /envelopes/{id}/send\|void\|remind`, `GET /envelopes/{id}/signing-session` (ceremony), `POST /envelopes/{id}/signers/{ord}:sign\|decline`, `GET /envelopes/{id}/certificate` | signing perms (20) |
+| Cases | `GET/POST /cases`, `/cases/{id}/items`, `POST /cases/{id}/close\|reopen`, `POST /cases/{id}/pins` | `case:*` |
+| Investigations | `POST /investigations`, `POST /investigations/{id}/pins {audit_seq\|file\|request}`, `POST /investigations/{id}/hold`, `POST /investigations/{id}/export` | `audit:investigate` |
+| Files | `POST /files/uploads` (presign/multipart), `POST /files/uploads/{id}/complete`, `GET /files` (admin view), `GET /files/{id}`, `GET /files/{id}/content` (→ short-lived URL), `GET /files/{id}/preview`, `POST /files:bulk {action}` | `file:*` |
 | Audit | `POST /audit/query`, `GET /audit/timeline?subject=…\|object=…`, `POST /audit/exports`, `GET /audit/verify-proof?seq=…` | `audit:*` |
 | Insights | `GET /metrics/processes/{id}`, `GET /dashboards`, `POST /dashboards`, `GET /reports/{key}`, `POST /reports/{key}/exports`, `GET /stream` (SSE) | `report:*`, `monitoring:*` |
-| Ops | `GET /incidents`, `POST /incidents/{id}:retry\|skip\|resolve` | `request:retry` |
+| Ops | `GET /incidents`, `POST /incidents/{id}/retry\|skip\|resolve` | `request:retry` |
 | Views | `GET/POST /views?list=…`, `PATCH/DELETE /views/{id}` | self / shared |
 | Tokens | `GET/POST /api-tokens`, `DELETE /api-tokens/{id}` | `api_token:manage` + step-up |
 | AI (optional) | `POST /ai/drafts {kind, prompt, sources}`, `GET /ai/drafts/{id}` | `ai:use_assistant` |
 
 ## 5. Resource map: system API (v1)
 
-`GET/POST /workspaces`, `PATCH /workspaces/{id}`, `POST /workspaces/{id}:suspend|restore|schedule-deletion|cancel-deletion`,
+`POST /bootstrap` (one-time), `GET /me`, `GET/POST /workspaces`, `GET/PATCH /workspaces/{id}`, `POST /workspaces/{id}/suspend|restore|schedule-deletion`,
 `PUT /workspaces/{id}/quotas`, `POST /workspaces/{id}/owners`, `GET /usage`, `GET/PATCH /platform-settings`,
 `GET/POST /templates`, `POST /templates/{key}/versions`, `:deprecate`, `GET /health`, `GET /system-audit/query`,
-`POST /break-glass` → `POST /break-glass/{id}:approve|revoke`, `GET/POST /system-admins`.
+`POST /break-glass` → `POST /break-glass/{id}/approve|revoke`, `GET/POST /system-admins`.
 
 ## 6. Event envelope (outbox → bus → webhooks)
 

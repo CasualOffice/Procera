@@ -1,0 +1,31 @@
+[package]
+name = "procera-platform"
+description = "System plane: install bootstrap, system roles, workspace lifecycle and quotas (BPMS-020, FR-S01..S05, S09)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-audit.workspace = true
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-identity.workspace = true
+procera-kernel.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+uuid.workspace = true
+
+[dev-dependencies]
+procera-audit.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true
