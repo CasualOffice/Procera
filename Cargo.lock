@@ -2190,6 +2190,7 @@ dependencies = [
  "procera-kernel",
  "procera-members",
  "procera-platform",
+ "procera-settings",
  "serde",
  "serde_json",
  "sqlx",
@@ -2356,6 +2357,25 @@ dependencies = [
  "procera-identity",
  "procera-kernel",
  "procera-members",
+ "procera-settings",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "procera-settings"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-audit",
+ "procera-db",
+ "procera-kernel",
+ "proptest",
  "serde",
  "serde_json",
  "sqlx",
