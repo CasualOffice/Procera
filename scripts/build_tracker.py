@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Builds docs/17-EXECUTION-TRACKER.md and trackers/Delivery_Tracker.xlsx (+ CSVs).
+"""Builds trackers/README.md (editor-friendly dashboard), docs/17-EXECUTION-TRACKER.md and
+trackers/Delivery_Tracker.xlsx (+ CSVs).
 
 Single source: the CORE backlog below + backlog tables parsed from the docs
 (TPL-, UX-, INT-, CFG-, AI-, SEC-, T-ids). Re-run after editing any of them:
@@ -161,8 +162,8 @@ CORE.sort(key=lambda r: ([m[0] for m in MILESTONES].index(r[4]), r[0]))
 STATUS = {
  "BPMS-014": ("Done", "CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main"),
  "BPMS-034": ("In progress", "Raster assets + brand guide merged; SVG masters and trademark search pending"),
- "BPMS-013": ("In review", "procera e2e feature + /__test controls, Playwright harness, P0 smoke pack, compose.e2e stack, CI e2e-smoke job: PR feat/BPMS-013-e2e-harness (stacked on BPMS-011)"),
- "BPMS-011": ("In review", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM): PR feat/BPMS-011-monorepo-ci"),
+ "BPMS-013": ("Done", "e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run"),
+ "BPMS-011": ("Done", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke); on main, CI green. JS licence + axe gates join with BPMS-010"),
 }
 def status_of(i): return STATUS.get(i, ("Not started", ""))
 
@@ -318,5 +319,63 @@ def write_xlsx():
     with open(out/"domain_backlog.csv","w",newline="") as f:
         w=csv.writer(f); w.writerow(["Domain","ID","Details","Source"]); [w.writerow(r[:4]) for r in drows]
 
-write_md(); write_xlsx()
+def bar(done, total, width=20):
+    if total == 0: return "░" * width
+    n = round(width * done / total)
+    return "█" * n + "░" * (width - n)
+
+def write_dashboard():
+    from collections import Counter, defaultdict
+    by_rel = defaultdict(list)
+    for r in CORE: by_rel[r[4]].append(r)
+    cnt = Counter(status_of(r[0])[0] for r in CORE)
+    done = cnt.get("Done", 0); total = len(CORE)
+    current = next((m for m in MILESTONES if any(status_of(r[0])[0] != "Done" for r in by_rel[m[0]])), MILESTONES[-1])
+    o = ["# Procera — tracker dashboard", "",
+         "> **Generated** by `scripts/build_tracker.py`. Don't edit by hand. To change status, edit the `STATUS` map (or `CORE`) in the script and re-run it ([rules](../docs/24-ENGINEERING-RULES.md#2-tracker-rules)).",
+         "> Detail: [docs/17](../docs/17-EXECUTION-TRACKER.md) · [Delivery_Tracker.xlsx](Delivery_Tracker.xlsx) · [backlog.csv](backlog.csv) · [domain_backlog.csv](domain_backlog.csv) · Roadmap: [docs/07](../docs/07-ROADMAP-AND-MILESTONES.md)", "",
+         "## At a glance", "",
+         f"```text",
+         f"Overall   {bar(done,total,30)}  {done}/{total} epics done  ({round(100*done/total)}%)",
+         f"Status    done {done} · in review {cnt.get('In review',0)} · in progress {cnt.get('In progress',0)} · blocked {cnt.get('Blocked',0)} · not started {cnt.get('Not started',0)} · deferred {cnt.get('Deferred',0)}",
+         f"Now       {current[0]} — {current[1]}  ({current[2]} → {current[3]}, gate {current[4]})",
+         "```", "", "## Releases", "", "| Release | Name | Window | Gate | Progress | Done |", "|---|---|---|---|---|---|"]
+    for m in MILESTONES:
+        items = by_rel[m[0]]; d = sum(1 for r in items if status_of(r[0])[0] == "Done")
+        marker = " ◀ now" if m[0] == current[0] else ""
+        o.append(f"| **{m[0]}**{marker} | {m[1]} | {m[2]} → {m[3]} | {m[4]} | `{bar(d, len(items), 12)}` | {d}/{len(items)} |")
+    active = [r for r in CORE if status_of(r[0])[0] in ("In progress", "In review", "Blocked")]
+    o += ["", "## Active right now", ""]
+    if active:
+        o += ["| ID | Item | Status | Note |", "|---|---|---|---|"]
+        o += [f"| {r[0]} | {r[2]} | **{status_of(r[0])[0]}** | {status_of(r[0])[1]} |" for r in active]
+    else:
+        o.append("_Nothing in progress._")
+    recent = [r for r in CORE if status_of(r[0])[0] == "Done"]
+    o += ["", "## Done", ""]
+    o += [f"- [x] **{r[0]}** {r[2]} — {status_of(r[0])[1]}" for r in recent] or ["_Nothing done yet._"]
+    o += ["", "## Release checklists", "",
+          "Legend: `[x]` done · `[ ]` open. The status is shown in brackets when the item isn't simply not started.", ""]
+    for m in MILESTONES:
+        items = by_rel[m[0]]
+        if not items: continue
+        d = sum(1 for r in items if status_of(r[0])[0] == "Done")
+        o += [f"<details{' open' if m[0]==current[0] else ''}>",
+              f"<summary><b>{m[0]} — {m[1]}</b> · {m[2]} → {m[3]} · gate {m[4]} · {d}/{len(items)} done</summary>", "",
+              f"_{m[5]}_", ""]
+        for r in items:
+            st = status_of(r[0])[0]
+            box = "x" if st == "Done" else " "
+            tag = "" if st in ("Done", "Not started") else f" **[{st}]**"
+            o.append(f"- [{box}] **{r[0]}** ({r[3]}, {r[8]}) {r[2]}{tag}")
+        o += ["", "</details>", ""]
+    o += ["## Domain backlogs", "", "| Backlog | Items | Source |", "|---|---|---|"]
+    for k, v in DOMAIN.items():
+        o.append(f"| {k} | {len(v)} | [{v[0][0] if v else ''}](../docs/{v[0][0] if v else ''}) |")
+    o += [f"| Security tests | {len(SECTESTS)} | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |",
+          f"| Test matrix | {len(TESTS)} | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |",
+          f"| Open questions / unknowns / assumptions | {len(OQS)} / {len(UNK)} / {len(ASM)} | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |", ""]
+    (ROOT / "trackers" / "README.md").write_text("\n".join(o))
+
+write_md(); write_xlsx(); write_dashboard()
 print("core",len(CORE),"domain",{k:len(v) for k,v in DOMAIN.items()},"sec",len(SECTESTS),"tests",len(TESTS),"oq",len(OQS),"unk",len(UNK),"asm",len(ASM),"adr",len(DECISIONS))

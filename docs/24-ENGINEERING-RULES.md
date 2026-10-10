@@ -2,7 +2,10 @@
 
 Status: **Binding** · Owner: Tech lead · Applies to every contributor, human or AI agent.
 
-These rules are how Procera stays consistent with its design. **MUST** and **MUST NOT** are hard rules: CI or review rejects violations. **SHOULD** is expected unless a reason is written in the PR. To change a rule, open a PR to this file and get maintainer approval ([GOVERNANCE](../GOVERNANCE.md)).
+These rules are how Procera stays consistent with its design.
+
+> **Workflow (owner decision, 2026-10-11): trunk-based, commit directly to `main`.** The core team and its AI agents push small, complete commits straight to `main`, without PRs. Wherever these rules say "PR", read "**change**": the commit pushed to `main` (core team), or a pull request (external contributors only). The evidence a PR description would hold goes in the commit message body.
+ **MUST** and **MUST NOT** are hard rules: CI or review rejects violations. **SHOULD** is expected unless a reason is written in the PR. To change a rule, open a PR to this file and get maintainer approval ([GOVERNANCE](../GOVERNANCE.md)).
 
 ---
 
@@ -39,10 +42,10 @@ These rules are how Procera stays consistent with its design. **MUST** and **MUS
 
 2.1 The tracker is **generated**:
 - **Sources:** the `CORE` list in [`scripts/build_tracker.py`](../scripts/build_tracker.py), plus the backlog tables inside docs 06, 13, 15, 16, 19, 20, 22 and 23.
-- **Outputs:** [17](17-EXECUTION-TRACKER.md), `trackers/Delivery_Tracker.xlsx` and `trackers/*.csv`. These MUST NOT be hand-edited.
+- **Outputs:** [`trackers/README.md`](../trackers/README.md) (the editor-friendly dashboard; start here), [17](17-EXECUTION-TRACKER.md), `trackers/Delivery_Tracker.xlsx` and `trackers/*.csv`. These MUST NOT be hand-edited.
 
 2.2 Each PR that starts, finishes, blocks or re-scopes an item MUST, in the same PR:
-- update the item's **Status** (`Not started · In progress · Blocked · In review · Done · Deferred`) in the `STATUS` map of `scripts/build_tracker.py` (with a short note: PR or branch, blocker), or in the doc's backlog table for domain items, and its release if that moves;
+- update the item's **Status** (`Not started · In progress · Blocked · In review · Done · Deferred`) in the `STATUS` map of `scripts/build_tracker.py` (with a short note: commit, blocker), or in the doc's backlog table for domain items, and its release if that moves;
 - run `python3 scripts/build_tracker.py`;
 - commit the regenerated outputs.
 
@@ -52,7 +55,7 @@ CI checks that the outputs are up to date: it regenerates them and fails on diff
 - its acceptance criterion is met;
 - its E2E scenario is green ([23](23-E2E-TEST-PLAN.md));
 - the docs are updated;
-- and it is merged to `main`.
+- and it is pushed to `main` with CI green.
 
 2.4 `Blocked` MUST name the blocker (an item id or OQ id) in the Depends/Notes column. `Deferred` MUST name the target release and the reason.
 
@@ -178,22 +181,30 @@ The **no-AI-look anti-pattern list** is binding: no gradients, glassmorphism, ca
 
 6.4 UI copy uses glossary terms through i18n keys. No hard-coded strings.
 
-## 7. Git, PR and commit rules
+## 7. Git and commit rules (trunk-based)
 
-7.1 `main` is always releasable. Work happens on short-lived branches named `<type>/<tracker-id>-<slug>` (e.g. `feat/BPMS-046-campaign-engine`).
+7.1 **Commit directly to `main`.** `main` must stay releasable. There are no long-lived branches. External contributors fork and open PRs, which are squash-merged.
 
 7.2 Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `perf:`, `security:`) and reference the tracker id. Every commit MUST be **DCO signed-off** (`git commit -s`).
 
-7.3 PRs:
-- one tracker item each;
-- ≤ ~400 changed lines (excluding generated files);
-- use the PR template;
-- all CI gates green;
-- at least 1 maintainer approval, or **2** for protected areas: `crates/domain/{runtime,access,audit}`, `crates/infra/{pg,kms}`, migrations, auth and crypto, enforced via CODEOWNERS.
+7.3 Each commit to `main`:
+- covers one tracker item, or one coherent, complete slice of it. Aim for ≤ ~400 changed lines, excluding generated files;
+- MUST pass the **local gates before pushing**:
+  ```bash
+  cargo fmt --all -- --check
+  cargo clippy --workspace --all-targets --all-features -- -D warnings
+  cargo test --workspace --all-features
+  cargo deny check
+  python3 scripts/build_tracker.py
+  # plus the E2E smoke/pack for the touched area (docs/23)
+  ```
+- carries in its body what a PR description would: tracker id, requirement ids, spec sections, E2E ids and evidence (commands run).
 
-7.4 Squash-merge to `main`. No force-push to `main`. Release tags are signed.
+7.4 **A red `main` is fixed first.** CI runs on every push. If it fails, the author fixes forward or reverts within the hour, and nothing else is pushed on top of a red `main`. No force-push to `main`. Release tags are signed.
 
-7.5 Commits and PRs MUST NOT include AI or assistant attribution lines (`Co-Authored-By` for AI tools, "Generated with…" footers). The human who opens the PR is accountable for its contents.
+7.5 **Protected areas** (`crates/domain/{runtime,access,audit}`, `crates/infra/{pg,kms}`, migrations, auth, crypto): mark the commit subject with `[protected]`. A second maintainer reviews it after it lands, within 2 working days, and fixes go forward as new commits. Changes there still need the property tests or E2E proof required by §4.2.
+
+7.6 Commits MUST NOT include AI or assistant attribution lines (`Co-Authored-By` for AI tools, "Generated with…" footers). The human who pushes is accountable for the contents.
 
 ## 8. Documentation rules
 
@@ -224,12 +235,12 @@ The **no-AI-look anti-pattern list** is binding: no gradients, glassmorphism, ca
 
 10.1 Read `CLAUDE.md`/`AGENTS.md` and this file before starting. Re-read the doc sections linked from the tracker item.
 
-10.2 Work on one tracker item per session or branch. Don't expand scope. Don't refactor outside the item without a separate tracker row.
+10.2 Work on one tracker item at a time, and commit it to `main` when complete and green. Don't expand scope. Don't refactor outside the item without a separate tracker row.
 
 10.3 When unsure, stop and write the question into 22. Never guess product behaviour, security behaviour or legal wording.
 
 10.4 Never disable, skip or weaken tests, lint rules, CI gates, RLS, authz checks or audit emission. Never add dependencies that fail the licence gate.
 
-10.5 Show evidence in the PR: commands run, test output and E2E ids. Report failures honestly.
+10.5 Show evidence in the commit body: commands run, test output and E2E ids. Report failures honestly. Push only when the local gates (§7.3) pass, then watch CI for that push.
 
 10.6 Never commit secrets, real personal data or customer data. Fixtures are synthetic.

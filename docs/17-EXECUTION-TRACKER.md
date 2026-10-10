@@ -31,9 +31,9 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-008 | UX | Clickable prototype of Wave-1 flows + 5-user test | P0 | P0 | Design | 05 | Findings logged | M |  | Not started |
 | BPMS-009 | ARCH | G1: accept ADR-0010/0011/0015; freeze IR v1 | P0 | P0 | Architect | G1 | Signed off | S | BPMS-003..007 | Not started |
 | BPMS-010 | UX | Design tokens + core components + visual direction | P0 | P0 | Design/FE | 05 §7, UX-001 | axe clean; approved | L |  | Not started |
-| BPMS-011 | ENG | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | P0 | P0 | DevOps | 03 §11 | All gates blocking | M |  | In review |
+| BPMS-011 | ENG | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | P0 | P0 | DevOps | 03 §11 | All gates blocking | M |  | Done |
 | BPMS-012 | SEC | Threat model review | P0 | P0 | Security | 06 §2 | Reviewed; tests mapped | S |  | Not started |
-| BPMS-013 | E2E | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | P0 | P0 | SDET | 23 §2–4 | Smoke runs in CI; endpoints absent in release build | M | BPMS-011 | In review |
+| BPMS-013 | E2E | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | P0 | P0 | SDET | 23 §2–4 | Smoke runs in CI; endpoints absent in release build | M | BPMS-011 | Done |
 | BPMS-014 | ENG | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | P0 | P0 | Tech lead | 07 §3 | In repo | S |  | Done |
 | BPMS-020 | PLAT | System plane: bootstrap, system roles, workspaces lifecycle, quotas | P0 | R1 | Platform | FR-S01–S04 | J8 passes | L | BPMS-011 | Not started |
 | BPMS-021 | IAM | Local auth (Argon2id), email verify, lockout, sessions | P0 | R1 | Platform | 12 §3, FX-I01 | SEC tests green | M | BPMS-020 | Not started |
@@ -131,14 +131,14 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 1 · In review: 2 · In progress: 1 · Blocked: 0 · Not started: 105 · Deferred: 0 (of 109)
+**Progress:** Done: 3 · In review: 0 · In progress: 1 · Blocked: 0 · Not started: 105 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
 | ID | Work item | Status | Note |
 |---|---|---|---|
-| BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | In review | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM): PR feat/BPMS-011-monorepo-ci |
-| BPMS-013 | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | In review | procera e2e feature + /__test controls, Playwright harness, P0 smoke pack, compose.e2e stack, CI e2e-smoke job: PR feat/BPMS-013-e2e-harness (stacked on BPMS-011) |
+| BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | Done | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke); on main, CI green. JS licence + axe gates join with BPMS-010 |
+| BPMS-013 | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | Done | e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run |
 | BPMS-014 | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | Done | CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
 

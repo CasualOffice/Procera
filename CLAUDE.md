@@ -8,7 +8,7 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 
 1. `docs/24-ENGINEERING-RULES.md`: **binding rules**. Read this first, every session.
 2. `docs/00-INDEX.md`: map of the pack and the owner's product direction.
-3. The tracker item you're working on (`docs/17`) and every doc section it links.
+3. `trackers/README.md` (what's active, what's next), the tracker item you're working on (`docs/17`), and every doc section it links.
 4. For code: `docs/04-LLD.md`, `docs/11-WORKFLOW-IR-SPEC.md`, `docs/12-AUTHORIZATION-MODEL.md`, `docs/06-SECURITY-AND-OPERATIONS.md`, `docs/08-API-SPEC.md`, `docs/23-E2E-TEST-PLAN.md`.
 5. `docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md`, so you know what is **not** decided.
 
@@ -44,15 +44,15 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 ## 3. How to work (summary of docs/24)
 
 - **Design first.** Behaviour, data, API, security and UX changes update the docs before or with the code. Architectural changes need an ADR. If the spec is silent, **stop and add a question to docs/22**. Never invent behaviour.
-- **One tracker item per branch/PR**, around 400 changed lines or fewer. Branches are named `feat/BPMS-123-slug`.
+- **Commit directly to `main`.** The workflow is trunk-based and uses no PRs (owner decision). Each commit is one tracker item or one complete slice of it, around 400 changed lines or fewer. Run the local gates before pushing (`docs/24 §7.3`). Watch CI after each push, and fix a red `main` first. Mark protected-area commits `[protected]`.
 - **Tracker:**
   - update the status in the `STATUS` map of `scripts/build_tracker.py` (core items), or in the doc's backlog table (domain items);
   - run `python3 scripts/build_tracker.py`;
-  - commit the regenerated `docs/17` and `trackers/*`;
+  - commit the regenerated `trackers/README.md` (dashboard), `docs/17` and `trackers/*`;
   - never hand-edit generated files.
 - **Tests with every feature:** unit + integration (real Postgres) + **an E2E scenario** (ids in `docs/23`). Runtime, access and audit changes also need property tests.
 - **Never weaken** tests, lint, CI gates, RLS, authz checks or audit emission to get green.
-- **Commits:** Conventional Commits, DCO sign-off (`git commit -s`), the tracker id in the message. **No AI/assistant attribution lines.** Commit or push only when asked.
+- **Commits:** Conventional Commits, DCO sign-off (`git commit -s`), the tracker id in the message. **No AI/assistant attribution lines.** Commit and push to `main` when an item, or a complete slice of it, is done and green.
 - **Honest claims.** Write "supports", "-ready" or "subset". Never write "compliant", "certified" or "conformant".
 
 ## 4. Engineering invariants (for when code exists)
@@ -63,7 +63,7 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 - The Cedar evaluator runs on every handler, job, deep link, list and export. One redaction serializer is shared by API, export, search and notifications.
 - The runtime is deterministic: injected `Clock`/`IdGen`, no I/O in the interpreter, budgeted expressions, conformance suite green.
 - Test-only endpoints (`/__test/*`) exist only under the `e2e` cargo feature.
-- **Protected areas need 2 human approvals:** runtime, access, audit, `infra/pg`, `infra/kms`, migrations, auth and crypto.
+- **Protected areas** (runtime, access, audit, `infra/pg`, `infra/kms`, migrations, auth and crypto): commit subject `[protected]`, a second maintainer reviews it after it lands, and property or E2E proof is required.
 
 ## 5. Licence gate
 

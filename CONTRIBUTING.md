@@ -10,7 +10,9 @@ Thanks for helping. Procera is **design-first**: the docs in `docs/` are the con
 
 ## Making a change
 
-1. Branch from `main`, named `feat/BPMS-123-short-slug` (or `fix/`, `docs/`, `test/`…).
+**The core team** commits directly to `main` (trunk-based, see [docs/24 §7](docs/24-ENGINEERING-RULES.md#7-git-and-commit-rules-trunk-based)). **External contributors** fork the repo and open a pull request, which is squash-merged.
+
+1. Start from an up-to-date `main` (core team), or a fork branch (external contributors).
 2. Update the docs first (or in the same PR) whenever behaviour, data, an API, security or UX changes. Architectural changes need an ADR.
 3. Implement with tests:
    - unit tests;
@@ -26,11 +28,12 @@ Thanks for helping. Procera is **design-first**: the docs in `docs/` are the con
    ```bash
    git commit -s -m "feat(campaigns): new-joiner enrolment (BPMS-046, FR-AK03)"
    ```
-6. Open a PR using the template. Keep it to about 400 lines or fewer, covering one tracker item, with all CI gates green.
+6. Run the local gates (docs/24 §7.3). Then push to `main` (core team) or open a PR using the template (external contributors). Keep each change to about 400 lines or fewer, covering one tracker item.
 
 ## Review
 
-- At least 1 maintainer approval. **2** for protected areas (runtime, access/authz, audit, database/RLS/migrations, crypto/auth). See `.github/CODEOWNERS`.
+- External PRs need 1 maintainer approval.
+- Core-team commits to protected areas (runtime, access/authz, audit, database/RLS/migrations, crypto/auth) are marked `[protected]`. A second maintainer reviews them after they land. See `.github/CODEOWNERS`.
 - Reviewers check against the docs, not personal taste.
 
 ## Using AI coding agents

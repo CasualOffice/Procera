@@ -82,7 +82,7 @@ Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 | System design | [HLD](docs/03-HLD.md) · [LLD](docs/04-LLD.md) · [Workflow IR](docs/11-WORKFLOW-IR-SPEC.md) · [Access model](docs/12-AUTHORIZATION-MODEL.md) · [API](docs/08-API-SPEC.md) · [ADRs](docs/adr/README.md) |
 | Security & compliance | [Security & operations](docs/06-SECURITY-AND-OPERATIONS.md) · [Data governance & compliance](docs/14-DATA-GOVERNANCE-AND-COMPLIANCE.md) · [AI assistance](docs/16-AI-ASSISTANCE.md) |
 | UX | [UX & design system](docs/05-UX-AND-DESIGN.md) · [Workspace configuration](docs/20-WORKSPACE-CONFIGURATION.md) |
-| Delivery | [Roadmap](docs/07-ROADMAP-AND-MILESTONES.md) · [Tracker](docs/17-EXECUTION-TRACKER.md) ([xlsx](trackers/Delivery_Tracker.xlsx)) · [Test strategy](docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) · [E2E plan](docs/23-E2E-TEST-PLAN.md) · [Open questions](docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Delivery | **[Tracker dashboard](trackers/README.md)** · [Roadmap](docs/07-ROADMAP-AND-MILESTONES.md) · [Tracker detail](docs/17-EXECUTION-TRACKER.md) ([xlsx](trackers/Delivery_Tracker.xlsx)) · [Test strategy](docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) · [E2E plan](docs/23-E2E-TEST-PLAN.md) · [Open questions](docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
 | Ways of working | [Engineering rules](docs/24-ENGINEERING-RULES.md) · [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) |
 
 ## Repository layout
@@ -90,7 +90,7 @@ Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 ```text
 docs/        numbered design pack, adr/, archive/v0.1/
 assets/      brand/ — logos, icons, favicons, banner, palette (see assets/brand/README.md)
-trackers/    Delivery_Tracker.xlsx + CSV exports (generated, do not hand-edit)
+trackers/    README.md dashboard + Delivery_Tracker.xlsx + CSV exports (generated, do not hand-edit)
 scripts/     build_tracker.py (regenerates the tracker from docs)
 .github/     PR/issue templates, CODEOWNERS
 crates/      Rust library crates (kernel; domain/infra crates added per tracker item)

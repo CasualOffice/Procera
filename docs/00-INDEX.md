@@ -45,6 +45,7 @@ v0.1 blueprint (archived verbatim in [`archive/v0.1/`](archive/v0.1/)).
 | 24 | [Engineering rules](24-ENGINEERING-RULES.md) | **Binding** rules: design-first, tracker updates, architecture/code, tests, security, UX, git/PR, docs, releases, AI agents |
 | adr/ | [Architecture decision records](adr/README.md) | ADR-0001…0019 |
 | — | [`../assets/brand/`](../assets/brand/README.md) | Brand copy, palette with contrast, logo files and usage rules |
+| — | [`../trackers/README.md`](../trackers/README.md) | **Tracker dashboard**: progress, current release, active items, release checklists (generated) |
 | — | [`../trackers/Delivery_Tracker.xlsx`](../trackers/Delivery_Tracker.xlsx) | Backlog, milestones, risks, decisions, tests, OQs, RACI, burndown |
 
 ## Product direction (owner decisions, 2026-10-11)
