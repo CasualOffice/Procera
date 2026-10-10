@@ -1,0 +1,38 @@
+/* Base styles: calm, editorial, flat (docs/05 §7.0). No gradients, glass or card-grid decoration. */
+@import '@fontsource-variable/inter';
+@import './tokens.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-md);       /* 16px body (docs/05 §7.1) */
+  line-height: var(--line-height-body); /* 1.5 (WCAG 1.4.12 tolerant) */
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+h1, h2, h3 { line-height: var(--line-height-tight); font-weight: var(--font-weight-semibold); margin: 0 0 var(--space-3); }
+h1 { font-size: var(--font-size-3xl); }
+h2 { font-size: var(--font-size-2xl); }
+h3 { font-size: var(--font-size-lg); }
+p { margin: 0 0 var(--space-4); max-width: var(--measure); }
+a { color: var(--color-accent-text); text-underline-offset: 2px; }
+
+/* Visible focus everywhere: 2px ring, 2px offset, never removed (WCAG 2.4.7 / 2.4.11). */
+:focus-visible, [data-focus-visible] {
+  outline: var(--focus-width) solid var(--color-focus);
+  outline-offset: var(--focus-offset);
+}
+
+.skip-link { position: absolute; left: var(--space-2); top: -100px; padding: var(--space-2) var(--space-3);
+  background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-strong); z-index: 10; }
+.skip-link:focus { top: var(--space-2); }
+
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Windows High Contrast / forced colours: keep borders and focus visible. */
+@media (forced-colors: active) {
+  :focus-visible, [data-focus-visible] { outline-color: Highlight; }
+  .btn, .field input, .checkbox .box { border: 1px solid CanvasText; }
+}

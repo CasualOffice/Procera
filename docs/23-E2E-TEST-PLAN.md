@@ -73,8 +73,13 @@ ID format: `E2E-<release>-<nn>`. Every row lists the PRD/catalogue refs it prove
 | E2E-P0-03 | `__test/clock` advances only forward and drives server time; invalid durations get a 422 problem+json | docs/23 §4 controls |
 | E2E-P0-04 | `__test/drain` reports idle; unknown routes return 404 | Drain control; routing baseline |
 | E2E-P0-REL | The release binary returns 404 for `/__test/clock` (CI step) | docs/24 §5.4 |
+| E2E-P0-05 | Design-system gallery: zero axe violations for WCAG 2.0/2.1/2.2 A+AA (light theme) | BPMS-010, A11Y-01 |
+| E2E-P0-06 | Same in the dark theme | docs/05 §7.1.1 |
+| E2E-P0-07 | Keyboard: skip link is the first tab stop and moves focus to main; every following tab stop shows a visible focus outline | WCAG 2.4.1, 2.4.7, 2.4.11 |
+| E2E-P0-08 | Reflows at 320 px with no horizontal scrolling | WCAG 1.4.10 |
+| E2E-P0-09 | Every visible interactive target is ≥ 24×24 px (visually hidden native inputs are measured through their label) | WCAG 2.5.8 |
 
-Implemented in `e2e/packs/p0/harness.api.spec.ts` and `.github/workflows/ci.yml` (job `e2e-smoke`).
+Implemented in `e2e/packs/p0/harness.api.spec.ts` and `e2e/packs/p0/design-system.ui.spec.ts`. CI jobs: `e2e-smoke` and `e2e-a11y`.
 
 ### E2E-R1: Workspace & Policies
 

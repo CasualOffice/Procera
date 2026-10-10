@@ -1,0 +1,6 @@
+.row { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-8); }
+.stack { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-8); }
+section { margin-bottom: var(--space-8); }
+section .field { margin-bottom: var(--space-4); }
+ul.plain { list-style: none; padding: 0; margin: 0; }
+ul.plain li { margin-bottom: var(--space-2); }
