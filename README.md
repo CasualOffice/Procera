@@ -93,7 +93,9 @@ assets/      brand/ — logos, icons, favicons, banner, palette (see assets/bran
 trackers/    Delivery_Tracker.xlsx + CSV exports (generated, do not hand-edit)
 scripts/     build_tracker.py (regenerates the tracker from docs)
 .github/     PR/issue templates, CODEOWNERS
-# from P0/R1: crates/ apps/ web/ e2e/ conformance/ migrations/ deploy/
+crates/      Rust library crates (kernel; domain/infra crates added per tracker item)
+apps/        procera binary (api · worker · scheduler · admin CLI)
+# coming: web/ e2e/ conformance/ migrations/ deploy/
 ```
 
 ## Contributing

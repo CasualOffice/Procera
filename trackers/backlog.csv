@@ -9,10 +9,10 @@ BPMS-007,SPIKE,SP-10 audit chain 10M events: append + explorer,P0,P0,Platform,U-
 BPMS-008,UX,Clickable prototype of Wave-1 flows + 5-user test,P0,P0,Design,05,Findings logged,M,,Not started
 BPMS-009,ARCH,G1: accept ADR-0010/0011/0015; freeze IR v1,P0,P0,Architect,G1,Signed off,S,BPMS-003..007,Not started
 BPMS-010,UX,Design tokens + core components + visual direction,P0,P0,Design/FE,"05 §7, UX-001",axe clean; approved,L,,Not started
-BPMS-011,ENG,"Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)",P0,P0,DevOps,03 §11,All gates blocking,M,,Not started
+BPMS-011,ENG,"Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)",P0,P0,DevOps,03 §11,All gates blocking,M,,In review
 BPMS-012,SEC,Threat model review,P0,P0,Security,06 §2,Reviewed; tests mapped,S,,Not started
 BPMS-013,E2E,"E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated)",P0,P0,SDET,23 §2–4,Smoke runs in CI; endpoints absent in release build,M,BPMS-011,Not started
-BPMS-014,ENG,"AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas",P0,P0,Tech lead,07 §3,In repo,S,,Not started
+BPMS-014,ENG,"AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas",P0,P0,Tech lead,07 §3,In repo,S,,Done
 BPMS-020,PLAT,"System plane: bootstrap, system roles, workspaces lifecycle, quotas",P0,R1,Platform,FR-S01–S04,J8 passes,L,BPMS-011,Not started
 BPMS-021,IAM,"Local auth (Argon2id), email verify, lockout, sessions",P0,R1,Platform,"12 §3, FX-I01",SEC tests green,M,BPMS-020,Not started
 BPMS-022,IAM,"MFA TOTP + WebAuthn, recovery codes, step-up",P0,R1,Platform,12 §3/§11,MFA required by role works,M,BPMS-021,Not started
@@ -27,7 +27,7 @@ BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-works
 BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,Not started
 BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,Not started
 BPMS-033,OPS,"Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback",P0,R1,Platform,ADR-0019,E2E passes with cache off,M,BPMS-020,Not started
-BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,Not started
+BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,In progress
 BPMS-040,LIB,"Artifacts, versions, lifecycle state machine, immutability trigger, SoD",P0,R1,Backend,"FR-G04, T07",T07 passes,L,"BPMS-024,026",Not started
 BPMS-041,LIB,"Landscape, collections, owners, RACI, visibility",P0,R1,Fullstack,FR-G01/G02,Search authorized-only,M,BPMS-040,Not started
 BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,Not started

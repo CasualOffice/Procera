@@ -42,7 +42,7 @@ These rules are how Procera stays consistent with its design. **MUST** and **MUS
 - **Outputs:** [17](17-EXECUTION-TRACKER.md), `trackers/Delivery_Tracker.xlsx` and `trackers/*.csv`. These MUST NOT be hand-edited.
 
 2.2 Each PR that starts, finishes, blocks or re-scopes an item MUST, in the same PR:
-- update the item's **Status** (`Not started · In progress · Blocked · In review · Done · Deferred`), and its release if that moves;
+- update the item's **Status** (`Not started · In progress · Blocked · In review · Done · Deferred`) in the `STATUS` map of `scripts/build_tracker.py` (with a short note: PR or branch, blocker), or in the doc's backlog table for domain items, and its release if that moves;
 - run `python3 scripts/build_tracker.py`;
 - commit the regenerated outputs.
 

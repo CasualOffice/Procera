@@ -46,7 +46,7 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 - **Design first.** Behaviour, data, API, security and UX changes update the docs before or with the code. Architectural changes need an ADR. If the spec is silent, **stop and add a question to docs/22**. Never invent behaviour.
 - **One tracker item per branch/PR**, around 400 changed lines or fewer. Branches are named `feat/BPMS-123-slug`.
 - **Tracker:**
-  - update the status in the `CORE` list of `scripts/build_tracker.py`, or in the doc's backlog table;
+  - update the status in the `STATUS` map of `scripts/build_tracker.py` (core items), or in the doc's backlog table (domain items);
   - run `python3 scripts/build_tracker.py`;
   - commit the regenerated `docs/17` and `trackers/*`;
   - never hand-edit generated files.
@@ -90,5 +90,9 @@ LICENSE NOTICE GOVERNANCE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md MAIN
 ## 7. Commands
 
 ```bash
-python3 scripts/build_tracker.py   # regenerate docs/17 + trackers/*.xlsx/csv (needs: pip install openpyxl)
+python3 scripts/build_tracker.py                      # regenerate docs/17 + trackers/*.xlsx/csv (needs: pip install openpyxl)
+cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo deny check                                      # licence + advisory gate
+cargo run -p procera -- serve --all                   # http://127.0.0.1:8080/healthz
 ```
