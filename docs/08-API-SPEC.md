@@ -65,7 +65,8 @@ Content-Type: application/problem+json
 | Area | Endpoints (abridged) | Key permissions |
 |---|---|---|
 | Session/me | `GET /me`, `GET /me/workspaces`, `POST /session/switch-workspace`, `POST /session/step-up`, `GET/PUT /me/preferences`, `POST /me/out-of-office` | self |
-| Members | `GET/POST /members`, `POST /members/import`, `PATCH /members/{id}`, `POST /members/{id}/deactivate` | `member:*` |
+| Session & onboarding | `GET /me/workspaces`, `POST /session/workspace` (re-issues the access token with the chosen `ws` claim), `POST /invitations/accept`, `POST /invitations/register`, `GET /me/permissions`, `GET /permission-catalog` | authenticated (workspace calls need a selected workspace) |
+| Members | `GET/POST /members`, `GET/POST /members/invitations`, `DELETE /members/invitations/{id}` (revoke; resend = invite again), `POST /members/import`, `PATCH /members/{id}`, `POST /members/{id}/deactivate` | `member:*` |
 | Directory | `/departments`, `/groups`, `/groups/{id}/members`, `/positions` | `directory:*` |
 | Roles | `GET /permission-catalog`, `GET/POST /roles`, `PATCH /roles/{id}`, `POST /roles/{id}/preview`, `GET/POST /role-grants`, `DELETE /role-grants/{id}`, `/access-reviews` | `role:*`, `member:manage_roles` |
 | Settings | `GET /settings/effective?scope=…`, `PATCH /settings`, `GET /settings/history`, `POST /config/export`, `POST /config/import` (dry-run diff) | `workspace:settings.*` |

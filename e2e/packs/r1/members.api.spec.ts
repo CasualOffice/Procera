@@ -1,7 +1,7 @@
 import { type APIRequestContext, expect, test } from '@playwright/test';
 import { PW, client, hasDatabase, mfaSession, passwordSession, seedUser, uniqueEmail } from '../../fixtures/accounts';
 
-// E2E-R1-MEM-01..06 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
+// E2E-R1-MEM-01..08 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
 
 type Session = { c: APIRequestContext; headers: Record<string, string> };
 
@@ -138,5 +138,55 @@ test.describe('members and access @r1 @members', () => {
     expect(write.status()).toBe(423);
     expect((await sys.c.post(`/sysapi/v1/workspaces/${ws.id}/restore`, { headers: sys.headers })).status()).toBe(200);
     expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email: uniqueEmail('y'), roles: ['member'] } })).status()).toBe(201);
+  });
+
+  test('E2E-R1-MEM-07 pending invitations: list, revoke kills the token, resend issues a new one', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const email = await seedUser(request, 'carol');
+    await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['member'] } });
+    const first = await inviteToken(request, ws.id, email);
+    const pending = await (await owner.c.get('/api/v1/members/invitations', { headers: owner.headers })).json();
+    const inv = pending.items.find((i: { email: string }) => i.email === email);
+    expect(inv.role_keys).toEqual(['member']);
+    expect((await owner.c.delete(`/api/v1/members/invitations/${inv.id}`, { headers: owner.headers })).status()).toBe(204);
+    expect((await owner.c.delete(`/api/v1/members/invitations/${inv.id}`, { headers: owner.headers })).status()).toBe(404);
+    const carol = await passwordSession(email);
+    const auth = { authorization: `Bearer ${carol.token}` };
+    expect((await carol.c.post('/api/v1/invitations/accept', { headers: auth, data: { token: first } })).status()).toBe(404);
+    // Resend = invite again: a fresh token works.
+    await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['member'] } });
+    const second = await inviteToken(request, ws.id, email);
+    expect(second).not.toBe(first);
+    expect((await carol.c.post('/api/v1/invitations/accept', { headers: auth, data: { token: second } })).status()).toBe(200);
+  });
+
+  test('E2E-R1-MEM-08 admins cannot strip the owner; last owner is kept; role preview; access changes are audited', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const adminEmail = await seedUser(request, 'admin2');
+    await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email: adminEmail, roles: ['workspace.admin'] } });
+    const token = await inviteToken(request, ws.id, adminEmail);
+    const pw = await passwordSession(adminEmail);
+    await pw.c.post('/api/v1/invitations/accept', { headers: { authorization: `Bearer ${pw.token}` }, data: { token } });
+    const admin = await enter(adminEmail, ws.id);
+    const grants = await (await owner.c.get('/api/v1/role-grants', { headers: owner.headers })).json();
+    const ownerGrant = grants.items.find((g: { role_key: string }) => g.role_key === 'workspace.owner');
+    const strip = await admin.c.delete(`/api/v1/role-grants/${ownerGrant.id}`, { headers: admin.headers });
+    expect(strip.status()).toBe(403);
+    expect((await strip.json()).code).toBe('escalation');
+    const self = await owner.c.delete(`/api/v1/role-grants/${ownerGrant.id}`, { headers: owner.headers });
+    expect(self.status()).toBe(409);
+    expect((await self.json()).code).toBe('last_owner');
+
+    const role = await (await owner.c.post('/api/v1/roles', { headers: owner.headers, data: { key: 'hr.viewer', name: 'HR viewer', permissions: ['member:view'] } })).json();
+    const members = (await (await owner.c.get('/api/v1/members', { headers: owner.headers })).json()).items;
+    const adminId = members.find((m: { email: string }) => m.email === adminEmail).id;
+    expect((await owner.c.post('/api/v1/role-grants', { headers: owner.headers, data: { membership_id: adminId, role_key: 'hr.viewer' } })).status()).toBe(201);
+    const preview = await (await owner.c.post(`/api/v1/roles/${role.id}/preview`, { headers: owner.headers, data: { permissions: ['role:view'] } })).json();
+    expect(preview).toEqual({ added: ['role:view'], removed: ['member:view'], affected_members: [adminId] });
+    expect((await owner.c.patch(`/api/v1/roles/${role.id}`, { headers: owner.headers, data: { permissions: ['role:view'] } })).status()).toBe(204);
+
+    const chain = await (await request.get(`/__test/audit/verify?workspace=${ws.id}`)).json();
+    expect(chain.ok).toBe(true);
+    expect(chain.checked).toBeGreaterThanOrEqual(6); // owner invite + join, admin invite + join, role created, granted, updated
   });
 });

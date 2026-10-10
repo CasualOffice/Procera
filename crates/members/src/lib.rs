@@ -139,6 +139,22 @@ impl Members {
         diff: serde_json::Value,
         client: &ClientInfo,
     ) -> Result<(), MembersError> {
+        self.audit_object(tx, actor, action, "membership", object, diff, client).await
+    }
+
+    /// Appends an access-category audit event in the caller's transaction. Used for role and grant
+    /// changes made through [`Members::access`], so every access mutation is on the chain.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn audit_object(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Uuid>,
+        action: &str,
+        object_type: &str,
+        object: Uuid,
+        diff: serde_json::Value,
+        client: &ClientInfo,
+    ) -> Result<(), MembersError> {
         let mut ev = AuditEvent::new(
             actor,
             if actor.is_some() { ActorKind::User } else { ActorKind::System },
@@ -146,7 +162,7 @@ impl Members {
             action,
             Outcome::Allowed,
         )
-        .object("membership", object);
+        .object(object_type, object);
         ev.diff = Some(diff);
         ev.ip = client.ip.clone();
         ev.user_agent = client.user_agent.clone();
@@ -225,6 +241,43 @@ impl Members {
         )
         .await?;
         Ok((Invitation { id, email, role_keys: role_keys.to_vec(), expires_at }, token))
+    }
+
+    /// Pending (not accepted, not revoked, not expired) invitations, newest first.
+    pub async fn list_invitations(&self, tx: &mut WsTx<'_>) -> Result<Vec<Invitation>, MembersError> {
+        let rows: Vec<(Uuid, String, Vec<String>, OffsetDateTime)> = sqlx::query_as(
+            "SELECT id, email::text, role_keys, expires_at FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $1 ORDER BY created_at DESC",
+        ).bind(self.clock.now()).fetch_all(tx.conn()).await?;
+        Ok(rows
+            .into_iter()
+            .map(|(id, email, role_keys, expires_at)| Invitation { id, email, role_keys, expires_at })
+            .collect())
+    }
+
+    /// Revokes a pending invitation; its token stops working at once. Resending = inviting again,
+    /// which revokes the previous token and issues a new one.
+    pub async fn revoke_invitation(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Actor,
+        id: Uuid,
+        client: &ClientInfo,
+    ) -> Result<(), MembersError> {
+        let n = sqlx::query("UPDATE invitations SET revoked_at = $2 WHERE id = $1 AND accepted_at IS NULL AND revoked_at IS NULL")
+            .bind(id).bind(self.clock.now()).execute(tx.conn()).await?.rows_affected();
+        if n == 0 {
+            return Err(MembersError::NotFound);
+        }
+        self.audit_object(
+            tx,
+            Some(actor.subject_ref),
+            "member.invitation_revoked",
+            "invitation",
+            id,
+            json!({}),
+            client,
+        )
+        .await
     }
 
     /// Decrypts the token of the latest pending invitation for `email` (mailer and E2E only).

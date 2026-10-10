@@ -119,6 +119,8 @@ Implemented in `e2e/packs/r1/system.api.spec.ts`.
 | E2E-R1-MEM-04 | Custom role: no escalation, built-ins immutable, grant/revoke takes effect on the next request | FR-W03, ADR-0011 |
 | E2E-R1-MEM-05 | Admin cannot invite an owner, cannot remove the last owner or themselves; a deactivated member loses access at once | FR-W01, docs/12 §6 |
 | E2E-R1-MEM-06 | Read-only suspension blocks workspace writes with 423, reads still work; restore re-enables writes | FR-S02 |
+| E2E-R1-MEM-07 | Pending invitations listed; revoking kills the token (404); resend issues a new working token | FR-W01 |
+| E2E-R1-MEM-08 | An admin cannot revoke the owner's grant (escalation); the last owner keeps the role; role preview shows added/removed/affected members; role and grant changes are on the verified audit chain | FR-W03, docs/12 §5, FR-T01 |
 
 Implemented in `e2e/packs/r1/members.api.spec.ts`.
 

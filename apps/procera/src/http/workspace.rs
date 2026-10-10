@@ -26,10 +26,12 @@ pub fn router() -> Router<AppState> {
         .route("/permission-catalog", get(permission_catalog))
         .route("/me/permissions", get(my_permissions))
         .route("/members", get(list_members))
-        .route("/members/invitations", post(invite))
+        .route("/members/invitations", get(list_invitations).post(invite))
+        .route("/members/invitations/{id}", delete(revoke_invitation))
         .route("/members/{id}/deactivate", post(deactivate))
         .route("/roles", get(list_roles).post(create_role))
         .route("/roles/{id}", patch(update_role))
+        .route("/roles/{id}/preview", post(preview_role))
         .route("/role-grants", get(list_grants).post(create_grant))
         .route("/role-grants/{id}", delete(revoke_grant))
 }
@@ -86,6 +88,9 @@ impl From<AccessError> for ApiError {
                     .detail(missing.join(", "))
             }
             AccessError::NotFound => Self::not_found(),
+            AccessError::LastOwner => {
+                Self::new(409, "last_owner", "The last workspace owner cannot lose the owner role")
+            }
             AccessError::Invalid(m) => Self::new(422, "validation_failed", "Validation failed").detail(m),
             AccessError::Internal(m) => {
                 tracing::error!(error = %m, "access internal error");
@@ -279,6 +284,29 @@ async fn invite(
     Ok((StatusCode::CREATED, Json(inv)).into_response())
 }
 
+async fn list_invitations(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "member:invite", Resource::Workspace).await?;
+    let items = m.list_invitations(&mut tx).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({"items": items})).into_response())
+}
+
+async fn revoke_invitation(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "member:invite", Resource::Workspace).await?;
+    m.revoke_invitation(&mut tx, me.actor, id, &client_info(&headers)).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
 async fn deactivate(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -314,6 +342,7 @@ struct RoleReq {
 
 async fn create_role(
     State(s): State<AppState>,
+    headers: HeaderMap,
     me: WsMember,
     Json(r): Json<RoleReq>,
 ) -> Result<Response, ApiError> {
@@ -331,6 +360,16 @@ async fn create_role(
             r.cloned_from.as_deref(),
         )
         .await?;
+    m.audit_object(
+        &mut tx,
+        Some(me.actor.subject_ref),
+        "role.created",
+        "role",
+        role.id,
+        json!({"key": role.key, "permissions": role.permissions, "cloned_from": role.builtin_template}),
+        &client_info(&headers),
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
     Ok((StatusCode::CREATED, Json(role)).into_response())
 }
@@ -343,6 +382,7 @@ struct RolePatch {
 
 async fn update_role(
     State(s): State<AppState>,
+    headers: HeaderMap,
     me: WsMember,
     Path(id): Path<Uuid>,
     Json(r): Json<RolePatch>,
@@ -350,9 +390,26 @@ async fn update_role(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "role:manage", Resource::Role(id)).await?;
+    let preview = m.access().preview_role_change(&mut tx, id, &r.permissions).await?;
     m.access().update_role(&mut tx, Some(me.actor.membership), id, &r.permissions).await?;
+    m.audit_object(&mut tx, Some(me.actor.subject_ref), "role.updated", "role", id, json!({"added": preview.added, "removed": preview.removed, "affected_members": preview.affected_members.len()}), &client_info(&headers)).await?;
     tx.commit().await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Shows what a role change would do before saving it (docs/12 §5 item 5).
+async fn preview_role(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<RolePatch>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "role:manage", Resource::Role(id)).await?;
+    let preview = m.access().preview_role_change(&mut tx, id, &r.permissions).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(preview).into_response())
 }
 
 #[derive(Debug, Deserialize)]
@@ -394,6 +451,7 @@ fn workspace_scope() -> String {
 
 async fn create_grant(
     State(s): State<AppState>,
+    headers: HeaderMap,
     me: WsMember,
     Json(r): Json<GrantReq>,
 ) -> Result<Response, ApiError> {
@@ -413,19 +471,31 @@ async fn create_grant(
             r.reason.as_deref(),
         )
         .await?;
+    m.audit_object(&mut tx, Some(me.actor.subject_ref), "role.granted", "role_grant", id, json!({"membership_id": r.membership_id, "role": r.role_key, "scope": scope, "expires_at": r.expires_at.map(|t| t.unix_timestamp()), "reason": r.reason}), &client_info(&headers)).await?;
     tx.commit().await.map_err(internal)?;
     Ok((StatusCode::CREATED, Json(json!({"id": id}))).into_response())
 }
 
 async fn revoke_grant(
     State(s): State<AppState>,
+    headers: HeaderMap,
     me: WsMember,
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "member:manage_roles", Resource::Workspace).await?;
-    m.access().revoke_grant(&mut tx, id).await?;
+    m.access().revoke_grant(&mut tx, Some(me.actor.membership), id).await?;
+    m.audit_object(
+        &mut tx,
+        Some(me.actor.subject_ref),
+        "role.revoked",
+        "role_grant",
+        id,
+        json!({}),
+        &client_info(&headers),
+    )
+    .await?;
     tx.commit().await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
