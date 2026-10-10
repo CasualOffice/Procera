@@ -1,0 +1,469 @@
+//! Memberships and invitations (BPMS-023).
+//!
+//! - Invitations carry role keys; the inviter must hold every permission of those roles (no escalation).
+//! - Tokens are 256-bit, stored hashed (lookup) and sealed (for the mailer, BPMS-048); 7-day expiry.
+//! - Acceptance requires the invitation email to match the signed-in user (or registers a new user
+//!   for that email). Accepting an owner invite activates a `provisioning` workspace.
+//! - Every change is audited in the workspace chain and emitted to the outbox.
+
+use std::sync::Arc;
+
+use procera_access::{Access, AccessError, Scope};
+use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
+use procera_crypto::{KeyProvider, hash_token, open, random_token, seal};
+use procera_db::outbox::{self, OutboxEvent};
+use procera_db::{Db, DbError, WsCtx, WsTx};
+use procera_identity::{ClientInfo, Identity, IdentityError, User};
+use procera_kernel::{Clock, IdGen};
+use serde::Serialize;
+use serde_json::json;
+use time::OffsetDateTime;
+use uuid::Uuid;
+
+const INVITE_TTL_DAYS: i64 = 7;
+
+#[derive(Debug, thiserror::Error)]
+pub enum MembersError {
+    #[error("invitation invalid, expired, revoked or already used")]
+    InvitationInvalid,
+    #[error("this invitation was sent to a different email address")]
+    EmailMismatch,
+    #[error("already a member of this workspace")]
+    AlreadyMember,
+    #[error("membership not found")]
+    NotFound,
+    #[error("the last workspace owner cannot be removed")]
+    LastOwner,
+    #[error("you cannot deactivate yourself")]
+    SelfDeactivation,
+    #[error(transparent)]
+    Access(#[from] AccessError),
+    #[error(transparent)]
+    Identity(#[from] IdentityError),
+    #[error("invalid input: {0}")]
+    Invalid(String),
+    #[error("internal error: {0}")]
+    Internal(String),
+}
+
+impl From<DbError> for MembersError {
+    fn from(e: DbError) -> Self {
+        Self::Internal(e.to_string())
+    }
+}
+impl From<sqlx::Error> for MembersError {
+    fn from(e: sqlx::Error) -> Self {
+        Self::Internal(e.to_string())
+    }
+}
+impl From<procera_audit::AuditError> for MembersError {
+    fn from(e: procera_audit::AuditError) -> Self {
+        Self::Internal(e.to_string())
+    }
+}
+impl From<procera_crypto::CryptoError> for MembersError {
+    fn from(e: procera_crypto::CryptoError) -> Self {
+        Self::Internal(e.to_string())
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Member {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub email: String,
+    pub display_name: String,
+    pub status: String,
+    pub title: Option<String>,
+    pub roles: Vec<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub joined_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Invitation {
+    pub id: Uuid,
+    pub email: String,
+    pub role_keys: Vec<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub expires_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct UserWorkspace {
+    pub workspace_id: Uuid,
+    pub slug: String,
+    pub name: String,
+    pub state: String,
+}
+
+/// Who performs a workspace action.
+#[derive(Debug, Clone, Copy)]
+pub struct Actor {
+    pub membership: Uuid,
+    pub subject_ref: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct Members {
+    db: Db,
+    identity: Identity,
+    access: Access,
+    keys: Arc<dyn KeyProvider>,
+    clock: Arc<dyn Clock>,
+    ids: Arc<dyn IdGen>,
+}
+
+impl Members {
+    pub fn new(
+        db: Db,
+        identity: Identity,
+        access: Access,
+        keys: Arc<dyn KeyProvider>,
+        clock: Arc<dyn Clock>,
+        ids: Arc<dyn IdGen>,
+    ) -> Self {
+        Self { db, identity, access, keys, clock, ids }
+    }
+
+    pub fn access(&self) -> &Access {
+        &self.access
+    }
+
+    async fn audit(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Uuid>,
+        action: &str,
+        object: Uuid,
+        diff: serde_json::Value,
+        client: &ClientInfo,
+    ) -> Result<(), MembersError> {
+        let mut ev = AuditEvent::new(
+            actor,
+            if actor.is_some() { ActorKind::User } else { ActorKind::System },
+            Category::Access,
+            action,
+            Outcome::Allowed,
+        )
+        .object("membership", object);
+        ev.diff = Some(diff);
+        ev.ip = client.ip.clone();
+        ev.user_agent = client.user_agent.clone();
+        append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        Ok(())
+    }
+
+    /// Creates an invitation and returns it with its one-time token (to be delivered by email).
+    pub async fn invite(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Actor>,
+        email: &str,
+        role_keys: &[String],
+        client: &ClientInfo,
+    ) -> Result<(Invitation, String), MembersError> {
+        let email = email.trim().to_lowercase();
+        if !email.contains('@') || email.len() > 254 {
+            return Err(MembersError::Invalid("a valid email address is required".into()));
+        }
+        if role_keys.is_empty() {
+            return Err(MembersError::Invalid("at least one role is required".into()));
+        }
+        // Validate roles exist and the inviter could grant them (no escalation).
+        let held = match actor {
+            Some(a) => Some(self.access.effective_workspace_permissions(tx, a.membership).await?),
+            None => None,
+        };
+        for key in role_keys {
+            let perms: Option<Vec<String>> =
+                sqlx::query_scalar("SELECT permissions FROM roles WHERE key = $1")
+                    .bind(key)
+                    .fetch_optional(tx.conn())
+                    .await?;
+            let perms = perms.ok_or_else(|| AccessError::UnknownRole(key.clone()))?;
+            if let Some(held) = &held {
+                let missing: Vec<String> = perms.into_iter().filter(|p| !held.contains(p)).collect();
+                if !missing.is_empty() {
+                    return Err(AccessError::Escalation(missing).into());
+                }
+            }
+        }
+        let already: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM memberships m JOIN users u ON u.id = m.user_id WHERE u.email = $1 AND m.status = 'active')")
+            .bind(&email).fetch_one(tx.conn()).await?;
+        if already {
+            return Err(MembersError::AlreadyMember);
+        }
+        let now = self.clock.now();
+        sqlx::query("UPDATE invitations SET revoked_at = $2 WHERE email = $1 AND accepted_at IS NULL AND revoked_at IS NULL").bind(&email).bind(now).execute(tx.conn()).await?;
+        let id = self.ids.new_id();
+        let token = random_token();
+        let sealed = seal(self.keys.as_ref(), "secrets", &format!("invitations:{id}"), token.as_bytes())?;
+        let expires_at = now + time::Duration::days(INVITE_TTL_DAYS);
+        sqlx::query("INSERT INTO invitations (workspace_id, id, email, role_keys, token_hash, token_sealed, invited_by, expires_at) VALUES ($1,$2,$3,$4,$5,$6,(SELECT user_id FROM memberships WHERE id = $7),$8)")
+            .bind(tx.ctx.workspace_id).bind(id).bind(&email).bind(role_keys).bind(hash_token(&token)).bind(sealed).bind(actor.map(|a| a.membership)).bind(expires_at)
+            .execute(tx.conn()).await?;
+        outbox::enqueue(
+            tx,
+            OutboxEvent {
+                topic: "invitation.created.v1",
+                aggregate_type: "invitation",
+                aggregate_id: id,
+                aggregate_revision: 1,
+                payload: json!({"invitation_id": id}),
+                trace_id: None,
+            },
+        )
+        .await?;
+        self.audit(
+            tx,
+            actor.map(|a| a.subject_ref),
+            "member.invited",
+            id,
+            json!({"roles": role_keys}),
+            client,
+        )
+        .await?;
+        Ok((Invitation { id, email, role_keys: role_keys.to_vec(), expires_at }, token))
+    }
+
+    /// Decrypts the token of the latest pending invitation for `email` (mailer and E2E only).
+    pub async fn pending_invitation_token(
+        &self,
+        ctx: WsCtx,
+        email: &str,
+    ) -> Result<Option<String>, MembersError> {
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let row: Option<(Uuid, Vec<u8>)> = sqlx::query_as("SELECT id, token_sealed FROM invitations WHERE email = $1 AND accepted_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1")
+            .bind(email.trim().to_lowercase()).fetch_optional(tx.conn()).await?;
+        tx.rollback().await?;
+        let Some((id, sealed)) = row else { return Ok(None) };
+        let pt = open(self.keys.as_ref(), "secrets", &format!("invitations:{id}"), &sealed)?;
+        Ok(String::from_utf8(pt.to_vec()).ok())
+    }
+
+    async fn invitation_ctx(&self, token: &str) -> Result<WsCtx, MembersError> {
+        let ws: Option<Uuid> = sqlx::query_scalar("SELECT discovery.invitation_workspace($1)")
+            .bind(hash_token(token))
+            .fetch_one(self.db.pool())
+            .await?;
+        ws.map(|workspace_id| WsCtx { workspace_id }).ok_or(MembersError::InvitationInvalid)
+    }
+
+    /// Email of a pending invitation (used by the registration flow).
+    pub async fn invitation_email(&self, token: &str) -> Result<String, MembersError> {
+        let ctx = self.invitation_ctx(token).await?;
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let email: Option<String> = sqlx::query_scalar("SELECT email::text FROM invitations WHERE token_hash = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $2")
+            .bind(hash_token(token)).bind(self.clock.now()).fetch_optional(tx.conn()).await?;
+        tx.rollback().await?;
+        email.ok_or(MembersError::InvitationInvalid)
+    }
+
+    /// Accepts an invitation for an existing, signed-in user. Returns (workspace, membership).
+    pub async fn accept(
+        &self,
+        token: &str,
+        user_id: Uuid,
+        client: &ClientInfo,
+    ) -> Result<(Uuid, Uuid), MembersError> {
+        let ctx = self.invitation_ctx(token).await?;
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let inv: Option<(Uuid, String, Vec<String>)> = sqlx::query_as(
+            "SELECT id, email::text, role_keys FROM invitations WHERE token_hash = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $2 FOR UPDATE",
+        ).bind(hash_token(token)).bind(self.clock.now()).fetch_optional(tx.conn()).await?;
+        let Some((inv_id, email, roles)) = inv else { return Err(MembersError::InvitationInvalid) };
+        let user: (String, Uuid) =
+            sqlx::query_as("SELECT email::text, subject_ref FROM users WHERE id = $1 AND status = 'active'")
+                .bind(user_id)
+                .fetch_optional(tx.conn())
+                .await?
+                .ok_or(MembersError::InvitationInvalid)?;
+        if user.0 != email {
+            return Err(MembersError::EmailMismatch);
+        }
+        let existing: Option<(Uuid, String)> =
+            sqlx::query_as("SELECT id, status FROM memberships WHERE user_id = $1")
+                .bind(user_id)
+                .fetch_optional(tx.conn())
+                .await?;
+        let membership = match existing {
+            Some((_, s)) if s == "active" => return Err(MembersError::AlreadyMember),
+            Some((id, _)) => {
+                sqlx::query("UPDATE memberships SET status = 'active', deactivated_at = NULL WHERE id = $1")
+                    .bind(id)
+                    .execute(tx.conn())
+                    .await?;
+                id
+            }
+            None => {
+                let id = self.ids.new_id();
+                sqlx::query("INSERT INTO memberships (workspace_id, id, user_id, status, joined_at) VALUES ($1, $2, $3, 'active', $4)")
+                    .bind(ctx.workspace_id).bind(id).bind(user_id).bind(self.clock.now()).execute(tx.conn()).await?;
+                id
+            }
+        };
+        for key in &roles {
+            // Authorized when the invitation was created; granted here by the system on the inviter's behalf.
+            self.access
+                .grant(&mut tx, None, membership, key, Scope::Workspace, None, Some("invitation"))
+                .await?;
+        }
+        sqlx::query("UPDATE invitations SET accepted_at = $2, accepted_by = $3 WHERE id = $1")
+            .bind(inv_id)
+            .bind(self.clock.now())
+            .bind(user_id)
+            .execute(tx.conn())
+            .await?;
+        if roles.iter().any(|r| r == "workspace.owner") {
+            sqlx::query("UPDATE workspaces SET state = 'active', owner_invite_email = NULL, revision = revision + 1 WHERE id = $1 AND state = 'provisioning'")
+                .bind(ctx.workspace_id).execute(tx.conn()).await?;
+        }
+        outbox::enqueue(
+            &mut tx,
+            OutboxEvent {
+                topic: "membership.activated.v1",
+                aggregate_type: "membership",
+                aggregate_id: membership,
+                aggregate_revision: 1,
+                payload: json!({"membership_id": membership}),
+                trace_id: None,
+            },
+        )
+        .await?;
+        self.audit(
+            &mut tx,
+            Some(user.1),
+            "member.joined",
+            membership,
+            json!({"roles": roles, "invitation": inv_id}),
+            client,
+        )
+        .await?;
+        tx.commit().await?;
+        Ok((ctx.workspace_id, membership))
+    }
+
+    /// Registers a new account for the invited email and accepts the invitation.
+    pub async fn register(
+        &self,
+        token: &str,
+        display_name: &str,
+        password: &str,
+        client: &ClientInfo,
+    ) -> Result<(User, Uuid, Uuid), MembersError> {
+        let email = self.invitation_email(token).await?;
+        let user = self.identity.create_user(&email, display_name, password, client).await?;
+        let (ws, m) = self.accept(token, user.id, client).await?;
+        Ok((user, ws, m))
+    }
+
+    pub async fn list(&self, tx: &mut WsTx<'_>) -> Result<Vec<Member>, MembersError> {
+        let rows: Vec<(Uuid, Uuid, String, String, String, Option<String>, OffsetDateTime, Vec<String>)> = sqlx::query_as(
+            "SELECT m.id, m.user_id, u.email::text, u.display_name, m.status, m.title, m.joined_at,
+                    coalesce(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}')
+             FROM memberships m JOIN users u ON u.id = m.user_id
+             LEFT JOIN role_grants g ON g.workspace_id = m.workspace_id AND g.membership_id = m.id AND g.scope_kind = 'workspace'
+             LEFT JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+             GROUP BY m.workspace_id, m.id, u.email, u.display_name ORDER BY u.display_name",
+        ).fetch_all(tx.conn()).await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| Member {
+                id: r.0,
+                user_id: r.1,
+                email: r.2,
+                display_name: r.3,
+                status: r.4,
+                title: r.5,
+                joined_at: r.6,
+                roles: r.7,
+            })
+            .collect())
+    }
+
+    /// Deactivates a membership (SEC-04 at workspace level): access is denied immediately by the
+    /// active-members invariant; the user's other workspaces are unaffected.
+    pub async fn deactivate(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Actor,
+        membership: Uuid,
+        client: &ClientInfo,
+    ) -> Result<(), MembersError> {
+        if actor.membership == membership {
+            return Err(MembersError::SelfDeactivation);
+        }
+        let status: Option<String> =
+            sqlx::query_scalar("SELECT status FROM memberships WHERE id = $1 FOR UPDATE")
+                .bind(membership)
+                .fetch_optional(tx.conn())
+                .await?;
+        if status.is_none() {
+            return Err(MembersError::NotFound);
+        }
+        let is_owner: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id WHERE g.membership_id = $1 AND r.key = 'workspace.owner')")
+            .bind(membership).fetch_one(tx.conn()).await?;
+        if is_owner {
+            let owners: i64 = sqlx::query_scalar("SELECT count(DISTINCT g.membership_id) FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id JOIN memberships m ON m.workspace_id = g.workspace_id AND m.id = g.membership_id WHERE r.key = 'workspace.owner' AND m.status = 'active'")
+                .fetch_one(tx.conn()).await?;
+            if owners <= 1 {
+                return Err(MembersError::LastOwner);
+            }
+        }
+        sqlx::query("UPDATE memberships SET status = 'deactivated', deactivated_at = $2 WHERE id = $1")
+            .bind(membership)
+            .bind(self.clock.now())
+            .execute(tx.conn())
+            .await?;
+        self.access.invalidate(tx).await?;
+        outbox::enqueue(
+            tx,
+            OutboxEvent {
+                topic: "membership.deactivated.v1",
+                aggregate_type: "membership",
+                aggregate_id: membership,
+                aggregate_revision: 2,
+                payload: json!({"membership_id": membership}),
+                trace_id: None,
+            },
+        )
+        .await?;
+        self.audit(
+            tx,
+            Some(actor.subject_ref),
+            "member.deactivated",
+            membership,
+            json!({"status": {"before": "active", "after": "deactivated"}}),
+            client,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// The caller's membership in a workspace: (membership id, status, subject_ref).
+    pub async fn membership(
+        &self,
+        tx: &mut WsTx<'_>,
+        user_id: Uuid,
+    ) -> Result<Option<(Uuid, String, Uuid)>, MembersError> {
+        Ok(sqlx::query_as("SELECT m.id, m.status, u.subject_ref FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.user_id = $1")
+            .bind(user_id).fetch_optional(tx.conn()).await?)
+    }
+
+    pub async fn user_workspaces(&self, user_id: Uuid) -> Result<Vec<UserWorkspace>, MembersError> {
+        let rows: Vec<(Uuid, String, String, String)> =
+            sqlx::query_as("SELECT workspace_id, slug, name, state FROM discovery.user_workspaces($1)")
+                .bind(user_id)
+                .fetch_all(self.db.pool())
+                .await?;
+        Ok(rows
+            .into_iter()
+            .map(|r| UserWorkspace { workspace_id: r.0, slug: r.1, name: r.2, state: r.3 })
+            .collect())
+    }
+
+    pub fn db(&self) -> &Db {
+        &self.db
+    }
+}

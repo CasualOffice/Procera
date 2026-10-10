@@ -112,6 +112,10 @@ Permissions are `resource:action` strings, and the set is fixed per product vers
 | `collection` | `view`, `manage` (library folders) |
 | `process` | `view`, `create`, `edit_draft`, `submit_review`, `review`, `approve`, `publish`, `retire`, `manage_owners`, `view_analytics`, `export` |
 | `sop` | `view`, `create`, `edit_draft`, `review`, `approve`, `publish`, `acknowledge`, `export` |
+| `policy` | `view`, `create`, `edit_draft`, `review`, `approve`, `publish`, `export` |
+| `announcement` | `view`, `create`, `publish`, `manage` |
+| `campaign` | `view`, `manage` (acknowledgement & signature campaigns) |
+| `document` | `send_for_signature`, `view_all`, `void` |
 | `form` / `rule` / `calendar` | `view`, `manage` |
 | `template` | `browse`, `install`, `publish_workspace_template` |
 | `request` (instance) | `start`, `view_own`, `view_all`, `view_detail`, `view_restricted`, `comment`, `cancel`, `suspend_resume`, `retry`, `migrate` |

@@ -1,0 +1,27 @@
+[package]
+name = "procera-access"
+description = "Workspace-plane authorization: permission catalogue, role templates, custom roles, scoped grants, Cedar policies (BPMS-024, docs/12, ADR-0011)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+cedar-policy = "4.13"
+procera-db.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

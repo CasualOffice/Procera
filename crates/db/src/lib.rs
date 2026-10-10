@@ -115,6 +115,17 @@ impl<'c> WsTx<'c> {
         &mut self.tx
     }
 
+    /// Re-scopes this transaction to another workspace (system-plane provisioning only, e.g. seeding a
+    /// workspace created in the same transaction). Never use on request paths.
+    pub async fn rescope(&mut self, ctx: WsCtx) -> Result<(), DbError> {
+        sqlx::query("SELECT set_config('app.workspace_id', $1, true)")
+            .bind(ctx.workspace_id.to_string())
+            .execute(&mut *self.tx)
+            .await?;
+        self.ctx = ctx;
+        Ok(())
+    }
+
     pub async fn commit(self) -> Result<(), DbError> {
         Ok(self.tx.commit().await?)
     }
