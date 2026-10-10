@@ -1,0 +1,21 @@
+[package]
+name = "procera-crypto"
+description = "Key provider and authenticated encryption for secrets at rest (docs/04 §8, docs/06 §4). BPMS-030 (local sealed key; KMS/OpenBao adapters follow)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+aes-gcm = "0.10"
+base64 = "0.22"
+rand = "0.8"
+sha2 = "0.10"
+hmac = "0.12"
+thiserror.workspace = true
+zeroize = "1"
+
+[lints]
+workspace = true
