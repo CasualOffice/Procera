@@ -73,6 +73,20 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/role-grants", &[&["role.granted"]]),
     emits("DELETE", "/api/v1/role-grants/{id}", &[&["role.revoked"]]),
     emits("PUT", "/api/v1/settings/{key}", &[&["setting.changed"]]),
+    // Directory.
+    emits("POST", "/api/v1/departments", &[&["department.created"]]),
+    emits("PATCH", "/api/v1/departments/{id}", &[&["department.updated"]]),
+    emits("DELETE", "/api/v1/departments/{id}", &[&["department.deleted"]]),
+    emits("POST", "/api/v1/groups", &[&["group.created"]]),
+    emits("DELETE", "/api/v1/groups/{id}", &[&["group.deleted"]]),
+    emits("POST", "/api/v1/groups/{id}/members", &[&["group.member_added"]]),
+    emits("DELETE", "/api/v1/groups/{id}/members/{membership_id}", &[&["group.member_removed"]]),
+    emits("POST", "/api/v1/positions", &[&["position.created"]]),
+    emits("DELETE", "/api/v1/positions/{id}", &[&["position.deleted"]]),
+    // A patch that changes nothing appends nothing.
+    emits("PATCH", "/api/v1/members/{id}", &[&["member.directory_updated"], &[]]),
+    // mode=plan rolls back (nothing appended); mode=apply records one event listing created departments.
+    emits("POST", "/api/v1/members/import", &[&["member.directory_imported"], &[]]),
 ];
 
 #[cfg(test)]
@@ -86,6 +100,7 @@ mod tests {
             ("/api/v1", include_str!("auth.rs")),
             ("/api/v1", include_str!("workspace.rs")),
             ("/api/v1", include_str!("settings.rs")),
+            ("/api/v1", include_str!("directory.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];

@@ -90,6 +90,20 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const carol = uniqueEmail('carol');
   const inv = await (await own.post('/api/v1/members/invitations', { headers: oh, data: { email: carol, roles: ['member'] } })).json();
   await step('DELETE', '/api/v1/members/invitations/{id}', () => own.delete(`/api/v1/members/invitations/${inv.id}`, { headers: oh }));
+  // Directory (adam is still active here).
+  const dept = await (await step('POST', '/api/v1/departments', () => own.post('/api/v1/departments', { headers: oh, data: { name: 'Audit Dept' } }))).json();
+  await step('PATCH', '/api/v1/departments/{id}', () => own.patch(`/api/v1/departments/${dept.id}`, { headers: oh, data: { name: 'Audit Department' } }));
+  await step('PATCH', '/api/v1/members/{id}', () => own.patch(`/api/v1/members/${joined.membership_id}`, { headers: oh, data: { title: 'Auditor' } }));
+  const grp = await (await step('POST', '/api/v1/groups', () => own.post('/api/v1/groups', { headers: oh, data: { name: 'Audit Group' } }))).json();
+  await step('POST', '/api/v1/groups/{id}/members', () => own.post(`/api/v1/groups/${grp.id}/members`, { headers: oh, data: { membership_id: joined.membership_id } }));
+  await step('DELETE', '/api/v1/groups/{id}/members/{membership_id}', () => own.delete(`/api/v1/groups/${grp.id}/members/${joined.membership_id}`, { headers: oh }));
+  await step('DELETE', '/api/v1/groups/{id}', () => own.delete(`/api/v1/groups/${grp.id}`, { headers: oh }));
+  await own.put('/api/v1/settings/directory.positions.enabled', { headers: oh, data: { value: true } });
+  const pos = await (await step('POST', '/api/v1/positions', () => own.post('/api/v1/positions', { headers: oh, data: { title: 'Audit lead' } }))).json();
+  await step('DELETE', '/api/v1/positions/{id}', () => own.delete(`/api/v1/positions/${pos.id}`, { headers: oh }));
+  await step('POST', '/api/v1/members/import', () => own.post('/api/v1/members/import?mode=apply', { headers: { ...oh, 'content-type': 'text/csv' }, data: `email,title\n${adamEmail},Reviewer\n` }));
+  await step('DELETE', '/api/v1/departments/{id}', () => own.delete(`/api/v1/departments/${dept.id}`, { headers: oh }));
+
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
   // Settings: a workspace value, and a platform floor re-set to its current value (no effect on other tests).

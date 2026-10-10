@@ -62,6 +62,8 @@ impl From<MembersError> for ApiError {
             MembersError::Access(a) => Self::from(a),
             MembersError::Identity(i) => Self::from(i),
             MembersError::Invalid(m) => Self::new(422, "validation_failed", "Validation failed").detail(m),
+            MembersError::Cycle(m) => Self::new(422, "cycle", "This change would create a cycle").detail(m),
+            MembersError::Conflict(m) => Self::new(409, "conflict", "Conflict").detail(m),
             MembersError::Internal(m) => {
                 tracing::error!(error = %m, "members internal error");
                 Self::new(500, "internal", "Internal error")
