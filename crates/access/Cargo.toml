@@ -20,6 +20,7 @@ uuid.workspace = true
 
 [dev-dependencies]
 anyhow.workspace = true
+proptest.workspace = true
 tokio.workspace = true
 procera-db = { workspace = true, features = ["test-support"] }
 

@@ -38,6 +38,8 @@ pub enum AccessError {
     Escalation(Vec<String>),
     #[error("not found")]
     NotFound,
+    #[error("the last workspace owner cannot lose the owner role")]
+    LastOwner,
     #[error("invalid input: {0}")]
     Invalid(String),
     #[error("internal error: {0}")]
@@ -141,6 +143,15 @@ pub struct Grant {
     #[serde(with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
     pub reason: Option<String>,
+}
+
+/// Impact of a proposed custom-role change (docs/12 §5 item 5), shown before saving.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RolePreview {
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    /// Active members holding the role through a live grant (any scope).
+    pub affected_members: Vec<Uuid>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -309,10 +320,19 @@ impl Access {
         if builtin {
             return Err(AccessError::BuiltinImmutable);
         }
+        // Symmetric: the editor must hold both the old and the new permission sets.
+        let old: Vec<String> = sqlx::query_scalar("SELECT permissions FROM roles WHERE id = $1")
+            .bind(id)
+            .fetch_one(tx.conn())
+            .await?;
+        self.ensure_no_escalation(tx, actor, &old).await?;
         self.ensure_no_escalation(tx, actor, permissions).await?;
+        let mut permissions = permissions.to_vec();
+        permissions.sort();
+        permissions.dedup();
         sqlx::query("UPDATE roles SET permissions = $2, revision = revision + 1 WHERE id = $1")
             .bind(id)
-            .bind(permissions)
+            .bind(&permissions)
             .execute(tx.conn())
             .await?;
         Self::bump(tx).await
@@ -341,16 +361,61 @@ impl Access {
         Ok(id)
     }
 
-    pub async fn revoke_grant(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<(), AccessError> {
-        let n = sqlx::query("DELETE FROM role_grants WHERE id = $1")
-            .bind(id)
-            .execute(tx.conn())
-            .await?
-            .rows_affected();
-        if n == 0 {
-            return Err(AccessError::NotFound);
+    /// Revokes a grant. The revoker must hold every permission of the role (no stripping a role you
+    /// could not grant), and the last active workspace owner keeps the owner role.
+    pub async fn revoke_grant(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Uuid>,
+        id: Uuid,
+    ) -> Result<(), AccessError> {
+        let row: Option<(String, Vec<String>, String)> = sqlx::query_as(
+            "SELECT r.key, r.permissions, g.scope_kind FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id WHERE g.id = $1 FOR UPDATE OF g",
+        ).bind(id).fetch_optional(tx.conn()).await?;
+        let (key, perms, kind) = row.ok_or(AccessError::NotFound)?;
+        self.ensure_no_escalation(tx, actor, &perms).await?;
+        if key == "workspace.owner" && kind == "workspace" {
+            let others: i64 = sqlx::query_scalar(
+                "SELECT count(DISTINCT g.membership_id) FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+                 JOIN memberships m ON m.workspace_id = g.workspace_id AND m.id = g.membership_id AND m.status = 'active'
+                 WHERE r.key = 'workspace.owner' AND g.scope_kind = 'workspace' AND g.id <> $1 AND (g.expires_at IS NULL OR g.expires_at > now())",
+            ).bind(id).fetch_one(tx.conn()).await?;
+            if others == 0 {
+                return Err(AccessError::LastOwner);
+            }
         }
+        sqlx::query("DELETE FROM role_grants WHERE id = $1").bind(id).execute(tx.conn()).await?;
         Self::bump(tx).await
+    }
+
+    /// Previews replacing a custom role's permissions: what changes and who is affected.
+    pub async fn preview_role_change(
+        &self,
+        tx: &mut WsTx<'_>,
+        id: Uuid,
+        permissions: &[String],
+    ) -> Result<RolePreview, AccessError> {
+        for p in permissions {
+            if !is_permission(p) {
+                return Err(AccessError::UnknownPermission(p.clone()));
+            }
+        }
+        let old: Vec<String> = sqlx::query_scalar("SELECT permissions FROM roles WHERE id = $1")
+            .bind(id)
+            .fetch_optional(tx.conn())
+            .await?
+            .ok_or(AccessError::NotFound)?;
+        let old: BTreeSet<String> = old.into_iter().collect();
+        let new: BTreeSet<String> = permissions.iter().cloned().collect();
+        let affected_members: Vec<Uuid> = sqlx::query_scalar(
+            "SELECT DISTINCT g.membership_id FROM role_grants g JOIN memberships m ON m.workspace_id = g.workspace_id AND m.id = g.membership_id AND m.status = 'active'
+             WHERE g.role_id = $1 AND (g.expires_at IS NULL OR g.expires_at > now()) ORDER BY 1",
+        ).bind(id).fetch_all(tx.conn()).await?;
+        Ok(RolePreview {
+            added: new.difference(&old).cloned().collect(),
+            removed: old.difference(&new).cloned().collect(),
+            affected_members,
+        })
     }
 
     pub async fn list_grants(

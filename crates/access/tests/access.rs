@@ -125,7 +125,7 @@ async fn grants_scopes_escalation_invariants_and_cache() -> anyhow::Result<()> {
     assert!(!a.check(&mut tx, temp, "report:view", &Resource::Workspace).await?.allowed);
     let g = a.grant(&mut tx, Some(admin), temp, "analyst", Scope::Workspace, None, None).await?;
     assert!(a.check(&mut tx, temp, "report:view", &Resource::Workspace).await?.allowed);
-    a.revoke_grant(&mut tx, g).await?;
+    a.revoke_grant(&mut tx, None, g).await?;
     assert!(!a.check(&mut tx, temp, "report:view", &Resource::Workspace).await?.allowed);
     tx.commit().await?;
 
