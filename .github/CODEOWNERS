@@ -1,0 +1,11 @@
+# Two approvals required for protected areas (docs/24 §7.3). Replace team handles once maintainers are listed.
+*                                  @CasualOffice/procera-maintainers
+/docs/adr/                         @CasualOffice/procera-maintainers
+/docs/24-ENGINEERING-RULES.md      @CasualOffice/procera-maintainers
+/crates/domain/runtime/            @CasualOffice/procera-runtime
+/crates/domain/access/             @CasualOffice/procera-security
+/crates/domain/audit/              @CasualOffice/procera-security
+/crates/infra/pg/                  @CasualOffice/procera-data
+/crates/infra/kms/                 @CasualOffice/procera-security
+/migrations/                       @CasualOffice/procera-data
+/web/packages/ui/                  @CasualOffice/procera-ux

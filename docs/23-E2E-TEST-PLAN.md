@@ -1,0 +1,210 @@
+# 23 — End-to-end (E2E) test plan
+
+Status: Draft v0.1 · 2026-10-11 · Owner: QA/SDET · Complements [15-TEST-STRATEGY](15-TEST-STRATEGY-AND-CONFORMANCE.md) (unit, property, conformance, chaos) and [06 security tests](06-SECURITY-AND-OPERATIONS.md).
+
+E2E tests prove that **whole user journeys work across the real stack**:
+- browser → API → Postgres → workers/scheduler → object store → scanner → email
+- across **two workspaces at once**, so isolation is tested in every run
+
+Each release ships only when its E2E pack and all earlier packs are green ([07 §4](07-ROADMAP-AND-MILESTONES.md#4-phase-level-e2e-gates-summary)).
+
+## 1. Principles
+
+1. **Journey-first.** Every PRD journey (J0–J14) and every P0/P1 feature in the catalogue has at least one E2E scenario. The PRD id is tagged in the test title (`@FR-DS04`).
+2. **Written with the feature.** An agent or engineer implementing a tracker item writes or extends the E2E scenario in the same PR. The PR template asks for the scenario id.
+3. **Real stack, deterministic time.** No mocks of our own services. The clock is controlled through a **test-only time-travel endpoint**, so a 30-day timer runs in seconds (§4).
+4. **Two tenants always.** The seed creates workspace **A** (Starter profile) and **B** (Enterprise profile). Every pack ends with an isolation sweep: B's users try A's ids and must get 404, with the denial audited.
+5. **Accessible by default.** Each scenario runs axe on every page it visits. Key flows also run keyboard-only.
+6. **Fast feedback, full regression nightly.** PRs run the smoke pack plus the affected packs. Nightly runs everything on 3 browsers and 2 viewports.
+
+## 2. Tooling
+
+| Concern | Choice | Licence |
+|---|---|---|
+| Browser automation | **Playwright** (TypeScript), with the test runner, traces, video on failure | Apache-2.0 |
+| API-level E2E | Playwright `request` context + generated TS client from OpenAPI | — |
+| Accessibility | `@axe-core/playwright` | MPL-2.0 (dev only) |
+| Visual regression | Playwright screenshots with masked dynamic regions; per-component stories in Storybook + Playwright | Apache/MIT |
+| Email capture | **Mailpit** container (SMTP sink + REST API) to read invites, notifications, magic links, email approvals | MIT |
+| Malware scan | **ClamAV** container. EICAR test file must be quarantined | GPL-2.0 (separate container, dev/test) |
+| Object store | SeaweedFS (or RustFS) container | Apache-2.0 |
+| Cache | Valkey container; also a **cache-off** run | BSD-3 |
+| IdP (R4+) | **Keycloak** container with a seeded realm (OIDC + SAML broker) | Apache-2.0 |
+| Webhook receiver | Small local receiver (records deliveries, verifies Standard Webhooks signatures) | ours |
+| Load (not E2E, related) | k6, dev/CI only | AGPL (never shipped) |
+| Orchestration | `docker compose -f deploy/compose.e2e.yml` with health-checked services; same file locally and in CI | — |
+
+## 3. Environment and data
+
+- **Ephemeral stack per CI job.** Compose builds the release images once and shares them across jobs. Postgres runs from a template DB for fast resets.
+- **Seed** (`e2e/seed/`): created through the public API (not SQL), so seeding itself exercises the API. It includes:
+  - a system owner
+  - workspaces A and B
+  - about 40 users across departments, groups, positions and managers
+  - business calendars (IN, DE)
+  - Wave-1 templates installed in A
+  - master data (cost centres, vendors)
+  - sample policies
+- **Personas as fixtures:** `systemAdmin`, `wsOwnerA`, `wsAdminA`, `processOwnerA`, `designerA`, `reviewerA`, `complianceA`, `managerA`, `employeeA1..n`, `hrAdminA`, `investigatorA`, `guestSigner`, `wsAdminB`, `employeeB1`. Each has a stored auth state, and MFA is handled by fixture TOTP secrets.
+- **Isolation between tests:** each test creates its own objects with unique prefixes. Destructive tests (suspend workspace, deletion) run in dedicated workspaces created per test.
+- **Secrets** are test-only and generated at stack start. No real external services are ever called.
+
+## 4. Test-only controls (compiled out of release builds)
+
+Built only with the `e2e` cargo feature, which the release pipeline verifies is absent (a binary symbol check plus an endpoint probe that must return 404 in production images):
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /__test/clock {advance:"P30D"}` | Advance the injected `Clock` for timers, SLA, reminders, expiry, retention |
+| `POST /__test/drain` | Wait until the outbox, jobs and timers are idle (removes sleeps and flakiness) |
+| `POST /__test/fault {kind:"kill_worker_after_commit"}` | Fault injection for restart/race scenarios |
+| `GET /__test/audit/verify` | Run the chain verifier and return the result |
+
+## 5. Scenario catalogue
+
+ID format: `E2E-<release>-<nn>`. Every row lists the PRD/catalogue refs it proves. **Packs are cumulative**: a release must pass its own pack and every earlier one.
+
+### E2E-R1: Workspace & Policies
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R1-01 | Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01 |
+| E2E-R1-02 | System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01 |
+| E2E-R1-03 | Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override ("Request" → "Ticket") shows in UI and email | FR-W04, 05 §7 |
+| E2E-R1-04 | Directory CSV import (departments, managers); a manager cycle is rejected with a clear error | FR-W02 |
+| E2E-R1-05 | Clone "Process Designer" → "HR Designer" scoped to the HR collection; preview count is correct; the scope is enforced on UI and API; adding a permission the editor lacks is refused | FR-W03, J6 |
+| E2E-R1-06 | Policy authored → submitted → self-approval blocked (SoD) → reviewer approves with step-up → scheduled → published at effective date (test clock) → old version watermarked as superseded in PDF | FR-G04/G05/G10, FR-PL01 |
+| E2E-R1-07 | Major version publish triggers a re-ack campaign; 50 employees ack (10 at mobile viewport); evidence export lists version hash and auth method | FR-PL03, FR-AK01–04 |
+| E2E-R1-08 | New joiner added to a department automatically receives outstanding applicable campaigns | FR-AK03 |
+| E2E-R1-09 | Announcement to location "Bangalore" with ack in 3 days; reminders; manager escalation after deadline (test clock); ack % by department correct | FR-AN01–06, J14 |
+| E2E-R1-10 | Announcement approval workflow: draft → reviewer → publish; expiry archives it | FX-C01, FR-AN03 |
+| E2E-R1-11 | File upload (resumable 50 MB): clean file previews; **EICAR quarantined** and undownloadable; signed URL expires and fails from workspace B | FR-F01–F03, SEC-10 |
+| E2E-R1-12 | Files view: filter by scan state/type/size, bulk retention change, held file deletion refused | FR-F06, FR-V* |
+| E2E-R1-13 | DataGrid: multi-sort, typed filters, AND/OR group, saved view shared to a role, URL deep link restores view, CSV/XLSX export matches view and redaction | FR-V01–V07 |
+| E2E-R1-14 | Audit: perform 10 actions → audit explorer filter by actor → user timeline shows them in order → `/__test/audit/verify` OK | FR-T01–T04 |
+| E2E-R1-15 | Workspace overview dashboard: every tile drills into a pre-filtered grid with matching counts | FR-A01 |
+| E2E-R1-16 | Member deactivated → sessions revoked immediately → cannot log in or act | SEC-04, FR-W01 |
+| E2E-R1-17 | System admin suspends workspace B (read-only) → writes return 423 with banner → restore | FR-S02, J8 |
+| E2E-R1-18 | Startup day-one (J12): Starter profile → install policy-ack pack → publish handbook → 20 employees ack on phones in < 15 min wall-clock | J12 |
+| E2E-R1-19 | Keyboard-only: publish a policy and acknowledge it without a mouse | A11Y-01, T10 |
+| E2E-R1-ISO | Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` | SEC-01/02 |
+
+### E2E-R2: Requests & Approvals
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R2-01 | Install "Purchase requisition", map role placeholders, test run (no emails sent, nothing in metrics), publish | FR-G08, FR-E11 |
+| E2E-R2-02 | Purchase 30 000 → manager approves; 120 000 → rule table routes to finance; rule version recorded in timeline | FR-E10, J3 |
+| E2E-R2-03 | Duplicate submit with the same Idempotency-Key returns the same request; a different body returns 409 | 08 §2 |
+| E2E-R2-04 | **Double approval race:** two approvers decide concurrently → exactly one commit, the other gets `already_decided` | T01 |
+| E2E-R2-05 | **Kill worker after commit** (fault) → instance still progresses after restart; no duplicate email | T02 |
+| E2E-R2-06 | 30-day wait timer: publish v2 mid-flight → advance clock 30 d → instance completes on pinned v1 | T03, FR-E07 |
+| E2E-R2-07 | Onboarding (J1): HR starts, manager approves, parallel IT + facilities tasks join, employee tracks progress | J1 |
+| E2E-R2-08 | Out-of-office: manager sets a substitute → new approvals route to them → "on behalf of" recorded → expiry restores routing → substitute who is the initiator is excluded (SoD) | FR-E04, J7, T05 |
+| E2E-R2-09 | Send back to an earlier step with comment → requester edits → resubmits → approver sees diff | FX-E05 |
+| E2E-R2-10 | SLA on business calendar (IN holidays) → at-risk → breach notification to process owner (test clock) | FR-E12 |
+| E2E-R2-11 | Escalation reassign after P2D; controlled process forbids auto-approve | 11 §3.2 |
+| E2E-R2-12 | Form: calculation, conditional section, repeating line items, URL prefill, server rejects tampered payload | FR-E03, FX-F01–F03 |
+| E2E-R2-13 | Designer keyboard-only: build a 4-step process, validation errors link to nodes, publish | FR-E01, T10 |
+| E2E-R2-14 | Failed step raises an incident → admin retries → instance continues; exactly one open incident | FR-E13 |
+| E2E-R2-15 | My Work: j/k/a triage, decision in ≤ 3 interactions, acks tab shows pending campaigns | FR-R03 |
+| E2E-R2-16 | Restricted variable (salary) hidden from approver without grant in UI, API, export, email body and search | SEC-03 |
+| E2E-R2-ISO | Isolation sweep incl. work items, requests, forms, rule tables | SEC-01/02 |
+
+### E2E-R3: Operate & Sign
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R3-01 | Admin monitoring (J9): overview → 12 overdue in Finance → filtered grid → bulk reassign with reason and preview → per-item audit → save view | J9, FR-A02/A03 |
+| E2E-R3-02 | DoA matrix: amount and position limits route to the correct approver; matrix version pinned | FX-D01/D02 |
+| E2E-R3-03 | Recall/withdraw then restart as a linked copy; edit-after-submit with per-step editable fields | FX-E04/E06 |
+| E2E-R3-04 | Request on behalf of: beneficiary sees status; initiator ≠ beneficiary in audit | FX-E03 |
+| E2E-R3-05 | Master data: CSV import of cost centres → cascading dropdown in form → version change doesn't alter running requests | FX-E02 |
+| E2E-R3-06 | E-sign: upload PDF, place fields (mouse and keyboard), sequential then parallel signers, consent step, sign on mobile, certificate of completion, tamper check fails after byte change | FR-DS01–DS06 |
+| E2E-R3-07 | **Bulk sign 1 000 recipients** (J13): async progress, reminders, decline with reason, manager escalation, overdue export | J13 |
+| E2E-R3-08 | "Not e-signable" template flag blocks sending with guidance | FX-S06 |
+| E2E-R3-09 | File lifecycle (J11): invoice attached, scanned, previewed, locked on completion, visible in Files view with retention class | J11 |
+| E2E-R3-10 | BPMN import of a sample with an inclusive gateway → compatibility report lists the element id | FR-G09 |
+| E2E-R3-11 | Process health and ops monitor numbers reconcile with raw events | FR-A04/A05 |
+| E2E-R3-12 | All 13 Wave-1 templates: install → test run green (data-driven) | TPL-*, 19 |
+| E2E-R3-MOB | Mobile pack (360×740, touch): start request, approve, ack, sign | FR-P07 |
+| E2E-R3-ISO | Isolation sweep incl. envelopes, master data, files | SEC-01/02/10 |
+
+### E2E-R4: Enterprise Connect
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R4-01 | OIDC SSO via Keycloak; SSO enforcement blocks local login except break-glass owner | FR-P02 |
+| E2E-R4-02 | SCIM create/update/deactivate → access revoked and work re-routed < 5 min | INT-003, SEC-04 |
+| E2E-R4-03 | Scoped admin (Finance dept) cannot see or grant outside scope; escalation attempt denied | CFG-018 |
+| E2E-R4-04 | Webhook delivered with valid Standard Webhooks signature; replay outside tolerance rejected by receiver; retries on 500; disabled on 410 | WH-01–04 |
+| E2E-R4-05 | HTTP connector to `169.254.169.254` and to private IP refused (SSRF); allowlisted host OK | SSRF-01–06 |
+| E2E-R4-06 | Email-actionable approval: link → confirm page → approve; reusing link fails; a GET never mutates | FR-N03 |
+| E2E-R4-07 | External signer via magic link + email OTP; link single-use | FR-DS02, FR-P08 |
+| E2E-R4-08 | Envelope correction (change recipient email) audited; DOCX + merge fields; anchor tags place fields | FX-S03/S09 |
+| E2E-R4-09 | Public form with CAPTCHA + rate limit; save & resume | FX-F05/F06 |
+| E2E-R4-10 | Config export from sandbox → import into prod workspace shows diff; secrets absent | FR-W12, FR-P09 |
+| E2E-R4-11 | API token scoped to `request:start` cannot read audit | 12 §5 |
+| E2E-R4-ISO | Isolation sweep incl. tokens, webhooks, connectors | SEC-* |
+
+### E2E-R5: Cases & Compliance
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R5-01 | Incident case (J4): intake → evidence → ad hoc tasks → closure blocked until checklist done → audit export | J4, FR-C01/C02 |
+| E2E-R5-02 | Restricted HR case invisible in global search, reports, dashboards, notifications; admin self-grant is audited and visible to case team | FX-K06, OQ-12 |
+| E2E-R5-03 | Investigation (J10): filter `data_access` on `salary` → pin events/files → legal hold → signed export → `procera-verify` offline passes; edited bundle fails | J10, FR-T05/T06, AUD-05 |
+| E2E-R5-04 | Legal hold blocks retention purge and file deletion; release by authorised role resumes | PRV-03 |
+| E2E-R5-05 | Part 11 mode: approval requires re-auth; manifestation shows name/time/meaning; signature bound to record hash | ESIG-01–05 |
+| E2E-R5-06 | Attestation campaign + access review; unconfirmed grants expire | FR-G06, FR-W11 |
+| E2E-R5-07 | Break-glass: system admin request → workspace approval → read-only session banner → auto-expiry → visible in workspace audit | FR-S07 |
+| E2E-R5-08 | Separation mode on → workspace admin loses content access → audited self-grant flow | 12 §6.1 |
+| E2E-R5-09 | Scheduled report re-applies permissions at run time (user lost access → no data sent) | FX-A02 |
+| E2E-R5-10 | AI drafting (when enabled): output is a draft, labelled, provenance in audit; cannot publish or approve | ADR-0006 |
+| E2E-R5-ISO | Isolation sweep incl. cases, investigations, evidence | SEC-* |
+
+### E2E-GA: release regression
+
+All packs run on Chromium, Firefox and WebKit, at desktop and mobile viewports. The regression also includes:
+- **cache-off** run (Valkey disabled)
+- **upgrade path** run (install R1 → seed → upgrade through each release → run all packs)
+- **air-gapped** image run
+- pseudo-locale and RTL smoke
+
+## 6. CI integration
+
+| Trigger | Runs | Budget |
+|---|---|---|
+| Every PR | Smoke (10 critical scenarios) + packs tagged for touched areas, Chromium | ≤ 12 min (sharded ×4) |
+| Merge to `main` | Current release pack + isolation sweep, Chromium | ≤ 20 min |
+| Nightly | All packs × 3 browsers × 2 viewports; cache-off; chaos-tagged scenarios | ≤ 90 min (sharded) |
+| Release candidate | E2E-GA style regression for that release + upgrade-path run | Gate |
+
+Artefacts (Playwright traces, videos, axe reports, Mailpit dumps, server logs with trace ids) are kept 14 days. A failing nightly opens a tracker item automatically.
+
+## 7. Flake policy
+
+- Use only `drain`/condition waits. **Fixed sleeps are forbidden**, and a lint enforces this.
+- Retry at most once in CI. A test that passes only on retry is marked flaky and goes to the quarantine lane within 24 h. The owner gets 5 working days to fix it, otherwise the feature's release gate is blocked.
+- The flake rate target is < 0.5 % of runs. The SDET reports it weekly.
+
+## 8. Repository layout
+
+```text
+e2e/
+  playwright.config.ts      # projects: chromium/firefox/webkit × desktop/mobile
+  fixtures/                 # personas, auth states, api client, mailpit, clock, drain
+  seed/                     # API-driven seed for workspaces A/B
+  packs/r1/ … packs/r5/ packs/ga/
+  pages/                    # page objects (thin; prefer role-based locators)
+  support/webhook-receiver/
+deploy/compose.e2e.yml
+```
+
+Locators must be **role- or label-based** (`getByRole`, `getByLabel`), which keeps tests aligned with accessibility. `data-testid` is allowed only where no accessible name exists.
+
+## 9. Ownership
+
+- **SDET** owns the harness, the seed, the flake budget and release regression.
+- **Feature owners** (human or agent) own the scenarios for their features.
+- **Release gate:** the tech lead and SDET sign off the E2E report.

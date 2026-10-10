@@ -1,0 +1,14 @@
+Procera
+Copyright 2026 CasualOffice and the Procera contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+"Procera" is a trademark of CasualOffice. The Apache License does not grant
+permission to use the trade names, trademarks, service marks, or product names
+of the Licensor, except as required for reasonable and customary use in
+describing the origin of the Work (see GOVERNANCE.md, "Trademark").
+
+Third-party components and their licences are listed in the SBOM published with
+each release (CycloneDX). Template taxonomy references to the APQC Process
+Classification Framework® are used with attribution; APQC PCF is a registered
+trademark of APQC.

@@ -1,0 +1,34 @@
+name: docs
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  tracker-and-links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Regenerate tracker (docs/24 §2.2)
+        run: |
+          pip install openpyxl==3.1.5
+          python3 scripts/build_tracker.py
+      - name: Fail if generated tracker files are stale
+        run: git diff --exit-code -- docs/17-EXECUTION-TRACKER.md trackers/backlog.csv trackers/domain_backlog.csv
+      - name: Check relative links in Markdown
+        run: |
+          python3 - <<'PY'
+          import re, pathlib, sys
+          bad = []
+          for f in pathlib.Path('.').rglob('*.md'):
+              if 'archive' in f.parts or 'node_modules' in f.parts: continue
+              for m in re.finditer(r'\]\(([^)#\s]+)(#[^)]*)?\)', f.read_text()):
+                  t = m.group(1)
+                  if t.startswith(('http', 'mailto')): continue
+                  if not (f.parent / t).exists(): bad.append(f"{f}: {t}")
+          print("\n".join(bad)); sys.exit(1 if bad else 0)
+          PY

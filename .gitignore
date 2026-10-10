@@ -1,0 +1,23 @@
+# Rust
+/target/
+**/*.rs.bk
+# Node
+node_modules/
+dist/
+.pnpm-store/
+# Test artefacts
+/test-results/
+/playwright-report/
+/e2e/.auth/
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+# Office lock files
+~$*

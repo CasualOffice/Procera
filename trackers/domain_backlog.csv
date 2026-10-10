@@ -1,0 +1,226 @@
+Domain,ID,Details,Source
+Templates (TPL),TPL-001,Template manifest schema v1 + validator | 1 | M | IR v1 compiler,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-002,"Gallery storage, signing and platform-admin publish UI | 1 | M | TPL-001, platform admin console",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-003,"Install wizard (role mapping, parameters, optional steps, test-run) | 1 | L | TPL-001, authz roles/groups, test-run (FR-E11)",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-004,Lineage tracking + installed-from badge | 1 | S | TPL-003,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-005,"Template CI: compile, fixtures, a11y, i18n lint | 1 | M | TPL-001, conformance harness",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-006,SOP skeleton block model with `<<fill>>` prompts + publish blocker | 1 | M | SOP content model (ADR-0013),19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-007,KPI definitions from domain events + default dashboards | 1 | M | Insights event model,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-008,"Author Wave 1 HR templates (5) | 1 | L | TPL-001, TPL-006",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-009,"Author Wave 1 finance/IT templates (4) | 1 | L | TPL-001, rule tables",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-010,Author Wave 1 GRC templates (3) | 1 | M | TPL-001,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-011,Author `qms.capa` case template | 1 (or 2) | M | Case management (FR-C01),19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-012,Hindi locale bundles for Wave 1 | 1 | S | TPL-008..011,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-013,"Upgrade offer: 3-way semantic diff + selective accept | 2 | L | TPL-004, semantic diff (FR-G05)",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-014,"Workspace-private templates (""save as template"") | 2 | M | TPL-001",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-015,Author Wave 2 templates (~27) | 2 | L | TPL-005,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-016,Hook-point framework (connector replaces human fallback) | 2 | M | Connector framework,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-017,APQC PCF taxonomy import for the landscape (with attribution) | 2 | S | Legal confirmation of PCF licence ⚠,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-018,GxP pack with Part 11 signatures + validation fixtures | 3 | L | ESIG-01..05,19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-019,"Healthcare, FS, manufacturing, public sector, education packs | 3 | L | TPL-015, demand gate",19-PROCESS-TEMPLATE-LIBRARY.md
+Templates (TPL),TPL-020,"Template marketplace (third-party submission + review) | 3 | L | TPL-002, Phase 4 gate",19-PROCESS-TEMPLATE-LIBRARY.md
+UX (UX),UX-001,"Design tokens, theming (accent with contrast enforcement), dark-ready | M1 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-002,"App shell, permission-shaped nav, workspace switcher | M1 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-003,Command palette (⌘K) and global search page | M2 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-004,"Shared DataGrid: sort, filter builder, chips, columns, saved views, export, bulk preview, responsive cards | M2 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-005,Empty/loading/error/no-permission state kit | M1 | S,05-UX-AND-DESIGN.md
+UX (UX),UX-006,Library and Process detail (incl. versions and semantic diff viewer) | M2 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-007,"SOP block editor, review mode, acknowledgement flow | M3 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-008,"Governance lifecycle chips, publish dialog, scheduled countdown | M3 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-009,Designer: step builder + properties panel + validation problems panel | M4 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-010,Designer: flow canvas view with keyboard and non-drag alternatives | M4 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-011,Test run split view with act-as and trace | M4 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-012,Form builder with classification and role preview | M4 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-013,Template gallery and 4-step install wizard; upgrade 3-way diff (P1) | M3 / M8 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-014,"Start request with ""what happens next"" and undo window | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-015,"Request detail with stepper, activity, history, files | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-016,"My Work 3-pane inbox with keyboard triage, OOO, safe bulk approve | M5 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-017,Admin Overview dashboard with drill-downs | M5 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-018,"Admin Members, Directory, Settings, Calendars | M2 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-019,"Roles editor: permission matrix, effect preview, step-up | M2 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-020,"Admin Requests (all), Workload, Process health, Ops monitor | M5 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-021,"Admin Files view, quota breakdown, quarantine tab | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-022,"Audit explorer with timelines, diff view and chain badge | M3 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-023,Investigations workspace with pin-to-investigation and signed export | M8 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-024,"Alert rules editor with preview, and alert inbox | M8 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-025,"System Admin console: workspaces, quotas, gallery management, health, system audit | M2 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-026,Break-glass request/approval flow and banners | M8 | S,05-UX-AND-DESIGN.md
+UX (UX),UX-027,Cases board and case page with closure panel | M8 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-028,Improve: standard reports and version compare | M6 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-029,"Notification centre, preferences matrix, email templates | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-030,Email-actionable approval confirm screen and web push (PWA) | M8 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-031,"Signature dialog (meaning, re-auth) and manifestation rendering | M8 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-032,"Mobile PWA pass: My Work, start, detail, acknowledge at 360 px | M6 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-033,"i18n pipeline, pseudo-localisation, RTL audit, terminology overrides | M6 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-034,"Accessibility: axe CI, SR passes per milestone, external audit, VPAT | M1→M10 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-035,Usability research rounds 1–5 and SUS tracking | M1→M10 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-036,Custom dashboard builder (P1) | M9 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-037,"Audience & scale: startup first-run wizard (3 questions → templates → live), module toggles, progressive promotion of power features | M3 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-038,"Policies: library, document-like read view, authoring fields, applicability, public link, publish → campaign preview | M3 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-039,Acknowledgement & Signature campaign engine UX: employee Acknowledgements/Signatures sections in My Work; receipts; quiz | M5 | L,05-UX-AND-DESIGN.md
+UX (UX),UX-040,"Campaign tracker: campaigns DataGrid, completion by department, remind/escalate/exempt, evidence export | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-041,"Announcements: compose with audience targeting and reach count, schedule/expiry/pin, require-ack, reading-layout feed | M5 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-042,"Document signing: send flow (recipients, bulk, order), click-to-place field editor with keyboard positioning | M8 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-043,"Signing ceremony: mobile-first guided fields, adopt signature, Part 11 re-auth, decline, completion certificate view | M8 | L",05-UX-AND-DESIGN.md
+UX (UX),UX-044,"Documents › Sent envelope tracking with per-recipient status, remind/void/resend | M8 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-045,Visual language spec and anti-pattern review checklist in design review / PR template | M1 | S,05-UX-AND-DESIGN.md
+UX (UX),UX-046,"Normative token package (type, spacing, targets, contrast, radius, elevation, motion) + CI lint banning raw values | M1 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-047,Accent → accessible palette derivation with auto-adjust/reject and branding preview | M2 | M,05-UX-AND-DESIGN.md
+UX (UX),UX-048,"Personal display preferences (text size 100–150%, density, theme, reduced motion, high contrast, underline links) | M3 | M",05-UX-AND-DESIGN.md
+UX (UX),UX-049,"Environment conformance: 320px reflow, 200/400% zoom, forced-colors, prefers-contrast, print styles: automated visual tests | M3→M10 | M",05-UX-AND-DESIGN.md
+Integrations (INT),INT-001,OIDC SSO (any IdP; Keycloak is the reference) | IdentityProvider | P1 | Per-workspace config; auth code + PKCE; domain-verified auto-join; step-up via `max_age`/`acr_values`,13-INTEGRATIONS.md
+Integrations (INT),INT-002,SAML 2.0 via broker IdP | IdentityProvider | P1 | No in-process XML-DSig ([ADR-0011](adr/ADR-0011-authorization-engine.md)),13-INTEGRATIONS.md
+Integrations (INT),INT-003,"SCIM 2.0 server (Users, Groups, enterprise `manager`) | DirectorySource | P1 | Own endpoints over the `scim_v2` types; per-workspace bearer token",13-INTEGRATIONS.md
+Integrations (INT),INT-004,Outbound webhooks | NotificationChannel | P1 | Standard Webhooks,13-INTEGRATIONS.md
+Integrations (INT),INT-005,"Generic HTTP action | ConnectorAction | P1 | JSON in/out, templated body, typed error mapping",13-INTEGRATIONS.md
+Integrations (INT),INT-006,Inbound events API | InboundEvent | P1 | Start instance / signal correlation,13-INTEGRATIONS.md
+Integrations (INT),INT-007,"iCal holiday/calendar feed import | (calendar import) | P1 | Read-only, scheduled refresh, creates a new calendar version",13-INTEGRATIONS.md
+Integrations (INT),INT-008,"Web push (PWA) | NotificationChannel | P1 | VAPID; no content in payload, just ""you have work"" + deep link",13-INTEGRATIONS.md
+Integrations (INT),INT-009,"Chat/host-platform connector framework (§4) | IdentityProvider, DirectorySource, NotificationChannel, embed | P2 | Shared contract for all chat platforms",13-INTEGRATIONS.md
+Integrations (INT),INT-010,Slack / Microsoft Teams-style chat cards | NotificationChannel (actionable) | P2 | Built on the §4 contract,13-INTEGRATIONS.md
+Integrations (INT),INT-011,"Google Workspace / Microsoft 365 calendar & mail | NotificationChannel, calendar | P2 | OOO detection → suggested substitution (never automatic)",13-INTEGRATIONS.md
+Integrations (INT),INT-012,"HRIS: generic CSV/SFTP drop | DirectorySource | P2 | Scheduled, schema-mapped",13-INTEGRATIONS.md
+Integrations (INT),INT-013,"HRIS via HTTP (BambooHR/Workday-style APIs) | DirectorySource, ConnectorAction | P2 | Manager links, hire/termination events → onboarding/offboarding templates",13-INTEGRATIONS.md
+Integrations (INT),INT-014,"ERP/accounting via HTTP (PO creation, vendor master) | ConnectorAction | P2 | Hook points in `fin.*` templates",13-INTEGRATIONS.md
+Integrations (INT),INT-015,"E-signature QTSP (CSC API v2, PAdES) | ConnectorAction | P2 | ESIG-09 QES path; plugs into the document e-signing module as signature type `qes` ([20 §2.16](20-WORKSPACE-CONFIGURATION.md))",13-INTEGRATIONS.md
+Integrations (INT),INT-016,"OpenDoc / CasualOffice document engine | FileConverter | P2 | `.docx` SOP import → blocks, high-fidelity preview, DOCX export",13-INTEGRATIONS.md
+Integrations (INT),INT-017,"SIEM streaming (syslog/CEF, JSON-HTTPS, OTel logs) | (audit stream) | P1/P2 | FR-T08",13-INTEGRATIONS.md
+Integrations (INT),INT-018,NATS JetStream / Kafka event bus | (bus adapter) | P2 | For large installs; outbox stays the source of truth,13-INTEGRATIONS.md
+Integrations (INT),INT-019,"Third-party connector protocol v1 + SDK (Rust, TS) | ConnectorAction | P2 | Sandboxed containers",13-INTEGRATIONS.md
+Integrations (INT),INT-020,"Template hook points (connectors mapped at install) | — | P2 | E.g. `hr.employee-onboarding` ""provision accounts"" step bound to HTTP/HRIS",13-INTEGRATIONS.md
+Integrations (INT),INT-029,Announcements & campaign reminders to chat channels (Slack/Teams/other chat cards with Ack button → confirm + re-validate) | NotificationChannel (actionable) | P2 | Same card contract as approvals (§4.4); policy/e-sign acks needing step-up show Open only,13-INTEGRATIONS.md
+Integrations (INT),INT-030,HRIS joiner events → `policies.attest_on_join` campaign enrolment | DirectorySource | P2 | Standalone path uses member-created event,13-INTEGRATIONS.md
+Integrations (INT),INT-021,"Port traits + in-process built-in adapters (SMTP, in-app, local directory, local auth) | P0 | M | Outbox (EXEC)",13-INTEGRATIONS.md
+Integrations (INT),INT-022,"Outbox dispatcher with leases, per-instance ordering, retries, DLQ, incidents | P0 | L | Runtime core",13-INTEGRATIONS.md
+Integrations (INT),INT-023,"SMTP adapter with localised templates, bounce handling (VERP/webhook optional) | P0 | M | INT-021",13-INTEGRATIONS.md
+Integrations (INT),INT-024,Connector manifest schema + registry + platform allowlist + workspace enablement UI | P1 | M | Config (CFG),13-INTEGRATIONS.md
+Integrations (INT),INT-025,Connector-runner process + egress proxy + SSRF test suite | P1 | L | INT-024,13-INTEGRATIONS.md
+Integrations (INT),INT-026,Secret store abstraction (DB envelope-encrypted default; Vault/KMS adapters) | P1 | M | Key hierarchy,13-INTEGRATIONS.md
+Integrations (INT),INT-001…008,P1 catalogue items (§3) | P1 | S–L each | INT-024/025,13-INTEGRATIONS.md
+Integrations (INT),INT-009…020,P2 catalogue items (§3) | P2 | M–L each | Pilot feedback; OQ-M answers,13-INTEGRATIONS.md
+Integrations (INT),INT-027,OpenAPI generation + oasdiff CI gate + SDK generation pipeline | P0 (spec) / P1 (SDKs) | M | API skeleton,13-INTEGRATIONS.md
+Integrations (INT),INT-028,"`procera` CLI (auth, import/export, test-run, verify) | P1 | M | INT-027, FR-W12",13-INTEGRATIONS.md
+Config (CFG),CFG-001,"Settings catalogue framework in code (schema, comparator, floor, scopes, perms) + generated docs | P0 | M | —",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-002,"Settings storage, revisions, RLS, effective-resolution engine + property tests (never looser than floor) | P0 | M | CFG-001",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-003,Effective-settings explainer API + UI | P0 | S | CFG-002,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-004,"Cache + outbox invalidation; ⚡ key direct-read paths | P0 | S | CFG-002, outbox",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-005,"Workspace admin settings UI (auto-generated forms grouped per §2, search across settings) | P0 | L | CFG-001",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-006,"System Admin console: workspace lifecycle, plans/quotas, policy floors, email/storage/scan config | P0 | L | CFG-002",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-007,"Branding pipeline (logo sanitization, accent contrast derivation, email theming) | P0 | M | CFG-005",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-008,Terminology overrides across UI/email/export (i18n layer integration) | P0 | M | i18n framework,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-009,Calendars & holiday sets with versions; iCal import (P1) | P0 | M | CFG-002,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-010,"Custom roles editor with permission catalogue picker, scope, preview-of-effect, step-up | P0 | L | AuthZ engine",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-011,Settings history + restore UI | P1 | S | CFG-002,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-012,Two-person rule for ⚡/roles/retention changes | P1 | M | Governance review engine,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-013,"Config-as-code export/import (schema, plan/apply, migrations, secret placeholders) | P1 | M | CFG-002",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-014,"Sandbox workspace clone (config only) + promotion via CLI | P1 | M | CFG-013, INT-028",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-015,Floor-raise clamp job + admin notifications | P0 | S | CFG-002,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-016,Separation mode toggle with 24 h notice + permission remap | P1 | M | CFG-010,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-017,"Configuration profiles (4 presets as schema-validated JSON), pick-at-creation, profile switch via plan/apply | P0 | M | CFG-013 (plan/apply core pulled into P0)",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-018,Custom platform profiles (clone/edit) in System Admin console | P1 | S | CFG-017,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-019,Delegated (department/collection-scoped) admin: scoped override editing + guard against ⚡ keys | P1 | M | CFG-010,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-020,"Acknowledgement & Signature Campaign engine: campaign model, audience resolution (snapshot/dynamic), reminders, manager escalation, exemptions, evidence export | P0 | L | Directory, notifications",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-021,Campaign settings group (§2.14) + per-module defaults wiring | P0 | S | CFG-020,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-022,Read-time / scroll-to-end and quiz support in campaigns | P1 | M | CFG-020,20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-023,"Policies module settings (§2.15) incl. attest-on-join and public read view (sanitized, read-only, rate-limited) | P0/P1 | M | CFG-020, governance lifecycle",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-024,"E-signing settings (§2.16): signature types, external signers (email OTP), order, expiry, certificate branding, PAdES sealing, retention class | P1 | L | CFG-020, signatures (14 §3)",20-WORKSPACE-CONFIGURATION.md
+Config (CFG),CFG-025,"Announcements settings (§2.17): posters by role/scope, approval, audience, ack + manager escalation, expiry, comments moderation | P1 | M | CFG-020",20-WORKSPACE-CONFIGURATION.md
+AI (AI),AI-001,"Process drafting** from a description, pasted text or an uploaded SOP/document | P1 | IR v1 draft + forms + rule tables | New *draft* (never published), compiler diagnostics attached",16-AI-ASSISTANCE.md
+AI (AI),AI-002,"SOP drafting** from a process model, or restructuring an existing document into the SOP block model | P1 | SOP blocks | Draft SOP version",16-AI-ASSISTANCE.md
+AI (AI),AI-003,Form generation** from a description or an example document | P1 | JSON Schema + UI schema | Draft form version,16-AI-ASSISTANCE.md
+AI (AI),AI-004,"Rule table suggestion** from a policy text (""over 50 000 needs finance"") | P1 | Rule table | Draft rule version",16-AI-ASSISTANCE.md
+AI (AI),AI-005,"Summarise a request or case** (history, current blocker, next step) | P1 | Text | Ephemeral panel; optional save as comment (attributed)",16-AI-ASSISTANCE.md
+AI (AI),AI-006,Explain an audit timeline** in plain language for investigators | P1 | Text with event links | Ephemeral; can be pinned to an investigation as a labelled note,16-AI-ASSISTANCE.md
+AI (AI),AI-007,Translate an SOP / form labels** into another workspace locale | P1 | Locale bundle / translated SOP draft | Draft translation needing reviewer approval,16-AI-ASSISTANCE.md
+AI (AI),AI-008,"Improve suggestions** for a draft (missing rejection paths, unclear steps, SLA gaps) | P1 | Annotated suggestions | Suggestion list on the draft",16-AI-ASSISTANCE.md
+AI (AI),AI-009,"Natural-language search / filters** (""overdue purchase requests in Finance last week"") | P1 | Data-grid filter AST | Applied filter shown as chips, editable",16-AI-ASSISTANCE.md
+AI (AI),AI-010,"Governed agent step** (`ai.task` node: classify, extract, draft a reply) inside a process | P2 | Structured output validated against schema | Output goes to a human review step unless the node is explicitly non-decisional",16-AI-ASSISTANCE.md
+AI (AI),AI-011,"Provider abstraction + Anthropic, OpenAI-compatible and Ollama adapters | P1 | M | Secret store, egress proxy",16-AI-ASSISTANCE.md
+AI (AI),AI-012,"System Admin provider config + workspace feature toggles + kill switch | P1 | S | AI-011, settings model",16-AI-ASSISTANCE.md
+AI (AI),AI-013,Redaction-before-prompt (shared with export redaction path) | P1 | S | Field-level policy,16-AI-ASSISTANCE.md
+AI (AI),AI-014,"Provenance records + audit events + ""AI-drafted"" badge model | P1 | M | Audit trail",16-AI-ASSISTANCE.md
+AI (AI),AI-015,"Process drafting (AI-001) with compiler loop and suggestion diff UI | P1 | L | IR compiler, designer",16-AI-ASSISTANCE.md
+AI (AI),AI-016,SOP drafting / restructure (AI-002) | P1 | M | SOP block model,16-AI-ASSISTANCE.md
+AI (AI),AI-017,"Form + rule-table generation (AI-003, AI-004) | P1 | M | Form builder, rule tables",16-AI-ASSISTANCE.md
+AI (AI),AI-018,"Request/case summary + audit explanation with citations (AI-005, AI-006) | P1 | M | Audit explorer",16-AI-ASSISTANCE.md
+AI (AI),AI-019,SOP/form translation workflow (AI-007) | P1 | M | i18n bundles,16-AI-ASSISTANCE.md
+AI (AI),AI-020,Draft improvement suggestions (AI-008) | P1 | S | AI-015,16-AI-ASSISTANCE.md
+AI (AI),AI-021,NL → data-grid filter (AI-009) | P1 | S | Shared data grid filter AST,16-AI-ASSISTANCE.md
+AI (AI),AI-022,"Evaluation harness, golden sets, injection suite, CI integration | P1 | M | AI-011",16-AI-ASSISTANCE.md
+AI (AI),AI-023,"Usage metering, budgets, admin dashboard tiles | P1 | S | AI-011",16-AI-ASSISTANCE.md
+AI (AI),AI-024,"AI DPIA template, Art. 6(3) assessment, subprocessor list entries | P1 | S | —",16-AI-ASSISTANCE.md
+AI (AI),AI-025,"Governed `ai.task` node (AI-010): schema-bound output, mandatory review step, versioned prompts in release bundle | P2 | L | IR v2, AI-022",16-AI-ASSISTANCE.md
+E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-04,"Directory CSV import (departments, managers); a manager cycle is rejected with a clear error | FR-W02",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-05,"Clone ""Process Designer"" → ""HR Designer"" scoped to the HR collection; preview count is correct; the scope is enforced on UI and API; adding a permission the editor lacks is refused | FR-W03, J6",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-06,"Policy authored → submitted → self-approval blocked (SoD) → reviewer approves with step-up → scheduled → published at effective date (test clock) → old version watermarked as superseded in PDF | FR-G04/G05/G10, FR-PL01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-07,"Major version publish triggers a re-ack campaign; 50 employees ack (10 at mobile viewport); evidence export lists version hash and auth method | FR-PL03, FR-AK01–04",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-08,New joiner added to a department automatically receives outstanding applicable campaigns | FR-AK03,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-09,"Announcement to location ""Bangalore"" with ack in 3 days; reminders; manager escalation after deadline (test clock); ack % by department correct | FR-AN01–06, J14",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-10,"Announcement approval workflow: draft → reviewer → publish; expiry archives it | FX-C01, FR-AN03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-11,"File upload (resumable 50 MB): clean file previews; **EICAR quarantined** and undownloadable; signed URL expires and fails from workspace B | FR-F01–F03, SEC-10",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-12,"Files view: filter by scan state/type/size, bulk retention change, held file deletion refused | FR-F06, FR-V",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-13,"DataGrid: multi-sort, typed filters, AND/OR group, saved view shared to a role, URL deep link restores view, CSV/XLSX export matches view and redaction | FR-V01–V07",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-14,Audit: perform 10 actions → audit explorer filter by actor → user timeline shows them in order → `/__test/audit/verify` OK | FR-T01–T04,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-15,Workspace overview dashboard: every tile drills into a pre-filtered grid with matching counts | FR-A01,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-16,"Member deactivated → sessions revoked immediately → cannot log in or act | SEC-04, FR-W01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-17,"System admin suspends workspace B (read-only) → writes return 423 with banner → restore | FR-S02, J8",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-18,Startup day-one (J12): Starter profile → install policy-ack pack → publish handbook → 20 employees ack on phones in < 15 min wall-clock | J12,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-19,"Keyboard-only: publish a policy and acknowledge it without a mouse | A11Y-01, T10",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ISO,Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` | SEC-01/02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-01,"Install ""Purchase requisition"", map role placeholders, test run (no emails sent, nothing in metrics), publish | FR-G08, FR-E11",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-02,"Purchase 30 000 → manager approves; 120 000 → rule table routes to finance; rule version recorded in timeline | FR-E10, J3",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-03,Duplicate submit with the same Idempotency-Key returns the same request; a different body returns 409 | 08 §2,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-04,"Double approval race:** two approvers decide concurrently → exactly one commit, the other gets `already_decided` | T01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-05,Kill worker after commit** (fault) → instance still progresses after restart; no duplicate email | T02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-06,"30-day wait timer: publish v2 mid-flight → advance clock 30 d → instance completes on pinned v1 | T03, FR-E07",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-07,"Onboarding (J1): HR starts, manager approves, parallel IT + facilities tasks join, employee tracks progress | J1",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-08,"Out-of-office: manager sets a substitute → new approvals route to them → ""on behalf of"" recorded → expiry restores routing → substitute who is the initiator is excluded (SoD) | FR-E04, J7, T05",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-09,Send back to an earlier step with comment → requester edits → resubmits → approver sees diff | FX-E05,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-10,SLA on business calendar (IN holidays) → at-risk → breach notification to process owner (test clock) | FR-E12,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-11,Escalation reassign after P2D; controlled process forbids auto-approve | 11 §3.2,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-12,"Form: calculation, conditional section, repeating line items, URL prefill, server rejects tampered payload | FR-E03, FX-F01–F03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-13,"Designer keyboard-only: build a 4-step process, validation errors link to nodes, publish | FR-E01, T10",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-14,Failed step raises an incident → admin retries → instance continues; exactly one open incident | FR-E13,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-15,"My Work: j/k/a triage, decision in ≤ 3 interactions, acks tab shows pending campaigns | FR-R03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-16,"Restricted variable (salary) hidden from approver without grant in UI, API, export, email body and search | SEC-03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R2-ISO,"Isolation sweep incl. work items, requests, forms, rule tables | SEC-01/02",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-01,"Admin monitoring (J9): overview → 12 overdue in Finance → filtered grid → bulk reassign with reason and preview → per-item audit → save view | J9, FR-A02/A03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-02,DoA matrix: amount and position limits route to the correct approver; matrix version pinned | FX-D01/D02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-03,Recall/withdraw then restart as a linked copy; edit-after-submit with per-step editable fields | FX-E04/E06,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-04,Request on behalf of: beneficiary sees status; initiator ≠ beneficiary in audit | FX-E03,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-05,Master data: CSV import of cost centres → cascading dropdown in form → version change doesn't alter running requests | FX-E02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-06,"E-sign: upload PDF, place fields (mouse and keyboard), sequential then parallel signers, consent step, sign on mobile, certificate of completion, tamper check fails after byte change | FR-DS01–DS06",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-07,"Bulk sign 1 000 recipients** (J13): async progress, reminders, decline with reason, manager escalation, overdue export | J13",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-08,"""Not e-signable"" template flag blocks sending with guidance | FX-S06",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-09,"File lifecycle (J11): invoice attached, scanned, previewed, locked on completion, visible in Files view with retention class | J11",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-10,BPMN import of a sample with an inclusive gateway → compatibility report lists the element id | FR-G09,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-11,Process health and ops monitor numbers reconcile with raw events | FR-A04/A05,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-12,"All 13 Wave-1 templates: install → test run green (data-driven) | TPL-*, 19",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-MOB,"Mobile pack (360×740, touch): start request, approve, ack, sign | FR-P07",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R3-ISO,"Isolation sweep incl. envelopes, master data, files | SEC-01/02/10",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-01,OIDC SSO via Keycloak; SSO enforcement blocks local login except break-glass owner | FR-P02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-02,"SCIM create/update/deactivate → access revoked and work re-routed < 5 min | INT-003, SEC-04",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-03,Scoped admin (Finance dept) cannot see or grant outside scope; escalation attempt denied | CFG-018,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-04,Webhook delivered with valid Standard Webhooks signature; replay outside tolerance rejected by receiver; retries on 500; disabled on 410 | WH-01–04,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-05,HTTP connector to `169.254.169.254` and to private IP refused (SSRF); allowlisted host OK | SSRF-01–06,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-06,Email-actionable approval: link → confirm page → approve; reusing link fails; a GET never mutates | FR-N03,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-07,"External signer via magic link + email OTP; link single-use | FR-DS02, FR-P08",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-08,Envelope correction (change recipient email) audited; DOCX + merge fields; anchor tags place fields | FX-S03/S09,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-09,Public form with CAPTCHA + rate limit; save & resume | FX-F05/F06,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-10,"Config export from sandbox → import into prod workspace shows diff; secrets absent | FR-W12, FR-P09",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-11,API token scoped to `request:start` cannot read audit | 12 §5,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R4-ISO,"Isolation sweep incl. tokens, webhooks, connectors | SEC-",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-01,"Incident case (J4): intake → evidence → ad hoc tasks → closure blocked until checklist done → audit export | J4, FR-C01/C02",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-02,"Restricted HR case invisible in global search, reports, dashboards, notifications; admin self-grant is audited and visible to case team | FX-K06, OQ-12",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-03,"Investigation (J10): filter `data_access` on `salary` → pin events/files → legal hold → signed export → `procera-verify` offline passes; edited bundle fails | J10, FR-T05/T06, AUD-05",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-04,Legal hold blocks retention purge and file deletion; release by authorised role resumes | PRV-03,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-05,Part 11 mode: approval requires re-auth; manifestation shows name/time/meaning; signature bound to record hash | ESIG-01–05,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-06,"Attestation campaign + access review; unconfirmed grants expire | FR-G06, FR-W11",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-07,Break-glass: system admin request → workspace approval → read-only session banner → auto-expiry → visible in workspace audit | FR-S07,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-08,Separation mode on → workspace admin loses content access → audited self-grant flow | 12 §6.1,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-09,Scheduled report re-applies permissions at run time (user lost access → no data sent) | FX-A02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-10,"AI drafting (when enabled): output is a draft, labelled, provenance in audit; cannot publish or approve | ADR-0006",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R5-ISO,"Isolation sweep incl. cases, investigations, evidence | SEC-",23-E2E-TEST-PLAN.md
