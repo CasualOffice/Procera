@@ -140,6 +140,15 @@ Implemented in `e2e/packs/r1/audit.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/settings.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-DIR-01 | Department tree: sibling names unique (409), moving under a descendant rejected (422 `cycle`), deleting a non-empty department refused | FR-W02 |
+| E2E-R1-DIR-02 | Manager cycles rejected; resolution is the explicit manager, else the nearest department head that is not the member; field sources recorded | FR-W02 (deterministic resolution) |
+| E2E-R1-DIR-03 | Static groups (duplicate member 409); positions blocked until `directory.positions.enabled`; members read the directory but cannot change it | FR-W02, docs/20 §2.5 |
+| E2E-R1-DIR-04 | CSV import: `mode=plan` changes nothing; `mode=apply` creates departments by path and links managers listed later in the file; unknown members reported per row; unknown columns 422 | FR-W02 |
+
+Implemented in `e2e/packs/r1/directory.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

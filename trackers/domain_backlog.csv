@@ -190,6 +190,10 @@ E2E scenarios (E2E),E2E-R1-CFG-02,"Looser than a floor → 422 `setting_below_fl
 E2E scenarios (E2E),E2E-R1-CFG-03,Step-up keys (`auth.mfa.required_roles`) need an MFA-verified session | docs/20 §2.3,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-CFG-04,A member without settings permissions can neither view nor change settings | docs/12 §5,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-CFG-05,"Raising a platform floor clamps a looser workspace value at resolution (stored value kept, `clamped: true`); floors need a reason; keys without floors are rejected | docs/20 §1 rules 4-5",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-DIR-01,"Department tree: sibling names unique (409), moving under a descendant rejected (422 `cycle`), deleting a non-empty department refused | FR-W02",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-DIR-02,"Manager cycles rejected; resolution is the explicit manager, else the nearest department head that is not the member; field sources recorded | FR-W02 (deterministic resolution)",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-DIR-03,"Static groups (duplicate member 409); positions blocked until `directory.positions.enabled`; members read the directory but cannot change it | FR-W02, docs/20 §2.5",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-DIR-04,CSV import: `mode=plan` changes nothing; `mode=apply` creates departments by path and links managers listed later in the file; unknown members reported per row; unknown columns 422 | FR-W02,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

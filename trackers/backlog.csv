@@ -16,7 +16,7 @@ BPMS-014,ENG,"AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODE
 BPMS-020,PLAT,"System plane: bootstrap, system roles, workspaces lifecycle, quotas",P0,R1,Platform,FR-S01–S04,J8 passes,L,BPMS-011,Done
 BPMS-021,IAM,"Local auth (Argon2id), email verify, lockout, sessions",P0,R1,Platform,"12 §3, FX-I01",SEC tests green,M,BPMS-020,Done
 BPMS-022,IAM,"MFA TOTP + WebAuthn, recovery codes, step-up",P0,R1,Platform,12 §3/§11,MFA required by role works,M,BPMS-021,In progress
-BPMS-023,IAM,"Memberships, invites, directory (departments/groups/positions/managers), CSV import",P0,R1,Platform,FR-W01/W02,Manager cycles rejected,M,BPMS-020,In progress
+BPMS-023,IAM,"Memberships, invites, directory (departments/groups/positions/managers), CSV import",P0,R1,Platform,FR-W01/W02,Manager cycles rejected,M,BPMS-020,Done
 BPMS-024,IAM,"Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar",P0,R1,Platform,"FR-W03, ADR-0011",No-escalation property test,L,BPMS-023,In progress
 BPMS-025,SEC,Forced RLS + repository WsCtx + CI cross-workspace sweep,P0,R1,Platform,"03 §7, SEC-01/02",Sweep green in CI,M,BPMS-020,Done
 BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01, AUD-01/07",Every mutating route emits 1 event,M,BPMS-025,Done

@@ -149,9 +149,9 @@ CREATE TABLE memberships (workspace_id uuid NOT NULL REFERENCES workspaces(id), 
   PRIMARY KEY (workspace_id, id), UNIQUE (workspace_id, user_id));
 
 CREATE TABLE departments (workspace_id uuid NOT NULL, id uuid NOT NULL, parent_id uuid, name text NOT NULL,
-  path ltree NOT NULL,                              -- subtree queries for scoped grants
+  path uuid[] NOT NULL,                             -- ancestors root→self (GIN, `@>`); as built in 0008, no ltree extension needed
   head_membership_id uuid, PRIMARY KEY (workspace_id, id));
-CREATE INDEX ON departments USING gist (workspace_id, path);
+CREATE INDEX ON departments USING gin (path);
 
 CREATE TABLE groups (workspace_id uuid NOT NULL, id uuid NOT NULL, name text NOT NULL, kind text NOT NULL
   CHECK (kind IN ('static','rule','scim')), rule jsonb, PRIMARY KEY (workspace_id, id));
