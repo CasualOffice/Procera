@@ -12,6 +12,7 @@ const ALLOW = new Set([
   'MIT', 'MIT-0', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause', 'ISC', '0BSD', 'CC0-1.0',
   'Unlicense', 'BlueOak-1.0.0', 'Python-2.0', 'CC-BY-4.0', 'MPL-2.0', 'EPL-2.0', 'Zlib',
   'OFL-1.1', // self-hosted fonts (Inter) — SP-07
+  'BSL-1.0', // Boost Software License (permissive) — NOT the Business Source License (BUSL-1.1)
 ]);
 // Packages that are never allowed regardless of declared licence (watermark / commercial EULA).
 const DENY_PACKAGES = new Set(['bpmn-js', 'dmn-js', '@bpmn-io/form-js', 'survey-creator-core', 'survey-creator-react', 'minio', 'redis']);

@@ -6,8 +6,8 @@
 ## At a glance
 
 ```text
-Overall   ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░  8/109 epics done  (7%)
-Status    done 8 · in review 0 · in progress 2 · blocked 0 · not started 99 · deferred 0
+Overall   ███░░░░░░░░░░░░░░░░░░░░░░░░░░░  12/109 epics done  (11%)
+Status    done 12 · in review 0 · in progress 3 · blocked 0 · not started 94 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -15,8 +15,8 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
-| **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `███████░░░░░` | 8/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `░░░░░░░░░░░░` | 0/32 |
+| **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `█░░░░░░░░░░░` | 2/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -28,39 +28,44 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 | ID | Item | Status | Note |
 |---|---|---|---|
-| BPMS-010 | Design tokens + core components + visual direction | **In progress** | Slice 1 done: web workspace (Vite/React/TS), tokens.json→CSS with 40 WCAG contrast checks, Button/TextField/Checkbox/Notice on React Aria, app shell, gallery, axe+keyboard+reflow+target E2E (E2E-P0-05..09). Next: Select, Dialog, DataGrid shell, Tabs |
+| BPMS-026 | Audit chain append + coverage contract test | **In progress** | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
+| BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 
 ## Done
 
 - [x] **BPMS-002** Model 5 reference processes in IR on paper — 5 reference processes as IR v1 fixtures (all 16 node kinds) + JSON Schema + structural checker IR-E001..E016 with negative tests; 12 IR spec clarifications (docs/spikes/BPMS-002)
+- [x] **BPMS-003** SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton) — SP-01..06 native runtime: 10k instances under 1329 crashes 0 lost; race exactly-once; join once; 410 retries 0 dup effects; 30-day pinning; BPMN 54-node lossless round trip — docs/spikes/SP-01-06; ADR-0015 recommended
 - [x] **BPMS-004** SP-07 licence/SBOM review of candidate deps — SP-07: Rust + JS dependency licences reviewed; approved set; JS licence gate (scripts/js-licence-gate.mjs) + CDLA-Permissive-2.0 for CA roots; fonts OFL — docs/spikes/SP-07
 - [x] **BPMS-005** SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) — SP-08: recommend CEL + decimal/stdlib/type-checker/budgets; FEEL rejected at runtime (quadratic loops, no WASM) — docs/spikes/SP-08; ADR-0010 recommended
 - [x] **BPMS-006** SP-09 Cedar + RLS + sqlx pool + partial eval — SP-09: Cedar 6/6 correct, 5.6µs P50; RLS via pool 0 leaks/5000; LLD fix NULLIF in RLS policy; partial-eval→SQL viable with fallback — docs/spikes/SP-09
 - [x] **BPMS-007** SP-10 audit chain 10M events: append + explorer — SP-10: head-lock 9.7k ev/s (P99 11ms), batched sealer 65k ev/s, explorer P95 <0.6ms at 10M, verifier 536k ev/s + tamper detected — docs/spikes/SP-10
+- [x] **BPMS-010** Design tokens + core components + visual direction — Tokens (41 contrast checks + forbidden-pair guard), Button/TextField/Checkbox/Notice/Select/ConfirmDialog/Tabs/DataGrid shell on React Aria + TanStack, app shell, gallery; axe light/dark, keyboard, focus trap, aria-sort, reflow, targets (E2E-P0-05..13)
 - [x] **BPMS-011** Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) — Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke) + web check/build, JS licence gate and axe a11y job (added with BPMS-010)
 - [x] **BPMS-013** E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) — e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run
 - [x] **BPMS-014** AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas — CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main
+- [x] **BPMS-025** Forced RLS + repository WsCtx + CI cross-workspace sweep — procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests
+- [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 
 ## Release checklists
 
 Legend: `[x]` done · `[ ]` open. The status is shown in brackets when the item isn't simply not started.
 
 <details open>
-<summary><b>P0 — Spikes + G1 + design system</b> · 2026-11-02 → 2026-11-20 · gate G1 · 8/14 done</summary>
+<summary><b>P0 — Spikes + G1 + design system</b> · 2026-11-02 → 2026-11-20 · gate G1 · 10/14 done</summary>
 
 _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 
 - [ ] **BPMS-001** (P0, M) User interviews (12+, startup/SME/MNC × HR/IT/Fin/Compliance/Admin) + synthesis
 - [x] **BPMS-002** (P0, S) Model 5 reference processes in IR on paper
-- [ ] **BPMS-003** (P0, L) SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton)
+- [x] **BPMS-003** (P0, L) SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton)
 - [x] **BPMS-004** (P0, S) SP-07 licence/SBOM review of candidate deps
 - [x] **BPMS-005** (P0, M) SP-08 expression language (dsntk FEEL vs CEL, incl. WASM)
 - [x] **BPMS-006** (P0, M) SP-09 Cedar + RLS + sqlx pool + partial eval
 - [x] **BPMS-007** (P0, M) SP-10 audit chain 10M events: append + explorer
 - [ ] **BPMS-008** (P0, M) Clickable prototype of Wave-1 flows + 5-user test
 - [ ] **BPMS-009** (P0, S) G1: accept ADR-0010/0011/0015; freeze IR v1
-- [ ] **BPMS-010** (P0, L) Design tokens + core components + visual direction **[In progress]**
+- [x] **BPMS-010** (P0, L) Design tokens + core components + visual direction
 - [x] **BPMS-011** (P0, M) Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)
 - [ ] **BPMS-012** (P0, S) Threat model review
 - [x] **BPMS-013** (P0, M) E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated)
@@ -69,7 +74,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 0/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 2/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -78,15 +83,15 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-022** (P0, M) MFA TOTP + WebAuthn, recovery codes, step-up
 - [ ] **BPMS-023** (P0, M) Memberships, invites, directory (departments/groups/positions/managers), CSV import
 - [ ] **BPMS-024** (P0, L) Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar
-- [ ] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
-- [ ] **BPMS-026** (P0, M) Audit chain append + coverage contract test
+- [x] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
+- [ ] **BPMS-026** (P0, M) Audit chain append + coverage contract test **[In progress]**
 - [ ] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer
 - [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
-- [ ] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys
+- [ ] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys **[In progress]**
 - [ ] **BPMS-030** (P0, M) Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK
 - [ ] **BPMS-031** (P0, M) App shell, workspace switcher, system console shell, ⌘K
 - [ ] **BPMS-032** (P0, L) E2E-R1 pack (R1-01…19 + ISO)
-- [ ] **BPMS-033** (P0, M) Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback
+- [x] **BPMS-033** (P0, M) Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback
 - [ ] **BPMS-034** (P0, S) Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search **[In progress]**
 - [ ] **BPMS-040** (P0, L) Artifacts, versions, lifecycle state machine, immutability trigger, SoD
 - [ ] **BPMS-041** (P0, M) Landscape, collections, owners, RACI, visibility
@@ -228,7 +233,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 84 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 88 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

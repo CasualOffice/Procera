@@ -23,14 +23,14 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 |---|---|---|---|---|---|---|---|---|---|---|
 | BPMS-001 | DISC | User interviews (12+, startup/SME/MNC × HR/IT/Fin/Compliance/Admin) + synthesis | P0 | P0 | Product/UXR | OQ-05, A-* | Synthesis published; personas validated | M |  | Not started |
 | BPMS-002 | DISC | Model 5 reference processes in IR on paper | P0 | P0 | Runtime lead | A-02 | All 5 expressible or IR gaps logged | S |  | Done |
-| BPMS-003 | SPIKE | SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton) | P0 | P0 | Runtime | U-01, ADR-0015 | Reports in docs/spikes/ | L |  | Not started |
+| BPMS-003 | SPIKE | SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton) | P0 | P0 | Runtime | U-01, ADR-0015 | Reports in docs/spikes/ | L |  | Done |
 | BPMS-004 | SPIKE | SP-07 licence/SBOM review of candidate deps | P0 | P0 | Tech lead | ADR-0014 | No blocked licence | S |  | Done |
 | BPMS-005 | SPIKE | SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) | P0 | P0 | Runtime | U-02, ADR-0010 | Engine passes IR expression suite | M |  | Done |
 | BPMS-006 | SPIKE | SP-09 Cedar + RLS + sqlx pool + partial eval | P0 | P0 | Platform | U-03, ADR-0011 | 0 leaks; list P95 in budget | M |  | Done |
 | BPMS-007 | SPIKE | SP-10 audit chain 10M events: append + explorer | P0 | P0 | Platform | U-04 | ≥2k ev/s; P95<2s | M |  | Done |
 | BPMS-008 | UX | Clickable prototype of Wave-1 flows + 5-user test | P0 | P0 | Design | 05 | Findings logged | M |  | Not started |
 | BPMS-009 | ARCH | G1: accept ADR-0010/0011/0015; freeze IR v1 | P0 | P0 | Architect | G1 | Signed off | S | BPMS-003..007 | Not started |
-| BPMS-010 | UX | Design tokens + core components + visual direction | P0 | P0 | Design/FE | 05 §7, UX-001 | axe clean; approved | L |  | In progress |
+| BPMS-010 | UX | Design tokens + core components + visual direction | P0 | P0 | Design/FE | 05 §7, UX-001 | axe clean; approved | L |  | Done |
 | BPMS-011 | ENG | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | P0 | P0 | DevOps | 03 §11 | All gates blocking | M |  | Done |
 | BPMS-012 | SEC | Threat model review | P0 | P0 | Security | 06 §2 | Reviewed; tests mapped | S |  | Not started |
 | BPMS-013 | E2E | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | P0 | P0 | SDET | 23 §2–4 | Smoke runs in CI; endpoints absent in release build | M | BPMS-011 | Done |
@@ -40,15 +40,15 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-022 | IAM | MFA TOTP + WebAuthn, recovery codes, step-up | P0 | R1 | Platform | 12 §3/§11 | MFA required by role works | M | BPMS-021 | Not started |
 | BPMS-023 | IAM | Memberships, invites, directory (departments/groups/positions/managers), CSV import | P0 | R1 | Platform | FR-W01/W02 | Manager cycles rejected | M | BPMS-020 | Not started |
 | BPMS-024 | IAM | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | P0 | R1 | Platform | FR-W03, ADR-0011 | No-escalation property test | L | BPMS-023 | Not started |
-| BPMS-025 | SEC | Forced RLS + repository WsCtx + CI cross-workspace sweep | P0 | R1 | Platform | 03 §7, SEC-01/02 | Sweep green in CI | M | BPMS-020 | Not started |
-| BPMS-026 | AUD | Audit chain append + coverage contract test | P0 | R1 | Platform | FR-T01, AUD-01/07 | Every mutating route emits 1 event | M | BPMS-025 | Not started |
+| BPMS-025 | SEC | Forced RLS + repository WsCtx + CI cross-workspace sweep | P0 | R1 | Platform | 03 §7, SEC-01/02 | Sweep green in CI | M | BPMS-020 | Done |
+| BPMS-026 | AUD | Audit chain append + coverage contract test | P0 | R1 | Platform | FR-T01, AUD-01/07 | Every mutating route emits 1 event | M | BPMS-025 | In progress |
 | BPMS-027 | CFG | Settings layering, floors, profiles, explainer | P0 | R1 | Platform | FR-S05, FR-W04/W06, CFG-001..003 | Never looser than floor | M | BPMS-020 | Not started |
 | BPMS-028 | UX | Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard) | P0 | R1 | FE | FR-V01–V09 | Used by Members & Workspaces | L | BPMS-010 | Not started |
-| BPMS-029 | ENG | Outbox + dispatcher + inbox dedup + idempotency keys | P0 | R1 | Platform | ADR-0005 | T02 skeleton passes | M | BPMS-011 | Not started |
+| BPMS-029 | ENG | Outbox + dispatcher + inbox dedup + idempotency keys | P0 | R1 | Platform | ADR-0005 | T02 skeleton passes | M | BPMS-011 | In progress |
 | BPMS-030 | ENG | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | P0 | R1 | Platform/Sec | 04 §8, 06 §4 | Rotation + shred tested | M | BPMS-020 | Not started |
 | BPMS-031 | UX | App shell, workspace switcher, system console shell, ⌘K | P0 | R1 | FE | UX-002/003 | Keyboard nav | M | BPMS-010 | Not started |
 | BPMS-032 | E2E | E2E-R1 pack (R1-01…19 + ISO) | P0 | R1 | SDET + feature owners | 23 §5 | Green on Chromium + mobile | L | BPMS-013 | Not started |
-| BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Not started |
+| BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Done |
 | BPMS-034 | BRAND | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | P0 | R1 | Design + Product | assets/brand, OQ-01, U-16 | SVGs in assets/brand/vector; clearance memo | S |  | In progress |
 | BPMS-040 | LIB | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | P0 | R1 | Backend | FR-G04, T07 | T07 passes | L | BPMS-024,026 | Not started |
 | BPMS-041 | LIB | Landscape, collections, owners, RACI, visibility | P0 | R1 | Fullstack | FR-G01/G02 | Search authorized-only | M | BPMS-040 | Not started |
@@ -131,21 +131,26 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 8 · In review: 0 · In progress: 2 · Blocked: 0 · Not started: 99 · Deferred: 0 (of 109)
+**Progress:** Done: 12 · In review: 0 · In progress: 3 · Blocked: 0 · Not started: 94 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
 | ID | Work item | Status | Note |
 |---|---|---|---|
 | BPMS-002 | Model 5 reference processes in IR on paper | Done | 5 reference processes as IR v1 fixtures (all 16 node kinds) + JSON Schema + structural checker IR-E001..E016 with negative tests; 12 IR spec clarifications (docs/spikes/BPMS-002) |
+| BPMS-003 | SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton) | Done | SP-01..06 native runtime: 10k instances under 1329 crashes 0 lost; race exactly-once; join once; 410 retries 0 dup effects; 30-day pinning; BPMN 54-node lossless round trip — docs/spikes/SP-01-06; ADR-0015 recommended |
 | BPMS-004 | SP-07 licence/SBOM review of candidate deps | Done | SP-07: Rust + JS dependency licences reviewed; approved set; JS licence gate (scripts/js-licence-gate.mjs) + CDLA-Permissive-2.0 for CA roots; fonts OFL — docs/spikes/SP-07 |
 | BPMS-005 | SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) | Done | SP-08: recommend CEL + decimal/stdlib/type-checker/budgets; FEEL rejected at runtime (quadratic loops, no WASM) — docs/spikes/SP-08; ADR-0010 recommended |
 | BPMS-006 | SP-09 Cedar + RLS + sqlx pool + partial eval | Done | SP-09: Cedar 6/6 correct, 5.6µs P50; RLS via pool 0 leaks/5000; LLD fix NULLIF in RLS policy; partial-eval→SQL viable with fallback — docs/spikes/SP-09 |
 | BPMS-007 | SP-10 audit chain 10M events: append + explorer | Done | SP-10: head-lock 9.7k ev/s (P99 11ms), batched sealer 65k ev/s, explorer P95 <0.6ms at 10M, verifier 536k ev/s + tamper detected — docs/spikes/SP-10 |
-| BPMS-010 | Design tokens + core components + visual direction | In progress | Slice 1 done: web workspace (Vite/React/TS), tokens.json→CSS with 40 WCAG contrast checks, Button/TextField/Checkbox/Notice on React Aria, app shell, gallery, axe+keyboard+reflow+target E2E (E2E-P0-05..09). Next: Select, Dialog, DataGrid shell, Tabs |
+| BPMS-010 | Design tokens + core components + visual direction | Done | Tokens (41 contrast checks + forbidden-pair guard), Button/TextField/Checkbox/Notice/Select/ConfirmDialog/Tabs/DataGrid shell on React Aria + TanStack, app shell, gallery; axe light/dark, keyboard, focus trap, aria-sort, reflow, targets (E2E-P0-05..13) |
 | BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | Done | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke) + web check/build, JS licence gate and axe a11y job (added with BPMS-010) |
 | BPMS-013 | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | Done | e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run |
 | BPMS-014 | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | Done | CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main |
+| BPMS-025 | Forced RLS + repository WsCtx + CI cross-workspace sweep | Done | procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests |
+| BPMS-026 | Audit chain append + coverage contract test | In progress | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
+| BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | In progress | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
+| BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
 
 ## Domain backlogs (detail, owned by their docs)
@@ -155,7 +160,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 84 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 88 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks
@@ -198,7 +203,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | [ADR-0012](adr/ADR-0012-release-bundle.md) | Release bundle pins every dependency of a definition | Accepted |
 | [ADR-0013](adr/ADR-0013-sop-content-model.md) | Structured block model for SOP/policy content | Accepted |
 | [ADR-0014](adr/ADR-0014-licensing-and-contribution.md) | Apache-2.0, DCO, permissive-only dependencies | Proposed (OQ-06) |
-| [ADR-0015](adr/ADR-0015-runtime-selection.md) | Runtime: native Rust interpreter primary | Proposed — decided at G1 |
+| [ADR-0015](adr/ADR-0015-runtime-selection.md) | Runtime: native Rust interpreter primary | Recommended: native interpreter (SP-01…06 all pass, 2026-10-11); final acceptance at G1 |
 | [ADR-0016](adr/ADR-0016-standalone-first.md) | Standalone first; integrations later via ports | Accepted (product direction 2026-10-11) |
 | [ADR-0017](adr/ADR-0017-unified-campaign-engine.md) | One acknowledgement & signature campaign engine | Accepted |
 | [ADR-0018](adr/ADR-0018-ui-stack-and-canvas.md) | UI stack and canvas libraries | Accepted |

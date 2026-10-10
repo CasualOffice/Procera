@@ -5,7 +5,10 @@ cd "$(dirname "$0")/.."
 API_PORT=${API_PORT:-18080}
 WEB_PORT=14173
 step() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
-cleanup() { [[ -n "${API_PID:-}" ]] && kill "$API_PID" 2>/dev/null || true; [[ -n "${WEB_PID:-}" ]] && kill "$WEB_PID" 2>/dev/null || true; }
+cleanup() {
+  for p in "${API_PID:-}" "${WEB_PID:-}" "${CACHE_PID:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null || true; done
+  if [[ -n "${PGTMP:-}" ]]; then "$PGBIN/pg_ctl" -D "$PGTMP" stop -m fast >/dev/null 2>&1 || true; rm -rf "$PGTMP"; fi
+}
 trap cleanup EXIT
 
 step "Rust: fmt"
@@ -13,6 +16,25 @@ cargo fmt --all -- --check
 step "Rust: clippy (all features, and default features)"
 cargo clippy --workspace --all-targets --all-features -q -- -D warnings
 cargo clippy --workspace --all-targets -q -- -D warnings
+step "Cache server for integration tests (Valkey/Redis if installed)"
+if [[ -z "${PROCERA_TEST_CACHE_URL:-}" ]]; then
+  if SRV=$(command -v valkey-server || command -v redis-server); then
+    "$SRV" --port 16391 --save "" --appendonly no >/dev/null 2>&1 & CACHE_PID=$!
+    until (exec 3<>/dev/tcp/127.0.0.1/16391) 2>/dev/null; do sleep 0.2; done
+    export PROCERA_TEST_CACHE_URL=redis://127.0.0.1:16391; echo "using $SRV on :16391"
+  else echo "no valkey/redis installed: remote cache tests will be skipped"; fi
+fi
+step "PostgreSQL for integration tests (throwaway cluster if PROCERA_TEST_DATABASE_URL is unset)"
+if [[ -z "${PROCERA_TEST_DATABASE_URL:-}" ]]; then
+  if command -v initdb >/dev/null || [[ -x /opt/homebrew/opt/postgresql@16/bin/initdb ]]; then
+    PGBIN=$(dirname "$(command -v initdb || echo /opt/homebrew/opt/postgresql@16/bin/initdb)")
+    PGTMP=$(mktemp -d /tmp/procera-pg.XXXX)
+    "$PGBIN/initdb" -D "$PGTMP" -U postgres --auth=trust -E UTF8 >/dev/null
+    "$PGBIN/pg_ctl" -D "$PGTMP" -o "-p 16432 -c unix_socket_directories='' -c listen_addresses=127.0.0.1" -l "$PGTMP/log" start >/dev/null
+    until "$PGBIN/pg_isready" -h 127.0.0.1 -p 16432 -q; do sleep 0.3; done
+    export PROCERA_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:16432/postgres; echo "throwaway Postgres on :16432"
+  else echo "no PostgreSQL found: database tests will be skipped"; fi
+fi
 step "Rust: tests (all features, and default features)"
 cargo test --workspace --all-features -q 2>&1 | grep -E "test result|FAILED|panicked" || true
 cargo test --workspace --all-features -q >/dev/null

@@ -160,6 +160,10 @@ E2E scenarios (E2E),E2E-P0-06,Same in the dark theme | docs/05 §7.1.1,23-E2E-TE
 E2E scenarios (E2E),E2E-P0-07,"Keyboard: skip link is the first tab stop and moves focus to main; every following tab stop shows a visible focus outline | WCAG 2.4.1, 2.4.7, 2.4.11",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-P0-08,Reflows at 320 px with no horizontal scrolling | WCAG 1.4.10,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-P0-09,Every visible interactive target is ≥ 24×24 px (visually hidden native inputs are measured through their label) | WCAG 2.5.8,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-10,"Confirm dialog: Cancel focused first, focus trapped, axe-clean, Esc closes and restores focus to the trigger; confirm performs the action | WCAG 2.4.3, 2.1.2; docs/05 §7.1.1",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-11,"Data grid: `aria-sort` none→ascending→descending, filter result count announced in a live region, select-all count | FR-V01/V02/V06/V08",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-12,"Select operable by keyboard only (open, move, choose) | WCAG 2.1.1",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-13,Tabs: arrow keys move focus and selection; the panel follows | WAI-ARIA tabs pattern,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

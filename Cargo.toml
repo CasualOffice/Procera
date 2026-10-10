@@ -2,7 +2,7 @@
 resolver = "3"
 # Layout follows docs/04-LLD.md §1. Crates are added by the tracker item that needs them;
 # do not add empty placeholder crates.
-members = ["crates/kernel", "apps/procera", "conformance"]
+members = ["crates/kernel", "crates/cache", "crates/db", "crates/audit", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
 
@@ -27,6 +27,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 uuid = { version = "1", features = ["v7", "serde"] }
 procera-kernel = { path = "crates/kernel" }
+procera-cache = { path = "crates/cache" }
+procera-db = { path = "crates/db" }
+procera-audit = { path = "crates/audit" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

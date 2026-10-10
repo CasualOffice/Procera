@@ -118,7 +118,7 @@ The OpenAPI document is generated from code and MUST be regenerated in the PR.
 - Names follow the [glossary](18-GLOSSARY.md) code names.
 - Comments explain *why*, not what.
 
-3.12 **Dependencies:** each new dependency MUST be justified in the PR and pass the licence gate. Permissive licences only (ADR-0014). Blocked: AGPL, GPL (linked), SSPL, BSL/BUSL, SUL, Commons-Clause, and bpmn.io-watermark packages. Pin versions, and keep lockfiles committed.
+3.12 **Dependencies:** each new dependency MUST be justified in the PR and pass the licence gate. Permissive licences only (ADR-0014). Blocked: AGPL, GPL (linked), SSPL, BUSL-1.1 (Business Source), SUL, Commons-Clause, and bpmn.io-watermark packages. Pin versions, and keep lockfiles committed.
 
 ## 4. Testing rules
 

@@ -69,7 +69,7 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 ## 5. Licence gate
 
 Permissive dependencies only (ADR-0014). Never add the following to shipped code:
-- AGPL, GPL (linked), SSPL, BSL/BUSL, SUL, Commons-Clause.
+- AGPL, GPL (linked), SSPL, BUSL-1.1 (Business Source), SUL, Commons-Clause.
 
 Known traps:
 - MinIO, Redis 8 (bundled), ParadeDB, Zitadel, Redpanda, Documenso, pm4py.

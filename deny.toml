@@ -17,7 +17,8 @@ highlight = "simplest-path"
 version = 2
 confidence-threshold = 0.93
 unused-allowed-license = "allow"
-# Permissive only. AGPL, GPL, LGPL (linked), SSPL, BSL/BUSL, SUL and Commons-Clause are never allowed.
+# Permissive only. AGPL, GPL, LGPL (linked), SSPL, BUSL-1.1 (Business Source), SUL and Commons-Clause
+# are never allowed. NOTE: "BSL-1.0" is the *Boost* Software License (permissive, OSI) — allowed below.
 allow = [
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
@@ -29,6 +30,7 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CC0-1.0",
+    "BSL-1.0", # Boost Software License (NOT Business Source); e.g. xxhash-rust via redis
     # Mozilla CA root bundle (webpki-root-certs) is distributed under this permissive data licence.
     # Needed for TLS to IdPs, SMTP relays and webhooks. Reviewed in SP-07.
     "CDLA-Permissive-2.0",

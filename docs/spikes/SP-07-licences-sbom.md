@@ -21,8 +21,9 @@ Method:
 - EPL-2.0 (only unmodified, separately loaded modules).
 - Python-2.0 and CC-BY-4.0 (npm data/tooling packages).
 - **CDLA-Permissive-2.0**: Mozilla CA root bundle, needed for TLS. Added in this review.
+- **BSL-1.0 = Boost Software License** (permissive, OSI), e.g. `xxhash-rust` via the `redis` client. Not to be confused with the blocked **Business Source License (BUSL-1.1)**.
 
-**Blocked:** AGPL, GPL/LGPL (linked), SSPL, BSL/BUSL, SUL, Commons-Clause, Elastic, the bpmn.io watermark licence, and commercial EULAs.
+**Blocked:** AGPL, GPL/LGPL (linked), SSPL, BUSL-1.1 (Business Source), SUL, Commons-Clause, Elastic, the bpmn.io watermark licence, and commercial EULAs.
 
 ## Approved Rust dependencies (checked)
 
