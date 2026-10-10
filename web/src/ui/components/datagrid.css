@@ -1,0 +1,23 @@
+.grid { margin-bottom: var(--space-8); }
+.grid-toolbar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-3); }
+.grid-search { display: flex; flex-direction: column; gap: var(--space-1); min-width: 16rem; }
+.grid-status { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.grid-scroll { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-container); background: var(--color-surface); }
+.grid-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.grid-table caption { text-align: left; padding: var(--space-3) var(--space-4); font-weight: var(--font-weight-semibold); font-size: var(--font-size-md); }
+.grid-table th, .grid-table td { padding: var(--space-2) var(--space-4); text-align: left; border-top: 1px solid var(--color-border); vertical-align: middle; }
+.grid-table th { font-weight: var(--font-weight-semibold); color: var(--color-text-on-tinted); background: var(--color-surface-muted); white-space: nowrap; }
+.grid-table tbody tr:hover { background: var(--color-surface-muted); }
+.grid-table tr[aria-selected='true'] { background: var(--color-info-bg); }
+.grid-table input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--color-action-primary); }
+.grid-sort { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--target-min); padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.grid-sort-idle { opacity: 0.6; }
+.grid-empty { padding: var(--space-6) var(--space-4); color: var(--color-text-secondary); }
+/* Card layout below 640px (FR-V08). */
+@media (max-width: 640px) {
+  .grid-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .grid-table, .grid-table tbody, .grid-table tr, .grid-table td { display: block; width: 100%; }
+  .grid-table tr { border-top: 1px solid var(--color-border); padding: var(--space-2) 0; }
+  .grid-table td { border: 0; padding: var(--space-1) var(--space-4); }
+  .grid-table td[data-label]:not([data-label=''])::before { content: attr(data-label) ': '; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+}

@@ -54,3 +54,29 @@
 .notice-warning .notice-icon, .notice-warning .notice-title { color: var(--color-warning); }
 .notice-danger { background: var(--color-danger-bg); border-color: var(--color-danger); }
 .notice-danger .notice-icon, .notice-danger .notice-title { color: var(--color-danger); }
+
+/* Select */
+.select-trigger { display: flex; align-items: center; justify-content: space-between; text-align: left; cursor: pointer; }
+.popover { min-width: var(--trigger-width); background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); box-shadow: 0 4px 12px rgb(15 23 42 / 0.12); }
+.listbox { padding: var(--space-1); outline: none; max-height: 300px; overflow: auto; }
+.listbox-item { display: flex; align-items: center; min-height: var(--target-comfortable); padding: 0 var(--space-3); border-radius: var(--radius-control); cursor: pointer; outline: none; color: var(--color-text); }
+.listbox-item[data-focused] { background: var(--color-surface-muted); }
+.listbox-item[data-selected] { font-weight: var(--font-weight-semibold); }
+.listbox-item[data-selected]::after { content: '✓'; margin-left: auto; }
+
+/* Dialog — flat surface, scrim, no glass. */
+.modal-overlay { position: fixed; inset: 0; background: rgb(15 23 42 / 0.5); display: flex; align-items: center; justify-content: center; padding: var(--space-4); z-index: 100; }
+.modal { width: min(32rem, 100%); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-container); box-shadow: 0 16px 40px rgb(15 23 42 / 0.25); }
+.dialog { padding: var(--space-6); outline: none; }
+.dialog-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-xl); margin: 0 0 var(--space-3); }
+.dialog-icon { color: var(--color-danger); }
+.dialog-body { margin-bottom: var(--space-6); }
+.dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-3); }
+
+/* Tabs */
+.tablist { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--color-border); margin-bottom: var(--space-4); overflow-x: auto; }
+.tab { display: inline-flex; align-items: center; min-height: var(--target-comfortable); padding: 0 var(--space-4); cursor: pointer; color: var(--color-text-secondary); border-bottom: 3px solid transparent; outline: none; white-space: nowrap; }
+.tab[data-selected] { color: var(--color-text); font-weight: var(--font-weight-semibold); border-bottom-color: var(--color-brand); }
+.tab[data-focus-visible] { outline: var(--focus-width) solid var(--color-focus); outline-offset: -2px; }
+.tabpanel { outline: none; }
+.tabpanel[data-focus-visible] { outline: var(--focus-width) solid var(--color-focus); outline-offset: var(--focus-offset); }

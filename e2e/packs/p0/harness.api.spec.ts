@@ -10,6 +10,9 @@ test.describe('harness smoke @smoke', () => {
 
     const ready = await request.get('/readyz');
     expect(ready.status()).toBe(200);
+    const r = await ready.json();
+    expect(['memory', 'valkey']).toContain(r.cache); // advisory cache reported, never blocks readiness
+    expect(['ok', 'degraded']).toContain(r.cache_health);
   });
 
   test('E2E-P0-02 version endpoint reports name and server time', async ({ request }) => {

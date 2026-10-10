@@ -69,3 +69,66 @@ test.describe('design system @a11y', () => {
     expect(small).toEqual([]);
   });
 });
+
+test.describe('design system components @a11y', () => {
+  test('E2E-P0-10 confirm dialog traps focus, Esc restores focus to the trigger', async ({ page }) => {
+    await page.goto(WEB);
+    const trigger = page.getByRole('region', { name: 'Dialogs' }).getByRole('button', { name: 'Delete policy' });
+    await trigger.click();
+    const dialog = page.getByRole('alertdialog', { name: /Delete “Travel policy v3”/ });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused(); // safe default first
+    for (let i = 0; i < 4; i++) {
+      await page.keyboard.press('Tab');
+      expect(await dialog.evaluate((d) => d.contains(document.activeElement))).toBe(true);
+    }
+    expect((await new AxeBuilder({ page }).include('[role="alertdialog"]').withTags(WCAG).analyze()).violations).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await expect(trigger).toBeFocused();
+    await trigger.click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete policy' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Policy deleted' })).toBeVisible();
+  });
+
+  test('E2E-P0-11 data grid: aria-sort, filter announcements, select all', async ({ page }) => {
+    await page.goto(WEB);
+    const grid = page.getByRole('table', { name: 'All requests' });
+    const due = grid.getByRole('columnheader', { name: /Due/ });
+    await expect(due).toHaveAttribute('aria-sort', 'none');
+    await due.getByRole('button').click();
+    await expect(due).toHaveAttribute('aria-sort', 'ascending');
+    await expect(grid.getByRole('row').nth(1)).toContainText('IT-2026-000310');
+    await due.getByRole('button').click();
+    await expect(due).toHaveAttribute('aria-sort', 'descending');
+    await page.getByRole('searchbox', { name: 'Search' }).fill('Purchase');
+    await expect(page.getByRole('status').filter({ hasText: 'rows' })).toHaveText('2 of 5 rows');
+    await page.getByRole('searchbox', { name: 'Search' }).fill('');
+    await grid.getByRole('checkbox', { name: 'Select all rows' }).check();
+    await expect(page.getByRole('status').filter({ hasText: 'rows' })).toHaveText('5 of 5 rows · 5 selected');
+  });
+
+  test('E2E-P0-12 select is operable with the keyboard only', async ({ page }) => {
+    await page.goto(WEB);
+    const trigger = page.getByRole('button', { name: /Department/ });
+    await trigger.focus();
+    await page.keyboard.press('ArrowDown');
+    const listbox = page.getByRole('listbox');
+    await expect(listbox).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect(listbox).toBeHidden();
+    await expect(trigger).toContainText('Human resources');
+  });
+
+  test('E2E-P0-13 tabs move with arrow keys and expose the selected state', async ({ page }) => {
+    await page.goto(WEB);
+    const first = page.getByRole('tab', { name: 'Overview' });
+    await first.focus();
+    await page.keyboard.press('ArrowRight');
+    const sop = page.getByRole('tab', { name: 'SOP' });
+    await expect(sop).toBeFocused();
+    await expect(sop).toHaveAttribute('aria-selected', 'true');
+    await expect(page.getByRole('tabpanel')).toContainText('The governed procedure');
+  });
+});

@@ -18,6 +18,24 @@ for (const theme of ['light', 'dark']) {
     rows.push(`${pass ? 'ok  ' : 'FAIL'} ${theme.padEnd(5)} ${fg.padEnd(22)} on ${bg.padEnd(22)} ${r.toFixed(2).padStart(5)} (min ${min})`);
   }
 }
+// Forbidden pairings: documented combinations that fail somewhere and must never be used.
+for (const [fg, bg, why] of t.forbidden ?? []) {
+  const worst = Math.min(...['light', 'dark'].map((th) => ratio(t.color[th][fg], t.color[th][bg])));
+  rows.push(`note forbidden ${fg} on ${bg} (worst ${worst.toFixed(2)}): ${why}`);
+}
+// The forbidden pairing must not appear in component CSS.
+import { readdirSync } from 'node:fs';
+const cssDir = new URL('../src/ui/components/', import.meta.url);
+for (const f of readdirSync(cssDir).filter((n) => n.endsWith('.css'))) {
+  const css = readFileSync(new URL(f, cssDir), 'utf8');
+  for (const block of css.split('}')) {
+    for (const [fg, bg] of t.forbidden ?? []) {
+      if (block.includes(`color: var(--color-${fg})`) && block.includes(`background: var(--color-${bg})`)) {
+        failed++; rows.push(`FAIL ${f}: rule uses forbidden ${fg} on ${bg}`);
+      }
+    }
+  }
+}
 console.log(rows.join('\n'));
 if (failed) { console.error(`\n${failed} contrast pair(s) below WCAG minimum`); process.exit(1); }
 console.log(`\nall ${rows.length} contrast pairs pass`);
