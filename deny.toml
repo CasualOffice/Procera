@@ -29,6 +29,9 @@ allow = [
     "Unicode-3.0",
     "Zlib",
     "CC0-1.0",
+    # Mozilla CA root bundle (webpki-root-certs) is distributed under this permissive data licence.
+    # Needed for TLS to IdPs, SMTP relays and webhooks. Reviewed in SP-07.
+    "CDLA-Permissive-2.0",
 ]
 
 [sources]
