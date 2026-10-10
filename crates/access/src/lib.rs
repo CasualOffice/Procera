@@ -138,7 +138,9 @@ pub struct Role {
 pub struct Grant {
     pub id: Uuid,
     pub role_key: String,
-    pub membership_id: Uuid,
+    /// Exactly one of `membership_id` / `group_id` is set.
+    pub membership_id: Option<Uuid>,
+    pub group_id: Option<Uuid>,
     pub scope: Scope,
     #[serde(with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
@@ -158,6 +160,9 @@ pub struct RolePreview {
 pub struct Access {
     cache: Arc<RwLock<HashMap<Uuid, (i64, Arc<PolicySet>)>>>,
 }
+
+/// Grants that apply to membership `$1`: direct, or through a static group it belongs to.
+const APPLIES_TO_MEMBER: &str = "(g.membership_id = $1 OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = $1))";
 
 fn uid(ty: &str, id: impl std::fmt::Display) -> Result<EntityUid, AccessError> {
     EntityUid::from_str(&format!("{ty}::\"{id}\"")).map_err(|e| AccessError::Internal(e.to_string()))
@@ -221,9 +226,9 @@ impl Access {
         membership: Uuid,
     ) -> Result<BTreeSet<String>, AccessError> {
         let perms: Vec<Vec<String>> = sqlx::query_scalar(
-            "SELECT r.permissions FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
-             JOIN memberships m ON m.workspace_id = g.workspace_id AND m.id = g.membership_id AND m.status = 'active'
-             WHERE g.membership_id = $1 AND g.scope_kind = 'workspace' AND (g.expires_at IS NULL OR g.expires_at > now())",
+            &format!("SELECT r.permissions FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+             WHERE {APPLIES_TO_MEMBER} AND g.scope_kind = 'workspace' AND (g.expires_at IS NULL OR g.expires_at > now())
+               AND EXISTS (SELECT 1 FROM memberships m WHERE m.id = $1 AND m.status = 'active')"),
         ).bind(membership).fetch_all(tx.conn()).await?;
         Ok(perms.into_iter().flatten().collect())
     }
@@ -363,6 +368,39 @@ impl Access {
 
     /// Revokes a grant. The revoker must hold every permission of the role (no stripping a role you
     /// could not grant), and the last active workspace owner keeps the owner role.
+    /// Grants `role_key` to every member of a static group (docs/12 §5). Same no-escalation rule;
+    /// the owner role is never granted to groups (owners are named people).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn grant_to_group(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Uuid>,
+        group: Uuid,
+        role_key: &str,
+        scope: Scope,
+        expires_at: Option<OffsetDateTime>,
+        reason: Option<&str>,
+    ) -> Result<Uuid, AccessError> {
+        if role_key == "workspace.owner" {
+            return Err(AccessError::Invalid("the owner role is granted to people, not groups".into()));
+        }
+        let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM groups WHERE id = $1)")
+            .bind(group)
+            .fetch_one(tx.conn())
+            .await?;
+        if !exists {
+            return Err(AccessError::NotFound);
+        }
+        let (role_id, perms) = Self::role_by_key(tx, role_key).await?;
+        self.ensure_no_escalation(tx, actor, &perms).await?;
+        let id = Uuid::now_v7();
+        sqlx::query("INSERT INTO role_grants (workspace_id, id, role_id, group_id, scope_kind, scope_id, expires_at, granted_by, reason) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)")
+            .bind(tx.ctx.workspace_id).bind(id).bind(role_id).bind(group).bind(scope.kind()).bind(scope.id()).bind(expires_at).bind(actor).bind(reason)
+            .execute(tx.conn()).await?;
+        Self::bump(tx).await?;
+        Ok(id)
+    }
+
     pub async fn revoke_grant(
         &self,
         tx: &mut WsTx<'_>,
@@ -408,8 +446,10 @@ impl Access {
         let old: BTreeSet<String> = old.into_iter().collect();
         let new: BTreeSet<String> = permissions.iter().cloned().collect();
         let affected_members: Vec<Uuid> = sqlx::query_scalar(
-            "SELECT DISTINCT g.membership_id FROM role_grants g JOIN memberships m ON m.workspace_id = g.workspace_id AND m.id = g.membership_id AND m.status = 'active'
-             WHERE g.role_id = $1 AND (g.expires_at IS NULL OR g.expires_at > now()) ORDER BY 1",
+            "SELECT m.id FROM memberships m WHERE m.status = 'active' AND EXISTS (
+                SELECT 1 FROM role_grants g WHERE g.role_id = $1 AND (g.expires_at IS NULL OR g.expires_at > now())
+                  AND (g.membership_id = m.id OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = m.id)))
+             ORDER BY 1",
         ).bind(id).fetch_all(tx.conn()).await?;
         Ok(RolePreview {
             added: new.difference(&old).cloned().collect(),
@@ -423,8 +463,18 @@ impl Access {
         tx: &mut WsTx<'_>,
         membership: Option<Uuid>,
     ) -> Result<Vec<Grant>, AccessError> {
-        let rows: Vec<(Uuid, String, Uuid, String, Option<Uuid>, Option<OffsetDateTime>, Option<String>)> = sqlx::query_as(
-            "SELECT g.id, r.key, g.membership_id, g.scope_kind, g.scope_id, g.expires_at, g.reason FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+        type Row = (
+            Uuid,
+            String,
+            Option<Uuid>,
+            Option<Uuid>,
+            String,
+            Option<Uuid>,
+            Option<OffsetDateTime>,
+            Option<String>,
+        );
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT g.id, r.key, g.membership_id, g.group_id, g.scope_kind, g.scope_id, g.expires_at, g.reason FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
              WHERE ($1::uuid IS NULL OR g.membership_id = $1) ORDER BY g.created_at",
         ).bind(membership).fetch_all(tx.conn()).await?;
         rows.into_iter()
@@ -433,9 +483,10 @@ impl Access {
                     id: r.0,
                     role_key: r.1,
                     membership_id: r.2,
-                    scope: Scope::parse(&r.3, r.4)?,
-                    expires_at: r.5,
-                    reason: r.6,
+                    group_id: r.3,
+                    scope: Scope::parse(&r.4, r.5)?,
+                    expires_at: r.6,
+                    reason: r.7,
                 })
             })
             .collect()
@@ -525,7 +576,7 @@ impl Access {
             .await?;
         let Some(status) = status else { return Ok(AccessDecision { allowed: false, reasons: vec![] }) };
         let grants: Vec<(Uuid, String, Option<Uuid>)> = sqlx::query_as(
-            "SELECT role_id, scope_kind, scope_id FROM role_grants WHERE membership_id = $1 AND (expires_at IS NULL OR expires_at > now())",
+            &format!("SELECT g.role_id, g.scope_kind, g.scope_id FROM role_grants g WHERE {APPLIES_TO_MEMBER} AND (g.expires_at IS NULL OR g.expires_at > now())"),
         ).bind(membership).fetch_all(tx.conn()).await?;
         let ws_ref = entity_ref("Workspace", ws);
         let mut entities =
@@ -543,7 +594,19 @@ impl Access {
         let resource_uid = match resource {
             Resource::Workspace => uid("Workspace", ws)?,
             Resource::Member(id) => {
-                entities.push(json!({"uid": entity_ref("Target", id), "attrs": {"workspace": {"__entity": ws_ref}}, "parents": [ws_ref]}));
+                // The member sits inside its department's subtree, so department-scoped grants apply.
+                let path: Option<Vec<Uuid>> = sqlx::query_scalar(
+                    "SELECT d.path FROM memberships m JOIN departments d ON d.workspace_id = m.workspace_id AND d.id = m.department_id WHERE m.id = $1",
+                ).bind(id).fetch_optional(tx.conn()).await?;
+                let mut parent = ws_ref.clone();
+                for dep in path.unwrap_or_default() {
+                    let d = entity_ref("Department", dep);
+                    entities.push(
+                        json!({"uid": d, "attrs": {"workspace": {"__entity": ws_ref}}, "parents": [parent]}),
+                    );
+                    parent = d;
+                }
+                entities.push(json!({"uid": entity_ref("Target", id), "attrs": {"workspace": {"__entity": ws_ref}}, "parents": [parent]}));
                 uid("Target", id)?
             }
             Resource::Role(id) => {
