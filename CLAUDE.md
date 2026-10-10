@@ -35,6 +35,10 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
   - **PostgreSQL 16+ only**, not MariaDB (ADR-0002);
   - **Valkey/Redis is a cache only**, never authoritative (ADR-0019);
   - Rust (Axum, sqlx, Cedar), React + TypeScript (React Aria, TanStack, React Flow).
+- **Brand:**
+  - assets and copy live in `assets/brand/` (tagline: "Turn processes into progress."; pillars Design · Execute · Govern · Improve);
+  - brand red `#EE4136` is for logo, focus and active states only. Primary buttons are charcoal, and the danger colour is distinct (`docs/05 §7.1.1`);
+  - brand assets are not Apache-licensed.
 - **No wild cards.** New features go through the change process in `docs/21 §17`. New uncertainties go into `docs/22`.
 
 ## 3. How to work (summary of docs/24)
@@ -76,6 +80,7 @@ Known traps:
 ```text
 docs/00–24 + adr/   design pack (24 = engineering rules)
 docs/archive/v0.1/  original blueprint (historical; don't edit)
+assets/brand/       logos, icons, favicons, banner, palette + brand guide
 trackers/           generated tracker outputs
 scripts/            build_tracker.py
 .github/            PR/issue templates, CODEOWNERS

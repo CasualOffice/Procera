@@ -49,6 +49,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-031 | UX | App shell, workspace switcher, system console shell, ⌘K | P0 | R1 | FE | UX-002/003 | Keyboard nav | M | BPMS-010 | Not started |
 | BPMS-032 | E2E | E2E-R1 pack (R1-01…19 + ISO) | P0 | R1 | SDET + feature owners | 23 §5 | Green on Chromium + mobile | L | BPMS-013 | Not started |
 | BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Not started |
+| BPMS-034 | BRAND | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | P0 | R1 | Design + Product | assets/brand, OQ-01, U-16 | SVGs in assets/brand/vector; clearance memo | S |  | Not started |
 | BPMS-040 | LIB | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | P0 | R1 | Backend | FR-G04, T07 | T07 passes | L | BPMS-024,026 | Not started |
 | BPMS-041 | LIB | Landscape, collections, owners, RACI, visibility | P0 | R1 | Fullstack | FR-G01/G02 | Search authorized-only | M | BPMS-040 | Not started |
 | BPMS-042 | LIB | SOP/policy block editor + renderer (web/PDF) | P0 | R1 | FE | FR-G03, ADR-0013, U-10 | Tagged PDF export | L | BPMS-040 | Not started |

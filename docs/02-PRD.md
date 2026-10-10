@@ -5,6 +5,8 @@ Version 0.2 · 2026-10-11 · Product **Procera** · Supersedes
 
 ## 1. Vision
 
+> **Turn processes into progress.** Design · Execute · Govern · Improve.
+
 One accessible workspace to **discover, document, govern, run, measure and improve** how
 an organization works — where **the approved SOP is the running process**.
 

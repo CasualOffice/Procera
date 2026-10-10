@@ -150,6 +150,7 @@ CORE = [
  ("BPMS-169","E2E","E2E-R5 pack incl. investigations, Part 11, break-glass","P1","M9","SDET + feature owners","23 §5","Green","L","BPMS-152"),
  ("BPMS-187","E2E","E2E-GA regression: 3 browsers × 2 viewports, cache-off, upgrade-path R1→1.0, air-gapped","P1","M10","SDET","23 §5","Green; flake < 0.5 %","M","BPMS-169"),
  ("BPMS-014","ENG","AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas","P0","M1","Tech lead","07 §3","In repo","S",""),
+ ("BPMS-034","BRAND","Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search","P0","M2","Design + Product","assets/brand, OQ-01, U-16","SVGs in assets/brand/vector; clearance memo","S",""),
  ("BPMS-033","OPS","Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback","P0","M2","Platform","ADR-0019","E2E passes with cache off","M","BPMS-020"),
 ]
 CORE = [r[:4]+(REL_OVERRIDE.get(r[0], OLD_TO_REL.get(r[4], r[4])),)+r[5:] for r in CORE]

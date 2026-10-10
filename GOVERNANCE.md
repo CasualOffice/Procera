@@ -54,7 +54,7 @@ Vulnerabilities are reported privately ([SECURITY.md](SECURITY.md)). The securit
 
 ## 7. Trademark
 
-"Procera" and its logo are trademarks of CasualOffice.
+"Procera", its logo and the brand assets in `assets/brand/` are trademarks of CasualOffice. They are not licensed under Apache-2.0. Brand usage rules are in [`assets/brand/README.md`](assets/brand/README.md).
 - Forks are welcome under Apache-2.0, but a fork MUST use a different name and logo if it is distributed or offered as a service.
 - Unmodified builds of official releases, and descriptive use ("works with Procera", "based on Procera"), are allowed.
 - Questions go to the maintainers.

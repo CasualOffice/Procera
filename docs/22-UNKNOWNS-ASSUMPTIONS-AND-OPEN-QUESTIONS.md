@@ -41,6 +41,7 @@ Purpose: to make sure **nothing turns into a wild card**. Every uncertainty that
 | U-12 | Real-time collaboration on drafts (co-editing) needed? | Big architecture impact if yes | Assume **no** for GA (locking + comments); revisit at M7 | M7 |
 | U-13 | APQC PCF exact licence text | Template taxonomy attribution | Legal review | M3 |
 | U-14 | Email deliverability for self-hosters (SPF/DKIM/DMARC guidance, bounce handling) | Notifications are core in standalone mode | Admin guide + bounce webhook support for common relays | M6 |
+| U-16 | Brand assets are raster concept extractions; production vector masters and a small-size symbol are needed | Logo/favicon quality, print, app icons | Commission or produce SVG masters (BPMS-034); re-export icon and favicon sets | R1 |
 | U-15 | Browser support matrix | QA cost | Decide: last 2 versions of Chromium/Firefox/Safari; no IE/legacy Edge | M1 |
 
 ## 3. Assumptions (true until proven otherwise; each has a check)

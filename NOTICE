@@ -7,6 +7,8 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 permission to use the trade names, trademarks, service marks, or product names
 of the Licensor, except as required for reasonable and customary use in
 describing the origin of the Work (see GOVERNANCE.md, "Trademark").
+The brand assets in assets/brand/ (logos, symbol, icons, banner) are not
+licensed under the Apache License; they are trademarks of CasualOffice.
 
 Third-party components and their licences are listed in the SBOM published with
 each release (CycloneDX). Template taxonomy references to the APQC Process

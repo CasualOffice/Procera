@@ -1,15 +1,18 @@
-<h1 align="center">Procera</h1>
+<p align="center">
+  <img src="assets/brand/marketing/procera-banner.png" alt="Procera — Turn processes into progress. Design · Execute · Govern · Improve">
+</p>
 
 <p align="center">
-  <b>Open-source process governance and workflow, where the approved SOP is the running process.</b><br>
-  Policies · SOPs · approvals · e-signatures · announcements · cases · audit, all in one self-hostable, multi-tenant workspace.
+  <b>Turn processes into progress.</b><br>
+  Open-source business process management for modeling, automating, governing and improving workflows,<br>
+  where the approved SOP is the running process.
 </p>
 
 <p align="center">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
   <img alt="Status: design phase" src="https://img.shields.io/badge/status-design%20phase-orange.svg">
-  <img alt="Rust + PostgreSQL" src="https://img.shields.io/badge/stack-Rust%20%C2%B7%20PostgreSQL%20%C2%B7%20React-black.svg">
-  <img alt="WCAG 2.2 AA" src="https://img.shields.io/badge/a11y-WCAG%202.2%20AA-green.svg">
+  <img alt="Rust + PostgreSQL" src="https://img.shields.io/badge/stack-Rust%20%C2%B7%20PostgreSQL%20%C2%B7%20React-0F172A.svg">
+  <img alt="WCAG 2.2 AA" src="https://img.shields.io/badge/a11y-WCAG%202.2%20AA-067647.svg">
 </p>
 
 ---
@@ -18,7 +21,13 @@
 
 ## What is Procera?
 
-Procera helps organizations of any size, from a 10-person startup to a multinational, **document, govern, run, measure and improve how they work** in one place:
+Procera is a modern, open-source business process management platform. It helps organizations design, automate, govern and continuously improve their business processes, end to end. It is built for any size, from a 10-person startup to a multinational, and for every department.
+
+| **Design** | **Execute** | **Govern** | **Improve** |
+|---|---|---|---|
+| Model and document processes, SOPs and policies | Automate work across people and systems | Ensure compliance, control and visibility | Gain insights and continuously optimize |
+
+In one place, Procera brings together:
 
 - **Policies & SOPs** on a governed lifecycle (draft → review → approved → scheduled → published → retired), with segregation of duties, version diffs, review dates and PDF export.
 - **Workflows without code.** A step builder, typed forms, approvals (sequential, parallel, quorum, approval-limit matrices), SLAs on business calendars, delegation and out-of-office, recall and send-back.
@@ -80,6 +89,7 @@ Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 
 ```text
 docs/        numbered design pack, adr/, archive/v0.1/
+assets/      brand/ — logos, icons, favicons, banner, palette (see assets/brand/README.md)
 trackers/    Delivery_Tracker.xlsx + CSV exports (generated, do not hand-edit)
 scripts/     build_tracker.py (regenerates the tracker from docs)
 .github/     PR/issue templates, CODEOWNERS
@@ -97,4 +107,4 @@ Every commit is DCO signed-off. Security issues go privately via [SECURITY.md](S
 
 ## License
 
-Procera is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE). "Procera" is a trademark of CasualOffice ([governance](GOVERNANCE.md#7-trademark)).
+Procera's source code is licensed under the [Apache License 2.0](LICENSE). See [NOTICE](NOTICE). The Procera name, logo and brand assets in [`assets/brand/`](assets/brand/README.md) are trademarks of CasualOffice and are **not** covered by the Apache licence ([governance](GOVERNANCE.md#7-trademark)).

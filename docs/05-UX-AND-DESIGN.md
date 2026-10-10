@@ -523,7 +523,7 @@ These values are **normative**: components consume tokens only, and CI lint bloc
 | Token | Value |
 |---|---|
 | Neutrals | 11-step neutral ramp (`gray-0…gray-950`), slightly warm. Surfaces: `bg` (gray-0), `bg-subtle` (gray-50), `border` (gray-200, 3:1 for input borders via `border-strong`) |
-| Accent | One workspace accent → derived 11-step ramp. Uses: primary buttons, links, focus, selection. Default: a deep blue (`#1F5FBF`-range, verified 4.5:1 on white) |
+| Accent | One workspace accent → derived 11-step ramp. Uses: links, focus, selection, active-navigation marker (primary buttons use ink by default, §7.1.1). **Default: Procera brand red**, with role-specific shades verified for contrast in §7.1.1. Workspaces may override it (white-label) |
 | Semantic | `success` green, `warning` amber (dark text on amber), `danger` red, `info` blue, each with text/bg/border variants all meeting the contrast rules |
 | Data viz | 8-colour categorical palette, colour-blind safe (validated for deuteranopia, protanopia and tritanopia), plus a sequential ramp |
 | Radius presets | `sharp` 0/2px · **`standard` 4px controls / 6px containers (default)** · `soft` 6/8px. Nothing above 8px except avatars |
@@ -537,7 +537,35 @@ These values are **normative**: components consume tokens only, and CI lint bloc
 - **`forced-colors: active`** (Windows High Contrast): system colours, borders kept visible, focus via `Highlight`, icons via `currentColor`, no information in background images.
 - Print stylesheet for SOPs, policies and certificates.
 
-### 7.1.1 Configurable but safe
+### 7.1.1 Procera brand applied to the product UI (normative)
+
+Source: `assets/brand/` (brand board and copy, 2026-10-11). Contrast ratios below were computed with the WCAG 2.x formula.
+
+| Role token | Light theme | Dark theme | Contrast (verified) | Use |
+|---|---|---|---|---|
+| `brand` | `#EE4136` Flamingo Red | `#EE4136` | 3.86:1 on #FFF; 3.69 on #F8FAFC; 4.63 on #0F172A | Logo/symbol, focus ring, active-nav marker, selection, progress, large display text (≥ 24 px). **Never** body text. **Never** white normal-size text on it. |
+| `accent-text` (links, inline actions) | `#C72D26` Deep Red | `#FF6B5A` Coral | 5.48 on #FFF, 5.24 on #F8FAFC / 6.38 on #0F172A, 5.23 on #1E293B | Links, text buttons, icons that carry meaning |
+| `accent-strong` (filled accent button, when enabled) | `#C72D26` bg + white text; hover `#A8241E` | `#FF6B5A` bg + `#0F172A` text | white on #C72D26 5.48; on #A8241E 7.15 | Optional "brand button" style; off by default |
+| `action-primary` (default primary button) | `#0F172A` Charcoal bg + white text | `#F8FAFC` bg + `#0F172A` text | 17.85 | Primary actions (Submit, Approve, Publish) |
+| `text` | `#0F172A` | `#F8FAFC` | 17.85 / 17.06 | Body and headings |
+| `text-secondary` | `#64748B` Slate (only on #FFF/#F8FAFC); `#475569` on tinted surfaces | `#94A3B8` | 4.76 / 4.55; 7.58 / 6.96 | Metadata, helper text |
+| `bg` / `surface` | `#F8FAFC` / `#FFFFFF` | `#0F172A` / `#1E293B` | — | Page and panels |
+| `danger` | `#B42318` (text, icon, outline; filled + white text 6.57) | `#FCA5A5` text | 6.57 / 9.41 | Destructive actions and errors, **always with an icon and words** |
+| `success` / `warning` | `#067647` / `#B54708` | lightened equivalents | 5.69 / 5.43 | Status, always with an icon and text |
+
+**Decisions**
+
+1. **Primary buttons are ink (charcoal), not red.** Procera is an approvals product. A red "Approve" button would read as *danger/reject*, and the brand red fails contrast with white labels. Red is the brand signal: logo, focus, active state, selection. It is not the action colour. Workspaces can opt into `accent-strong` buttons, which use Deep Red with white text.
+2. **Danger is visually distinct from the brand.** It uses a deeper crimson (`#B42318`), and every use has an icon, an explicit verb ("Delete policy") and a confirmation dialog for destructive operations. Reject in approvals is an **outlined neutral** button, never filled red.
+3. **No gradients in product UI.** The logo's gradient is part of the mark and is allowed wherever the logo appears. Marketing art (the banner, the social card) may use the brand gradient. Application surfaces stay flat (§7.0.1).
+4. **Typography:** the wordmark is a geometric sans. The UI font stays on the vetted open-licence list (§7.1). Inter or a similar geometric sans pairs best with the mark.
+5. **Logo usage in the app:**
+   - The app shell shows `procera-symbol` at 24 px with the "Procera" wordmark in `text` colour. On narrow screens it shows the symbol only.
+   - Minimum symbol size is 16 px, and clear space around it is at least half the symbol's height.
+   - When a workspace sets its own logo (white-label), Procera branding appears only as a small "Powered by Procera" mark in the footer and in certificates. Workspaces can hide that mark per the governance trademark rules.
+6. **Production caveat:** the current files are raster extractions from a concept board. Vector (SVG) masters, an optically corrected symbol and a trademark search are tracked as BPMS-034 and OQ-01 before R1 ships.
+
+### 7.1.2 Configurable but safe
 
 **Workspace branding (Workspace Admin, Settings › Branding):**
 
