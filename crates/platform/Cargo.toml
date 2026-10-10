@@ -13,6 +13,7 @@ procera-audit.workspace = true
 procera-crypto.workspace = true
 procera-db.workspace = true
 procera-identity.workspace = true
+procera-members.workspace = true
 procera-kernel.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
@@ -22,6 +23,8 @@ time = { workspace = true }
 uuid.workspace = true
 
 [dev-dependencies]
+procera-access.workspace = true
+procera-members.workspace = true
 procera-audit.workspace = true
 anyhow.workspace = true
 tokio.workspace = true

@@ -16,16 +16,24 @@ async fn setup() -> Option<anyhow::Result<(test_support::TestDb, Platform)>> {
         Ok(t) => t,
         Err(e) => return Some(Err(e.into())),
     };
-    let keys = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64()).ok()?);
+    let keys: Arc<LocalKey> = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64()).ok()?);
     let id = Identity::new(
         t.db.clone(),
-        keys,
+        keys.clone(),
         Arc::new(SystemClock),
         Arc::new(UuidV7Gen),
         IdentityConfig { cost: HashCost::FAST_FOR_TESTS, ..IdentityConfig::default() },
     )
     .ok()?;
-    let p = Platform::new(t.db.clone(), id, Arc::new(SystemClock), Arc::new(UuidV7Gen));
+    let members = procera_members::Members::new(
+        t.db.clone(),
+        id.clone(),
+        procera_access::Access::new(),
+        keys,
+        Arc::new(SystemClock),
+        Arc::new(UuidV7Gen),
+    );
+    let p = Platform::new(t.db.clone(), id, members, Arc::new(SystemClock), Arc::new(UuidV7Gen));
     Some(Ok((t, p)))
 }
 
@@ -129,5 +137,121 @@ async fn workspace_lifecycle_quotas_and_audit() -> anyhow::Result<()> {
     let report = procera_audit::verify(&t.db, WsCtx { workspace_id: procera_db::SYSTEM_WORKSPACE }).await?;
     assert_eq!(report.first_broken, None);
     assert!(report.checked >= 8, "every lifecycle change is audited ({} events)", report.checked);
+    Ok(())
+}
+
+#[tokio::test]
+async fn onboarding_owner_invite_activates_workspace_then_members_and_guards() -> anyhow::Result<()> {
+    let Some(r) = test_support::fresh().await else { return Ok(()) };
+    let t = r?;
+    let keys: Arc<LocalKey> = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64())?);
+    let identity = Identity::new(
+        t.db.clone(),
+        keys.clone(),
+        Arc::new(SystemClock),
+        Arc::new(UuidV7Gen),
+        IdentityConfig { cost: HashCost::FAST_FOR_TESTS, ..IdentityConfig::default() },
+    )?;
+    let access = procera_access::Access::new();
+    let members = procera_members::Members::new(
+        t.db.clone(),
+        identity.clone(),
+        access.clone(),
+        keys,
+        Arc::new(SystemClock),
+        Arc::new(UuidV7Gen),
+    );
+    let p = Platform::new(
+        t.db.clone(),
+        identity.clone(),
+        members.clone(),
+        Arc::new(SystemClock),
+        Arc::new(UuidV7Gen),
+    );
+    let token = p.issue_bootstrap_token().await?.expect("token");
+    let root = p.bootstrap(&token, "root@acme.test", "Root", PW, &c()).await?;
+
+    let ws = p
+        .create_workspace(
+            root.id,
+            &NewWorkspace {
+                name: "Acme".into(),
+                slug: "acme".into(),
+                profile: "standard".into(),
+                owner_email: "olivia@acme.test".into(),
+                region: None,
+            },
+            &c(),
+        )
+        .await?;
+    assert_eq!(ws.state, WorkspaceState::Provisioning);
+    let ctx = WsCtx { workspace_id: ws.id };
+    let owner_token = members.pending_invitation_token(ctx, "olivia@acme.test").await?.expect("owner invite");
+
+    // A different user cannot use Olivia's invitation.
+    let mallory = identity.create_user("mallory@acme.test", "Mallory", PW, &c()).await?;
+    assert!(matches!(
+        members.accept(&owner_token, mallory.id, &c()).await,
+        Err(procera_members::MembersError::EmailMismatch)
+    ));
+    // Olivia registers through the invitation; the workspace becomes active and she holds owner permissions.
+    let (olivia, ws_id, olivia_m) = members.register(&owner_token, "Olivia", PW, &c()).await?;
+    assert_eq!(ws_id, ws.id);
+    assert_eq!(p.get_workspace(ws.id).await?.state, WorkspaceState::Active);
+    assert!(
+        matches!(
+            members.accept(&owner_token, olivia.id, &c()).await,
+            Err(procera_members::MembersError::InvitationInvalid)
+        ),
+        "single use"
+    );
+    let mut tx = t.db.begin_ws(ctx).await?;
+    assert!(
+        access
+            .check(&mut tx, olivia_m, "workspace:delete.request", &procera_access::Resource::Workspace)
+            .await?
+            .allowed
+    );
+    let olivia_actor = procera_members::Actor { membership: olivia_m, subject_ref: olivia.subject_ref };
+    let (_inv, admin_token) = members
+        .invite(&mut tx, Some(olivia_actor), "adam@acme.test", &["workspace.admin".into()], &c())
+        .await?;
+    tx.commit().await?;
+    let adam = identity.create_user("adam@acme.test", "Adam", PW, &c()).await?;
+    let (_, adam_m) = members.accept(&admin_token, adam.id, &c()).await?;
+
+    let mut tx = t.db.begin_ws(ctx).await?;
+    let adam_actor = procera_members::Actor { membership: adam_m, subject_ref: adam.subject_ref };
+    // Admins cannot invite owners (escalation) and nobody can remove the last owner or themselves.
+    assert!(matches!(
+        members.invite(&mut tx, Some(adam_actor), "eve@acme.test", &["workspace.owner".into()], &c()).await,
+        Err(procera_members::MembersError::Access(_))
+    ));
+    assert!(matches!(
+        members.deactivate(&mut tx, adam_actor, olivia_m, &c()).await,
+        Err(procera_members::MembersError::LastOwner)
+    ));
+    assert!(matches!(
+        members.deactivate(&mut tx, adam_actor, adam_m, &c()).await,
+        Err(procera_members::MembersError::SelfDeactivation)
+    ));
+    let list = members.list(&mut tx).await?;
+    assert_eq!(list.len(), 2);
+    assert!(list.iter().any(|m| m.email == "olivia@acme.test" && m.roles == vec!["workspace.owner"]));
+    // Olivia deactivates Adam: his access is denied immediately.
+    members.deactivate(&mut tx, olivia_actor, adam_m, &c()).await?;
+    assert!(
+        !access.check(&mut tx, adam_m, "member:view", &procera_access::Resource::Workspace).await?.allowed
+    );
+    tx.commit().await?;
+
+    assert_eq!(
+        members.user_workspaces(olivia.id).await?.iter().map(|w| w.slug.as_str()).collect::<Vec<_>>(),
+        vec!["acme"]
+    );
+    assert!(members.user_workspaces(adam.id).await?.is_empty(), "deactivated memberships are not listed");
+    let report = procera_audit::verify(&t.db, ctx).await?;
+    assert_eq!(report.first_broken, None);
+    assert!(report.checked >= 5, "workspace chain has invites, joins, deactivation ({})", report.checked);
     Ok(())
 }

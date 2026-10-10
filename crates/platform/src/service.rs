@@ -5,6 +5,7 @@ use procera_crypto::{hash_token, random_token};
 use procera_db::{Db, DbError, WsTx};
 use procera_identity::{ClientInfo, Identity, IdentityError, User};
 use procera_kernel::{Clock, IdGen};
+use procera_members::{Members, MembersError};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use time::OffsetDateTime;
@@ -28,6 +29,8 @@ pub enum PlatformError {
     StaleRevision { expected: i64, current: i64 },
     #[error(transparent)]
     Identity(#[from] IdentityError),
+    #[error(transparent)]
+    Members(#[from] MembersError),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -189,13 +192,20 @@ fn to_ws(r: WsRow) -> Workspace {
 pub struct Platform {
     db: Db,
     identity: Identity,
+    members: Members,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
 }
 
 impl Platform {
-    pub fn new(db: Db, identity: Identity, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>) -> Self {
-        Self { db, identity, clock, ids }
+    pub fn new(
+        db: Db,
+        identity: Identity,
+        members: Members,
+        clock: Arc<dyn Clock>,
+        ids: Arc<dyn IdGen>,
+    ) -> Self {
+        Self { db, identity, members, clock, ids }
     }
 
     async fn audit(
@@ -393,6 +403,10 @@ impl Platform {
         )
         .await?;
         let ws = self.load(&mut tx, id).await?;
+        // Same transaction: seed built-in roles and invite the first owner inside the new workspace.
+        tx.rescope(procera_db::WsCtx { workspace_id: id }).await?;
+        self.members.access().seed_workspace(&mut tx).await.map_err(MembersError::from)?;
+        self.members.invite(&mut tx, None, &req.owner_email, &["workspace.owner".to_owned()], client).await?;
         tx.commit().await?;
         Ok(ws)
     }

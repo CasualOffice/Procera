@@ -602,6 +602,32 @@ impl Identity {
         self.revoke_all(user_id, "account deactivated", client).await
     }
 
+    /// Issues an access token scoped to workspace `ws` (or the user's home view when `None`) for an
+    /// existing sign-in, and records the workspace on the refresh family so refresh keeps it. The caller
+    /// must have verified an active membership first.
+    pub async fn issue_workspace_token(
+        &self,
+        claims: &Claims,
+        ws: Option<Uuid>,
+    ) -> Result<(String, u64), IdentityError> {
+        let user = self.me(claims.sub).await?.ok_or(IdentityError::InvalidToken)?;
+        if user.status != "active" || user.token_version != claims.tv {
+            return Err(IdentityError::InvalidToken);
+        }
+        sqlx::query(
+            "UPDATE refresh_tokens SET active_workspace_id = $2 WHERE family_id = $1 AND revoked_at IS NULL",
+        )
+        .bind(claims.sid)
+        .bind(ws)
+        .execute(self.db.pool())
+        .await?;
+        let amr: Vec<&str> = claims.amr.iter().map(String::as_str).collect();
+        let auth_time = OffsetDateTime::from_unix_timestamp(claims.auth_time).unwrap_or_else(|_| self.now());
+        let token =
+            self.sign(&user, claims.sid, &claims.plane, ws, &amr, auth_time, "access", self.cfg.access_ttl)?;
+        Ok((token, self.cfg.access_ttl.as_secs()))
+    }
+
     /// Verifies an access token's signature and claims (no database). Pair with [`Identity::token_state`].
     pub fn verify_access(&self, token: &str) -> Option<Claims> {
         self.jwt.verify(token, "access")
