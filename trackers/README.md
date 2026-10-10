@@ -40,6 +40,8 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 ## Recently shipped (last 12 commits on main)
 
+- `12aff51` feat(api): workspace settings and platform floor APIs, profiles at workspace creation; E2E-R1-CFG-01..05 (BPMS-027)
+- `18036bf` feat(settings): [protected] settings catalogue, platform floors, profiles and effective resolution (BPMS-027)
 - `b5d66a3` chore(tracker): dashboard shows partial progress, test counts and recently shipped commits; BPMS-027 in progress
 - `d93d157` test(audit): [protected] route audit contract with static route check and E2E-R1-AUD-01 (BPMS-026)
 - `a9f9c55` feat(api): invitation list/revoke/resend, role preview, audited role and grant changes; E2E-R1-MEM-07..08 (BPMS-023, BPMS-024)
@@ -50,8 +52,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `6de89e5` feat(api): auth and system HTTP APIs, E2E packs R1-AUTH and R1-SYS, DB-backed E2E in CI
 - `5531ca5` feat(platform): system plane — bootstrap, system roles, workspace lifecycle, quotas (BPMS-020)
 - `1656553` feat(identity): JWT access + rotating refresh tokens, Argon2id, throttling, TOTP MFA (BPMS-021, BPMS-022)
-- `1e805ea` feat(crypto): key provider and context-bound AES-256-GCM for secrets at rest (BPMS-030, slice 1)
-- `047c664` chore: CI Postgres+Valkey services, test-all bootstraps throwaway servers, licence wording, tracker
 
 ## Done
 
