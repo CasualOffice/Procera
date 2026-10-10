@@ -130,11 +130,13 @@ CREATE POLICY ws_isolation ON <t>
 -- connection; ''::uuid would error instead of yielding zero rows (SP-09 finding A-1).
 ```
 
-Roles:
+Roles (bootstrap script [`deploy/sql/00-roles.sql`](../deploy/sql/00-roles.sql); migrations in [`migrations/`](../migrations)):
+- `procera_migrator` owns the schema and runs migrations (`procera migrate`). Default privileges grant the app DML on everything it creates.
+- `procera_discovery` (NOLOGIN, BYPASSRLS) owns only the `discovery.*` functions that tell background workers *which* workspaces have pending work. It has column-level `SELECT` on id and status columns only, so it can never read payloads. This replaces the earlier `procera_system` idea: FORCE RLS binds table owners, so cross-workspace discovery needs a dedicated, minimal bypass. Implemented in BPMS-025/029.
 - `procera_app` runs workspace requests. It owns no tables, has no `BYPASSRLS`, and only has DML.
-- `procera_system` is used by the system plane and cross-workspace jobs such as the scheduler sweep. It has a narrow set of grants and the jobs set the context per row batch.
+- The system plane runs as `procera_app` under the nil workspace id (`begin_system`). Cross-workspace jobs discover workspaces through `discovery.*` and then process each one under its own RLS context.
 - `procera_migrator` owns the schema.
-- `procera_audit_writer` can only `INSERT` into the audit tables.
+- Audit tables: the app role holds `INSERT`/`SELECT` but no `UPDATE`, `DELETE` or `TRUNCATE`, and an immutability trigger blocks everyone else (migration 0002).
 
 ### 2.3 Membership, directory, access
 
