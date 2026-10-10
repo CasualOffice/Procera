@@ -176,6 +176,7 @@ STATUS = {
  "BPMS-024": ("In progress", "procera-access: permission catalogue + 12 role templates, custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage), scoped expiring grants compiled to Cedar, invariants (workspace isolation, active members only), last-owner protection, role change preview, per-workspace access_revisions cache; all role/grant changes audited; no-escalation property test (proptest, 64 cases vs Postgres); E2E-R1-MEM-04,08. Remaining: preview-matches-effect property test, group/directory-rule assignment (needs BPMS-023 directory)"),
  "BPMS-025": ("Done", "procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests"),
  "BPMS-026": ("Done", "procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)"),
+ "BPMS-027": ("In progress", "procera-settings: catalogue in code (P0 subset, 38 keys, comparators), platform floors (migration 0007), configuration profiles, effective-resolution with clamping, revision history. Wiring APIs + tests now"),
  "BPMS-029": ("In progress", "Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait)"),
  "BPMS-033": ("Done", "procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service"),
  "BPMS-034": ("In progress", "Raster assets + brand guide merged; SVG masters and trademark search pending"),
@@ -341,6 +342,29 @@ def bar(done, total, width=20):
     n = round(width * done / total)
     return "█" * n + "░" * (width - n)
 
+def e2e_count():
+    """E2E scenarios implemented as Playwright tests (ids in test titles)."""
+    import re, pathlib
+    ids = set()
+    for f in pathlib.Path("e2e/packs").rglob("*.spec.ts"):
+        ids |= set(re.findall(r"test\(\s*'(E2E-[A-Z0-9-]+)", f.read_text()))
+    return len(ids)
+
+def rust_test_count():
+    import re, pathlib
+    n = 0
+    for f in list(pathlib.Path("crates").rglob("*.rs")) + list(pathlib.Path("apps").rglob("*.rs")):
+        n += len(re.findall(r"#\[(?:tokio::)?test\]", f.read_text()))
+    return n
+
+def recent_commits(n):
+    import subprocess
+    try:
+        out = subprocess.run(["git", "log", f"-{n}", "--format=%h\t%s"], capture_output=True, text=True, check=True).stdout
+    except Exception:
+        return []
+    return [tuple(l.split("\t", 1)) for l in out.splitlines() if "\t" in l]
+
 def write_dashboard():
     from collections import Counter, defaultdict
     by_rel = defaultdict(list)
@@ -354,6 +378,8 @@ def write_dashboard():
          "## At a glance", "",
          f"```text",
          f"Overall   {bar(done,total,30)}  {done}/{total} epics done  ({round(100*done/total)}%)",
+         f"Partial   {bar(done + 0.5*cnt.get('In progress',0), total, 30)}  {round(100*(done + 0.5*cnt.get('In progress',0))/total)}% counting in-progress epics as half done",
+         f"Tests     {e2e_count()} automated E2E scenarios · {rust_test_count()} Rust tests (incl. property tests)",
          f"Status    done {done} · in review {cnt.get('In review',0)} · in progress {cnt.get('In progress',0)} · blocked {cnt.get('Blocked',0)} · not started {cnt.get('Not started',0)} · deferred {cnt.get('Deferred',0)}",
          f"Now       {current[0]} — {current[1]}  ({current[2]} → {current[3]}, gate {current[4]})",
          "```", "", "## Releases", "", "| Release | Name | Window | Gate | Progress | Done |", "|---|---|---|---|---|---|"]
@@ -368,6 +394,9 @@ def write_dashboard():
         o += [f"| {r[0]} | {r[2]} | **{status_of(r[0])[0]}** | {status_of(r[0])[1]} |" for r in active]
     else:
         o.append("_Nothing in progress._")
+    shipped = recent_commits(12)
+    if shipped:
+        o += ["", "## Recently shipped (last 12 commits on main)", ""] + [f"- `{h}` {t}" for h, t in shipped]
     recent = [r for r in CORE if status_of(r[0])[0] == "Done"]
     o += ["", "## Done", ""]
     o += [f"- [x] **{r[0]}** {r[2]} — {status_of(r[0])[1]}" for r in recent] or ["_Nothing done yet._"]
