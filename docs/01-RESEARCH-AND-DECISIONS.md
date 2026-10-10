@@ -76,7 +76,7 @@ option. ⚠ TCK pass rate unverified → spike SP-08.
 
 **Licence policy** (enforced by `cargo-deny` + JS licence checker in CI): shipped artefacts
 may contain only permissive licences (Apache-2.0, MIT, BSD, ISC, Zlib, MPL-2.0 unmodified,
-EPL-2.0 unmodified as separate module). AGPL/GPL/SSPL/BSL/BUSL/SUL/Commons-Clause are
+EPL-2.0 unmodified as separate module). AGPL/GPL/SSPL/BUSL-1.1 (Business Source)/SUL/Commons-Clause are
 **blocked** from linked code; GPL tools may run as separate optional processes (ClamAV).
 
 ## 5. Framework alignment for templates
@@ -145,6 +145,8 @@ Full ADRs are in [`adr/`](adr/). Status after this research:
 Details are in [15-TEST-STRATEGY](15-TEST-STRATEGY-AND-CONFORMANCE.md).
 
 **Results so far:**
+- [SP-01…06 native runtime](spikes/SP-01-06-native-runtime.md): all pass; native interpreter recommended.
+- [SP-07 licences](spikes/SP-07-licences-sbom.md): approved dependency set.
 - [SP-08 expression language](spikes/SP-08-expression-language.md): CEL recommended.
 - [SP-09 Cedar + RLS + pool](spikes/SP-09-authz-rls-pool.md): validated, with the NULLIF fix.
 - [SP-10 audit chain](spikes/SP-10-audit-chain.md).

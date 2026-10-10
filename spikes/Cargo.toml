@@ -2,7 +2,7 @@
 # Each spike has a report in docs/spikes/.
 [workspace]
 resolver = "3"
-members = ["sp08-expr", "sp09-authz-rls", "sp10-audit-chain"]
+members = ["sp08-expr", "sp09-authz-rls", "sp10-audit-chain", "sp01-runtime"]
 
 [workspace.package]
 edition = "2024"
