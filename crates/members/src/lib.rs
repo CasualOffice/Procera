@@ -6,6 +6,8 @@
 //!   for that email). Accepting an owner invite activates a `provisioning` workspace.
 //! - Every change is audited in the workspace chain and emitted to the outbox.
 
+pub mod directory;
+
 use std::sync::Arc;
 
 use procera_access::{Access, AccessError, Scope};
@@ -42,6 +44,10 @@ pub enum MembersError {
     Identity(#[from] IdentityError),
     #[error("invalid input: {0}")]
     Invalid(String),
+    #[error("{0}")]
+    Cycle(String),
+    #[error("{0}")]
+    Conflict(String),
     #[error("internal error: {0}")]
     Internal(String),
 }

@@ -9,6 +9,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+csv = "1.4"
 procera-access.workspace = true
 procera-audit.workspace = true
 procera-crypto.workspace = true
