@@ -85,7 +85,7 @@ A context MUST NOT write another context's tables. Cross-context reactions go th
 
 3.4 **Authorization:** every workspace-plane handler, job, deep link, list, search and export MUST call the policy evaluator (Cedar). Hand-rolled permission checks are forbidden. The system plane uses the single fixed role table in `platform::authz` (ADR-0011 amendment); no other ad-hoc checks. Redaction MUST use the single shared serializer.
 
-3.5 **Audit:** every mutating endpoint MUST emit exactly one audit event, and every read of `restricted`/`confidential` data by a non-participant MUST emit a `data_access` event. The audit-coverage contract test enforces both.
+3.5 **Audit:** every mutating endpoint MUST emit exactly the audit events declared for it in the route contract (`apps/procera/src/http/audit_contract.rs`). That is normally one event; a composite action declares each event it causes (for example, creating a workspace also invites its owner). An exemption needs a written reason in the contract, such as a read-only POST or token rotation that is audited elsewhere. Adding a mutating route without a contract entry fails the build (unit test). Every call is checked against the contract by E2E-R1-AUD-01. Every read of `restricted`/`confidential` data by a non-participant MUST emit a `data_access` event; that half of the contract arrives with the first restricted data (BPMS-040+).
 
 3.6 **Runtime determinism:**
 - The interpreter MUST NOT perform I/O, read the wall clock or use randomness. Use the injected `Clock` and `IdGen`.

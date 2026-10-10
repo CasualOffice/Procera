@@ -212,8 +212,12 @@ async fn sign_out_everywhere(
     Ok(res)
 }
 
-async fn totp_begin(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Response, ApiError> {
-    let e = identity(&s)?.totp_begin(c.sub).await?;
+async fn totp_begin(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    AuthUser(c): AuthUser,
+) -> Result<Response, ApiError> {
+    let e = identity(&s)?.totp_begin(c.sub, &client_info(&headers)).await?;
     let mut res = Json(e).into_response();
     res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(res)

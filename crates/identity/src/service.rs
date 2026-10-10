@@ -609,18 +609,31 @@ impl Identity {
         &self,
         claims: &Claims,
         ws: Option<Uuid>,
+        client: &ClientInfo,
     ) -> Result<(String, u64), IdentityError> {
         let user = self.me(claims.sub).await?.ok_or(IdentityError::InvalidToken)?;
         if user.status != "active" || user.token_version != claims.tv {
             return Err(IdentityError::InvalidToken);
         }
+        let mut tx = self.db.begin_system().await?;
         sqlx::query(
             "UPDATE refresh_tokens SET active_workspace_id = $2 WHERE family_id = $1 AND revoked_at IS NULL",
         )
         .bind(claims.sid)
         .bind(ws)
-        .execute(self.db.pool())
+        .execute(tx.conn())
         .await?;
+        let reason = ws.map(|w| format!("workspace {w}"));
+        self.audit(
+            &mut tx,
+            Some(user.subject_ref),
+            "session.workspace_selected",
+            Outcome::Allowed,
+            client,
+            reason.as_deref(),
+        )
+        .await?;
+        tx.commit().await?;
         let amr: Vec<&str> = claims.amr.iter().map(String::as_str).collect();
         let auth_time = OffsetDateTime::from_unix_timestamp(claims.auth_time).unwrap_or_else(|_| self.now());
         let token =
@@ -649,7 +662,11 @@ impl Identity {
     }
 
     /// Starts TOTP enrolment: stores a sealed, unconfirmed secret and returns it once for the authenticator app.
-    pub async fn totp_begin(&self, user_id: Uuid) -> Result<TotpEnrollment, IdentityError> {
+    pub async fn totp_begin(
+        &self,
+        user_id: Uuid,
+        client: &ClientInfo,
+    ) -> Result<TotpEnrollment, IdentityError> {
         let mut tx = self.db.begin_system().await?;
         let user = self.load_user(&mut tx, user_id).await?.ok_or(IdentityError::InvalidToken)?;
         sqlx::query("DELETE FROM user_credentials WHERE user_id = $1 AND kind = 'totp' AND NOT confirmed")
@@ -661,6 +678,15 @@ impl Identity {
         let sealed = seal(self.keys.as_ref(), SECRETS, &format!("user_credentials:{cred}:totp"), &secret)?;
         sqlx::query("INSERT INTO user_credentials (id, user_id, kind, secret, confirmed) VALUES ($1, $2, 'totp', $3, false)")
             .bind(cred).bind(user_id).bind(sealed).execute(tx.conn()).await?;
+        self.audit(
+            &mut tx,
+            Some(user.subject_ref),
+            "mfa.totp_enrollment_started",
+            Outcome::Allowed,
+            client,
+            None,
+        )
+        .await?;
         tx.commit().await?;
         Ok(TotpEnrollment {
             secret: totp::secret_base32(&secret),

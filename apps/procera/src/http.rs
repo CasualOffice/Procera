@@ -6,6 +6,9 @@ use procera_kernel::Clock;
 use serde::Serialize;
 use std::sync::Arc;
 
+/// Route → audit contract; consumed by its unit test and the e2e audit pack only.
+#[cfg(any(test, feature = "e2e"))]
+pub mod audit_contract;
 pub mod auth;
 pub mod error;
 pub mod system;

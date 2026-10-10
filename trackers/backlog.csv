@@ -19,7 +19,7 @@ BPMS-022,IAM,"MFA TOTP + WebAuthn, recovery codes, step-up",P0,R1,Platform,12 §
 BPMS-023,IAM,"Memberships, invites, directory (departments/groups/positions/managers), CSV import",P0,R1,Platform,FR-W01/W02,Manager cycles rejected,M,BPMS-020,In progress
 BPMS-024,IAM,"Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar",P0,R1,Platform,"FR-W03, ADR-0011",No-escalation property test,L,BPMS-023,In progress
 BPMS-025,SEC,Forced RLS + repository WsCtx + CI cross-workspace sweep,P0,R1,Platform,"03 §7, SEC-01/02",Sweep green in CI,M,BPMS-020,Done
-BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01, AUD-01/07",Every mutating route emits 1 event,M,BPMS-025,In progress
+BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01, AUD-01/07",Every mutating route emits 1 event,M,BPMS-025,Done
 BPMS-027,CFG,"Settings layering, floors, profiles, explainer",P0,R1,Platform,"FR-S05, FR-W04/W06, CFG-001..003",Never looser than floor,M,BPMS-020,Not started
 BPMS-028,UX,"Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)",P0,R1,FE,FR-V01–V09,Used by Members & Workspaces,L,BPMS-010,Not started
 BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,In progress

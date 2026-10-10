@@ -6,8 +6,8 @@
 ## At a glance
 
 ```text
-Overall   ████░░░░░░░░░░░░░░░░░░░░░░░░░░  14/109 epics done  (13%)
-Status    done 14 · in review 0 · in progress 7 · blocked 0 · not started 88 · deferred 0
+Overall   ████░░░░░░░░░░░░░░░░░░░░░░░░░░  15/109 epics done  (14%)
+Status    done 15 · in review 0 · in progress 6 · blocked 0 · not started 88 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -16,7 +16,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `██░░░░░░░░░░` | 4/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `██░░░░░░░░░░` | 5/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -31,7 +31,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
 | BPMS-023 | Memberships, invites, directory (departments/groups/positions/managers), CSV import | **In progress** | procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use; list, revoke, resend), register-by-invite, owner onboarding activates the provisioning workspace, workspace switch (ws-scoped JWT), member list, deactivation with last-owner/self guards, state gate (423 when suspended); audited; E2E-R1-MEM-01..03,05..07. Remaining: directory (departments/groups/positions/managers), CSV import |
 | BPMS-024 | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | **In progress** | procera-access: permission catalogue + 12 role templates, custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage), scoped expiring grants compiled to Cedar, invariants (workspace isolation, active members only), last-owner protection, role change preview, per-workspace access_revisions cache; all role/grant changes audited; no-escalation property test (proptest, 64 cases vs Postgres); E2E-R1-MEM-04,08. Remaining: preview-matches-effect property test, group/directory-rule assignment (needs BPMS-023 directory) |
-| BPMS-026 | Audit chain append + coverage contract test | **In progress** | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
@@ -51,6 +50,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-020** System plane: bootstrap, system roles, workspaces lifecycle, quotas — procera-platform + /sysapi/v1: one-time bootstrap token (printed at startup until bootstrapped), system.owner/admin/operator/auditor fixed authz table, MFA required for system plane, workspace create/list/get/rename/suspend/restore/schedule-deletion with If-Match + ETag, profile quotas, platform setting floors seeded, all audited; E2E-R1-SYS-01..05
 - [x] **BPMS-021** Local auth (Argon2id), email verify, lockout, sessions — procera-identity + /api/v1/auth: users, Argon2id (policy, rehash, enumeration-safe), JWT access (ADR-0020) + rotating refresh with reuse detection, DB login throttling + per-IP rate limit, logout, sign-out-everywhere, deactivation via token_version; audited; E2E-R1-AUTH-01..05,07
 - [x] **BPMS-025** Forced RLS + repository WsCtx + CI cross-workspace sweep — procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests
+- [x] **BPMS-026** Audit chain append + coverage contract test — procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 
 ## Release checklists
@@ -80,7 +80,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 4/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 5/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -90,7 +90,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-023** (P0, M) Memberships, invites, directory (departments/groups/positions/managers), CSV import **[In progress]**
 - [ ] **BPMS-024** (P0, L) Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar **[In progress]**
 - [x] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
-- [ ] **BPMS-026** (P0, M) Audit chain append + coverage contract test **[In progress]**
+- [x] **BPMS-026** (P0, M) Audit chain append + coverage contract test
 - [ ] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer
 - [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
 - [ ] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys **[In progress]**
@@ -239,7 +239,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 108 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 109 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

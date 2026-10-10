@@ -124,6 +124,12 @@ Implemented in `e2e/packs/r1/system.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/members.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-AUD-01 | Every mutating route is called once and appends exactly the audit actions in its route contract (`/__test/audit/contract`); exempt routes append nothing; no route goes unexercised (bootstrap is one-shot and checked by the platform integration test) | FR-T01, docs/24 §3.5 |
+
+Implemented in `e2e/packs/r1/audit.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

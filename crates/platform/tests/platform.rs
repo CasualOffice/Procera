@@ -62,7 +62,7 @@ fn new_ws(slug: &str, profile: &str) -> NewWorkspace {
 
 #[tokio::test]
 async fn bootstrap_is_single_use_and_creates_the_owner() -> anyhow::Result<()> {
-    let (_t, p) = setup_or_skip!();
+    let (t, p) = setup_or_skip!();
     let token = p.issue_bootstrap_token().await?.expect("token before bootstrap");
     assert!(matches!(
         p.bootstrap("wrong-token", "root@acme.test", "Root", PW, &c()).await,
@@ -70,6 +70,16 @@ async fn bootstrap_is_single_use_and_creates_the_owner() -> anyhow::Result<()> {
     ));
     let owner = p.bootstrap(&token, "root@acme.test", "Root", PW, &c()).await?;
     assert_eq!(p.system_roles(owner.id).await?, vec!["system.owner"]);
+    // Audit contract for POST /sysapi/v1/bootstrap (apps/procera/src/http/audit_contract.rs).
+    let mut tx = t.db.begin_ws(WsCtx { workspace_id: procera_db::SYSTEM_WORKSPACE }).await?;
+    let mut actions: Vec<String> = sqlx::query_scalar(
+        "SELECT action FROM audit_events WHERE action <> 'platform.bootstrap_token_issued'",
+    )
+    .fetch_all(tx.conn())
+    .await?;
+    tx.rollback().await?;
+    actions.sort();
+    assert_eq!(actions, vec!["platform.bootstrapped", "user.created"]);
     assert!(matches!(
         p.bootstrap(&token, "x@acme.test", "X", PW, &c()).await,
         Err(PlatformError::AlreadyBootstrapped)

@@ -41,7 +41,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-023 | IAM | Memberships, invites, directory (departments/groups/positions/managers), CSV import | P0 | R1 | Platform | FR-W01/W02 | Manager cycles rejected | M | BPMS-020 | In progress |
 | BPMS-024 | IAM | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | P0 | R1 | Platform | FR-W03, ADR-0011 | No-escalation property test | L | BPMS-023 | In progress |
 | BPMS-025 | SEC | Forced RLS + repository WsCtx + CI cross-workspace sweep | P0 | R1 | Platform | 03 §7, SEC-01/02 | Sweep green in CI | M | BPMS-020 | Done |
-| BPMS-026 | AUD | Audit chain append + coverage contract test | P0 | R1 | Platform | FR-T01, AUD-01/07 | Every mutating route emits 1 event | M | BPMS-025 | In progress |
+| BPMS-026 | AUD | Audit chain append + coverage contract test | P0 | R1 | Platform | FR-T01, AUD-01/07 | Every mutating route emits 1 event | M | BPMS-025 | Done |
 | BPMS-027 | CFG | Settings layering, floors, profiles, explainer | P0 | R1 | Platform | FR-S05, FR-W04/W06, CFG-001..003 | Never looser than floor | M | BPMS-020 | Not started |
 | BPMS-028 | UX | Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard) | P0 | R1 | FE | FR-V01–V09 | Used by Members & Workspaces | L | BPMS-010 | Not started |
 | BPMS-029 | ENG | Outbox + dispatcher + inbox dedup + idempotency keys | P0 | R1 | Platform | ADR-0005 | T02 skeleton passes | M | BPMS-011 | In progress |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 14 · In review: 0 · In progress: 7 · Blocked: 0 · Not started: 88 · Deferred: 0 (of 109)
+**Progress:** Done: 15 · In review: 0 · In progress: 6 · Blocked: 0 · Not started: 88 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -153,7 +153,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-023 | Memberships, invites, directory (departments/groups/positions/managers), CSV import | In progress | procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use; list, revoke, resend), register-by-invite, owner onboarding activates the provisioning workspace, workspace switch (ws-scoped JWT), member list, deactivation with last-owner/self guards, state gate (423 when suspended); audited; E2E-R1-MEM-01..03,05..07. Remaining: directory (departments/groups/positions/managers), CSV import |
 | BPMS-024 | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | In progress | procera-access: permission catalogue + 12 role templates, custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage), scoped expiring grants compiled to Cedar, invariants (workspace isolation, active members only), last-owner protection, role change preview, per-workspace access_revisions cache; all role/grant changes audited; no-escalation property test (proptest, 64 cases vs Postgres); E2E-R1-MEM-04,08. Remaining: preview-matches-effect property test, group/directory-rule assignment (needs BPMS-023 directory) |
 | BPMS-025 | Forced RLS + repository WsCtx + CI cross-workspace sweep | Done | procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests |
-| BPMS-026 | Audit chain append + coverage contract test | In progress | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
+| BPMS-026 | Audit chain append + coverage contract test | Done | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | In progress | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | In progress | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
@@ -166,7 +166,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 108 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 109 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

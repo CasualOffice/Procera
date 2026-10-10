@@ -184,6 +184,7 @@ E2E scenarios (E2E),E2E-R1-MEM-05,"Admin cannot invite an owner, cannot remove t
 E2E scenarios (E2E),E2E-R1-MEM-06,"Read-only suspension blocks workspace writes with 423, reads still work; restore re-enables writes | FR-S02",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-MEM-07,Pending invitations listed; revoking kills the token (404); resend issues a new working token | FR-W01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-MEM-08,"An admin cannot revoke the owner's grant (escalation); the last owner keeps the role; role preview shows added/removed/affected members; role and grant changes are on the verified audit chain | FR-W03, docs/12 §5, FR-T01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUD-01,"Every mutating route is called once and appends exactly the audit actions in its route contract (`/__test/audit/contract`); exempt routes append nothing; no route goes unexercised (bootstrap is one-shot and checked by the platform integration test) | FR-T01, docs/24 §3.5",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

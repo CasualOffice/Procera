@@ -116,7 +116,7 @@ async fn throttling_after_repeated_failures() -> anyhow::Result<()> {
 async fn totp_enrolment_mfa_login_recovery_codes_and_replay() -> anyhow::Result<()> {
     let (_t, id) = setup_or_skip!();
     let u = id.create_user("dana@acme.test", "Dana", PW, &client("10.0.0.1")).await?;
-    let enr = id.totp_begin(u.id).await?;
+    let enr = id.totp_begin(u.id, &ClientInfo::default()).await?;
     assert!(enr.otpauth_uri.starts_with("otpauth://totp/Procera:dana%40acme.test?secret="));
     let secret = data_encoding::BASE32_NOPAD.decode(enr.secret.as_bytes())?;
     let now = time::OffsetDateTime::now_utc().unix_timestamp();

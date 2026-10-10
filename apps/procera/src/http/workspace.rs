@@ -190,6 +190,7 @@ struct SwitchReq {
 /// Issues an access token for the chosen workspace (or none, for the home view).
 async fn switch_workspace(
     State(s): State<AppState>,
+    headers: HeaderMap,
     AuthUser(c): AuthUser,
     Json(r): Json<SwitchReq>,
 ) -> Result<Response, ApiError> {
@@ -201,7 +202,7 @@ async fn switch_workspace(
         }
     }
     let id = s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
-    let (token, ttl) = id.issue_workspace_token(&c, r.workspace_id).await?;
+    let (token, ttl) = id.issue_workspace_token(&c, r.workspace_id, &client_info(&headers)).await?;
     Ok(Json(json!({"access_token": token, "token_type": "Bearer", "expires_in": ttl, "workspace_id": r.workspace_id})).into_response())
 }
 

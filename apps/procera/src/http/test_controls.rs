@@ -18,6 +18,8 @@ pub fn router() -> Router<AppState> {
         .route("/drain", post(drain))
         .route("/fault", post(fault))
         .route("/audit/verify", get(audit_verify))
+        .route("/audit/contract", get(audit_contract))
+        .route("/audit/events", get(audit_events))
         .route("/users", post(create_user))
         .route("/bootstrap-token", post(bootstrap_token))
         .route("/system-roles", post(grant_system_role))
@@ -236,4 +238,50 @@ async fn invitation_token(State(s): State<AppState>, Query(q): Query<InvitationQ
         Ok(None) => problem(Problem::not_found()),
         Err(e) => super::error::ApiError::from(e).into_response(),
     }
+}
+
+async fn audit_contract() -> Json<&'static [super::audit_contract::Entry]> {
+    Json(super::audit_contract::CONTRACT)
+}
+
+#[derive(Debug, Deserialize)]
+struct EventsQuery {
+    workspace: Option<uuid::Uuid>,
+    user_agent: String,
+}
+
+/// Audit events from one client (matched by User-Agent) on the system chain and, optionally, a
+/// workspace chain. Lets the audit-coverage pack attribute events without racing parallel tests.
+async fn audit_events(State(s): State<AppState>, Query(q): Query<EventsQuery>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let mut chains = vec![("system", procera_db::SYSTEM_WORKSPACE)];
+    if let Some(ws) = q.workspace {
+        chains.push(("workspace", ws));
+    }
+    let mut out = vec![];
+    for (chain, ws) in chains {
+        let rows: Result<Vec<(i64, String)>, String> = async {
+            let mut tx =
+                db.begin_ws(procera_db::WsCtx { workspace_id: ws }).await.map_err(|e| e.to_string())?;
+            let rows =
+                sqlx::query_as("SELECT seq, action FROM audit_events WHERE user_agent = $1 ORDER BY seq")
+                    .bind(&q.user_agent)
+                    .fetch_all(tx.conn())
+                    .await
+                    .map_err(|e| e.to_string())?;
+            tx.rollback().await.map_err(|e| e.to_string())?;
+            Ok(rows)
+        }
+        .await;
+        match rows {
+            Ok(rows) => out.extend(
+                rows.into_iter()
+                    .map(|(seq, action)| serde_json::json!({"chain": chain, "seq": seq, "action": action})),
+            ),
+            Err(e) => return problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+        }
+    }
+    Json(serde_json::json!({ "items": out })).into_response()
 }
