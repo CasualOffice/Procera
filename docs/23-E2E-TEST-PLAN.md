@@ -121,6 +121,7 @@ Implemented in `e2e/packs/r1/system.api.spec.ts`.
 | E2E-R1-MEM-06 | Read-only suspension blocks workspace writes with 423, reads still work; restore re-enables writes | FR-S02 |
 | E2E-R1-MEM-07 | Pending invitations listed; revoking kills the token (404); resend issues a new working token | FR-W01 |
 | E2E-R1-MEM-08 | An admin cannot revoke the owner's grant (escalation); the last owner keeps the role; role preview shows added/removed/affected members; role and grant changes are on the verified audit chain | FR-W03, docs/12 §5, FR-T01 |
+| E2E-R1-MEM-09 | A role granted to a group applies while the member is in it and stops when removed; owner role cannot go to groups; a department-scoped admin reaches members in the subtree only | docs/12 §5, FR-W03 |
 
 Implemented in `e2e/packs/r1/members.api.spec.ts`.
 
