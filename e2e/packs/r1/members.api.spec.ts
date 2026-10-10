@@ -1,41 +1,8 @@
-import { type APIRequestContext, expect, test } from '@playwright/test';
-import { PW, client, hasDatabase, mfaSession, passwordSession, seedUser, uniqueEmail } from '../../fixtures/accounts';
+import { expect, test } from '@playwright/test';
+import { hasDatabase, passwordSession, seedUser, uniqueEmail } from '../../fixtures/accounts';
+import { enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-MEM-01..08 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
-
-type Session = { c: APIRequestContext; headers: Record<string, string> };
-
-async function sysAdmin(request: APIRequestContext) {
-  const email = await seedUser(request, 'sysadmin');
-  await request.post('/__test/system-roles', { data: { email, role: 'system.admin' } });
-  return mfaSession(email);
-}
-
-async function inviteToken(request: APIRequestContext, workspace: string, email: string) {
-  const res = await request.get(`/__test/invitations/token?workspace=${workspace}&email=${encodeURIComponent(email)}`);
-  expect(res.status()).toBe(200);
-  return (await res.json()).token as string;
-}
-
-/** Signs in and switches to `workspace`; returns a session whose bearer is workspace-scoped. */
-async function enter(email: string, workspace: string): Promise<Session> {
-  const { c, token } = await passwordSession(email);
-  const sw = await c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${token}` }, data: { workspace_id: workspace } });
-  expect(sw.status()).toBe(200);
-  return { c, headers: { authorization: `Bearer ${(await sw.json()).access_token}` } };
-}
-
-/** System admin creates a workspace; the owner registers via the invitation and signs into it. */
-async function workspaceWithOwner(request: APIRequestContext) {
-  const sys = await sysAdmin(request);
-  const ownerEmail = uniqueEmail('owner');
-  const ws = await (await sys.c.post('/sysapi/v1/workspaces', { headers: sys.headers, data: { name: 'Acme', slug: `acme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, profile: 'standard', owner_email: ownerEmail } })).json();
-  const token = await inviteToken(request, ws.id, ownerEmail);
-  const anon = await client();
-  const reg = await anon.post('/api/v1/invitations/register', { data: { token, display_name: 'Olivia', password: PW } });
-  expect(reg.status()).toBe(201);
-  return { sys, ws, ownerEmail, owner: await enter(ownerEmail, ws.id) };
-}
 
 test.describe('members and access @r1 @members', () => {
   test.beforeEach(async ({ request }) => {

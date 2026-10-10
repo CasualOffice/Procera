@@ -8,7 +8,7 @@
 ```text
 Overall   ████░░░░░░░░░░░░░░░░░░░░░░░░░░  15/109 epics done  (14%)
 Partial   █████░░░░░░░░░░░░░░░░░░░░░░░░░  17% counting in-progress epics as half done
-Tests     34 automated E2E scenarios · 53 Rust tests (incl. property tests)
+Tests     39 automated E2E scenarios · 56 Rust tests (incl. property tests)
 Status    done 15 · in review 0 · in progress 7 · blocked 0 · not started 87 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
@@ -33,13 +33,14 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
 | BPMS-023 | Memberships, invites, directory (departments/groups/positions/managers), CSV import | **In progress** | procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use; list, revoke, resend), register-by-invite, owner onboarding activates the provisioning workspace, workspace switch (ws-scoped JWT), member list, deactivation with last-owner/self guards, state gate (423 when suspended); audited; E2E-R1-MEM-01..03,05..07. Remaining: directory (departments/groups/positions/managers), CSV import |
 | BPMS-024 | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | **In progress** | procera-access: permission catalogue + 12 role templates, custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage), scoped expiring grants compiled to Cedar, invariants (workspace isolation, active members only), last-owner protection, role change preview, per-workspace access_revisions cache; all role/grant changes audited; no-escalation property test (proptest, 64 cases vs Postgres); E2E-R1-MEM-04,08. Remaining: preview-matches-effect property test, group/directory-rule assignment (needs BPMS-023 directory) |
-| BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys, comparators), platform floors (migration 0007), configuration profiles, effective-resolution with clamping, revision history. Wiring APIs + tests now |
+| BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 
 ## Recently shipped (last 12 commits on main)
 
+- `b5d66a3` chore(tracker): dashboard shows partial progress, test counts and recently shipped commits; BPMS-027 in progress
 - `d93d157` test(audit): [protected] route audit contract with static route check and E2E-R1-AUD-01 (BPMS-026)
 - `a9f9c55` feat(api): invitation list/revoke/resend, role preview, audited role and grant changes; E2E-R1-MEM-07..08 (BPMS-023, BPMS-024)
 - `1c1d461` fix(access): [protected] bound revocation and role edits by the actor's permissions; keep the last owner; role preview; no-escalation property test (BPMS-024)
@@ -51,7 +52,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `1656553` feat(identity): JWT access + rotating refresh tokens, Argon2id, throttling, TOTP MFA (BPMS-021, BPMS-022)
 - `1e805ea` feat(crypto): key provider and context-bound AES-256-GCM for secrets at rest (BPMS-030, slice 1)
 - `047c664` chore: CI Postgres+Valkey services, test-all bootstraps throwaway servers, licence wording, tracker
-- `1dfbdf2` feat(audit): hash-chained append-only audit trail (BPMS-026)
 
 ## Done
 
@@ -257,7 +257,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 109 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 114 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

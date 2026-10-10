@@ -149,8 +149,8 @@ Users may override locale/timezone in their profile. Terminology overrides apply
 
 | Key | Type | Default | Perm | Ovr | Ph |
 |---|---|---|---|---|---|
-| `governance.review.required_for` | `controlled \| all` | controlled | workspace:settings.manage | ✓ (collection) | P0 |
-| `governance.review.min_reviewers` | int 1–5 | 1 | workspace:settings.manage | ✓ | P0 |
+| `governance.review.required_for` | `none \| controlled \| all` (`none` = the owner publishes; Starter) | controlled | workspace:settings.manage | ✓ (collection) | P0 |
+| `governance.review.min_reviewers` | int 0–5 (0 only with `required_for = none`, Starter) | 1 | workspace:settings.manage | ✓ | P0 |
 | `governance.review.reviewer_roles` | role set | Reviewer, Compliance Officer | workspace:settings.manage | ✓ | P0 |
 | `governance.reack.policy` | `major_only \| every_publish \| none` | major_only | workspace:settings.manage | ✓ | P0 |
 | `governance.reack.window` | duration | 14 d | workspace:settings.manage | ✓ | P0 |
@@ -350,7 +350,16 @@ System settings follow the same versioning and audit rules as workspace settings
 - **Sandbox → production promotion:** create a sandbox workspace (a system admin can clone config only, never content), iterate, export, then import into prod with plan review. The `procera` CLI supports this in CI (13 §5).
 - Schema evolution: `configVersion` integer. The import runs migrations forward and rejects files from a newer product version.
 
-## 5. Data model sketch
+## 5. Data model
+
+**As built (BPMS-027, migration 0007):**
+- `platform_settings (key, value, is_floor, revision)` holds platform values and floors.
+- `workspace_settings (workspace_id, key, value, revision, updated_by)` holds values that differ from the code default; `updated_by IS NULL` marks a value applied from the creation profile.
+- `settings_revisions` is the append-only history for every layer (platform changes sit under the system workspace).
+- Department/collection overrides (layer 4) arrive with the directory (BPMS-023). Process-level values live in release bundles.
+- Step-up keys need an MFA-verified session until the step-up endpoint ships (BPMS-022).
+
+The original sketch, kept for reference:
 
 ```sql
 CREATE TABLE settings (
@@ -371,7 +380,7 @@ CREATE TABLE settings_revisions (
 );
 ```
 
-- The **catalogue lives in code** (`crates/domain/config/catalogue.rs`): key, JSON Schema, default, comparator, floor-bound, overridable scopes, required permission, ⚡ flag and phase. Generated docs and the admin UI form are both built from it, so they never drift.
+- The **catalogue lives in code** (`crates/settings/src/catalogue.rs`; durations in seconds, sizes in bytes): key, JSON Schema, default, comparator, floor-bound, overridable scopes, required permission, ⚡ flag and phase. Generated docs and the admin UI form are both built from it, so they never drift.
 - **Effective settings cache:** `(workspace, scope) → resolved map`, in-process (moka) with a TTL. A settings change writes an outbox event `settings.changed.v1{workspace_id, keys}`, and every API/worker node invalidates on receipt. ⚡ keys are additionally checked against the DB on security-sensitive paths (login, step-up) so they never wait on the cache.
 - Process-level settings are part of the IR / release bundle, not this table.
 

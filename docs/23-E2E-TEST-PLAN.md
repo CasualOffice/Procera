@@ -130,6 +130,16 @@ Implemented in `e2e/packs/r1/members.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/audit.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-CFG-01 | The creation profile seeds values (Starter: 8 h idle); the explainer lists default → platform floor → profile; unknown keys 404 | FR-W04, docs/20 §0-1 |
+| E2E-R1-CFG-02 | Looser than a floor → 422 `setting_below_floor`; ⚡ keys need a reason; stricter value saved with `ETag`/`If-Match` (stale → 412); floor-locked key 403; invalid value 422; history records the change | FR-S05, FR-W06 |
+| E2E-R1-CFG-03 | Step-up keys (`auth.mfa.required_roles`) need an MFA-verified session | docs/20 §2.3 |
+| E2E-R1-CFG-04 | A member without settings permissions can neither view nor change settings | docs/12 §5 |
+| E2E-R1-CFG-05 | Raising a platform floor clamps a looser workspace value at resolution (stored value kept, `clamped: true`); floors need a reason; keys without floors are rejected | docs/20 §1 rules 4-5 |
+
+Implemented in `e2e/packs/r1/settings.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

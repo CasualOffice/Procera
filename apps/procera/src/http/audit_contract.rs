@@ -55,6 +55,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/sysapi/v1/workspaces/{id}/restore", &[&["workspace.restored"]]),
     emits("POST", "/sysapi/v1/workspaces/{id}/schedule-deletion", &[&["workspace.deletion_scheduled"]]),
     emits("PUT", "/sysapi/v1/workspaces/{id}/quotas", &[&["workspace.quotas_changed"]]),
+    emits("PUT", "/sysapi/v1/settings/{key}", &[&["platform.floor_changed"]]),
     // Workspace plane.
     emits("POST", "/api/v1/session/workspace", &[&["session.workspace_selected"]]),
     emits("POST", "/api/v1/invitations/accept", &[&["member.joined"]]),
@@ -71,6 +72,7 @@ pub const CONTRACT: &[Entry] = &[
     ),
     emits("POST", "/api/v1/role-grants", &[&["role.granted"]]),
     emits("DELETE", "/api/v1/role-grants/{id}", &[&["role.revoked"]]),
+    emits("PUT", "/api/v1/settings/{key}", &[&["setting.changed"]]),
 ];
 
 #[cfg(test)]
@@ -83,6 +85,7 @@ mod tests {
         let sources = [
             ("/api/v1", include_str!("auth.rs")),
             ("/api/v1", include_str!("workspace.rs")),
+            ("/api/v1", include_str!("settings.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];

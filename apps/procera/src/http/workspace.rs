@@ -106,6 +106,9 @@ impl From<AccessError> for ApiError {
 pub struct WsMember {
     pub ctx: WsCtx,
     pub actor: Actor,
+    pub user_id: Uuid,
+    /// Authentication methods of this session (step-up checks).
+    pub amr: Vec<String>,
 }
 
 impl FromRequestParts<AppState> for WsMember {
@@ -145,7 +148,7 @@ impl FromRequestParts<AppState> for WsMember {
             }
             _ => {}
         }
-        Ok(Self { ctx, actor: Actor { membership, subject_ref } })
+        Ok(Self { ctx, actor: Actor { membership, subject_ref }, user_id: claims.sub, amr: claims.amr })
     }
 }
 

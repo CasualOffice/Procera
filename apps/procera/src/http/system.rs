@@ -26,6 +26,8 @@ pub fn router() -> Router<AppState> {
         .route("/workspaces/{id}/restore", post(restore))
         .route("/workspaces/{id}/schedule-deletion", post(schedule_deletion))
         .route("/workspaces/{id}/quotas", put(quotas))
+        .route("/settings", get(platform_settings))
+        .route("/settings/{key}", put(set_floor))
 }
 
 fn platform(s: &AppState) -> Result<&Platform, ApiError> {
@@ -51,6 +53,7 @@ impl From<PlatformError> for ApiError {
             }
             PlatformError::Identity(i) => Self::from(i),
             PlatformError::Members(m) => Self::from(m),
+            PlatformError::Settings(e) => Self::from(e),
             PlatformError::Internal(m) => {
                 tracing::error!(error = %m, "platform internal error");
                 Self::new(500, "internal", "Internal error")
@@ -250,4 +253,51 @@ async fn quotas(
     u.require(SystemAction::WorkspaceWrite)?;
     let ws = platform(&s)?.set_quotas(u.user_id, id, &q, &client_info(&headers)).await?;
     Ok(ws_response(StatusCode::OK, &ws))
+}
+
+async fn platform_settings(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
+    u.require(SystemAction::WorkspaceRead)?;
+    let db = s.db.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
+    let mut tx =
+        db.begin_system().await.map_err(|e| ApiError::from(procera_settings::SettingsError::from(e)))?;
+    let items = platform(&s)?.settings().platform_values(&mut tx).await?;
+    tx.rollback().await.map_err(|e| ApiError::from(procera_settings::SettingsError::from(e)))?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FloorReq {
+    value: serde_json::Value,
+    reason: String,
+}
+
+/// Sets a platform floor. Raising it never rewrites workspace values; looser ones resolve as clamped.
+async fn set_floor(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    u: SystemUser,
+    Path(key): Path<String>,
+    Json(r): Json<FloorReq>,
+) -> Result<Response, ApiError> {
+    u.require(SystemAction::PlatformConfig)?;
+    let p = platform(&s)?;
+    let subject = s
+        .identity
+        .as_ref()
+        .ok_or_else(|| ApiError::unavailable("database"))?
+        .me(u.user_id)
+        .await?
+        .ok_or_else(ApiError::not_found)?
+        .subject_ref;
+    let db = s.db.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
+    let err = |e: procera_db::DbError| ApiError::from(procera_settings::SettingsError::from(e));
+    let mut tx = db.begin_system().await.map_err(err)?;
+    let c = client_info(&headers);
+    let v = p
+        .settings()
+        .set_floor(&mut tx, subject, u.user_id, &key, &r.value, &r.reason, (c.ip, c.user_agent))
+        .await?;
+    tx.commit().await.map_err(err)?;
+    Ok(Json(v).into_response())
 }

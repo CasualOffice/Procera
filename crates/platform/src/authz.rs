@@ -5,6 +5,8 @@ pub enum SystemAction {
     WorkspaceRead,
     WorkspaceWrite,
     SystemAuditRead,
+    /// Change platform settings and floors.
+    PlatformConfig,
 }
 
 /// `true` if any of `roles` permits `action`.

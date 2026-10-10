@@ -28,6 +28,7 @@ procera-identity.workspace = true
 procera-platform.workspace = true
 procera-members.workspace = true
 procera-access.workspace = true
+procera-settings.workspace = true
 procera-audit.workspace = true
 procera-crypto.workspace = true
 serde.workspace = true

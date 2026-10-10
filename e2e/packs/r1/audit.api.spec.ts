@@ -92,6 +92,12 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('DELETE', '/api/v1/members/invitations/{id}', () => own.delete(`/api/v1/members/invitations/${inv.id}`, { headers: oh }));
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
+  // Settings: a workspace value, and a platform floor re-set to its current value (no effect on other tests).
+  await step('PUT', '/api/v1/settings/{key}', () => own.put('/api/v1/settings/locale.week_start', { headers: oh, data: { value: 'sun' } }));
+  const floors = await (await sys.get('/sysapi/v1/settings', { headers: sh })).json();
+  const maxSize = floors.items.find((f: { key: string }) => f.key === 'files.max_size').value;
+  await step('PUT', '/sysapi/v1/settings/{key}', () => sys.put('/sysapi/v1/settings/files.max_size', { headers: sh, data: { value: maxSize, reason: 'audit drill (unchanged)' } }));
+
   // 6. Sessions: refresh (exempt), logout, sign-out-everywhere; then schedule deletion.
   await step('POST', '/api/v1/auth/refresh', () => own.post('/api/v1/auth/refresh', { headers: CSRF }));
   await step('POST', '/api/v1/auth/logout', () => own.post('/api/v1/auth/logout', { headers: CSRF }));

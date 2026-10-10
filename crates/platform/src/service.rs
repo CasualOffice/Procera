@@ -31,6 +31,8 @@ pub enum PlatformError {
     Identity(#[from] IdentityError),
     #[error(transparent)]
     Members(#[from] MembersError),
+    #[error(transparent)]
+    Settings(#[from] procera_settings::SettingsError),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -193,11 +195,16 @@ pub struct Platform {
     db: Db,
     identity: Identity,
     members: Members,
+    settings: procera_settings::Settings,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
 }
 
 impl Platform {
+    pub fn settings(&self) -> &procera_settings::Settings {
+        &self.settings
+    }
+
     pub fn new(
         db: Db,
         identity: Identity,
@@ -205,7 +212,8 @@ impl Platform {
         clock: Arc<dyn Clock>,
         ids: Arc<dyn IdGen>,
     ) -> Self {
-        Self { db, identity, members, clock, ids }
+        let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
+        Self { db, identity, members, settings, clock, ids }
     }
 
     async fn audit(
@@ -406,6 +414,7 @@ impl Platform {
         // Same transaction: seed built-in roles and invite the first owner inside the new workspace.
         tx.rescope(procera_db::WsCtx { workspace_id: id }).await?;
         self.members.access().seed_workspace(&mut tx).await.map_err(MembersError::from)?;
+        self.settings.apply_profile(&mut tx, &req.profile).await?;
         self.members.invite(&mut tx, None, &req.owner_email, &["workspace.owner".to_owned()], client).await?;
         tx.commit().await?;
         Ok(ws)

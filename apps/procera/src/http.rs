@@ -11,6 +11,7 @@ use std::sync::Arc;
 pub mod audit_contract;
 pub mod auth;
 pub mod error;
+pub mod settings;
 pub mod system;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
@@ -125,6 +126,7 @@ pub fn router(state: AppState) -> Router {
         .route("/version", get(version))
         .nest("/api/v1", auth::router())
         .nest("/api/v1", workspace::router())
+        .nest("/api/v1", settings::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

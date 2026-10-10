@@ -14,6 +14,7 @@ procera-crypto.workspace = true
 procera-db.workspace = true
 procera-identity.workspace = true
 procera-members.workspace = true
+procera-settings.workspace = true
 procera-kernel.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
