@@ -18,6 +18,72 @@ pub fn router() -> Router<AppState> {
         .route("/drain", post(drain))
         .route("/fault", post(fault))
         .route("/audit/verify", get(audit_verify))
+        .route("/users", post(create_user))
+        .route("/bootstrap-token", post(bootstrap_token))
+        .route("/system-roles", post(grant_system_role))
+}
+
+/// Issues a bootstrap token if the platform is not bootstrapped yet (E2E only; prod prints it to the log).
+async fn bootstrap_token(State(s): State<AppState>) -> Response {
+    let Some(p) = s.platform.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match p.issue_bootstrap_token().await {
+        Ok(Some(t)) => Json(serde_json::json!({"token": t})).into_response(),
+        Ok(None) => {
+            problem(Problem::new(409, "already_bootstrapped", "The platform is already bootstrapped"))
+        }
+        Err(e) => super::error::ApiError::from(e).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct GrantReq {
+    email: String,
+    role: String,
+}
+
+/// Grants a system role to an existing user (E2E only), so suites don't depend on bootstrap order.
+async fn grant_system_role(State(s): State<AppState>, Json(r): Json<GrantReq>) -> Response {
+    let (Some(p), Some(db)) = (s.platform.as_ref(), s.db.as_ref()) else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let user: Option<uuid::Uuid> = sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
+        .bind(r.email.to_lowercase())
+        .fetch_optional(db.pool())
+        .await
+        .ok()
+        .flatten();
+    let Some(user) = user else { return problem(Problem::not_found()) };
+    match p.grant_system_role(None, user, &r.role, &procera_identity::ClientInfo::default()).await {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => super::error::ApiError::from(e).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NewUser {
+    email: String,
+    display_name: String,
+    password: String,
+}
+
+/// Seeds a user directly (E2E only). Real onboarding goes through bootstrap/invites (BPMS-020/023).
+async fn create_user(State(s): State<AppState>, Json(u): Json<NewUser>) -> Response {
+    let Some(id) = s.identity.as_ref() else {
+        return problem(
+            Problem::new(503, "unavailable", "Service unavailable").with_detail("database is not configured"),
+        );
+    };
+    match id
+        .create_user(&u.email, &u.display_name, &u.password, &procera_identity::ClientInfo::default())
+        .await
+    {
+        Ok(user) => (StatusCode::CREATED, Json(user)).into_response(),
+        Err(e) => super::error::ApiError::from(e).into_response(),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -69,12 +135,21 @@ async fn fault() -> Response {
     )
 }
 
-/// Chain verification arrives with the audit chain (BPMS-026).
-async fn audit_verify() -> Response {
-    problem(
-        Problem::new(501, "not_implemented", "Not implemented")
-            .with_detail("audit verification lands with the audit chain (BPMS-026)"),
-    )
+/// Verifies the system-plane audit chain (`?workspace=<uuid>` for a workspace chain).
+async fn audit_verify(
+    State(s): State<AppState>,
+    axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(
+            Problem::new(503, "unavailable", "Service unavailable").with_detail("database is not configured"),
+        );
+    };
+    let ws = q.get("workspace").and_then(|w| w.parse().ok()).unwrap_or(procera_db::SYSTEM_WORKSPACE);
+    match procera_audit::verify(db, procera_db::WsCtx { workspace_id: ws }).await {
+        Ok(r) => Json(serde_json::json!({"checked": r.checked, "first_broken": r.first_broken, "ok": r.first_broken.is_none()})).into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
+    }
 }
 
 fn problem(p: Problem) -> Response {

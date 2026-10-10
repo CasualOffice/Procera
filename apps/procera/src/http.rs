@@ -6,6 +6,9 @@ use procera_kernel::Clock;
 use serde::Serialize;
 use std::sync::Arc;
 
+pub mod auth;
+pub mod error;
+pub mod system;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
 
@@ -15,6 +18,12 @@ pub struct AppState {
     pub clock: Arc<dyn Clock>,
     pub cache: procera_cache::Cache,
     pub db: Option<procera_db::Db>,
+    pub identity: Option<procera_identity::Identity>,
+    pub platform: Option<procera_platform::Platform>,
+    /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
+    pub secure_cookies: bool,
+    /// Per-IP login attempts per minute, in front of the per-account backoff (default 30).
+    pub login_rate_per_min: u32,
     #[cfg(feature = "e2e")]
     pub manual_clock: Arc<procera_kernel::clock::ManualClock>,
 }
@@ -25,10 +34,37 @@ impl AppState {
         self
     }
 
+    pub fn with_identity(
+        mut self,
+        identity: Option<procera_identity::Identity>,
+        secure_cookies: bool,
+    ) -> Self {
+        self.platform = match (&self.db, &identity) {
+            (Some(db), Some(id)) => Some(procera_platform::Platform::new(
+                db.clone(),
+                id.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            )),
+            _ => None,
+        };
+        self.identity = identity;
+        self.secure_cookies = secure_cookies;
+        self
+    }
+
     /// Production state: system clock.
     #[cfg(not(feature = "e2e"))]
     pub fn new(cache: procera_cache::Cache) -> Self {
-        Self { clock: Arc::new(procera_kernel::SystemClock), cache, db: None }
+        Self {
+            clock: Arc::new(procera_kernel::SystemClock),
+            cache,
+            db: None,
+            identity: None,
+            platform: None,
+            secure_cookies: true,
+            login_rate_per_min: 30,
+        }
     }
 
     /// Test helper: in-process cache.
@@ -41,7 +77,16 @@ impl AppState {
     #[cfg(feature = "e2e")]
     pub fn new(cache: procera_cache::Cache) -> Self {
         let manual = Arc::new(procera_kernel::clock::ManualClock::new(time::OffsetDateTime::now_utc()));
-        Self { clock: manual.clone(), manual_clock: manual, cache, db: None }
+        Self {
+            clock: manual.clone(),
+            manual_clock: manual,
+            cache,
+            db: None,
+            identity: None,
+            platform: None,
+            secure_cookies: true,
+            login_rate_per_min: 30,
+        }
     }
 
     /// Test helper: in-process cache.
@@ -55,7 +100,10 @@ pub fn router(state: AppState) -> Router {
     let router = Router::new()
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
-        .route("/version", get(version));
+        .route("/version", get(version))
+        .nest("/api/v1", auth::router())
+        .nest("/sysapi/v1", system::router())
+        .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]
     let router = router.nest("/__test", test_controls::router());
     router.with_state(state)

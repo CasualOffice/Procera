@@ -13,9 +13,9 @@ BPMS-011,ENG,"Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)",P0,P0,D
 BPMS-012,SEC,Threat model review,P0,P0,Security,06 §2,Reviewed; tests mapped,S,,Not started
 BPMS-013,E2E,"E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated)",P0,P0,SDET,23 §2–4,Smoke runs in CI; endpoints absent in release build,M,BPMS-011,Done
 BPMS-014,ENG,"AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas",P0,P0,Tech lead,07 §3,In repo,S,,Done
-BPMS-020,PLAT,"System plane: bootstrap, system roles, workspaces lifecycle, quotas",P0,R1,Platform,FR-S01–S04,J8 passes,L,BPMS-011,Not started
-BPMS-021,IAM,"Local auth (Argon2id), email verify, lockout, sessions",P0,R1,Platform,"12 §3, FX-I01",SEC tests green,M,BPMS-020,Not started
-BPMS-022,IAM,"MFA TOTP + WebAuthn, recovery codes, step-up",P0,R1,Platform,12 §3/§11,MFA required by role works,M,BPMS-021,Not started
+BPMS-020,PLAT,"System plane: bootstrap, system roles, workspaces lifecycle, quotas",P0,R1,Platform,FR-S01–S04,J8 passes,L,BPMS-011,Done
+BPMS-021,IAM,"Local auth (Argon2id), email verify, lockout, sessions",P0,R1,Platform,"12 §3, FX-I01",SEC tests green,M,BPMS-020,Done
+BPMS-022,IAM,"MFA TOTP + WebAuthn, recovery codes, step-up",P0,R1,Platform,12 §3/§11,MFA required by role works,M,BPMS-021,In progress
 BPMS-023,IAM,"Memberships, invites, directory (departments/groups/positions/managers), CSV import",P0,R1,Platform,FR-W01/W02,Manager cycles rejected,M,BPMS-020,Not started
 BPMS-024,IAM,"Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar",P0,R1,Platform,"FR-W03, ADR-0011",No-escalation property test,L,BPMS-023,Not started
 BPMS-025,SEC,Forced RLS + repository WsCtx + CI cross-workspace sweep,P0,R1,Platform,"03 §7, SEC-01/02",Sweep green in CI,M,BPMS-020,Done
@@ -23,7 +23,7 @@ BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01,
 BPMS-027,CFG,"Settings layering, floors, profiles, explainer",P0,R1,Platform,"FR-S05, FR-W04/W06, CFG-001..003",Never looser than floor,M,BPMS-020,Not started
 BPMS-028,UX,"Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)",P0,R1,FE,FR-V01–V09,Used by Members & Workspaces,L,BPMS-010,Not started
 BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,In progress
-BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,Not started
+BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,In progress
 BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,Not started
 BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,Not started
 BPMS-033,OPS,"Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback",P0,R1,Platform,ADR-0019,E2E passes with cache off,M,BPMS-020,Done

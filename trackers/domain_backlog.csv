@@ -164,6 +164,18 @@ E2E scenarios (E2E),E2E-P0-10,"Confirm dialog: Cancel focused first, focus trapp
 E2E scenarios (E2E),E2E-P0-11,"Data grid: `aria-sort` none→ascending→descending, filter result count announced in a live region, select-all count | FR-V01/V02/V06/V08",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-P0-12,"Select operable by keyboard only (open, move, choose) | WCAG 2.1.1",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-P0-13,Tabs: arrow keys move focus and selection; the panel follows | WAI-ARIA tabs pattern,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-01,"Login returns a ≤ 15 min Bearer JWT + HttpOnly/SameSite=Strict refresh cookie, `Cache-Control: no-store`; `/me` works only with a valid token; forged token → 401 problem+json | §3.2",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-02,Wrong password and unknown account return the same error code | enumeration resistance,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-03,Refresh rotates the cookie; replaying the old refresh token → `token_reused` and the legitimate session is revoked too | SEC-14,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-04,Cookie endpoints without `X-Requested-With: procera` → 403 `csrf` | CSRF,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-05,Logout revokes the family and clears the cookie | §3.2,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-06,"TOTP enrolment (otpauth URI), MFA login (`amr=[pwd,otp]`), MFA token rejected as access token, TOTP replay rejected, recovery code single-use | §3.6",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUTH-07,"Sign-out-everywhere rejects another device's unexpired JWT and refresh; system audit chain verifies | SEC-04, AUD-01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SYS-01,Bootstrap: wrong token 401; one-time token creates `system.owner`; reuse 409; no further tokens | FR-S01 (= E2E-R1-01),23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SYS-02,"System API returns 404 to non-system users and 403 `mfa_required` to system users without MFA | docs/12 §1, docs/06 §3.6",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SYS-03,"Create workspaces A (starter) and B (enterprise): 201 + Location + ETag, profile quotas, duplicate slug 409, invalid slug 422, listing | FR-S02/S04 (= E2E-R1-02)",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SYS-04,Suspend read-only with reason; stale `If-Match` → 412; restore with current ETag; invalid transition 409; schedule deletion (grace validated) | FR-S02 (= E2E-R1-17),23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SYS-05,"`system.operator` can read but not write; system audit chain verifies | docs/12 §4.1, FR-S09",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

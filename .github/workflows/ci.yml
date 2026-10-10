@@ -67,8 +67,17 @@ jobs:
           path: "**/*.cdx.json"
 
   e2e-smoke:
-    name: E2E smoke (P0 pack) + release has no test controls
+    name: E2E API packs (P0 smoke + R1 auth) + release has no test controls
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 2s --health-timeout 3s --health-retries 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.98.0
@@ -91,11 +100,18 @@ jobs:
           for i in $(seq 1 50); do curl -fs http://127.0.0.1:18081/healthz && break; sleep 0.2; done
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/__test/clock)
           echo "release /__test/clock -> $code"; test "$code" = "404"
-      - name: Start e2e server
+      - name: Prepare e2e database (roles, migrations) and start e2e server
         run: |
+          psql postgres://postgres@127.0.0.1:5432/postgres -qc "CREATE DATABASE procera_e2e"
+          psql postgres://postgres@127.0.0.1:5432/procera_e2e -q -f deploy/sql/00-roles.sql
+          /tmp/procera-e2e migrate --migrator-url postgres://procera_migrator@127.0.0.1:5432/procera_e2e
+          export PROCERA_DATABASE_URL=postgres://procera_app@127.0.0.1:5432/procera_e2e
+          export PROCERA_MASTER_KEY="$(/tmp/procera-e2e keygen 2>/dev/null)"
+          export PROCERA_INSECURE_COOKIES=true
+          export PROCERA_LOGIN_RATE_PER_MIN=10000
           PROCERA_BIND=127.0.0.1:18080 /tmp/procera-e2e serve --all > /tmp/procera-e2e.log 2>&1 &
           for i in $(seq 1 50); do curl -fs http://127.0.0.1:18080/healthz && break; sleep 0.2; done
-      - name: Run E2E smoke
+      - name: Run E2E API packs
         working-directory: e2e
         env:
           PROCERA_BASE_URL: http://127.0.0.1:18080

@@ -61,9 +61,20 @@ step "Compose stack definition"
 docker compose -f deploy/compose.e2e.yml config -q && echo "compose ok"
 step "Web: tokens, contrast, types, build"
 (cd web && npm run check --silent && npm run build --silent >/dev/null && echo "web build ok")
-step "E2E: start e2e API build and web preview"
+step "E2E: start e2e API build (database-backed when Postgres is available) and web preview"
 cargo build -q -p procera --features e2e
-PROCERA_BIND=127.0.0.1:$API_PORT target/debug/procera serve --all >/tmp/procera-test-all.log 2>&1 & API_PID=$!
+API_ENV=()
+if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
+  E2E_DB="procera_e2e_$(date +%s)"
+  SUPER_BASE="${PROCERA_TEST_DATABASE_URL%/*}"
+  psql "$PROCERA_TEST_DATABASE_URL" -qc "CREATE DATABASE $E2E_DB" >/dev/null
+  psql "$SUPER_BASE/$E2E_DB" -q -f deploy/sql/00-roles.sql >/dev/null 2>&1
+  HOSTPART="${SUPER_BASE#*@}"
+  target/debug/procera migrate --migrator-url "postgres://procera_migrator@$HOSTPART/$E2E_DB" 2>/dev/null
+  API_ENV=(PROCERA_DATABASE_URL="postgres://procera_app@$HOSTPART/$E2E_DB" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" PROCERA_INSECURE_COOKIES=true PROCERA_LOGIN_RATE_PER_MIN=10000)
+  echo "e2e database $E2E_DB"
+fi
+env "${API_ENV[@]}" PROCERA_BIND=127.0.0.1:$API_PORT target/debug/procera serve --all >/tmp/procera-test-all.log 2>&1 & API_PID=$!
 (cd web && npx vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all.log 2>&1) & WEB_PID=$!
 until curl -fs -o /dev/null "http://127.0.0.1:$API_PORT/healthz"; do sleep 0.2; done
 until curl -fs -o /dev/null "http://127.0.0.1:$WEB_PORT/"; do sleep 0.2; done

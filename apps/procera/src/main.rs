@@ -29,7 +29,18 @@ enum Command {
         /// PostgreSQL URL for the runtime role `procera_app` (ADR-0002).
         #[arg(long, env = "PROCERA_DATABASE_URL")]
         database_url: Option<String>,
+        /// 32-byte base64 root key for secrets at rest and token signing (`procera keygen`). Required with a database.
+        #[arg(long, env = "PROCERA_MASTER_KEY", hide_env_values = true)]
+        master_key: Option<String>,
+        /// Use non-Secure cookies without the __Host- prefix. ONLY for local HTTP development and E2E.
+        #[arg(long, env = "PROCERA_INSECURE_COOKIES", default_value_t = false)]
+        insecure_cookies: bool,
+        /// Per-IP login attempts per minute (docs/06 §3.6). Raise only for test environments behind one IP.
+        #[arg(long, env = "PROCERA_LOGIN_RATE_PER_MIN", default_value_t = 30)]
+        login_rate_per_min: u32,
     },
+    /// Print a new random master key (base64) for PROCERA_MASTER_KEY.
+    Keygen,
     /// Apply database migrations. Run with the `procera_migrator` role, never the app role.
     Migrate {
         #[arg(long, env = "PROCERA_MIGRATOR_URL")]
@@ -42,14 +53,30 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::try_from_env("PROCERA_LOG").unwrap_or_else(|_| EnvFilter::new("info")))
         .json()
+        .with_writer(std::io::stderr) // stdout is reserved for command output (e.g. `procera keygen`)
         .init();
 
     match Cli::parse().command {
+        Command::Keygen => {
+            let key = procera_crypto::LocalKey::generate_base64();
+            tracing::info!(
+                "generated a new master key; store it in your secret manager as PROCERA_MASTER_KEY"
+            );
+            std::io::Write::write_all(&mut std::io::stdout(), format!("{key}\n").as_bytes())?;
+        }
         Command::Migrate { migrator_url } => {
             procera_db::migrate(&migrator_url).await?;
             tracing::info!("migrations applied");
         }
-        Command::Serve { bind, all, cache_url, database_url } => {
+        Command::Serve {
+            bind,
+            all,
+            cache_url,
+            database_url,
+            master_key,
+            insecure_cookies,
+            login_rate_per_min,
+        } => {
             let db = match database_url.as_deref() {
                 Some(url) => {
                     let db = procera_db::Db::connect(url, 20).await?;
@@ -81,9 +108,36 @@ async fn main() -> anyhow::Result<()> {
             tracing::warn!(
                 "built with the `e2e` feature: test-only controls are enabled — never use in production"
             );
-            axum::serve(listener, http::router(http::AppState::new(cache).with_db(db)))
-                .with_graceful_shutdown(shutdown_signal())
-                .await?;
+            // One state, one clock: identity, platform and test controls must share it (E2E time travel).
+            let base = http::AppState::new(cache).with_db(db.clone());
+            let identity = match (&db, master_key.as_deref()) {
+                (Some(db), Some(k)) => {
+                    let keys = std::sync::Arc::new(procera_crypto::LocalKey::from_base64(k)?);
+                    Some(procera_identity::Identity::new(
+                        db.clone(),
+                        keys,
+                        base.clock.clone(),
+                        std::sync::Arc::new(procera_kernel::UuidV7Gen),
+                        procera_identity::IdentityConfig::default(),
+                    )?)
+                }
+                (Some(_), None) => anyhow::bail!(
+                    "PROCERA_MASTER_KEY is required when a database is configured (generate one with `procera keygen`)"
+                ),
+                _ => None,
+            };
+            if insecure_cookies {
+                tracing::warn!("insecure cookies enabled: local HTTP development / E2E only");
+            }
+            let mut state = base.with_identity(identity, !insecure_cookies);
+            state.login_rate_per_min = login_rate_per_min;
+            // FR-S01: until a system owner exists, print a one-time bootstrap token (24 h) to the log.
+            if let Some(p) = &state.platform
+                && let Some(token) = p.issue_bootstrap_token().await?
+            {
+                tracing::warn!(bootstrap_token = %token, "platform not bootstrapped: POST /sysapi/v1/bootstrap with this one-time token (valid 24 h)");
+            }
+            axum::serve(listener, http::router(state)).with_graceful_shutdown(shutdown_signal()).await?;
         }
     }
     Ok(())

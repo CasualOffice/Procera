@@ -35,9 +35,9 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-012 | SEC | Threat model review | P0 | P0 | Security | 06 §2 | Reviewed; tests mapped | S |  | Not started |
 | BPMS-013 | E2E | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | P0 | P0 | SDET | 23 §2–4 | Smoke runs in CI; endpoints absent in release build | M | BPMS-011 | Done |
 | BPMS-014 | ENG | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | P0 | P0 | Tech lead | 07 §3 | In repo | S |  | Done |
-| BPMS-020 | PLAT | System plane: bootstrap, system roles, workspaces lifecycle, quotas | P0 | R1 | Platform | FR-S01–S04 | J8 passes | L | BPMS-011 | Not started |
-| BPMS-021 | IAM | Local auth (Argon2id), email verify, lockout, sessions | P0 | R1 | Platform | 12 §3, FX-I01 | SEC tests green | M | BPMS-020 | Not started |
-| BPMS-022 | IAM | MFA TOTP + WebAuthn, recovery codes, step-up | P0 | R1 | Platform | 12 §3/§11 | MFA required by role works | M | BPMS-021 | Not started |
+| BPMS-020 | PLAT | System plane: bootstrap, system roles, workspaces lifecycle, quotas | P0 | R1 | Platform | FR-S01–S04 | J8 passes | L | BPMS-011 | Done |
+| BPMS-021 | IAM | Local auth (Argon2id), email verify, lockout, sessions | P0 | R1 | Platform | 12 §3, FX-I01 | SEC tests green | M | BPMS-020 | Done |
+| BPMS-022 | IAM | MFA TOTP + WebAuthn, recovery codes, step-up | P0 | R1 | Platform | 12 §3/§11 | MFA required by role works | M | BPMS-021 | In progress |
 | BPMS-023 | IAM | Memberships, invites, directory (departments/groups/positions/managers), CSV import | P0 | R1 | Platform | FR-W01/W02 | Manager cycles rejected | M | BPMS-020 | Not started |
 | BPMS-024 | IAM | Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar | P0 | R1 | Platform | FR-W03, ADR-0011 | No-escalation property test | L | BPMS-023 | Not started |
 | BPMS-025 | SEC | Forced RLS + repository WsCtx + CI cross-workspace sweep | P0 | R1 | Platform | 03 §7, SEC-01/02 | Sweep green in CI | M | BPMS-020 | Done |
@@ -45,7 +45,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-027 | CFG | Settings layering, floors, profiles, explainer | P0 | R1 | Platform | FR-S05, FR-W04/W06, CFG-001..003 | Never looser than floor | M | BPMS-020 | Not started |
 | BPMS-028 | UX | Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard) | P0 | R1 | FE | FR-V01–V09 | Used by Members & Workspaces | L | BPMS-010 | Not started |
 | BPMS-029 | ENG | Outbox + dispatcher + inbox dedup + idempotency keys | P0 | R1 | Platform | ADR-0005 | T02 skeleton passes | M | BPMS-011 | In progress |
-| BPMS-030 | ENG | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | P0 | R1 | Platform/Sec | 04 §8, 06 §4 | Rotation + shred tested | M | BPMS-020 | Not started |
+| BPMS-030 | ENG | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | P0 | R1 | Platform/Sec | 04 §8, 06 §4 | Rotation + shred tested | M | BPMS-020 | In progress |
 | BPMS-031 | UX | App shell, workspace switcher, system console shell, ⌘K | P0 | R1 | FE | UX-002/003 | Keyboard nav | M | BPMS-010 | Not started |
 | BPMS-032 | E2E | E2E-R1 pack (R1-01…19 + ISO) | P0 | R1 | SDET + feature owners | 23 §5 | Green on Chromium + mobile | L | BPMS-013 | Not started |
 | BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Done |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 12 · In review: 0 · In progress: 3 · Blocked: 0 · Not started: 94 · Deferred: 0 (of 109)
+**Progress:** Done: 14 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 90 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -147,9 +147,13 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | Done | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke) + web check/build, JS licence gate and axe a11y job (added with BPMS-010) |
 | BPMS-013 | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | Done | e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run |
 | BPMS-014 | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | Done | CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main |
+| BPMS-020 | System plane: bootstrap, system roles, workspaces lifecycle, quotas | Done | procera-platform + /sysapi/v1: one-time bootstrap token (printed at startup until bootstrapped), system.owner/admin/operator/auditor fixed authz table, MFA required for system plane, workspace create/list/get/rename/suspend/restore/schedule-deletion with If-Match + ETag, profile quotas, platform setting floors seeded, all audited; E2E-R1-SYS-01..05 |
+| BPMS-021 | Local auth (Argon2id), email verify, lockout, sessions | Done | procera-identity + /api/v1/auth: users, Argon2id (policy, rehash, enumeration-safe), JWT access (ADR-0020) + rotating refresh with reuse detection, DB login throttling + per-IP rate limit, logout, sign-out-everywhere, deactivation via token_version; audited; E2E-R1-AUTH-01..05,07 |
+| BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | In progress | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
 | BPMS-025 | Forced RLS + repository WsCtx + CI cross-workspace sweep | Done | procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests |
 | BPMS-026 | Audit chain append + coverage contract test | In progress | procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test passes. Remaining: route audit-coverage contract test (with BPMS-020 routes) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | In progress | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
+| BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | In progress | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
 
@@ -160,7 +164,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 88 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 100 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks
@@ -208,6 +212,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | [ADR-0017](adr/ADR-0017-unified-campaign-engine.md) | One acknowledgement & signature campaign engine | Accepted |
 | [ADR-0018](adr/ADR-0018-ui-stack-and-canvas.md) | UI stack and canvas libraries | Accepted |
 | [ADR-0019](adr/ADR-0019-valkey-redis-cache.md) | Redis-protocol cache (Valkey default) as a standard, non-authoritative component | Accepted |
+| [ADR-0020](adr/ADR-0020-jwt-access-tokens.md) | JWT access tokens with rotating refresh tokens (no server-side sessions) | Accepted |
 
 ## Open questions
 

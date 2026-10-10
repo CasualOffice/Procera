@@ -85,6 +85,32 @@ ID format: `E2E-<release>-<nn>`. Every row lists the PRD/catalogue refs it prove
 
 Implemented in `e2e/packs/p0/harness.api.spec.ts` and `e2e/packs/p0/design-system.ui.spec.ts`. CI jobs: `e2e-smoke` and `e2e-a11y`.
 
+### E2E-R1-AUTH: authentication (BPMS-021/022, ADR-0020) — implemented
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R1-AUTH-01 | Login returns a ≤ 15 min Bearer JWT + HttpOnly/SameSite=Strict refresh cookie, `Cache-Control: no-store`; `/me` works only with a valid token; forged token → 401 problem+json | §3.2 |
+| E2E-R1-AUTH-02 | Wrong password and unknown account return the same error code | enumeration resistance |
+| E2E-R1-AUTH-03 | Refresh rotates the cookie; replaying the old refresh token → `token_reused` and the legitimate session is revoked too | SEC-14 |
+| E2E-R1-AUTH-04 | Cookie endpoints without `X-Requested-With: procera` → 403 `csrf` | CSRF |
+| E2E-R1-AUTH-05 | Logout revokes the family and clears the cookie | §3.2 |
+| E2E-R1-AUTH-06 | TOTP enrolment (otpauth URI), MFA login (`amr=[pwd,otp]`), MFA token rejected as access token, TOTP replay rejected, recovery code single-use | §3.6 |
+| E2E-R1-AUTH-07 | Sign-out-everywhere rejects another device's unexpired JWT and refresh; system audit chain verifies | SEC-04, AUD-01 |
+
+Implemented in `e2e/packs/r1/auth.api.spec.ts`.
+
+### E2E-R1-SYS: system plane (BPMS-020): implemented
+
+| ID | Scenario | Proves |
+|---|---|---|
+| E2E-R1-SYS-01 | Bootstrap: wrong token 401; one-time token creates `system.owner`; reuse 409; no further tokens | FR-S01 (= E2E-R1-01) |
+| E2E-R1-SYS-02 | System API returns 404 to non-system users and 403 `mfa_required` to system users without MFA | docs/12 §1, docs/06 §3.6 |
+| E2E-R1-SYS-03 | Create workspaces A (starter) and B (enterprise): 201 + Location + ETag, profile quotas, duplicate slug 409, invalid slug 422, listing | FR-S02/S04 (= E2E-R1-02) |
+| E2E-R1-SYS-04 | Suspend read-only with reason; stale `If-Match` → 412; restore with current ETag; invalid transition 409; schedule deletion (grace validated) | FR-S02 (= E2E-R1-17) |
+| E2E-R1-SYS-05 | `system.operator` can read but not write; system audit chain verifies | docs/12 §4.1, FR-S09 |
+
+Implemented in `e2e/packs/r1/system.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |
