@@ -1,0 +1,305 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "qms.capa",
+    "version": 1,
+    "name": {
+      "en": "Corrective and preventive action (CAPA)"
+    },
+    "criticality": "controlled"
+  },
+  "variables": [
+    {
+      "name": "nonconformance",
+      "type": "text",
+      "classification": "confidential",
+      "required": true
+    },
+    {
+      "name": "severity",
+      "type": {
+        "enum": [
+          "minor",
+          "major",
+          "critical"
+        ]
+      },
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "occurrence",
+      "type": "integer",
+      "classification": "internal"
+    },
+    {
+      "name": "risk_score",
+      "type": "integer",
+      "classification": "internal"
+    },
+    {
+      "name": "needs_doc_change",
+      "type": "boolean",
+      "classification": "internal"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start",
+      "name": {
+        "en": "Report nonconformance"
+      },
+      "trigger": "manual",
+      "inputForm": "nc_report"
+    },
+    {
+      "id": "score",
+      "kind": "set",
+      "name": {
+        "en": "Compute risk score"
+      },
+      "assign": {
+        "risk_score": "expr:feel: (if severity = \"critical\" then 5 else if severity = \"major\" then 3 else 1) * occurrence"
+      }
+    },
+    {
+      "id": "open_case",
+      "kind": "case.open",
+      "name": {
+        "en": "Open CAPA case file"
+      },
+      "caseType": "capa",
+      "waitForClose": false
+    },
+    {
+      "id": "rca",
+      "kind": "human.task",
+      "name": {
+        "en": "Root-cause analysis"
+      },
+      "form": "rca",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "group",
+            "ref": "quality"
+          }
+        ],
+        "strategy": "least_loaded"
+      },
+      "due": {
+        "after": "P10D",
+        "business": true
+      },
+      "maxIterations": 3
+    },
+    {
+      "id": "qa_approval",
+      "kind": "human.approval",
+      "name": {
+        "en": "QA approves the action plan"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "qa-manager"
+          }
+        ],
+        "excludeActorsOf": [
+          "rca"
+        ],
+        "fallback": {
+          "type": "role",
+          "ref": "process-owner"
+        }
+      },
+      "signature": "part11",
+      "due": {
+        "after": "P5D",
+        "business": true
+      }
+    },
+    {
+      "id": "doc_change",
+      "kind": "decision",
+      "name": {
+        "en": "Document change needed?"
+      },
+      "branches": [
+        {
+          "name": "yes",
+          "when": "expr:feel: needs_doc_change"
+        }
+      ]
+    },
+    {
+      "id": "change_control",
+      "kind": "subprocess.call",
+      "name": {
+        "en": "Run document change control"
+      },
+      "process": "qms_doc_change",
+      "versionPolicy": "pinned"
+    },
+    {
+      "id": "wait_effectiveness",
+      "kind": "wait.timer",
+      "name": {
+        "en": "Wait before effectiveness check"
+      },
+      "after": "P30D"
+    },
+    {
+      "id": "effectiveness",
+      "kind": "human.task",
+      "name": {
+        "en": "Effectiveness review"
+      },
+      "form": "effectiveness",
+      "outcomes": [
+        "effective",
+        "not_effective"
+      ],
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "qa-manager"
+          }
+        ]
+      }
+    },
+    {
+      "id": "end_closed",
+      "kind": "end",
+      "name": {
+        "en": "CAPA closed"
+      }
+    },
+    {
+      "id": "end_failed",
+      "kind": "end",
+      "name": {
+        "en": "Change control failed"
+      },
+      "result": "terminated"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "score"
+    },
+    {
+      "id": "e2",
+      "from": "score",
+      "to": "open_case"
+    },
+    {
+      "id": "e3",
+      "from": "open_case",
+      "to": "rca",
+      "on": "opened"
+    },
+    {
+      "id": "e4",
+      "from": "rca",
+      "to": "qa_approval",
+      "on": "submitted"
+    },
+    {
+      "id": "e5",
+      "from": "qa_approval",
+      "to": "doc_change",
+      "on": "approved"
+    },
+    {
+      "id": "e6",
+      "from": "qa_approval",
+      "to": "rca",
+      "on": "rejected"
+    },
+    {
+      "id": "e7",
+      "from": "qa_approval",
+      "to": "rca",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e8",
+      "from": "doc_change",
+      "to": "change_control",
+      "on": "yes"
+    },
+    {
+      "id": "e9",
+      "from": "doc_change",
+      "to": "wait_effectiveness",
+      "on": "default"
+    },
+    {
+      "id": "e10",
+      "from": "change_control",
+      "to": "wait_effectiveness",
+      "on": "completed"
+    },
+    {
+      "id": "e11",
+      "from": "change_control",
+      "to": "end_failed",
+      "on": "failed"
+    },
+    {
+      "id": "e12",
+      "from": "change_control",
+      "to": "end_failed",
+      "on": "cancelled"
+    },
+    {
+      "id": "e13",
+      "from": "wait_effectiveness",
+      "to": "effectiveness",
+      "on": "fired"
+    },
+    {
+      "id": "e14",
+      "from": "effectiveness",
+      "to": "end_closed",
+      "on": "effective"
+    },
+    {
+      "id": "e15",
+      "from": "effectiveness",
+      "to": "rca",
+      "on": "not_effective"
+    }
+  ],
+  "sla": [
+    {
+      "id": "sla_capa",
+      "scope": "instance",
+      "target": "P60D",
+      "pauseWhile": [
+        "wait_effectiveness"
+      ]
+    }
+  ],
+  "refs": {
+    "forms": {
+      "nc_report": "form:qms.nc-report@1",
+      "rca": "form:qms.rca@1",
+      "effectiveness": "form:qms.effectiveness@1"
+    },
+    "processes": {
+      "qms_doc_change": "process:qms.document-change@1"
+    },
+    "sop": "sop:capa-procedure@1"
+  },
+  "meta": {
+    "sourceFormat": "fixture",
+    "templateRef": "tpl:qms.capa@1.0.0"
+  }
+}

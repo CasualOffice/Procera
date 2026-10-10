@@ -1,0 +1,398 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "fin.purchase-requisition",
+    "version": 1,
+    "name": {
+      "en": "Purchase requisition"
+    },
+    "criticality": "standard"
+  },
+  "variables": [
+    {
+      "name": "amount",
+      "type": {
+        "money": {
+          "currency": "INR"
+        }
+      },
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "vendor",
+      "type": "string",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "cost_center",
+      "type": "string",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "justification",
+      "type": "text",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "items",
+      "type": {
+        "list": {
+          "record": {
+            "description": "string",
+            "quantity": "integer",
+            "unit_price": "decimal"
+          }
+        }
+      },
+      "maxItems": 200
+    },
+    {
+      "name": "approval_level",
+      "type": {
+        "enum": [
+          "manager",
+          "finance",
+          "cfo"
+        ]
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start",
+      "name": {
+        "en": "Submit requisition"
+      },
+      "trigger": "manual",
+      "inputForm": "request"
+    },
+    {
+      "id": "route",
+      "kind": "decision",
+      "name": {
+        "en": "Route by amount (DoA)"
+      },
+      "rule": "approver",
+      "output": "level",
+      "branches": [
+        {
+          "name": "manager"
+        },
+        {
+          "name": "finance"
+        },
+        {
+          "name": "cfo"
+        }
+      ]
+    },
+    {
+      "id": "manager_approval",
+      "kind": "human.approval",
+      "name": {
+        "en": "Manager approval"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: initiator.manager"
+          }
+        ],
+        "excludeInitiator": true,
+        "fallback": {
+          "type": "role",
+          "ref": "process-owner"
+        }
+      },
+      "quorum": "one",
+      "signature": "simple",
+      "due": {
+        "after": "P2D",
+        "business": true
+      },
+      "escalations": [
+        {
+          "at": "P1D",
+          "action": "remind"
+        },
+        {
+          "at": "P2D",
+          "action": "reassign",
+          "to": {
+            "type": "user",
+            "ref": "expr:feel: initiator.manager.manager"
+          }
+        }
+      ]
+    },
+    {
+      "id": "finance_approval",
+      "kind": "human.approval",
+      "name": {
+        "en": "Finance approval"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "group",
+            "ref": "finance-approvers"
+          }
+        ],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "excludeActorsOf": [
+          "manager_approval"
+        ],
+        "fallback": {
+          "type": "role",
+          "ref": "process-owner"
+        }
+      },
+      "quorum": "one",
+      "signature": "simple",
+      "due": {
+        "after": "P3D",
+        "business": true
+      }
+    },
+    {
+      "id": "cfo_approval",
+      "kind": "human.approval",
+      "name": {
+        "en": "CFO approval"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "position",
+            "ref": "cfo"
+          }
+        ],
+        "excludeInitiator": true,
+        "fallback": {
+          "type": "role",
+          "ref": "process-owner"
+        }
+      },
+      "quorum": "one",
+      "signature": "strong",
+      "due": {
+        "after": "P3D",
+        "business": true
+      }
+    },
+    {
+      "id": "revise",
+      "kind": "human.task",
+      "name": {
+        "en": "Revise requisition"
+      },
+      "form": "request",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: initiator"
+          }
+        ]
+      },
+      "maxIterations": 5
+    },
+    {
+      "id": "notify_approved",
+      "kind": "notify",
+      "name": {
+        "en": "Notify approval"
+      },
+      "channels": [
+        "in_app",
+        "email"
+      ],
+      "to": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: initiator"
+          }
+        ]
+      },
+      "template": "purchase-approved"
+    },
+    {
+      "id": "notify_rejected",
+      "kind": "notify",
+      "name": {
+        "en": "Notify rejection"
+      },
+      "channels": [
+        "in_app",
+        "email"
+      ],
+      "to": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: initiator"
+          }
+        ]
+      },
+      "template": "purchase-rejected"
+    },
+    {
+      "id": "end_approved",
+      "kind": "end",
+      "name": {
+        "en": "Approved"
+      },
+      "result": "completed"
+    },
+    {
+      "id": "end_rejected",
+      "kind": "end",
+      "name": {
+        "en": "Rejected"
+      },
+      "result": "completed"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "route"
+    },
+    {
+      "id": "e2",
+      "from": "route",
+      "to": "manager_approval",
+      "on": "manager"
+    },
+    {
+      "id": "e3",
+      "from": "route",
+      "to": "finance_approval",
+      "on": "finance"
+    },
+    {
+      "id": "e4",
+      "from": "route",
+      "to": "cfo_approval",
+      "on": "cfo"
+    },
+    {
+      "id": "e5",
+      "from": "route",
+      "to": "finance_approval",
+      "on": "default"
+    },
+    {
+      "id": "e6",
+      "from": "manager_approval",
+      "to": "notify_approved",
+      "on": "approved"
+    },
+    {
+      "id": "e7",
+      "from": "manager_approval",
+      "to": "notify_rejected",
+      "on": "rejected"
+    },
+    {
+      "id": "e8",
+      "from": "manager_approval",
+      "to": "revise",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e9",
+      "from": "finance_approval",
+      "to": "notify_approved",
+      "on": "approved"
+    },
+    {
+      "id": "e10",
+      "from": "finance_approval",
+      "to": "notify_rejected",
+      "on": "rejected"
+    },
+    {
+      "id": "e11",
+      "from": "finance_approval",
+      "to": "revise",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e12",
+      "from": "cfo_approval",
+      "to": "notify_approved",
+      "on": "approved"
+    },
+    {
+      "id": "e13",
+      "from": "cfo_approval",
+      "to": "notify_rejected",
+      "on": "rejected"
+    },
+    {
+      "id": "e14",
+      "from": "cfo_approval",
+      "to": "revise",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e15",
+      "from": "revise",
+      "to": "route",
+      "on": "submitted"
+    },
+    {
+      "id": "e16",
+      "from": "notify_approved",
+      "to": "end_approved"
+    },
+    {
+      "id": "e17",
+      "from": "notify_rejected",
+      "to": "end_rejected"
+    }
+  ],
+  "sla": [
+    {
+      "id": "sla_total",
+      "scope": "instance",
+      "target": "P5D",
+      "business": true,
+      "pauseWhile": [
+        "revise"
+      ],
+      "breach": [
+        {
+          "action": "notify",
+          "to": "role:process-owner"
+        }
+      ]
+    }
+  ],
+  "refs": {
+    "forms": {
+      "request": "form:fin.purchase-request@1"
+    },
+    "rules": {
+      "approver": "rule:fin.purchase-approver@1"
+    },
+    "calendars": {
+      "default": "calendar:default@1"
+    },
+    "policy": "policy:procurement@1"
+  },
+  "meta": {
+    "sourceFormat": "fixture",
+    "templateRef": "tpl:fin.purchase-requisition@1.0.0"
+  }
+}

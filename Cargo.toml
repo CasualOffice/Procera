@@ -2,7 +2,9 @@
 resolver = "3"
 # Layout follows docs/04-LLD.md §1. Crates are added by the tracker item that needs them;
 # do not add empty placeholder crates.
-members = ["crates/kernel", "apps/procera"]
+members = ["crates/kernel", "apps/procera", "conformance"]
+# Phase-0 spikes live in their own workspace and are never part of the product build.
+exclude = ["spikes"]
 
 [workspace.package]
 version = "0.0.0"

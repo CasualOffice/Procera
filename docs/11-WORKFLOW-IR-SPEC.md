@@ -65,13 +65,13 @@ shortest round-trip form (RFC 8785 JCS). `checksum = sha256(canonical bytes)`.
 | `end` | Completes the current path. | — | `result`: `completed \| terminated` (terminate cancels all sibling tokens). |
 | `human.task` | Form to fill. | `submitted` (+ custom) | `assignment` §3.1, `form`, `due`, `escalations`. |
 | `human.approval` | Decision. | `approved`, `rejected`, `changes_requested` (+ custom) | `quorum`: `one \| all \| n_of_m{n}`; `signature`: `none \| simple \| part11`. |
-| `decision` | Exclusive branch on an expression or rule table. | named branches + `default` (required) | First matching branch in declared order. |
+| `decision` | Exclusive branch on an expression or rule table. | named branches + `default` (required) | First matching branch in declared order. Rule-table form: `rule` (refs key) + `output` (column); branch names = output values (§13 F1). |
 | `parallel.split` | Fork into N branches. | one per branch | Must pair with exactly one `parallel.join` (`joinId`). |
 | `parallel.join` | Wait for all branches of its split. | `next` | Releases once, under instance lock (04-LLD §7). |
 | `wait.timer` | Pause until instant/duration/business duration. | `fired` | `at` (expr → instant) or `after` (ISO-8601 duration; `business: true` uses calendar). |
 | `wait.signal` | Pause until a correlated external message. | `received`, `timeout` | `correlation` expression; message schema reference. |
 | `service.call` | Invoke a connector action. | `ok`, `error` (+ typed errors) | Executed by connector workers *after* commit; `idempotencyKey` expression mandatory. |
-| `notify` | Fire-and-forget notification. | `next` | Channels: `in_app, email, chat, webhook`; does not block on delivery. |
+| `notify` | Fire-and-forget notification. `to` (assignment shape), `template`. | `next` | Channels: `in_app, email, chat, webhook`; does not block on delivery. |
 | `subprocess.call` | Start a child instance of another published process. | `completed`, `failed`, `cancelled` | `versionPolicy`: `pinned` (bundle-locked version) only in v1. |
 | `case.open` | Open a case and optionally wait for closure. | `opened` or `closed` | Links instance ↔ case. |
 | `set` | Assign variables from expressions. | `next` | Pure; no I/O. |
@@ -243,3 +243,42 @@ Compiler output: normalized IR, diagnostics (error/warning/info with node ids, s
 `crates/runtime/conformance/` holds IR fixtures + expected event traces. Every runtime
 adapter (native or engine-backed) must pass it before it can be enabled; it is the basis of
 spikes SP-01…SP-06 and the R1 mitigation. See [15-TEST-STRATEGY §4](15-TEST-STRATEGY-AND-CONFORMANCE.md).
+
+## 13. v1 clarifications from reference modelling (BPMS-002)
+
+Modelling the five reference processes ([docs/spikes/BPMS-002](spikes/BPMS-002-reference-processes.md)) produced these normative clarifications. They are encoded in [`schemas/ir/v1.schema.json`](../schemas/ir/v1.schema.json) and the structural checker in [`conformance/`](../conformance/src/lib.rs).
+
+1. **Rule-table decisions:** `decision{rule, output, branches[]}`. Branch names are output values. `default` is mandatory.
+2. **Assignment on every `human.*` node**, including `human.acknowledge` and `human.sign` (as `signers`).
+3. **`notify`:** `to` uses the assignment shape. `template` names a localised message template. Channels: `in_app, email, chat, webhook, push`.
+4. **Configuration-dependent outcomes:**
+   - `wait.signal` yields `timeout` only when `timeout` is set.
+   - `case.open` yields `opened`, or `closed` when `waitForClose: true`.
+   - `human.task` with `outcomes: [...]` replaces the default `submitted`.
+5. **Terminate inside a branch.** An `end{result: terminated}` reachable inside a parallel branch is allowed and cancels sibling tokens. Any other end inside a branch is IR-E008.
+6. **Escalation actions:** `remind | reassign | outcome | notify`.
+7. **Signature levels** across approvals and signing: `none | simple | strong | part11` (strong = password/passkey/OTP re-auth; part11 = ESIG-03).
+8. **Refs:** `forms, rules, calendars, connectors, documents, processes` (maps), plus `sop` and `policy` (single refs).
+9. **Durations:** ISO-8601 subset with W, D, T…H/M/S only. Months and years are rejected (no fixed length). Calendar-based recurrences use `schedule` triggers.
+10. **Expression context** (§6): `initiator` and principals expose `.id`, `.manager`, `.department`, `.email`. `instance` exposes `.id`, `.display_id`, `.started_at`. `now` is the triggering event's time. Variables are accessed by name.
+11. **Edges** require a stable `id`. An edge without `on` means `next`.
+12. **Diagnostic codes** implemented so far:
+
+| Code | Check |
+|---|---|
+| IR-E001 | Exactly one `start` |
+| IR-E002 / E003 | Duplicate node / edge id |
+| IR-E004 | Edge endpoint missing |
+| IR-E005 | Outcome not handled |
+| IR-E006 | Edge uses an outcome the node can't produce |
+| IR-E007 | Decision without `default` |
+| IR-E008 | Split/join pairing or a branch escaping its join |
+| IR-E009 | Unreachable node |
+| IR-E010 | No reachable end |
+| IR-E011 | Unbounded loop |
+| IR-E012 | Size limits |
+| IR-E013 | Edges into `start` / out of `end` |
+| IR-E014 | Unknown SoD reference |
+| IR-E015 | Unknown boundary target |
+| IR-E016 | Duplicate variable |
+| IR-E100 | Schema violation |

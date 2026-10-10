@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://procera.dev/schemas/ir/v1.schema.json",
+  "title": "Procera workflow IR v1",
+  "description": "Normative shape of the workflow intermediate representation (docs/11-WORKFLOW-IR-SPEC.md). Structural rules beyond shape (reachability, outcome coverage, split/join pairing, loop bounds) are enforced by the compiler checks in docs/11 §11.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "process", "variables", "nodes", "edges"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "version", "name"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9]*(\\.[a-z0-9]+(-[a-z0-9]+)*)*$|^[a-z][a-z0-9-]*$", "maxLength": 120 },
+        "version": { "type": "integer", "minimum": 1 },
+        "name": { "$ref": "#/$defs/i18n" },
+        "criticality": { "enum": ["standard", "controlled"] }
+      }
+    },
+    "variables": { "type": "array", "items": { "$ref": "#/$defs/variable" }, "maxItems": 500 },
+    "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" }, "minItems": 2, "maxItems": 500 },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "sla": { "type": "array", "items": { "$ref": "#/$defs/sla" } },
+    "refs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "forms": { "$ref": "#/$defs/refMap" },
+        "rules": { "$ref": "#/$defs/refMap" },
+        "calendars": { "$ref": "#/$defs/refMap" },
+        "connectors": { "$ref": "#/$defs/refMap" },
+        "documents": { "$ref": "#/$defs/refMap" },
+        "processes": { "$ref": "#/$defs/refMap" },
+        "sop": { "$ref": "#/$defs/artifactRef" },
+        "policy": { "$ref": "#/$defs/artifactRef" }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "compilerVersion": { "type": "string" },
+        "sourceFormat": { "enum": ["step-builder", "bpmn-import", "template", "api", "ai-draft", "fixture"] },
+        "templateRef": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$" },
+    "i18n": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+      "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 300 }
+    },
+    "expr": { "type": "string", "pattern": "^expr:(feel|cel): .+" },
+    "duration": { "type": "string", "pattern": "^P(?!$)(\\d+W)?(\\d+D)?(T(?=\\d)(\\d+H)?(\\d+M)?(\\d+S)?)?$" },
+    "artifactRef": { "type": "string", "pattern": "^(form|rule|calendar|connector|sop|policy|document|process):[a-z0-9.\\-]+(@[0-9][0-9A-Za-z.\\-]*)?$" },
+    "refMap": { "type": "object", "additionalProperties": { "$ref": "#/$defs/artifactRef" } },
+    "type": {
+      "oneOf": [
+        { "enum": ["string", "text", "integer", "decimal", "boolean", "date", "datetime", "duration", "principal", "group", "file"] },
+        { "type": "object", "additionalProperties": false, "required": ["money"], "properties": { "money": { "type": "object", "properties": { "currency": { "type": "string", "pattern": "^[A-Z]{3}$" } } } } },
+        { "type": "object", "additionalProperties": false, "required": ["enum"], "properties": { "enum": { "type": "array", "items": { "type": "string" }, "minItems": 1, "uniqueItems": true } } },
+        { "type": "object", "additionalProperties": false, "required": ["list"], "properties": { "list": { "$ref": "#/$defs/type" } } },
+        { "type": "object", "additionalProperties": false, "required": ["record"], "properties": { "record": { "type": "object", "additionalProperties": { "$ref": "#/$defs/type" } } } }
+      ]
+    },
+    "variable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" },
+        "type": { "$ref": "#/$defs/type" },
+        "classification": { "enum": ["public", "internal", "confidential", "restricted"] },
+        "required": { "type": "boolean" },
+        "readers": { "type": "array", "items": { "type": "string" } },
+        "maxItems": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "ref"],
+      "properties": {
+        "type": { "enum": ["user", "group", "role", "position", "directory_rule"] },
+        "ref": { "type": "string", "minLength": 1 }
+      }
+    },
+    "assignment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidates"],
+      "properties": {
+        "candidates": { "type": "array", "items": { "$ref": "#/$defs/candidate" }, "minItems": 1 },
+        "strategy": { "enum": ["claim", "round_robin", "least_loaded", "all"] },
+        "excludeInitiator": { "type": "boolean" },
+        "excludeActorsOf": { "type": "array", "items": { "$ref": "#/$defs/id" } },
+        "fallback": { "$ref": "#/$defs/candidate" }
+      }
+    },
+    "due": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["after"],
+      "properties": { "after": { "$ref": "#/$defs/duration" }, "business": { "type": "boolean" } }
+    },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["at", "action"],
+      "properties": {
+        "at": { "$ref": "#/$defs/duration" },
+        "action": { "enum": ["remind", "reassign", "outcome", "notify"] },
+        "to": { "$ref": "#/$defs/candidate" },
+        "outcome": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on", "to"],
+      "properties": {
+        "on": { "type": "string", "pattern": "^(timeout|cancel|error:[A-Z0-9_]+)$" },
+        "after": { "$ref": "#/$defs/duration" },
+        "interrupting": { "type": "boolean" },
+        "to": { "$ref": "#/$defs/id" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": {
+          "enum": ["start", "end", "human.task", "human.approval", "human.sign", "human.acknowledge", "decision", "parallel.split", "parallel.join", "wait.timer", "wait.signal", "service.call", "notify", "subprocess.call", "case.open", "set"]
+        },
+        "name": { "$ref": "#/$defs/i18n" },
+        "outcomes": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+        "unhandled": { "const": "fail" },
+        "trigger": { "enum": ["manual", "api", "schedule", "event"] },
+        "schedule": { "type": "string" },
+        "inputForm": { "type": "string" },
+        "result": { "enum": ["completed", "terminated"] },
+        "form": { "type": "string" },
+        "assignment": { "$ref": "#/$defs/assignment" },
+        "quorum": { "oneOf": [{ "enum": ["one", "all"] }, { "type": "object", "required": ["n"], "properties": { "n": { "type": "integer", "minimum": 1 } } }] },
+        "signature": { "enum": ["none", "simple", "strong", "part11"] },
+        "due": { "$ref": "#/$defs/due" },
+        "escalations": { "type": "array", "items": { "$ref": "#/$defs/escalation" } },
+        "boundary": { "type": "array", "items": { "$ref": "#/$defs/boundary" } },
+        "branches": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": { "name": { "$ref": "#/$defs/id" }, "when": { "$ref": "#/$defs/expr" } }
+          }
+        },
+        "rule": { "type": "string" },
+        "output": { "type": "string" },
+        "joinId": { "$ref": "#/$defs/id" },
+        "at": { "$ref": "#/$defs/expr" },
+        "after": { "$ref": "#/$defs/duration" },
+        "business": { "type": "boolean" },
+        "calendar": { "type": "string" },
+        "correlation": { "$ref": "#/$defs/expr" },
+        "timeout": { "$ref": "#/$defs/duration" },
+        "connector": { "type": "string" },
+        "action": { "type": "string" },
+        "input": { "type": "object", "additionalProperties": { "$ref": "#/$defs/expr" } },
+        "idempotencyKey": { "$ref": "#/$defs/expr" },
+        "channels": { "type": "array", "items": { "enum": ["in_app", "email", "chat", "webhook", "push"] }, "minItems": 1 },
+        "to": { "$ref": "#/$defs/assignment" },
+        "template": { "type": "string" },
+        "process": { "type": "string" },
+        "versionPolicy": { "const": "pinned" },
+        "caseType": { "type": "string" },
+        "waitForClose": { "type": "boolean" },
+        "assign": { "type": "object", "additionalProperties": { "$ref": "#/$defs/expr" } },
+        "document": { "type": "string" },
+        "signers": { "$ref": "#/$defs/assignment" },
+        "order": { "enum": ["sequential", "parallel"] },
+        "subject": { "type": "string" },
+        "quiz": { "type": "string" },
+        "maxIterations": { "type": "integer", "minimum": 1, "maximum": 1000 }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "from", "to"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "from": { "$ref": "#/$defs/id" },
+        "to": { "$ref": "#/$defs/id" },
+        "on": { "$ref": "#/$defs/id" }
+      }
+    },
+    "sla": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scope", "target"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "scope": { "type": "string", "pattern": "^(instance|node:[a-z][a-z0-9_-]*)$" },
+        "target": { "$ref": "#/$defs/duration" },
+        "business": { "type": "boolean" },
+        "pauseWhile": { "type": "array", "items": { "type": "string" } },
+        "breach": { "type": "array", "items": { "type": "object", "required": ["action"], "properties": { "action": { "enum": ["notify", "escalate"] }, "to": { "type": "string" } } } }
+      }
+    }
+  }
+}

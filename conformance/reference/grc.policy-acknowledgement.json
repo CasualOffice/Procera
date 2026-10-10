@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "grc.policy-acknowledgement",
+    "version": 1,
+    "name": {
+      "en": "Policy acknowledgement"
+    },
+    "criticality": "controlled"
+  },
+  "variables": [
+    {
+      "name": "employee",
+      "type": "principal",
+      "classification": "internal",
+      "required": true
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start",
+      "name": {
+        "en": "Policy published or employee joined"
+      },
+      "trigger": "event"
+    },
+    {
+      "id": "acknowledge",
+      "kind": "human.acknowledge",
+      "name": {
+        "en": "Read and acknowledge the policy"
+      },
+      "subject": "policy",
+      "quiz": "policy_quiz",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee"
+          }
+        ]
+      },
+      "due": {
+        "after": "P14D"
+      },
+      "escalations": [
+        {
+          "at": "P3D",
+          "action": "remind"
+        },
+        {
+          "at": "P7D",
+          "action": "remind"
+        },
+        {
+          "at": "P14D",
+          "action": "notify",
+          "to": {
+            "type": "user",
+            "ref": "expr:feel: employee.manager"
+          }
+        }
+      ]
+    },
+    {
+      "id": "notify_manager",
+      "kind": "notify",
+      "name": {
+        "en": "Tell the manager the acknowledgement is overdue"
+      },
+      "channels": [
+        "in_app",
+        "email"
+      ],
+      "to": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee.manager"
+          }
+        ]
+      },
+      "template": "ack-overdue"
+    },
+    {
+      "id": "end_ack",
+      "kind": "end",
+      "name": {
+        "en": "Acknowledged"
+      }
+    },
+    {
+      "id": "end_overdue",
+      "kind": "end",
+      "name": {
+        "en": "Overdue, escalated"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "acknowledge"
+    },
+    {
+      "id": "e2",
+      "from": "acknowledge",
+      "to": "end_ack",
+      "on": "acknowledged"
+    },
+    {
+      "id": "e3",
+      "from": "acknowledge",
+      "to": "notify_manager",
+      "on": "expired"
+    },
+    {
+      "id": "e4",
+      "from": "notify_manager",
+      "to": "end_overdue"
+    }
+  ],
+  "refs": {
+    "policy": "policy:code-of-conduct@1",
+    "forms": {
+      "policy_quiz": "form:grc.code-of-conduct-quiz@1"
+    }
+  },
+  "meta": {
+    "sourceFormat": "fixture",
+    "templateRef": "tpl:hr.policy-acknowledgement@1.0.0"
+  }
+}

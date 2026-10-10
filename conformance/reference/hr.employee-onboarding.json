@@ -1,0 +1,420 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "hr.employee-onboarding",
+    "version": 1,
+    "name": {
+      "en": "Employee onboarding"
+    },
+    "criticality": "standard"
+  },
+  "variables": [
+    {
+      "name": "employee",
+      "type": "principal",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "start_date",
+      "type": "date",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "department",
+      "type": "group",
+      "classification": "internal",
+      "required": true
+    },
+    {
+      "name": "salary",
+      "type": "decimal",
+      "classification": "restricted",
+      "readers": [
+        "role:hr"
+      ]
+    },
+    {
+      "name": "employee_id",
+      "type": "string",
+      "classification": "internal"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start",
+      "name": {
+        "en": "Start onboarding"
+      },
+      "trigger": "manual",
+      "inputForm": "new_hire"
+    },
+    {
+      "id": "manager_confirm",
+      "kind": "human.approval",
+      "name": {
+        "en": "Hiring manager confirms details"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee.manager"
+          }
+        ],
+        "fallback": {
+          "type": "role",
+          "ref": "process-owner"
+        }
+      },
+      "due": {
+        "after": "P2D",
+        "business": true
+      }
+    },
+    {
+      "id": "hr_revise",
+      "kind": "human.task",
+      "name": {
+        "en": "HR corrects new-hire details"
+      },
+      "form": "new_hire",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "hr-coordinator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fork",
+      "kind": "parallel.split",
+      "name": {
+        "en": "Prepare in parallel"
+      },
+      "joinId": "join",
+      "branches": [
+        {
+          "name": "it"
+        },
+        {
+          "name": "facilities"
+        },
+        {
+          "name": "paperwork"
+        }
+      ]
+    },
+    {
+      "id": "it_setup",
+      "kind": "human.task",
+      "name": {
+        "en": "IT: accounts and laptop"
+      },
+      "form": "it_checklist",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "group",
+            "ref": "it-service-desk"
+          }
+        ],
+        "strategy": "claim"
+      },
+      "due": {
+        "after": "P3D",
+        "business": true
+      }
+    },
+    {
+      "id": "laptop_delivered",
+      "kind": "wait.signal",
+      "name": {
+        "en": "Wait for laptop delivery"
+      },
+      "correlation": "expr:feel: employee_id",
+      "timeout": "P10D"
+    },
+    {
+      "id": "it_followup",
+      "kind": "human.task",
+      "name": {
+        "en": "IT: chase laptop delivery"
+      },
+      "assignment": {
+        "candidates": [
+          {
+            "type": "group",
+            "ref": "it-service-desk"
+          }
+        ]
+      }
+    },
+    {
+      "id": "facilities",
+      "kind": "human.task",
+      "name": {
+        "en": "Facilities: desk and access card"
+      },
+      "form": "facilities_checklist",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "group",
+            "ref": "facilities"
+          }
+        ]
+      },
+      "due": {
+        "after": "P3D",
+        "business": true
+      }
+    },
+    {
+      "id": "offer_sign",
+      "kind": "human.sign",
+      "name": {
+        "en": "Employee signs offer and NDA"
+      },
+      "document": "offer_pack",
+      "signers": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee"
+          }
+        ]
+      },
+      "order": "sequential",
+      "signature": "strong"
+    },
+    {
+      "id": "policy_ack",
+      "kind": "human.acknowledge",
+      "name": {
+        "en": "Employee acknowledges Code of Conduct"
+      },
+      "subject": "policy",
+      "due": {
+        "after": "P7D"
+      }
+    },
+    {
+      "id": "join",
+      "kind": "parallel.join",
+      "name": {
+        "en": "All preparation done"
+      }
+    },
+    {
+      "id": "wait_start",
+      "kind": "wait.timer",
+      "name": {
+        "en": "Wait for start date"
+      },
+      "at": "expr:feel: date and time(start_date, time(\"09:00:00\"))",
+      "calendar": "default"
+    },
+    {
+      "id": "welcome",
+      "kind": "notify",
+      "name": {
+        "en": "Welcome message"
+      },
+      "channels": [
+        "in_app",
+        "email"
+      ],
+      "to": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee"
+          },
+          {
+            "type": "user",
+            "ref": "expr:feel: employee.manager"
+          }
+        ]
+      },
+      "template": "welcome"
+    },
+    {
+      "id": "end_done",
+      "kind": "end",
+      "name": {
+        "en": "Onboarded"
+      },
+      "result": "completed"
+    },
+    {
+      "id": "end_cancelled",
+      "kind": "end",
+      "name": {
+        "en": "Onboarding cancelled"
+      },
+      "result": "terminated"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "manager_confirm"
+    },
+    {
+      "id": "e2",
+      "from": "manager_confirm",
+      "to": "fork",
+      "on": "approved"
+    },
+    {
+      "id": "e3",
+      "from": "manager_confirm",
+      "to": "end_cancelled",
+      "on": "rejected"
+    },
+    {
+      "id": "e4",
+      "from": "manager_confirm",
+      "to": "hr_revise",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e5",
+      "from": "hr_revise",
+      "to": "manager_confirm",
+      "on": "submitted"
+    },
+    {
+      "id": "e6",
+      "from": "fork",
+      "to": "it_setup",
+      "on": "it"
+    },
+    {
+      "id": "e7",
+      "from": "it_setup",
+      "to": "laptop_delivered",
+      "on": "submitted"
+    },
+    {
+      "id": "e8",
+      "from": "laptop_delivered",
+      "to": "join",
+      "on": "received"
+    },
+    {
+      "id": "e9",
+      "from": "laptop_delivered",
+      "to": "it_followup",
+      "on": "timeout"
+    },
+    {
+      "id": "e10",
+      "from": "it_followup",
+      "to": "join",
+      "on": "submitted"
+    },
+    {
+      "id": "e11",
+      "from": "fork",
+      "to": "facilities",
+      "on": "facilities"
+    },
+    {
+      "id": "e12",
+      "from": "facilities",
+      "to": "join",
+      "on": "submitted"
+    },
+    {
+      "id": "e13",
+      "from": "fork",
+      "to": "offer_sign",
+      "on": "paperwork"
+    },
+    {
+      "id": "e14",
+      "from": "offer_sign",
+      "to": "policy_ack",
+      "on": "signed"
+    },
+    {
+      "id": "e15",
+      "from": "offer_sign",
+      "to": "end_cancelled",
+      "on": "declined"
+    },
+    {
+      "id": "e16",
+      "from": "offer_sign",
+      "to": "end_cancelled",
+      "on": "expired"
+    },
+    {
+      "id": "e17",
+      "from": "policy_ack",
+      "to": "join",
+      "on": "acknowledged"
+    },
+    {
+      "id": "e18",
+      "from": "policy_ack",
+      "to": "join",
+      "on": "expired"
+    },
+    {
+      "id": "e19",
+      "from": "join",
+      "to": "wait_start"
+    },
+    {
+      "id": "e20",
+      "from": "wait_start",
+      "to": "welcome",
+      "on": "fired"
+    },
+    {
+      "id": "e21",
+      "from": "welcome",
+      "to": "end_done"
+    }
+  ],
+  "sla": [
+    {
+      "id": "sla_ready",
+      "scope": "node:join",
+      "target": "P5D",
+      "business": true,
+      "breach": [
+        {
+          "action": "notify",
+          "to": "role:process-owner"
+        }
+      ]
+    }
+  ],
+  "refs": {
+    "forms": {
+      "new_hire": "form:hr.new-hire@1",
+      "it_checklist": "form:hr.it-checklist@1",
+      "facilities_checklist": "form:hr.facilities-checklist@1"
+    },
+    "documents": {
+      "offer_pack": "document:hr.offer-pack@1"
+    },
+    "calendars": {
+      "default": "calendar:default@1"
+    },
+    "policy": "policy:code-of-conduct@1"
+  },
+  "meta": {
+    "sourceFormat": "fixture",
+    "templateRef": "tpl:hr.employee-onboarding@1.0.0"
+  }
+}

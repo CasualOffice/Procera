@@ -1,0 +1,19 @@
+[package]
+name = "procera-conformance"
+description = "IR v1 reference fixtures, schema validation and structural checks (docs/11 §11-12). Grows into the runtime conformance suite."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+jsonschema = { version = "0.58", default-features = false }
+
+[dev-dependencies]
+anyhow.workspace = true
+
+[lints]
+workspace = true
