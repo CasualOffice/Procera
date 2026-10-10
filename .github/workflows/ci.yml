@@ -50,3 +50,49 @@ jobs:
         with:
           name: sbom-cyclonedx
           path: "**/*.cdx.json"
+
+  e2e-smoke:
+    name: E2E smoke (P0 pack) + release has no test controls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.98.0
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - name: Validate E2E compose stack
+        run: docker compose -f deploy/compose.e2e.yml config -q
+      - name: Build e2e and release binaries
+        run: |
+          cargo build -p procera --features e2e
+          cp target/debug/procera /tmp/procera-e2e
+          cargo build --release -p procera
+      - name: Release binary must not expose /__test/* (docs/24 §5.4)
+        run: |
+          PROCERA_BIND=127.0.0.1:18081 target/release/procera serve --all &
+          for i in $(seq 1 50); do curl -fs http://127.0.0.1:18081/healthz && break; sleep 0.2; done
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/__test/clock)
+          echo "release /__test/clock -> $code"; test "$code" = "404"
+      - name: Start e2e server
+        run: |
+          PROCERA_BIND=127.0.0.1:18080 /tmp/procera-e2e serve --all > /tmp/procera-e2e.log 2>&1 &
+          for i in $(seq 1 50); do curl -fs http://127.0.0.1:18080/healthz && break; sleep 0.2; done
+      - name: Run E2E smoke
+        working-directory: e2e
+        env:
+          PROCERA_BASE_URL: http://127.0.0.1:18080
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint:no-sleeps
+          npx playwright test --project api
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            /tmp/procera-e2e.log

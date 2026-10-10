@@ -150,6 +150,11 @@ AI (AI),AI-022,"Evaluation harness, golden sets, injection suite, CI integration
 AI (AI),AI-023,"Usage metering, budgets, admin dashboard tiles | P1 | S | AI-011",16-AI-ASSISTANCE.md
 AI (AI),AI-024,"AI DPIA template, Art. 6(3) assessment, subprocessor list entries | P1 | S | —",16-AI-ASSISTANCE.md
 AI (AI),AI-025,"Governed `ai.task` node (AI-010): schema-bound output, mandatory review step, versioned prompts in release bundle | P2 | L | IR v2, AI-022",16-AI-ASSISTANCE.md
+E2E scenarios (E2E),E2E-P0-01,`/healthz` and `/readyz` return 200 | Harness boots the stack,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-02,`/version` reports name and server time | Clock wiring,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-03,`__test/clock` advances only forward and drives server time; invalid durations get a 422 problem+json | docs/23 §4 controls,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-04,`__test/drain` reports idle; unknown routes return 404 | Drain control; routing baseline,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-P0-REL,The release binary returns 404 for `/__test/clock` (CI step) | docs/24 §5.4,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md
