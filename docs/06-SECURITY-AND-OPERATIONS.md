@@ -81,18 +81,13 @@ workspace plane · **B7** workspace admin ↔ workspace content · **B8** produc
   for hosted multi-node deployments; optional for single-node Compose.
 - Postgres connections: `sslmode=verify-full` when not on loopback/unix socket.
 
-### 3.2 Browser sessions
-- Cookie `__Host-ph_session`: `Secure; HttpOnly; Path=/; SameSite=Lax`, opaque 256-bit random
-  id; server-side session record (Postgres, Valkey cache optional) holding user, active
-  workspace, `auth_time`, `amr`, MFA state, CSRF secret.
-- Idle timeout 30 min, absolute 12 h (workspace-configurable within platform floors).
-  Session id **rotated** on login, MFA completion, workspace switch, role change, step-up.
-- **CSRF**: all state-changing requests MUST be non-GET and pass **both** an `Origin`
-  (or `Sec-Fetch-Site: same-origin`) check and a synchronizer token (`X-CSRF-Token`
-  header bound to the session). Unknown Origin → 403.
-- Logout revokes server session; "sign out everywhere" revokes all sessions and refresh
-  tokens of the user (per workspace or global).
-- System plane uses a separate host (e.g. `admin.<domain>`) and separate cookie.
+### 3.2 Browser sign-in (JWT, ADR-0020)
+- **Access token:** a JWT (HS256, algorithm pinned), **10 min**, sent as `Authorization: Bearer`, held in memory by the web client (never in localStorage). Claims: `sub, sid, plane, ws, amr, auth_time, tv, typ, iat, exp, jti`; `ws` is the authoritative workspace.
+- **Refresh token:** an opaque 256-bit value in the cookie `__Host-procera_refresh` (`Secure; HttpOnly; Path=/; SameSite=Strict`), stored as SHA-256. It is **rotated on every use**, and reuse revokes the family (SEC-14). Sliding expiry is 12 h; absolute expiry is 30 d (configurable within floors).
+- **CSRF:** Bearer-authenticated endpoints are not CSRF-exposed. The cookie endpoints `/auth/refresh` and `/auth/logout` require `SameSite=Strict` **and** `X-Requested-With: procera`; missing → 403 `csrf`.
+- **Revocation:** logout revokes the family. "Sign out everywhere" and deactivation revoke all families and bump `users.token_version`, which each request checks through a ≤ 30 s cache (SEC-04).
+- **MFA step:** after the password, a 5-minute `typ=mfa` token is valid only for `/auth/mfa`.
+- The system plane uses a separate host (e.g. `admin.<domain>`) and its own tokens (`plane=system`).
 
 ### 3.3 OIDC (relying party; Keycloak is the reference IdP)
 - Authorization Code + **PKCE S256**; `state` (CSRF) and `nonce` (replay) MUST be
@@ -103,16 +98,15 @@ workspace plane · **B7** workspace admin ↔ workspace content · **B8** produc
 - SAML is accepted only via a brokering IdP (no in-process XML signature validation).
 - Per-workspace IdP configuration; domain verification (DNS TXT) before auto-join.
 
-### 3.4 API access tokens (first-party OAuth)
-- Access token: JWT (EdDSA) or opaque, **TTL ≤ 15 min**, audience = API, claims
-  `sub, ws (workspace), sid, scope, auth_time, amr, jti`. Workspace claim is authoritative.
+### 3.4 API access tokens
+- The same JWT format as §3.2 (HS256 today, ADR-0020; EdDSA with a JWKS endpoint if an external resource server ever needs to verify tokens). **TTL ≤ 15 min**, audience `procera-api`. The workspace claim is authoritative.
 - Refresh token: opaque 256-bit, TTL 12 h sliding / 30 d absolute (configurable),
   **rotated on every use**; reuse of an old token revokes the whole family and the
   session and emits `security.token_reuse` (SEC-14).
 - **DPoP** (RFC 9449) sender-constrained tokens: P2, for high-assurance API clients.
 
 ### 3.5 Personal / service API tokens
-- Format `ph_<env>_<id8>_<secret>` where `secret` = 32 random bytes base62; prefix enables
+- Format `prc_<env>_<id8>_<secret>` where `secret` = 32 random bytes base62; prefix enables
   secret scanning (register pattern with GitHub secret scanning).
 - Stored as `HMAC-SHA256(pepper, secret)`; pepper held in the key service, not the DB.
   Only last 4 chars shown after creation.

@@ -1,0 +1,38 @@
+[package]
+name = "procera-identity"
+description = "Users, passwords (Argon2id), server-side sessions, login throttling, TOTP MFA and recovery codes (BPMS-021/022, docs/06 §3.2, §3.6)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-audit.workspace = true
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-kernel.workspace = true
+argon2 = { version = "0.5", features = ["std"] }
+jsonwebtoken = { version = "9.3", default-features = false }
+data-encoding = "2"
+hmac = "0.12"
+sha1 = "0.10"
+sha2 = "0.10"
+subtle = "2.6"
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros" ] }
+thiserror.workspace = true
+time.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+procera-audit.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

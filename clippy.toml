@@ -1,0 +1,4 @@
+# unwrap/expect are denied in product code (docs/24 §3.10) but allowed inside tests.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true

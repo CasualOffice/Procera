@@ -64,12 +64,10 @@ Standalone first. No external system is needed, and enterprise identity layers o
 | API tokens / service accounts | P0 | Workspace-scoped. Created by a workspace admin. Scoped to permissions. Expiring. Hashed at rest. Cannot sign approvals. |
 | Platform operator / System Admin login | P0 | Separate admin realm on its own route/subdomain. MFA **mandatory** (WebAuthn recommended). Optional IP allowlist. |
 
-Sessions:
-- Browser sessions use `__Host-` cookies (`Secure`, `HttpOnly`, `SameSite=Lax`).
-- Idle timeout 30 min and absolute timeout 12 h, both configurable per workspace.
-- Sessions rotate on privilege change.
-- Server-side session store, so revocation is instant.
-- APIs use short-lived (≤ 15 min) workspace-scoped access tokens and rotating refresh tokens with reuse detection.
+Sign-in (ADR-0020):
+- **Access:** short-lived JWT access tokens (10 min, `Authorization: Bearer`). The access token carries `ws`, the active workspace; switching workspace issues a new token for the new workspace.
+- **Refresh:** rotating refresh tokens in an `HttpOnly; SameSite=Strict` cookie (reuse revokes the sign-in).
+- **Revocation:** per-request status and token-version checks make deactivation and "sign out everywhere" effective within seconds.
 
 Full protocol details are in [06-SECURITY-AND-OPERATIONS §3](06-SECURITY-AND-OPERATIONS.md).
 
