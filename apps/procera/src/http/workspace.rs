@@ -439,7 +439,11 @@ async fn list_grants(
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct GrantReq {
-    membership_id: Uuid,
+    /// Exactly one of `membership_id` / `group_id`.
+    #[serde(default)]
+    membership_id: Option<Uuid>,
+    #[serde(default)]
+    group_id: Option<Uuid>,
     role_key: String,
     #[serde(default = "workspace_scope")]
     scope_kind: String,
@@ -464,20 +468,26 @@ async fn create_grant(
     let m = members(&s)?;
     let scope = Scope::parse(&r.scope_kind, r.scope_id)?;
     let mut tx = me.tx(m).await?;
-    me.require(m, &mut tx, "member:manage_roles", Resource::Member(r.membership_id)).await?;
-    let id = m
-        .access()
-        .grant(
-            &mut tx,
-            Some(me.actor.membership),
-            r.membership_id,
-            &r.role_key,
-            scope,
-            r.expires_at,
-            r.reason.as_deref(),
-        )
-        .await?;
-    m.audit_object(&mut tx, Some(me.actor.subject_ref), "role.granted", "role_grant", id, json!({"membership_id": r.membership_id, "role": r.role_key, "scope": scope, "expires_at": r.expires_at.map(|t| t.unix_timestamp()), "reason": r.reason}), &client_info(&headers)).await?;
+    let actor = Some(me.actor.membership);
+    let id = match (r.membership_id, r.group_id) {
+        (Some(member), None) => {
+            me.require(m, &mut tx, "member:manage_roles", Resource::Member(member)).await?;
+            m.access()
+                .grant(&mut tx, actor, member, &r.role_key, scope, r.expires_at, r.reason.as_deref())
+                .await?
+        }
+        (None, Some(group)) => {
+            me.require(m, &mut tx, "member:manage_roles", Resource::Workspace).await?;
+            m.access()
+                .grant_to_group(&mut tx, actor, group, &r.role_key, scope, r.expires_at, r.reason.as_deref())
+                .await?
+        }
+        _ => {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("give exactly one of membership_id or group_id"));
+        }
+    };
+    m.audit_object(&mut tx, Some(me.actor.subject_ref), "role.granted", "role_grant", id, json!({"membership_id": r.membership_id, "group_id": r.group_id, "role": r.role_key, "scope": scope, "expires_at": r.expires_at.map(|t| t.unix_timestamp()), "reason": r.reason}), &client_info(&headers)).await?;
     tx.commit().await.map_err(internal)?;
     Ok((StatusCode::CREATED, Json(json!({"id": id}))).into_response())
 }

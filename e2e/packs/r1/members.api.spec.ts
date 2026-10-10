@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { hasDatabase, passwordSession, seedUser, uniqueEmail } from '../../fixtures/accounts';
 import { enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-MEM-01..08 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
+// E2E-R1-MEM-01..09 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
 
 test.describe('members and access @r1 @members', () => {
   test.beforeEach(async ({ request }) => {
@@ -155,5 +155,43 @@ test.describe('members and access @r1 @members', () => {
     const chain = await (await request.get(`/__test/audit/verify?workspace=${ws.id}`)).json();
     expect(chain.ok).toBe(true);
     expect(chain.checked).toBeGreaterThanOrEqual(6); // owner invite + join, admin invite + join, role created, granted, updated
+  });
+
+  test('E2E-R1-MEM-09 roles granted to a group follow group membership; department-scoped admins reach only their subtree', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const join = async (tag: string) => {
+      const email = await seedUser(request, tag);
+      await owner.c.post('/api/v1/members/invitations', { headers: h, data: { email, roles: ['member'] } });
+      const token = await inviteToken(request, ws.id, email);
+      const pw = await passwordSession(email);
+      const { membership_id } = await (await pw.c.post('/api/v1/invitations/accept', { headers: { authorization: `Bearer ${pw.token}` }, data: { token } })).json();
+      return { email, id: membership_id as string };
+    };
+    const ann = await join('grp-ann');
+    const g = await (await owner.c.post('/api/v1/groups', { headers: h, data: { name: 'Role viewers' } })).json();
+    await owner.c.post(`/api/v1/groups/${g.id}/members`, { headers: h, data: { membership_id: ann.id } });
+    expect((await owner.c.post('/api/v1/role-grants', { headers: h, data: { group_id: g.id, role_key: 'analyst' } })).status()).toBe(201);
+    expect((await owner.c.post('/api/v1/role-grants', { headers: h, data: { group_id: g.id, role_key: 'workspace.owner' } })).status()).toBe(422);
+    expect((await owner.c.post('/api/v1/role-grants', { headers: h, data: { role_key: 'analyst' } })).status()).toBe(422);
+    const annS = await enter(ann.email, ws.id);
+    const perms = async () => (await (await annS.c.get('/api/v1/me/permissions', { headers: annS.headers })).json()).permissions as string[];
+    expect(await perms()).toContain('report:view');
+    await owner.c.delete(`/api/v1/groups/${g.id}/members/${ann.id}`, { headers: h });
+    expect(await perms()).not.toContain('report:view');
+
+    // Department-scoped admin: EMEA admin may deactivate a UK member, not an APAC member.
+    const emea = await (await owner.c.post('/api/v1/departments', { headers: h, data: { name: 'EMEA' } })).json();
+    const uk = await (await owner.c.post('/api/v1/departments', { headers: h, data: { name: 'UK', parent_id: emea.id } })).json();
+    const apac = await (await owner.c.post('/api/v1/departments', { headers: h, data: { name: 'APAC' } })).json();
+    const boss = await join('emea-admin');
+    const inUk = await join('uk-staff');
+    const inApac = await join('apac-staff');
+    await owner.c.patch(`/api/v1/members/${inUk.id}`, { headers: h, data: { department_id: uk.id } });
+    await owner.c.patch(`/api/v1/members/${inApac.id}`, { headers: h, data: { department_id: apac.id } });
+    expect((await owner.c.post('/api/v1/role-grants', { headers: h, data: { membership_id: boss.id, role_key: 'workspace.admin', scope_kind: 'department', scope_id: emea.id } })).status()).toBe(201);
+    const bossS = await enter(boss.email, ws.id);
+    expect((await bossS.c.post(`/api/v1/members/${inApac.id}/deactivate`, { headers: bossS.headers })).status()).toBe(403);
+    expect((await bossS.c.post(`/api/v1/members/${inUk.id}/deactivate`, { headers: bossS.headers })).status()).toBe(204);
   });
 });
