@@ -156,6 +156,15 @@ CORE = [
 CORE = [r[:4]+(REL_OVERRIDE.get(r[0], OLD_TO_REL.get(r[4], r[4])),)+r[5:] for r in CORE]
 CORE.sort(key=lambda r: ([m[0] for m in MILESTONES].index(r[4]), r[0]))
 
+# Item status lives here (docs/24 §2.2). Default is "Not started".
+# Values: Not started | In progress | Blocked | In review | Done | Deferred.  Format: id: (status, note)
+STATUS = {
+ "BPMS-014": ("Done", "CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main"),
+ "BPMS-034": ("In progress", "Raster assets + brand guide merged; SVG masters and trademark search pending"),
+ "BPMS-011": ("In review", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM): PR feat/BPMS-011-monorepo-ci"),
+}
+def status_of(i): return STATUS.get(i, ("Not started", ""))
+
 RISKS = [
  ("R1","Execution correctness","Critical","High","IR spec, conformance, property/model tests, chaos","Runtime lead"),
  ("R2","Scope creep (BPMN/features)","High","High","Non-goals, catalogue change process, scope-cut list","Product"),
@@ -231,7 +240,14 @@ def write_md():
      "## Releases (phased; see 07)","","| Release | Name | Start | End | Gate | Scope |","|---|---|---|---|---|---|"]
     out+= [f"| {m[0]} | {m[1]} | {m[2]} | {m[3]} | {m[4]} | {m[5]} |" for m in MILESTONES]
     out+=["","## Core backlog (epics)","","| ID | Area | Work item | Pri | Release | Owner | Refs | Acceptance | Size | Depends | Status |","|---|---|---|---|---|---|---|---|---|---|---|"]
-    out+= [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]} | {r[9]} | Not started |" for r in CORE]
+    out+= [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]} | {r[9]} | {status_of(r[0])[0]} |" for r in CORE]
+    from collections import Counter
+    cnt=Counter(status_of(r[0])[0] for r in CORE)
+    out+=["","**Progress:** "+" · ".join(f"{k}: {cnt.get(k,0)}" for k in ["Done","In review","In progress","Blocked","Not started","Deferred"])+f" (of {len(CORE)})"]
+    active=[r for r in CORE if status_of(r[0])[0]!="Not started"]
+    if active:
+        out+=["","### Active and recently completed","","| ID | Work item | Status | Note |","|---|---|---|---|"]
+        out+=[f"| {r[0]} | {r[2]} | {status_of(r[0])[0]} | {status_of(r[0])[1]} |" for r in active]
     out+=["","## Domain backlogs (detail, owned by their docs)",""]
     for k,v in DOMAIN.items():
         ids=[r[1] for r in v]
@@ -270,7 +286,7 @@ def write_xlsx():
     ov.column_dimensions["A"].width=20; ov.column_dimensions["B"].width=70
     sheet(wb,"Milestones",["M","Name","Start","End","Gate","Scope","Status"],[m+("Not started",) for m in MILESTONES],[7,32,12,12,8,70,14])
     ws=sheet(wb,"Backlog",["ID","Area","Work item","Pri","Release","Owner role","Refs","Acceptance","Size","Depends","Status","Assignee","Start","Due","Notes"],
-             [r+("Not started","","","","") for r in CORE],[10,8,60,5,8,14,26,34,6,16,13,14,11,11,30])
+             [r+(status_of(r[0])[0],"","","",status_of(r[0])[1]) for r in CORE],[10,8,60,5,8,14,26,34,6,16,13,14,11,11,30])
     from openpyxl.worksheet.datavalidation import DataValidation
     dv=DataValidation(type="list",formula1='"Not started,In progress,Blocked,In review,Done,Deferred"',allow_blank=True); ws.add_data_validation(dv); dv.add(f"K2:K{len(CORE)+1}")
     red=PatternFill("solid",fgColor="FECACA"); green=PatternFill("solid",fgColor="BBF7D0"); amber=PatternFill("solid",fgColor="FDE68A")
@@ -297,7 +313,7 @@ def write_xlsx():
     for c in bd[1]: c.font=HDR; c.fill=FILL
     out=ROOT/"trackers"; out.mkdir(exist_ok=True); wb.save(out/"Delivery_Tracker.xlsx")
     with open(out/"backlog.csv","w",newline="") as f:
-        w=csv.writer(f); w.writerow(["ID","Area","Work item","Pri","Release","Owner","Refs","Acceptance","Size","Depends","Status"]); [w.writerow(list(r)+["Not started"]) for r in CORE]
+        w=csv.writer(f); w.writerow(["ID","Area","Work item","Pri","Release","Owner","Refs","Acceptance","Size","Depends","Status"]); [w.writerow(list(r)+[status_of(r[0])[0]]) for r in CORE]
     with open(out/"domain_backlog.csv","w",newline="") as f:
         w=csv.writer(f); w.writerow(["Domain","ID","Details","Source"]); [w.writerow(r[:4]) for r in drows]
 
