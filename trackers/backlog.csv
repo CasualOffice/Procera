@@ -1,14 +1,14 @@
 ID,Area,Work item,Pri,Release,Owner,Refs,Acceptance,Size,Depends,Status
 BPMS-001,DISC,"User interviews (12+, startup/SME/MNC × HR/IT/Fin/Compliance/Admin) + synthesis",P0,P0,Product/UXR,"OQ-05, A-*",Synthesis published; personas validated,M,,Not started
-BPMS-002,DISC,Model 5 reference processes in IR on paper,P0,P0,Runtime lead,A-02,All 5 expressible or IR gaps logged,S,,Not started
+BPMS-002,DISC,Model 5 reference processes in IR on paper,P0,P0,Runtime lead,A-02,All 5 expressible or IR gaps logged,S,,Done
 BPMS-003,SPIKE,SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton),P0,P0,Runtime,"U-01, ADR-0015",Reports in docs/spikes/,L,,Not started
-BPMS-004,SPIKE,SP-07 licence/SBOM review of candidate deps,P0,P0,Tech lead,ADR-0014,No blocked licence,S,,Not started
-BPMS-005,SPIKE,"SP-08 expression language (dsntk FEEL vs CEL, incl. WASM)",P0,P0,Runtime,"U-02, ADR-0010",Engine passes IR expression suite,M,,Not started
-BPMS-006,SPIKE,SP-09 Cedar + RLS + sqlx pool + partial eval,P0,P0,Platform,"U-03, ADR-0011",0 leaks; list P95 in budget,M,,Not started
-BPMS-007,SPIKE,SP-10 audit chain 10M events: append + explorer,P0,P0,Platform,U-04,≥2k ev/s; P95<2s,M,,Not started
+BPMS-004,SPIKE,SP-07 licence/SBOM review of candidate deps,P0,P0,Tech lead,ADR-0014,No blocked licence,S,,Done
+BPMS-005,SPIKE,"SP-08 expression language (dsntk FEEL vs CEL, incl. WASM)",P0,P0,Runtime,"U-02, ADR-0010",Engine passes IR expression suite,M,,Done
+BPMS-006,SPIKE,SP-09 Cedar + RLS + sqlx pool + partial eval,P0,P0,Platform,"U-03, ADR-0011",0 leaks; list P95 in budget,M,,Done
+BPMS-007,SPIKE,SP-10 audit chain 10M events: append + explorer,P0,P0,Platform,U-04,≥2k ev/s; P95<2s,M,,Done
 BPMS-008,UX,Clickable prototype of Wave-1 flows + 5-user test,P0,P0,Design,05,Findings logged,M,,Not started
 BPMS-009,ARCH,G1: accept ADR-0010/0011/0015; freeze IR v1,P0,P0,Architect,G1,Signed off,S,BPMS-003..007,Not started
-BPMS-010,UX,Design tokens + core components + visual direction,P0,P0,Design/FE,"05 §7, UX-001",axe clean; approved,L,,Not started
+BPMS-010,UX,Design tokens + core components + visual direction,P0,P0,Design/FE,"05 §7, UX-001",axe clean; approved,L,,In progress
 BPMS-011,ENG,"Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)",P0,P0,DevOps,03 §11,All gates blocking,M,,Done
 BPMS-012,SEC,Threat model review,P0,P0,Security,06 §2,Reviewed; tests mapped,S,,Not started
 BPMS-013,E2E,"E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated)",P0,P0,SDET,23 §2–4,Smoke runs in CI; endpoints absent in release build,M,BPMS-011,Done

@@ -44,6 +44,7 @@ The repository is in the **design phase**: `docs/` is the source of truth and th
 ## 3. How to work (summary of docs/24)
 
 - **Design first.** Behaviour, data, API, security and UX changes update the docs before or with the code. Architectural changes need an ADR. If the spec is silent, **stop and add a question to docs/22**. Never invent behaviour.
+- **Cadence:** batch 3–4 tasks, test each batch in isolation, and after 5–10 tasks run `./scripts/test-all.sh` and push. Don't watch CI after every small change.
 - **Commit directly to `main`.** The workflow is trunk-based and uses no PRs (owner decision). Each commit is one tracker item or one complete slice of it, around 400 changed lines or fewer. Run the local gates before pushing (`docs/24 §7.3`). Watch CI after each push, and fix a red `main` first. Mark protected-area commits `[protected]`.
 - **Tracker:**
   - update the status in the `STATUS` map of `scripts/build_tracker.py` (core items), or in the doc's backlog table (domain items);
@@ -90,7 +91,8 @@ LICENSE NOTICE GOVERNANCE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md MAIN
 ## 7. Commands
 
 ```bash
-python3 scripts/build_tracker.py                      # regenerate docs/17 + trackers/*.xlsx/csv (needs: pip install openpyxl)
+./scripts/test-all.sh                                 # COMPLETE suite: run before every push (after 5–10 tasks)
+python3 scripts/build_tracker.py                      # regenerate tracker dashboard + docs/17 + xlsx/csv (needs: pip install openpyxl)
 cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo deny check                                      # licence + advisory gate

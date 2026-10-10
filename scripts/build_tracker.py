@@ -160,10 +160,16 @@ CORE.sort(key=lambda r: ([m[0] for m in MILESTONES].index(r[4]), r[0]))
 # Item status lives here (docs/24 §2.2). Default is "Not started".
 # Values: Not started | In progress | Blocked | In review | Done | Deferred.  Format: id: (status, note)
 STATUS = {
+ "BPMS-002": ("Done", "5 reference processes as IR v1 fixtures (all 16 node kinds) + JSON Schema + structural checker IR-E001..E016 with negative tests; 12 IR spec clarifications (docs/spikes/BPMS-002)"),
+ "BPMS-005": ("Done", "SP-08: recommend CEL + decimal/stdlib/type-checker/budgets; FEEL rejected at runtime (quadratic loops, no WASM) — docs/spikes/SP-08; ADR-0010 recommended"),
+ "BPMS-006": ("Done", "SP-09: Cedar 6/6 correct, 5.6µs P50; RLS via pool 0 leaks/5000; LLD fix NULLIF in RLS policy; partial-eval→SQL viable with fallback — docs/spikes/SP-09"),
+ "BPMS-007": ("Done", "SP-10: head-lock 9.7k ev/s (P99 11ms), batched sealer 65k ev/s, explorer P95 <0.6ms at 10M, verifier 536k ev/s + tamper detected — docs/spikes/SP-10"),
+ "BPMS-004": ("Done", "SP-07: Rust + JS dependency licences reviewed; approved set; JS licence gate (scripts/js-licence-gate.mjs) + CDLA-Permissive-2.0 for CA roots; fonts OFL — docs/spikes/SP-07"),
+ "BPMS-010": ("In progress", "Slice 1 done: web workspace (Vite/React/TS), tokens.json→CSS with 40 WCAG contrast checks, Button/TextField/Checkbox/Notice on React Aria, app shell, gallery, axe+keyboard+reflow+target E2E (E2E-P0-05..09). Next: Select, Dialog, DataGrid shell, Tabs"),
  "BPMS-014": ("Done", "CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main"),
  "BPMS-034": ("In progress", "Raster assets + brand guide merged; SVG masters and trademark search pending"),
  "BPMS-013": ("Done", "e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run"),
- "BPMS-011": ("Done", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke); on main, CI green. JS licence + axe gates join with BPMS-010"),
+ "BPMS-011": ("Done", "Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke) + web check/build, JS licence gate and axe a11y job (added with BPMS-010)"),
 }
 def status_of(i): return STATUS.get(i, ("Not started", ""))
 

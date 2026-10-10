@@ -22,15 +22,15 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | ID | Area | Work item | Pri | Release | Owner | Refs | Acceptance | Size | Depends | Status |
 |---|---|---|---|---|---|---|---|---|---|---|
 | BPMS-001 | DISC | User interviews (12+, startup/SME/MNC × HR/IT/Fin/Compliance/Admin) + synthesis | P0 | P0 | Product/UXR | OQ-05, A-* | Synthesis published; personas validated | M |  | Not started |
-| BPMS-002 | DISC | Model 5 reference processes in IR on paper | P0 | P0 | Runtime lead | A-02 | All 5 expressible or IR gaps logged | S |  | Not started |
+| BPMS-002 | DISC | Model 5 reference processes in IR on paper | P0 | P0 | Runtime lead | A-02 | All 5 expressible or IR gaps logged | S |  | Done |
 | BPMS-003 | SPIKE | SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton) | P0 | P0 | Runtime | U-01, ADR-0015 | Reports in docs/spikes/ | L |  | Not started |
-| BPMS-004 | SPIKE | SP-07 licence/SBOM review of candidate deps | P0 | P0 | Tech lead | ADR-0014 | No blocked licence | S |  | Not started |
-| BPMS-005 | SPIKE | SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) | P0 | P0 | Runtime | U-02, ADR-0010 | Engine passes IR expression suite | M |  | Not started |
-| BPMS-006 | SPIKE | SP-09 Cedar + RLS + sqlx pool + partial eval | P0 | P0 | Platform | U-03, ADR-0011 | 0 leaks; list P95 in budget | M |  | Not started |
-| BPMS-007 | SPIKE | SP-10 audit chain 10M events: append + explorer | P0 | P0 | Platform | U-04 | ≥2k ev/s; P95<2s | M |  | Not started |
+| BPMS-004 | SPIKE | SP-07 licence/SBOM review of candidate deps | P0 | P0 | Tech lead | ADR-0014 | No blocked licence | S |  | Done |
+| BPMS-005 | SPIKE | SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) | P0 | P0 | Runtime | U-02, ADR-0010 | Engine passes IR expression suite | M |  | Done |
+| BPMS-006 | SPIKE | SP-09 Cedar + RLS + sqlx pool + partial eval | P0 | P0 | Platform | U-03, ADR-0011 | 0 leaks; list P95 in budget | M |  | Done |
+| BPMS-007 | SPIKE | SP-10 audit chain 10M events: append + explorer | P0 | P0 | Platform | U-04 | ≥2k ev/s; P95<2s | M |  | Done |
 | BPMS-008 | UX | Clickable prototype of Wave-1 flows + 5-user test | P0 | P0 | Design | 05 | Findings logged | M |  | Not started |
 | BPMS-009 | ARCH | G1: accept ADR-0010/0011/0015; freeze IR v1 | P0 | P0 | Architect | G1 | Signed off | S | BPMS-003..007 | Not started |
-| BPMS-010 | UX | Design tokens + core components + visual direction | P0 | P0 | Design/FE | 05 §7, UX-001 | axe clean; approved | L |  | Not started |
+| BPMS-010 | UX | Design tokens + core components + visual direction | P0 | P0 | Design/FE | 05 §7, UX-001 | axe clean; approved | L |  | In progress |
 | BPMS-011 | ENG | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | P0 | P0 | DevOps | 03 §11 | All gates blocking | M |  | Done |
 | BPMS-012 | SEC | Threat model review | P0 | P0 | Security | 06 §2 | Reviewed; tests mapped | S |  | Not started |
 | BPMS-013 | E2E | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | P0 | P0 | SDET | 23 §2–4 | Smoke runs in CI; endpoints absent in release build | M | BPMS-011 | Done |
@@ -131,13 +131,19 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 3 · In review: 0 · In progress: 1 · Blocked: 0 · Not started: 105 · Deferred: 0 (of 109)
+**Progress:** Done: 8 · In review: 0 · In progress: 2 · Blocked: 0 · Not started: 99 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
 | ID | Work item | Status | Note |
 |---|---|---|---|
-| BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | Done | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke); on main, CI green. JS licence + axe gates join with BPMS-010 |
+| BPMS-002 | Model 5 reference processes in IR on paper | Done | 5 reference processes as IR v1 fixtures (all 16 node kinds) + JSON Schema + structural checker IR-E001..E016 with negative tests; 12 IR spec clarifications (docs/spikes/BPMS-002) |
+| BPMS-004 | SP-07 licence/SBOM review of candidate deps | Done | SP-07: Rust + JS dependency licences reviewed; approved set; JS licence gate (scripts/js-licence-gate.mjs) + CDLA-Permissive-2.0 for CA roots; fonts OFL — docs/spikes/SP-07 |
+| BPMS-005 | SP-08 expression language (dsntk FEEL vs CEL, incl. WASM) | Done | SP-08: recommend CEL + decimal/stdlib/type-checker/budgets; FEEL rejected at runtime (quadratic loops, no WASM) — docs/spikes/SP-08; ADR-0010 recommended |
+| BPMS-006 | SP-09 Cedar + RLS + sqlx pool + partial eval | Done | SP-09: Cedar 6/6 correct, 5.6µs P50; RLS via pool 0 leaks/5000; LLD fix NULLIF in RLS policy; partial-eval→SQL viable with fallback — docs/spikes/SP-09 |
+| BPMS-007 | SP-10 audit chain 10M events: append + explorer | Done | SP-10: head-lock 9.7k ev/s (P99 11ms), batched sealer 65k ev/s, explorer P95 <0.6ms at 10M, verifier 536k ev/s + tamper detected — docs/spikes/SP-10 |
+| BPMS-010 | Design tokens + core components + visual direction | In progress | Slice 1 done: web workspace (Vite/React/TS), tokens.json→CSS with 40 WCAG contrast checks, Button/TextField/Checkbox/Notice on React Aria, app shell, gallery, axe+keyboard+reflow+target E2E (E2E-P0-05..09). Next: Select, Dialog, DataGrid shell, Tabs |
+| BPMS-011 | Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM) | Done | Rust workspace, kernel, procera binary, CI (fmt/clippy/test/deny/SBOM/E2E smoke) + web check/build, JS licence gate and axe a11y job (added with BPMS-010) |
 | BPMS-013 | E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated) | Done | e2e feature + /__test controls, Playwright harness, P0 smoke pack (E2E-P0-01..04, REL), compose.e2e stack, CI e2e-smoke job; on main, CI green. Seed A/B + personas land with the first workspace APIs (BPMS-032); full compose boot pending a Docker run |
 | BPMS-014 | AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas | Done | CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
@@ -149,7 +155,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 79 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 84 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks
@@ -187,8 +193,8 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | [ADR-0007](adr/ADR-0007-modular-monolith.md) | Modular monolith with separate worker/scheduler processes | Accepted |
 | [ADR-0008](adr/ADR-0008-workspace-tenancy.md) | Workspace is the tenant; layered isolation | Accepted (revised per product direction 2026-10-11) |
 | [ADR-0009](adr/ADR-0009-broker-optional.md) | Message broker is optional | Accepted |
-| [ADR-0010](adr/ADR-0010-expression-language.md) | Typed, total expression language | Proposed — decided by SP-08 |
-| [ADR-0011](adr/ADR-0011-authorization-engine.md) | Cedar embedded for authorization | Proposed — validated by SP-09 |
+| [ADR-0010](adr/ADR-0010-expression-language.md) | Typed, total expression language | Recommended: CEL with Procera extensions (SP-08, 2026-10-11); final acceptance at G1 |
+| [ADR-0011](adr/ADR-0011-authorization-engine.md) | Cedar embedded for authorization | Validated by SP-09 (2026-10-11); acceptance at G1 |
 | [ADR-0012](adr/ADR-0012-release-bundle.md) | Release bundle pins every dependency of a definition | Accepted |
 | [ADR-0013](adr/ADR-0013-sop-content-model.md) | Structured block model for SOP/policy content | Accepted |
 | [ADR-0014](adr/ADR-0014-licensing-and-contribution.md) | Apache-2.0, DCO, permissive-only dependencies | Proposed (OQ-06) |

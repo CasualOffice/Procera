@@ -187,7 +187,9 @@ The **no-AI-look anti-pattern list** is binding: no gradients, glassmorphism, ca
 
 7.2 Commit messages follow Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `perf:`, `security:`) and reference the tracker id. Every commit MUST be **DCO signed-off** (`git commit -s`).
 
-7.3 Each commit to `main`:
+7.3 **Cadence (owner decision 2026-10-11):** work in batches of 3–4 tracker items, each tested in isolation. After 5–10 items, run the **complete suite** with `./scripts/test-all.sh`, then push. Don't push or watch CI after every small change.
+
+7.3.1 Each commit to `main`:
 - covers one tracker item, or one coherent, complete slice of it. Aim for ≤ ~400 changed lines, excluding generated files;
 - MUST pass the **local gates before pushing**:
   ```bash
