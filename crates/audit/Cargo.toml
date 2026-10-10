@@ -1,0 +1,29 @@
+[package]
+name = "procera-audit"
+description = "Hash-chained, append-only audit trail (docs/04 §2.10, docs/14 AUD-01/07, FR-T01/T02)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-db.workspace = true
+procera-kernel.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+serde_jcs = "0.2"
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true
