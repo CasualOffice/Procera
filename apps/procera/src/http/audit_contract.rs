@@ -222,7 +222,8 @@ pub const CONTRACT: &[Entry] = &[
     // Audit explorer (reads are not logged per query; exports always are, FR-T01).
     emits("POST", "/api/v1/audit/saved-queries", &[&["audit.query_saved"]]),
     emits("DELETE", "/api/v1/audit/saved-queries/{id}", &[&["audit.query_deleted"]]),
-    emits("POST", "/api/v1/audit/exports", &[&["audit.exported"]]),
+    emits("POST", "/api/v1/audit/exports", &[&["audit.exported"], &["audit.export_requested"]]),
+    exempt("POST", "/api/v1/audit/query", "read-only query; POST only carries the structured filter body"),
 ];
 
 #[cfg(test)]

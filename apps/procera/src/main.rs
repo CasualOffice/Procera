@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::net::SocketAddr;
 use tracing_subscriber::EnvFilter;
 
+mod audit_exports;
 mod bus;
 mod http;
 mod reack;
@@ -215,6 +216,7 @@ async fn main() -> anyhow::Result<()> {
                     let notify = state.notify.clone();
                     let retention = state.retention.clone();
                     let keys = state.keys.clone();
+                    let audit_exports = state.audit_exports.clone();
                     // Retention runs at most hourly (BPMS-066).
                     let mut last_retention: Option<std::time::Instant> = None;
                     let mut rx = stop_rx.clone();
@@ -248,6 +250,13 @@ async fn main() -> anyhow::Result<()> {
                                     Ok(0) => {}
                                     Ok(n) => tracing::info!(removed = n, "retention removed records"),
                                     Err(e) => tracing::error!(error = %e, "retention pass failed"),
+                                }
+                            }
+                            if let Some(x) = audit_exports.as_ref() {
+                                match x.run_due().await {
+                                    Ok(0) => {}
+                                    Ok(n) => tracing::info!(jobs = n, "audit exports finished"),
+                                    Err(e) => tracing::error!(error = %e, "audit export pass failed"),
                                 }
                             }
                             if let Some(k) = keys.as_ref() {

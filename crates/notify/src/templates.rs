@@ -108,6 +108,12 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}You received this because you are in the announcement's audience.{% endblock %}"#,
     ),
+    // BPMS-064: a background audit export is ready. Vars: rows.
+    ("audit_export_ready.title", "Your audit export is ready"),
+    (
+        "audit_export_ready.body",
+        "{{ rows }} event{% if rows != 1 %}s{% endif %}. Download it from the audit log.",
+    ),
     // BPMS-066: an untouched draft will be deleted by the retention job. Vars: title, version, date.
     ("draft_expiring.title", "Draft {{ title }} v{{ version }} will be deleted on {{ date }}"),
     ("draft_expiring.body", "Nobody has edited it for a while. Edit it to keep it, or let it go."),

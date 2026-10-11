@@ -1,3 +1,4 @@
+import { AuditExports } from './auditExports';
 import { ChevronRight, History, SearchX, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
@@ -54,6 +55,8 @@ export interface AuditSource {
   people?: Member[] | null;
   ownOnly?: boolean;
   actionHint: string;
+  /** Offer background exports (workspace audit log with `audit:export`). */
+  exportable?: boolean;
 }
 
 /**
@@ -73,6 +76,7 @@ export function Audit() {
       people: members,
       ownOnly: !can('audit:view'),
       actionHint: 'announcement.published',
+      exportable: can('audit:view') && can('audit:export'),
     }} />
   );
 }
@@ -105,9 +109,12 @@ export function AuditExplorer({ source }: { source: AuditSource }) {
     <>
       <div className="page-head">
         <div><h1>{source.title}</h1><p>{source.lede}</p></div>
+        <div className="page-actions">
+        {source.exportable && <AuditExports filters={filters} />}
         {chain && (chain.ok
           ? <span className="chain chain-ok"><ShieldCheck aria-hidden="true" size="0.9375rem" /> Chain verified <span className="muted">· {chain.checked.toLocaleString()} events</span></span>
           : <span className="chain chain-bad" role="alert"><ShieldAlert aria-hidden="true" size="0.9375rem" /> Chain broken at event {chain.first_broken}</span>)}
+        </div>
       </div>
       {source.ownOnly && <p className="muted audit-own">You can see your own activity only.</p>}
 

@@ -18,7 +18,7 @@ use procera_access::Resource;
 use procera_audit::explorer::{self, EXPORT_ROW_CAP, ExplorerError, ExportFormat, Filter, MAX_PAGE, Who};
 use procera_db::WsTx;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
@@ -34,7 +34,9 @@ pub fn router() -> Router<AppState> {
         .route("/audit/verify", get(verify_chain))
         .route("/audit/saved-queries", get(list_saved).post(save))
         .route("/audit/saved-queries/{id}", delete(delete_saved))
-        .route("/audit/exports", post(export))
+        .route("/audit/exports", get(list_exports).post(export))
+        .route("/audit/exports/{id}", get(get_export))
+        .route("/audit/query", post(run_query))
 }
 
 impl From<ExplorerError> for ApiError {
@@ -255,6 +257,9 @@ struct ExportReq {
     format: ExportFormat,
     #[serde(default)]
     filters: Filter,
+    /// Run as a background job (no 10 000-row cap); returns 202 with the job.
+    #[serde(default)]
+    background: bool,
 }
 
 fn csv() -> ExportFormat {
@@ -274,6 +279,27 @@ async fn export(
     me.require(m, &mut tx, "audit:view", Resource::Workspace).await?;
     me.require(m, &mut tx, "audit:export", Resource::Workspace).await?;
     me.require_step_up(&s, &mut tx).await?;
+    if r.background {
+        r.filters.validate()?;
+        let id = Uuid::now_v7();
+        sqlx::query("INSERT INTO audit_export_jobs (workspace_id, id, requested_by, subject_ref, own_only, filters, format, created_at) VALUES ($1, $2, $3, $4, false, $5, $6, $7)")
+            .bind(tx.ctx.workspace_id).bind(id).bind(me.actor.membership).bind(me.actor.subject_ref)
+            .bind(serde_json::to_value(&r.filters).map_err(internal)?)
+            .bind(if r.format == ExportFormat::Jsonl { "jsonl" } else { "csv" }).bind(s.clock.now())
+            .execute(tx.conn()).await.map_err(internal)?;
+        m.audit_object(
+            &mut tx,
+            Some(me.actor.subject_ref),
+            "audit.export_requested",
+            "audit_export",
+            id,
+            json!({"format": r.format, "filters": r.filters}),
+            &super::auth::client_info(&headers),
+        )
+        .await?;
+        tx.commit().await.map_err(internal)?;
+        return Ok((StatusCode::ACCEPTED, Json(json!({"id": id, "state": "queued"}))).into_response());
+    }
     let out = explorer::export(
         &mut tx,
         s.clock.as_ref(),
@@ -305,4 +331,63 @@ async fn export(
         HeaderValue::from_static(if out.truncated { "true" } else { "false" }),
     );
     Ok(res)
+}
+
+// ---- BPMS-064: background export jobs and the query language ----
+
+type JobRow = (
+    Uuid,
+    String,
+    String,
+    Option<i64>,
+    Option<Uuid>,
+    Option<String>,
+    time::OffsetDateTime,
+    Option<time::OffsetDateTime>,
+);
+
+fn job_json(j: &JobRow) -> Value {
+    let fmt = |t: &time::OffsetDateTime| {
+        t.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+    };
+    json!({"id": j.0, "format": j.1, "state": j.2, "rows": j.3, "file_id": j.4, "error": j.5, "created_at": fmt(&j.6), "finished_at": j.7.as_ref().map(fmt)})
+}
+
+/// The caller's background exports, newest first.
+async fn list_exports(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "audit:export", Resource::Workspace).await?;
+    let rows: Vec<JobRow> = sqlx::query_as("SELECT id, format, state, rows, file_id, error, created_at, finished_at FROM audit_export_jobs WHERE requested_by = $1 ORDER BY created_at DESC LIMIT 50")
+        .bind(me.actor.membership).fetch_all(tx.conn()).await.map_err(internal)?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": rows.iter().map(job_json).collect::<Vec<_>>() })))
+}
+
+async fn get_export(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Json<Value>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "audit:export", Resource::Workspace).await?;
+    let row: Option<JobRow> = sqlx::query_as("SELECT id, format, state, rows, file_id, error, created_at, finished_at FROM audit_export_jobs WHERE id = $1 AND requested_by = $2")
+        .bind(id).bind(me.actor.membership).fetch_optional(tx.conn()).await.map_err(internal)?;
+    tx.rollback().await.map_err(internal)?;
+    row.map(|r| Json(job_json(&r))).ok_or_else(ApiError::not_found)
+}
+
+/// `POST /audit/query` (docs/08 §7.5): AND/OR filter tree, sorted on the chain, keyset pages.
+async fn run_query(
+    State(s): State<AppState>,
+    me: WsMember,
+    Json(q): Json<procera_audit::query::QueryReq>,
+) -> Result<Json<Value>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let own = read_scope(&s, &me, &mut tx).await?;
+    let page = procera_audit::query::run(&mut tx, &q, own, s.clock.now()).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(serde_json::to_value(page).map_err(internal)?))
 }

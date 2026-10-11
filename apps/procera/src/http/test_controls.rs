@@ -35,6 +35,7 @@ pub fn router() -> Router<AppState> {
         .route("/retention/run", post(run_retention))
         .route("/keys/rewrap", post(rewrap_keys))
         .route("/files/backdate", post(backdate_file))
+        .route("/audit/exports/run", post(run_audit_exports))
 }
 
 #[derive(Debug, Deserialize)]
@@ -192,6 +193,17 @@ async fn backdate_file(State(s): State<AppState>, Json(b): Json<FileBackdate>) -
     match r {
         Ok(1) => StatusCode::NO_CONTENT.into_response(),
         Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+/// Runs queued background audit exports now (BPMS-064).
+async fn run_audit_exports(State(s): State<AppState>) -> Response {
+    let Some(x) = s.audit_exports.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match x.run_due().await {
+        Ok(n) => Json(serde_json::json!({ "finished": n })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }

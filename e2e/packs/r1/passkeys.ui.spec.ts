@@ -22,6 +22,7 @@ async function openSecurity(page: Page) {
   await page.getByRole('button', { name: /^Account:/ }).click();
   await page.getByRole('menuitem', { name: 'Security' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Security' })).toBeVisible();
+  await expect(page.getByRole('menu')).toHaveCount(0); // the account menu has finished closing before any axe scan
 }
 
 test.describe('passkeys @r1 @ui', () => {

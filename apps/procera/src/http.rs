@@ -51,6 +51,8 @@ pub struct AppState {
     pub keys: Option<procera_keys::Keys>,
     /// Files pipeline (BPMS-060).
     pub files: Option<procera_files::Files>,
+    /// Background audit exports (BPMS-064).
+    pub audit_exports: Option<crate::audit_exports::AuditExports>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -176,6 +178,15 @@ impl AppState {
                 Arc::new(procera_kernel::UuidV7Gen),
                 notify.clone(),
             ));
+            if let Some(files) = &self.files {
+                self.audit_exports = Some(crate::audit_exports::AuditExports {
+                    db: db.clone(),
+                    files: files.clone(),
+                    notify: notify.clone(),
+                    clock: self.clock.clone(),
+                    ids: Arc::new(procera_kernel::UuidV7Gen),
+                });
+            }
             self.notify = Some(notify);
             self.library = Some(library);
             self.announcements = Some(announcements);
@@ -202,6 +213,7 @@ impl AppState {
             retention: None,
             keys: None,
             files: None,
+            audit_exports: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -234,6 +246,7 @@ impl AppState {
             retention: None,
             keys: None,
             files: None,
+            audit_exports: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,

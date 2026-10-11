@@ -153,6 +153,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PUT', '/api/v1/artifacts/{id}/owner', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/owner`, { headers: oh, data: { membership_id: joined.membership_id } }));
   await step('PUT', '/api/v1/artifacts/{id}/raci', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/raci`, { headers: oh, data: { accountable: [{ membership_id: joined.membership_id }] } }));
   await step('POST', '/api/v1/security/encryption/rotate', () => own.post('/api/v1/security/encryption/rotate', { headers: oh, data: { reason: 'drill' } }));
+  await step('POST', '/api/v1/audit/query', () => own.post('/api/v1/audit/query', { headers: oh, data: { filter: { field: 'category', op: 'eq', value: 'content' }, page: { size: 1 } } }));
   // Saved views and exports (BPMS-028).
   const vw = await (await step('POST', '/api/v1/views', () => own.post('/api/v1/views', { headers: oh, data: { list: 'library.documents', name: 'Audit view', state: { q: '' } } }))).json();
   await step('PATCH', '/api/v1/views/{id}', () => own.patch(`/api/v1/views/${vw.id}`, { headers: oh, data: { name: 'Audit view 2' } }));

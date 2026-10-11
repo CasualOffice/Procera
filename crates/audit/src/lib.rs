@@ -8,6 +8,7 @@
 //! - **[`explorer`]** reads the chain for people: filters, timelines, saved queries, exports (BPMS-064).
 
 pub mod explorer;
+pub mod query;
 
 use procera_db::{Db, DbError, WsCtx, WsTx};
 use procera_kernel::{Clock, IdGen};

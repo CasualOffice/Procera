@@ -27,9 +27,9 @@ pub const TIMELINE_PAGE: i64 = 500;
 pub const EXPORT_ROW_CAP: i64 = 10_000;
 pub const MAX_SAVED_QUERIES: i64 = 100;
 
-const CATEGORIES: &[&str] =
+pub const CATEGORIES: &[&str] =
     &["auth", "access", "config", "content", "runtime", "file", "data_access", "export", "admin", "system"];
-const RESULTS: &[&str] = &["allowed", "denied", "error"];
+pub const RESULTS: &[&str] = &["allowed", "denied", "error"];
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExplorerError {
@@ -139,8 +139,8 @@ pub struct EventView {
 }
 
 #[derive(Debug, sqlx::FromRow)]
-struct Raw {
-    seq: i64,
+pub(crate) struct Raw {
+    pub(crate) seq: i64,
     id: Uuid,
     occurred_at: OffsetDateTime,
     actor_subject_ref: Option<Uuid>,
@@ -187,7 +187,7 @@ impl From<Raw> for EventView {
     }
 }
 
-const COLS: &str = "SELECT e.seq, e.id, e.occurred_at, e.actor_subject_ref, e.actor_kind,
+pub(crate) const COLS: &str = "SELECT e.seq, e.id, e.occurred_at, e.actor_subject_ref, e.actor_kind,
     (SELECT u.display_name FROM users u JOIN memberships m ON m.user_id = u.id WHERE u.subject_ref = e.actor_subject_ref LIMIT 1) AS actor_name,
     e.on_behalf_of, host(e.ip) AS ip, e.user_agent, e.category, e.action, e.object_type, e.object_id, e.result,
     e.reason, e.policy_ids, e.diff, e.trace_id, e.hash
@@ -522,6 +522,48 @@ fn csv_row(e: &EventView) -> String {
 
 /// Exports the events matching `f` (newest first, at most `cap`) and records the export in the
 /// audit trail (FR-T01 "exports") in the caller's transaction.
+/// The full export body for a background job: every matching event (newest first) up to `max_rows`,
+/// fetched page by page. Returns (body, rows, truncated). The caller records the audit event.
+pub async fn export_body(
+    tx: &mut WsTx<'_>,
+    f: &Filter,
+    own: Option<Uuid>,
+    format: ExportFormat,
+    max_rows: usize,
+) -> Result<(String, usize, bool), ExplorerError> {
+    let mut body = String::new();
+    if format == ExportFormat::Csv {
+        body.push_str(&CSV_HEADER.join(","));
+        body.push_str("\r\n");
+    }
+    let (mut rows, mut cursor) = (0usize, None::<i64>);
+    loop {
+        let page = query(tx, f, own, cursor, 5_000).await?;
+        for e in &page.items {
+            if rows == max_rows {
+                return Ok((body, rows, true));
+            }
+            match format {
+                ExportFormat::Csv => {
+                    body.push_str(&csv_row(e));
+                    body.push_str("\r\n");
+                }
+                ExportFormat::Jsonl => {
+                    body.push_str(
+                        &serde_json::to_string(e).map_err(|e| ExplorerError::Internal(e.to_string()))?,
+                    );
+                    body.push('\n');
+                }
+            }
+            rows += 1;
+        }
+        match page.next_cursor.as_deref().map(str::parse::<i64>) {
+            Some(Ok(c)) => cursor = Some(c),
+            _ => return Ok((body, rows, false)),
+        }
+    }
+}
+
 pub async fn export(
     tx: &mut WsTx<'_>,
     clock: &dyn Clock,
