@@ -27,11 +27,15 @@ thiserror.workspace = true
 time.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+ciborium = "0.2"
+ring = "0.17"
+base64 = "0.22"
 
 [dev-dependencies]
 procera-audit.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
+proptest.workspace = true
 procera-db = { workspace = true, features = ["test-support"] }
 
 [lints]

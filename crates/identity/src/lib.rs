@@ -5,6 +5,7 @@ pub mod jwt;
 pub mod password;
 mod service;
 pub mod totp;
+pub mod webauthn;
 
 pub use service::{
     ClientInfo, Identity, IdentityConfig, IdentityError, LoginOutcome, Tokens, TotpEnrollment, User,
