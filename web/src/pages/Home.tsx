@@ -70,6 +70,7 @@ export function Home() {
   const create = [
     can('policy:create') && { to: '/library?new=policy', icon: FilePlus2, tone: 'purple', label: 'New policy' },
     can('sop:create') && { to: '/library?new=sop', icon: ScrollText, tone: 'blue', label: 'New SOP' },
+    (can('announcement:create') || can('announcement:manage')) && { to: '/admin/announcements?new=1', icon: SquarePen, tone: 'orange', label: 'New announcement' },
     can('member:invite') && { to: '/admin/members?invite=1', icon: UserPlus, tone: 'green', label: 'Invite people' },
   ].filter(Boolean) as { to: string; icon: typeof FilePlus2; tone: string; label: string }[];
 

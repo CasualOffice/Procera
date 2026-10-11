@@ -42,7 +42,7 @@ export function Announcements() {
     <>
       <div className="page-head">
         <div><h1>Announcements</h1><p>News and notices for you, newest first. Some ask you to confirm you’ve read them.</p></div>
-        {false && canCompose && <Link className="btn btn-secondary btn-md link-btn" to="/admin/announcements"><SquarePen aria-hidden="true" size={15} /> Manage announcements</Link>}
+        {canCompose && <Link className="btn btn-secondary btn-md link-btn" to="/admin/announcements"><SquarePen aria-hidden="true" size={15} /> Manage announcements</Link>}
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton rows={3} label="Loading announcements" /> : items.length === 0 ? (
         <Empty icon={Megaphone} title="No announcements">When something is posted for you, it shows up here.</Empty>

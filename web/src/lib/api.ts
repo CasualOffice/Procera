@@ -73,6 +73,19 @@ export async function api<T = unknown>(path: string, init: { method?: string; bo
   return parse(res) as Promise<T>;
 }
 
+/** Downloads a file response (e.g. a CSV export) with the bearer token and saves it as `filename`. */
+export async function download(path: string, filename: string, retried = false): Promise<void> {
+  const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
+  if (res.status === 401 && !retried && (await refresh())) return download(path, filename, true);
+  if (!res.ok) await parse(res);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Same as `api` but for the cookie-bearing auth endpoints. */
 export async function authPost<T = unknown>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {

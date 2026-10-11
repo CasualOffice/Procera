@@ -18,6 +18,8 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
   ];
   const admin: (NavItem | false)[] = [
     any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite roles' },
+    any('announcement:create', 'announcement:publish', 'announcement:manage') && { key: 'manage-announcements', label: 'Manage announcements', to: '/admin/announcements', icon: SquarePen, keywords: 'compose write publish approve posts' },
+    can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },
   ];
   return [
     { label: 'Workspace', items: work.filter(Boolean) as NavItem[] },
@@ -32,6 +34,8 @@ export function createActions(can: (p: string) => boolean): CreateAction[] {
   return [
     can('policy:create') && { id: 'new-policy', label: 'New policy', to: '/library?new=policy', icon: FilePlus2, keywords: 'create document write' },
     can('sop:create') && { id: 'new-sop', label: 'New SOP', to: '/library?new=sop', icon: ScrollText, keywords: 'create procedure document write' },
+    (can('announcement:create') || can('announcement:manage')) && { id: 'new-announcement', label: 'New announcement', to: '/admin/announcements?new=1', icon: SquarePen, keywords: 'compose post write' },
+    can('campaign:manage') && { id: 'new-campaign', label: 'New campaign', to: '/admin/campaigns?new=1', icon: ClipboardCheck, keywords: 'acknowledgement attestation' },
     can('member:invite') && { id: 'invite', label: 'Invite people', to: '/admin/members?invite=1', icon: UserPlus, keywords: 'add member user' },
   ].filter(Boolean) as CreateAction[];
 }

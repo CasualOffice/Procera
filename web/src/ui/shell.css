@@ -94,7 +94,7 @@ svg.lucide { stroke-width: 1.75; }
 
 /* Small screens: sidebar collapses to a top bar with horizontal navigation (WCAG 1.4.10 reflow). */
 @media (max-width: 860px) {
-  .app { grid-template-columns: minmax(0, 1fr); }
+  .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px; gap: 8px; border-bottom: 1px solid var(--color-border); }
   .sidebar .ws-switcher { width: auto; flex: 1; }
   .nav-group-label, .user-btn-text { display: none; }
