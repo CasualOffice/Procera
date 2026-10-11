@@ -9,7 +9,7 @@ test.describe('block content @r1 @library', () => {
     test.skip(!(await hasDatabase(request)), 'needs a database-backed e2e build');
   });
 
-  test('E2E-R1-LIB-14 rich blocks save; unsafe or unknown blocks are refused; HTML and Markdown exports are faithful, superseded versions say so, exports are audited', async ({ request }) => {
+  test('E2E-R1-LIB-14 rich blocks save; unsafe or unknown blocks are refused; HTML, Markdown and Word exports are faithful, superseded versions say so, exports are audited', async ({ request }) => {
     const { owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     const content = { blocks: [
@@ -45,7 +45,15 @@ test.describe('block content @r1 @library', () => {
 
     const md = await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=md`, { headers: h })).text();
     expect(md).toContain('# Door & access\n\n## Purpose\n\nRead the [**badge policy**](/library/badges) first.\n\n1. Open the door\n2. Sign the log\n\n> **Warning:** Never prop the door.\n\n| Role | Does |');
-    expect((await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=docx`, { headers: h })).status()).toBe(422);
+    // Word: a real .docx package (structure is checked in the renderer's unit tests).
+    const docx = await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=docx`, { headers: h });
+    expect(docx.status()).toBe(200);
+    expect(docx.headers()['content-type']).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    expect(docx.headers()['content-disposition']).toMatch(/attachment; filename=".*-v1\.docx"/);
+    const bytes = await docx.body();
+    expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
+    expect(Buffer.compare(bytes, await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=docx`, { headers: h })).body())).toBe(0); // deterministic
+    expect((await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=pdfx`, { headers: h })).status()).toBe(422);
 
     // A newer version supersedes v1: its export carries the banner.
     const v2 = await (await owner.c.post(`/api/v1/artifacts/${r.artifact.id}/versions`, { headers: h })).json();
@@ -53,6 +61,6 @@ test.describe('block content @r1 @library', () => {
     await owner.c.post(`/api/v1/versions/${v2.id}/publish`, { headers: h, data: { change_reason: 'Refresh' } });
     expect(await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=html`, { headers: h })).text()).toContain('<strong>Superseded.</strong> This is version 1, not the current version.');
     const audit = await (await owner.c.get('/api/v1/audit/events?action=version.exported', { headers: h })).json();
-    expect(audit.items.length).toBeGreaterThanOrEqual(3);
+    expect(audit.items.length).toBeGreaterThanOrEqual(5);
   });
 });

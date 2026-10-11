@@ -1,8 +1,9 @@
 import { Attachments } from './docAttachments';
 import { DocEditor } from '../ui/DocEditor';
 import { CollectionRow, OwnerRow, RaciRows } from './docOrganisation';
-import { BookOpenCheck, Check, CircleDot, FileDown, FileText, GitBranch, Hash, Pencil, Printer, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
+import { BookOpenCheck, Check, ChevronDown, CircleDot, FileDown, FileText, GitBranch, Hash, Pencil, Printer, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 import { api, ApiError, download, openHtml } from '../lib/api';
 import { type Member, memberMap, useItems, useResource } from '../lib/data';
 import { type Block, shortDate, timeAgo } from '../lib/format';
@@ -163,8 +164,23 @@ export function LibraryDoc({ id }: { id: string }) {
         {v.lifecycle === 'in_review' && p('edit_draft') && <Button variant="ghost" onPress={() => void act(() => api(`/api/v1/versions/${v.id}/withdraw`, { method: 'POST' }), 'Withdrawn to draft.')}>Withdraw</Button>}
         {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setChange('major'); setDialog('publish'); }}><Send aria-hidden="true" size="0.9375rem" /> Publish</Button>}
         {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size="0.9375rem" /> New version</Button>}
-        {!editing && <Button variant="ghost" onPress={() => void openHtml(`/api/v1/versions/${v.id}/export?format=html`)}><Printer aria-hidden="true" size="0.9375rem" /> Print or PDF</Button>}
-        {!editing && <Button variant="ghost" onPress={() => void download(`/api/v1/versions/${v.id}/export?format=md`, `${a.key}-v${v.version_no}.md`)}><FileDown aria-hidden="true" size="0.9375rem" /> Markdown</Button>}
+        {!editing && (
+          <MenuTrigger>
+            <Button variant="ghost"><FileDown aria-hidden="true" size="0.9375rem" /> Export <ChevronDown aria-hidden="true" size="0.875rem" /></Button>
+            <Popover className="menu-popover" placement="bottom end">
+              <Menu className="menu" aria-label="Export" onAction={(k) => {
+                const base = `/api/v1/versions/${v.id}/export`;
+                if (k === 'pdf') void openHtml(`${base}?format=html`);
+                else if (k === 'docx') void download(`${base}?format=docx`, `${a.key}-v${v.version_no}.docx`);
+                else void download(`${base}?format=md`, `${a.key}-v${v.version_no}.md`);
+              }}>
+                <MenuItem id="pdf" className="menu-item" textValue="Print or PDF"><Printer aria-hidden="true" size="0.9375rem" /> Print or PDF</MenuItem>
+                <MenuItem id="docx" className="menu-item" textValue="Word document"><FileText aria-hidden="true" size="0.9375rem" /> Word document (.docx)</MenuItem>
+                <MenuItem id="md" className="menu-item" textValue="Markdown"><FileDown aria-hidden="true" size="0.9375rem" /> Markdown (.md)</MenuItem>
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        )}
         <span className="muted doc-meta">{author ? `Edited by ${author.display_name} · ` : ''}{timeAgo(v.created_at)} · {workspace?.name}</span>
       </div>
       {!editing && <Attachments versionId={v.id} canEdit={p('edit_draft')} />}

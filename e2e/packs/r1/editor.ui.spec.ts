@@ -55,4 +55,25 @@ test.describe('block editor @r1 @ui', () => {
     expect(saved.content.blocks.map((b: { type: string }) => b.type)).toEqual(['paragraph', 'list', 'callout', 'table']);
     expect(saved.content.blocks[0].runs).toEqual([{ text: 'Clean every ' }, { text: 'Friday', bold: true }]);
   });
+
+  test('E2E-R1-UI-44 a reader exports a published SOP from the Export menu as a Word document', async ({ page, request }) => {
+    const { ownerEmail, owner } = await workspaceWithOwner(request);
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: owner.headers, data: { kind: 'sop', key: 'ops.lockup', title: 'Lock-up', content: { blocks: [{ type: 'heading', level: 2, text: 'Steps' }, { type: 'list', ordered: true, items: ['Close windows', 'Set alarm'] }] } } })).json();
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: owner.headers });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: owner.headers, data: {} });
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await page.getByRole('button', { name: 'Export' }).click();
+    const menu = page.getByRole('menu', { name: 'Export' });
+    await expect(menu.getByRole('menuitem')).toHaveText(['Print or PDF', 'Word document (.docx)', 'Markdown (.md)']);
+    await axe(page);
+    const download = page.waitForEvent('download');
+    await menu.getByRole('menuitem', { name: /Word document/ }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toBe('ops.lockup-v1.docx');
+    const path = await file.path();
+    const head = (await import('node:fs')).readFileSync(path!).subarray(0, 2).toString('latin1');
+    expect(head).toBe('PK');
+  });
 });

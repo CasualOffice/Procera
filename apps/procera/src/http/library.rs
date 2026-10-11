@@ -1022,7 +1022,8 @@ struct VersionExportQuery {
     format: Option<String>,
 }
 
-/// A self-contained, print-ready HTML document (browsers print it as a tagged PDF) or Markdown.
+/// A self-contained, print-ready HTML document (browsers print it as a tagged PDF), Markdown, or a
+/// Word document with real headings, lists and tables (BPMS-042).
 /// Superseded and retired versions carry a "not the current version" banner (FR-PL01). Audited.
 async fn export_version(
     State(s): State<AppState>,
@@ -1032,10 +1033,9 @@ async fn export_version(
     Query(q): Query<VersionExportQuery>,
 ) -> Result<Response, ApiError> {
     let format = q.format.as_deref().unwrap_or("html");
-    if !matches!(format, "html" | "md") {
-        return Err(
-            ApiError::new(422, "validation_failed", "Validation failed").detail("format must be html or md")
-        );
+    if !matches!(format, "html" | "md" | "docx") {
+        return Err(ApiError::new(422, "validation_failed", "Validation failed")
+            .detail("format must be html, md or docx"));
     }
     let mut tx = me.tx(members(&s)?).await?;
     authorize_version(&s, &me, &mut tx, id, "view").await?;
@@ -1062,6 +1062,54 @@ async fn export_version(
         res.headers_mut()
             .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/markdown; charset=utf-8"));
         if let Ok(h) = HeaderValue::from_str(&format!("attachment; filename=\"{slug}-v{}.md\"", v.version_no))
+        {
+            res.headers_mut().insert(header::CONTENT_DISPOSITION, h);
+        }
+        return Ok(res);
+    }
+    if format == "docx" {
+        let published =
+            v.published_at.and_then(|t| t.format(&time::format_description::well_known::Rfc3339).ok());
+        let subtitle = format!(
+            "{} · version {}{}{} · status {}",
+            if a.kind == "sop" { "SOP" } else { "Policy" },
+            v.version_no,
+            v.semver.as_deref().map(|s| format!(" ({s})")).unwrap_or_default(),
+            published.as_deref().map(|p| format!(" · published {}", &p[..10])).unwrap_or_default(),
+            v.lifecycle
+        );
+        let note = format!("Superseded: this is version {}, not the current version.", v.version_no);
+        let footer = format!(
+            "Exported from Procera.{}",
+            v.content_hash
+                .as_deref()
+                .map(|h| format!(" Content fingerprint (SHA-256): {h}"))
+                .unwrap_or_default()
+        );
+        // The package timestamp is the version's own (publish or creation) time, so re-exports match.
+        let stamp = published.unwrap_or_else(|| {
+            v.created_at.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+        });
+        let bytes = procera_library::docx::blocks_docx(
+            &v.content,
+            &procera_library::docx::DocxMeta {
+                title: &a.title,
+                subtitle: &subtitle,
+                superseded_note: superseded.then_some(note.as_str()),
+                footer: &footer,
+                stamp: &stamp,
+            },
+        )
+        .map_err(internal)?;
+        let mut res = bytes.into_response();
+        res.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ),
+        );
+        if let Ok(h) =
+            HeaderValue::from_str(&format!("attachment; filename=\"{slug}-v{}.docx\"", v.version_no))
         {
             res.headers_mut().insert(header::CONTENT_DISPOSITION, h);
         }

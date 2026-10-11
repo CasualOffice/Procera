@@ -14,6 +14,7 @@
 pub mod blocks;
 pub mod collections;
 pub mod diff;
+pub mod docx;
 pub mod governance;
 pub mod portal;
 pub mod reack;
