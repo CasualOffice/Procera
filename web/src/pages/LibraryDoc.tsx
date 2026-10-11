@@ -1,13 +1,14 @@
 import { BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
-import { type Member, memberMap, useItems } from '../lib/data';
+import { type Member, memberMap, useItems, useResource } from '../lib/data';
 import { type Block, blocksToText, shortDate, textToBlocks, timeAgo } from '../lib/format';
 import { Link } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { FormDialog } from '../ui/components/FormDialog';
+import { RadioCards } from '../ui/components/RadioCards';
 import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { DocBody } from '../ui/Doc';
@@ -20,7 +21,24 @@ import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from '
 import { ApplicabilityRow } from './docApplicability';
 
 interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
-interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null }
+interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null; semver?: string | null; reack_required?: boolean }
+/** What publishing would do (BPMS-045): numbers per change, who is asked to re-acknowledge and by when. */
+interface PublishPreview { version_no: number; next_semver_major: string; next_semver_minor: string; reack_required_if_major: boolean; reack_required_if_minor: boolean; audience_size: number; due_at: string }
+interface PublishResult { semver: string; reack: { required: boolean; due_at: string | null; audience_size: number | null; campaign_id: string | null } }
+interface ReackCampaign { id: string; origin: string; state: string; due_at: string | null; subject: { version_id: string }; progress: { assigned: number; acknowledged: number } }
+type Change = 'major' | 'minor';
+const people = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'person' : 'people'}`;
+
+/** The publish dialog's consequence line ("Publishing v3.0 asks 1,240 people to re-acknowledge by 30 Nov"). */
+function reackSentence(p: PublishPreview, change: Change): string {
+  if (p.version_no <= 1) return 'Publishing v1.0 makes it the version people read. Nobody is asked to acknowledge it automatically.';
+  const next = change === 'major' ? p.next_semver_major : p.next_semver_minor;
+  const asks = change === 'major' ? p.reack_required_if_major : p.reack_required_if_minor;
+  if (!asks) return `Publishing v${next} does not ask anyone to re-acknowledge.`;
+  if (!p.audience_size) return `Publishing v${next} asks for a re-acknowledgement, but nobody it applies to is an active member yet.`;
+  return `Publishing v${next} asks ${people(p.audience_size)} to re-acknowledge by ${shortDate(p.due_at)}.`;
+}
+
 interface Ack { id: string; due_at: string; ack_text: string; subject: { artifact_id: string; version_id: string; content_hash: string; version_no: number } }
 
 /** A governed document (docs/05 §3.21): reading view, properties, lifecycle actions, acknowledgement. */
@@ -38,7 +56,10 @@ export function LibraryDoc({ id }: { id: string }) {
   const [stepUp, setStepUp] = useState<null | (() => Promise<void>)>(null);
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
   const [acks, reloadAcks] = useItems<Ack>('/api/v1/me/acknowledgements?state=pending');
-  const people = memberMap(members);
+  const [change, setChange] = useState<Change>('major');
+  const [preview] = useResource<PublishPreview>(dialog === 'publish' && version ? `/api/v1/versions/${version.id}/publish-preview` : null, [dialog]);
+  const [campaigns, reloadCampaigns] = useItems<ReackCampaign>(can('campaign:view') ? '/api/v1/campaigns' : null);
+  const directory = memberMap(members);
 
   const load = useCallback(async () => {
     try {
@@ -62,9 +83,9 @@ export function LibraryDoc({ id }: { id: string }) {
   }, [data, workspace?.workspace_id]);
 
   /** Runs an action; on `step_up_required` asks to verify and retries once. */
-  const act = async (fn: () => Promise<unknown>, done: string): Promise<boolean> => {
+  const act = async (fn: () => Promise<unknown>, done: string | (() => string)): Promise<boolean> => {
     setError(null);
-    const run = async () => { await fn(); setToast(done); setEditing(false); setDialog(null); await load(); reloadAcks(); };
+    const run = async () => { await fn(); setToast(typeof done === 'string' ? done : done()); setEditing(false); setDialog(null); await load(); reloadAcks(); reloadCampaigns(); };
     try { await run(); return true; } catch (e) {
       if (e instanceof ApiError && e.code === 'step_up_required') setStepUp(() => async () => { try { await run(); } catch (err) { setError(err instanceof Error ? err.message : 'Failed.'); } });
       else setError(e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'Something went wrong.');
@@ -79,13 +100,24 @@ export function LibraryDoc({ id }: { id: string }) {
 
   const a = data.artifact;
   const kind = KIND_TAG[a.kind];
-  const owner = a.owner_membership_id ? people.get(a.owner_membership_id) : undefined;
-  const author = people.get(version.created_by);
+  const owner = a.owner_membership_id ? directory.get(a.owner_membership_id) : undefined;
+  const author = directory.get(version.created_by);
   const blocks = version.content.blocks ?? [];
   const pendingAck = (acks ?? []).find((x) => x.subject.artifact_id === a.id);
   const v = version;
   const p = (action: string) => can(`${a.kind}:${action}`);
   const approvals = v.reviews.filter((r) => r.decision === 'approve').length;
+  const reack = (campaigns ?? []).find((c) => c.origin === 'reack' && c.subject.version_id === a.current_published_version_id);
+  const publish = () => {
+    let done = 'Published.';
+    return act(async () => {
+      const body: Record<string, string> = {};
+      if (comment.trim()) body.change_reason = comment;
+      if (v.version_no > 1) body.change = change;
+      const r = await api<PublishResult>(`/api/v1/versions/${v.id}/publish`, { method: 'POST', body });
+      if (r.reack.campaign_id && r.reack.audience_size) done = `Published v${r.semver}. ${people(r.reack.audience_size)} asked to re-acknowledge.`;
+    }, () => done);
+  };
 
   return (
     <article className="doc">
@@ -97,11 +129,12 @@ export function LibraryDoc({ id }: { id: string }) {
 
       <dl className="props">
         <dt><CircleDot aria-hidden="true" size={15} /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
-        <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
+        <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.semver && <span className="muted">· {v.semver}</span>}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
-        {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
+        {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={directory.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
         {a.governance && a.current_published_version_id && <GovernanceRows artifactId={a.id} g={a.governance} canRecertify={p('publish')} canVerify={p('approve')} act={act} />}
         {a.kind === 'policy' && (p('publish') || !!a.category || !!a.restricted || a.applicability != null) && <ApplicabilityRow artifactId={a.id} category={a.category ?? null} applicability={a.applicability ?? null} restricted={!!a.restricted} canEdit={p('publish')} act={act} />}
+        {reack && <><dt><BookOpenCheck aria-hidden="true" size="0.9375rem" /> Acknowledged</dt><dd><Link to={`/admin/campaigns/${reack.id}`}>{reack.progress.acknowledged} of {people(reack.progress.assigned)}</Link><span className="muted">· re-acknowledgement{reack.due_at ? ` due ${shortDate(reack.due_at)}` : ''}</span></dd></>}
         {v.content_hash && <><dt><Hash aria-hidden="true" size={15} /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
       </dl>
 
@@ -123,7 +156,7 @@ export function LibraryDoc({ id }: { id: string }) {
         {v.lifecycle === 'in_review' && p('approve') && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/reviews`, { method: 'POST', body: { decision: 'approve' } }), 'Approved.')}><Check aria-hidden="true" size={15} /> Approve</Button>}
         {v.lifecycle === 'in_review' && (p('review') || p('approve')) && <Button variant="secondary" onPress={() => { setComment(''); setDialog('changes'); }}>Request changes</Button>}
         {v.lifecycle === 'in_review' && p('edit_draft') && <Button variant="ghost" onPress={() => void act(() => api(`/api/v1/versions/${v.id}/withdraw`, { method: 'POST' }), 'Withdrawn to draft.')}>Withdraw</Button>}
-        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setDialog('publish'); }}><Send aria-hidden="true" size={15} /> Publish</Button>}
+        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setChange('major'); setDialog('publish'); }}><Send aria-hidden="true" size={15} /> Publish</Button>}
         {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size={15} /> New version</Button>}
         <span className="muted doc-meta">{author ? `Edited by ${author.display_name} · ` : ''}{timeAgo(v.created_at)} · {workspace?.name}</span>
       </div>
@@ -141,7 +174,7 @@ export function LibraryDoc({ id }: { id: string }) {
         </div>
       ) : <DocBody blocks={blocks} />}
 
-      {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={people} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
+      {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={directory} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
 
       {data.versions.length > 1 && (
         <section aria-labelledby="hist" style={{ marginTop: 40 }}>
@@ -160,8 +193,17 @@ export function LibraryDoc({ id }: { id: string }) {
         <TextField label="What should change?" value={comment} onChange={setComment} autoFocus />
       </FormDialog>
       <FormDialog isOpen={dialog === 'publish'} onOpenChange={(o) => !o && setDialog(null)} title={`Publish v${v.version_no}`} description={v.version_no > 1 ? 'The current version will be superseded. Say what changed so readers know.' : 'Everyone who can see the library will be able to read it.'}
-        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/publish`, { method: 'POST', body: comment.trim() ? { change_reason: comment } : {} }), 'Published.')} isDisabled={v.version_no > 1 && !comment.trim()}>Publish now</Button></>}>
-        <TextField label={v.version_no > 1 ? 'What changed?' : 'Note (optional)'} value={comment} onChange={setComment} autoFocus />
+        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void publish()} isDisabled={v.version_no > 1 && !comment.trim()}>Publish now</Button></>}>
+        <div className="stack">
+          <TextField label={v.version_no > 1 ? 'What changed?' : 'Note (optional)'} value={comment} onChange={setComment} autoFocus />
+          {v.version_no > 1 && preview && (
+            <RadioCards label="Type of change" value={change} onChange={(x) => setChange(x as Change)} options={[
+              { id: 'major', label: 'Major', meta: `v${preview.next_semver_major}`, description: preview.reack_required_if_major ? 'Changes what people must do. They are asked to read it again.' : 'Changes what people must do.' },
+              { id: 'minor', label: 'Minor', meta: `v${preview.next_semver_minor}`, description: preview.reack_required_if_minor ? 'Wording and corrections. People are still asked to read it again.' : 'Wording and corrections. Nobody is asked to read it again.' },
+            ]} />
+          )}
+          {preview && <p className="publish-preview" aria-live="polite"><BookOpenCheck aria-hidden="true" size="1rem" />{reackSentence(preview, change)}</p>}
+        </div>
       </FormDialog>
       <StepUpDialog isOpen={stepUp !== null} onClose={() => setStepUp(null)} onDone={() => { const f = stepUp; setStepUp(null); void f?.(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}

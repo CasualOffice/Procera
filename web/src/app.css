@@ -620,3 +620,7 @@ h1, h2, .task-title, .post-title { text-wrap: balance; }
   .tasks li .task-title, .tasks li .task-meta { white-space: normal; }
   .tasks li .btn { margin-left: 44px; }
 }
+
+/* Publish dialog: what publishing will ask of people (BPMS-045). */
+.publish-preview { display: flex; gap: 0.625rem; align-items: flex-start; margin: 0; padding: 0.75rem 0.875rem; border-radius: var(--radius-control); background: var(--color-info-bg); color: var(--color-text); font-size: 0.875rem; line-height: 1.45; }
+.publish-preview svg { flex: none; margin-top: 0.125rem; color: var(--color-info); }
