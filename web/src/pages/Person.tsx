@@ -1,5 +1,10 @@
-import { Mail, UserRoundX } from 'lucide-react';
-import { useEffect } from 'react';
+import { Mail, UserRoundMinus, UserRoundX } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ApiError, api } from '../lib/api';
+import { useSession } from '../lib/session';
+import { Button } from '../ui/components/Button';
+import { FormDialog } from '../ui/components/FormDialog';
+import { Notice } from '../ui/components/Notice';
 import { type Member, useItems } from '../lib/data';
 import { shortDate } from '../lib/format';
 import { Link } from '../lib/router';
@@ -17,6 +22,18 @@ const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' 
 export function Person({ id }: { id: string }) {
   const [members, reload, error] = useItems<Member>('/api/v1/members');
   const m = members?.find((x) => x.id === id) ?? null;
+  const { can, user } = useSession();
+  const [confirming, setConfirming] = useState(false);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
+  const deactivate = async () => {
+    try {
+      await api(`/api/v1/members/${id}/deactivate`, { method: 'POST' });
+      setNotice({ tone: 'success', title: `${m?.display_name ?? 'They'} can no longer sign in to this workspace.` });
+      reload();
+    } catch (e) {
+      setNotice({ tone: 'danger', title: e instanceof ApiError ? (e.code === 'last_owner' ? 'This is the only owner. Make someone else an owner first.' : e.problem.detail ?? e.problem.title) : 'That didn’t work. Try again.' });
+    } finally { setConfirming(false); }
+  };
   useEffect(() => { if (m) setCrumb(m.display_name); return () => setCrumb(null); }, [m]);
   if (error) return <LoadError error={error} onRetry={reload} what="this person" />;
   if (members === null) return <div className="doc"><Skeleton variant="doc" label="Loading person" /></div>;
@@ -32,6 +49,12 @@ export function Person({ id }: { id: string }) {
           <p className="muted">{m.title ?? 'No title'}{m.status !== 'active' && <> · <Tag color="gray">Deactivated</Tag></>}</p>
         </div>
       </div>
+      {notice && <Notice tone={notice.tone} title={notice.title} />}
+      {can('member:deactivate') && m.status === 'active' && m.user_id !== user?.id && (
+        <div className="actions" style={{ marginBottom: '1rem' }}>
+          <Button variant="secondary" onPress={() => setConfirming(true)}><UserRoundMinus aria-hidden="true" size="0.9375rem" /> Deactivate</Button>
+        </div>
+      )}
       <dl className="props">
         <dt><Mail aria-hidden="true" size="0.9375rem" /> Email</dt>
         <dd><a href={`mailto:${m.email}`}>{m.email}</a></dd>
@@ -40,6 +63,11 @@ export function Person({ id }: { id: string }) {
         <dt>Joined</dt>
         <dd>{shortDate(m.joined_at)}</dd>
       </dl>
+      <FormDialog isOpen={confirming} onOpenChange={setConfirming} title={`Deactivate ${m.display_name}?`}
+        description="They are signed out of this workspace at once and can’t act in it. Their history and records stay. To bring them back, invite them again."
+        footer={<><Button variant="secondary" onPress={() => setConfirming(false)}>Keep</Button><Button variant="danger" onPress={() => void deactivate()}>Deactivate</Button></>}>
+        <p className="muted" style={{ margin: 0 }}>This is recorded in the audit log.</p>
+      </FormDialog>
     </div>
   );
 }

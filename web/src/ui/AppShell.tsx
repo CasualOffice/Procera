@@ -1,7 +1,7 @@
 import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Search, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
-import { api } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from './Avatar';
@@ -30,7 +30,7 @@ function applyTheme(t: Theme) {
  * navigation in two groups, account menu, and linked breadcrumbs so every page has a way back.
  */
 export function AppShell({ children, current = 'home', crumbs = [], actions }: { children: React.ReactNode; current?: NavKey; crumbs?: Crumb[]; actions?: React.ReactNode }) {
-  const { user, workspace, workspaces, can, selectWorkspace, signOut } = useSession();
+  const { user, workspace, workspaces, can, selectWorkspace, signOut, reload } = useSession();
   const [unread, setUnread] = useState(0);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [palette, setPalette] = useState(false);
@@ -62,8 +62,12 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
 
   useEffect(() => {
     if (!workspace) return;
-    api<{ unread_count: number }>('/api/v1/notifications?limit=1').then((r) => setUnread(r.unread_count)).catch(() => undefined);
-  }, [workspace, current]);
+    api<{ unread_count: number }>('/api/v1/notifications?limit=1').then((r) => setUnread(r.unread_count)).catch((e: unknown) => {
+      // Removed from this workspace (deactivated, or it was suspended away): re-read the session so the
+      // chooser explains it, instead of every page failing on its own.
+      if (e instanceof ApiError && e.status === 404) void reload();
+    });
+  }, [workspace, current, reload]);
   useEffect(() => {
     if (!workspace || !can('member:view')) return;
     api<{ items: { status: string }[] }>('/api/v1/members').then((r) => setMemberCount(r.items.filter((m) => m.status === 'active').length)).catch(() => undefined);
