@@ -1,7 +1,7 @@
-import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, Gauge, Archive, History, House, KeyRound, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, Gauge, Archive, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
-export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'overview' | 'members' | 'roles' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'templates' | 'overview' | 'members' | 'roles' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -17,6 +17,7 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
     can('policy:view') && { key: 'policies', label: 'Policies', to: '/policies', icon: FileCheck, keywords: 'rules handbook what changed applies to me' },
     any('policy:view', 'sop:view') && { key: 'library', label: 'Library', to: '/library', icon: BookOpen, keywords: 'documents policies sops' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
+    can('template:browse') && { key: 'templates', label: 'Templates', to: '/templates', icon: LayoutTemplate, keywords: 'gallery starter pack handbook install' },
   ];
   const admin: (NavItem | false)[] = [
     can('monitoring:view_dashboards') && { key: 'overview', label: 'Overview', to: '/admin/overview', icon: Gauge, keywords: 'dashboard attention overdue security' },

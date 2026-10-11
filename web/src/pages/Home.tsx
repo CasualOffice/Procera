@@ -1,4 +1,4 @@
-import { BookOpenCheck, CircleCheck, FilePlus2, FileText, Megaphone, ScrollText, SquarePen, UserPlus } from 'lucide-react';
+import { BookOpenCheck, CircleCheck, FilePlus2, FileText, LayoutTemplate, Megaphone, ScrollText, SquarePen, UserPlus } from 'lucide-react';
 import { type Artifact, type Member, useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
@@ -75,7 +75,11 @@ export function Home() {
     can('sop:create') && { to: '/library?new=sop', icon: ScrollText, tone: 'blue', label: `New ${term('sop')}` },
     (can('announcement:create') || can('announcement:manage')) && { to: '/admin/announcements?new=1', icon: SquarePen, tone: 'orange', label: 'New announcement' },
     can('member:invite') && { to: '/admin/members?invite=1', icon: UserPlus, tone: 'green', label: 'Invite people' },
+    can('template:install') && { to: '/templates', icon: LayoutTemplate, tone: 'gray', label: 'Install a template' },
   ].filter(Boolean) as { to: string; icon: typeof FilePlus2; tone: string; label: string }[];
+
+  // First run (docs/05 §3.1 "Empty"): an empty library and the right to install starts from templates.
+  const firstRun = can('template:install') && canLibrary && docs !== null && docs.length === 0;
 
   return (
     <>
@@ -89,6 +93,17 @@ export function Home() {
           </div>
         )}
       </div>
+
+      {firstRun && (
+        <section className="first-run" aria-labelledby="first-run-title">
+          <span className="quick-icon tag-purple"><LayoutTemplate aria-hidden="true" size="1rem" /></span>
+          <div>
+            <h2 id="first-run-title">Start with a template</h2>
+            <p>Your library is empty. Install the employee handbook and starter policies, adapt them, then publish and ask everyone to acknowledge.</p>
+          </div>
+          <Link className="btn btn-primary btn-md link-btn" to="/templates">Browse templates</Link>
+        </section>
+      )}
 
       <div className="home-grid">
         <section aria-labelledby="foryou" className="home-main">

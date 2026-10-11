@@ -13,6 +13,7 @@ import { Library } from './pages/Library';
 import { LibraryDoc } from './pages/LibraryDoc';
 import { Compare } from './pages/Compare';
 import { Policies } from './pages/Policies';
+import { Templates } from './pages/Templates';
 import { Announcements } from './pages/Announcements';
 import { ManageAnnouncements } from './pages/ManageAnnouncements';
 import { CampaignDetail, Campaigns } from './pages/Campaigns';
@@ -86,6 +87,7 @@ export function App() {
   if (path === '/notifications/preferences') return <AppShell current="inbox" crumbs={[['Notifications', '/notifications'], 'Preferences']}><NotificationPreferences /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/templates') return <AppShell current="templates" crumbs={['Templates']}><Templates /></AppShell>;
   if (path === '/policies') return <AppShell current="policies" crumbs={['Policies']}><Policies /></AppShell>;
   const cmp = match('/library/:id/compare', path);
   if (cmp) return <AppShell current="library" crumbs={[['Library', '/library'], 'Compare']}><Compare id={cmp.id!} /></AppShell>;

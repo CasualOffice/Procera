@@ -97,13 +97,13 @@ export function Campaigns() {
           </table>
         </div>
       )}
-      <NewCampaign isOpen={creating} onClose={() => { setCreating(false); if (query.get('new')) navigate('/admin/campaigns', { replace: true }); }} onCreated={(id) => navigate(`/admin/campaigns/${id}`)} />
+      <NewCampaign isOpen={creating} initialDoc={query.get('doc')} initialDueDays={Number(query.get('due_days')) || null} onClose={() => { setCreating(false); if (query.get('new')) navigate('/admin/campaigns', { replace: true }); }} onCreated={(id) => navigate(`/admin/campaigns/${id}`)} />
     </>
   );
 }
 
 /** Create a draft campaign from a published document version. */
-function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: (id: string) => void }) {
+function NewCampaign({ isOpen, initialDoc = null, initialDueDays = null, onClose, onCreated }: { isOpen: boolean; initialDoc?: string | null; initialDueDays?: number | null; onClose: () => void; onCreated: (id: string) => void }) {
   useTerms(); // the workspace's terms (CFG-008)
   const [docs] = useItems<Artifact>(isOpen ? '/api/v1/artifacts' : null, [isOpen]);
   const published = (docs ?? []).filter((d) => d.current_published_version_id);
@@ -115,7 +115,9 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
   const [joiners, setJoiners] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (isOpen) { setDoc(''); setTitle(''); setTitleTouched(false); setAudience(EVERYONE); setDue(''); setError(null); } }, [isOpen]);
+  // A template's campaign plan links here with the document and deadline filled in (BPMS-106).
+  const dueFrom = (days: number | null) => { if (!days || days < 1 || days > 366) return ''; const d = new Date(Date.now() + days * 86_400_000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  useEffect(() => { if (isOpen) { setDoc(initialDoc ?? ''); setTitle(''); setTitleTouched(false); setAudience(EVERYONE); setDue(dueFrom(initialDueDays)); setError(null); } }, [isOpen, initialDoc, initialDueDays]);
   const chosen = published.find((d) => d.id === doc);
   useEffect(() => { if (chosen && !titleTouched) setTitle(`Acknowledge ${chosen.title}`); }, [chosen, titleTouched]);
   const create = async () => {
