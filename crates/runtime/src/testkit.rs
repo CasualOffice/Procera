@@ -1,5 +1,6 @@
-//! A small stand-in [`Evaluator`] for tests and conformance fixtures, until BPMS-081 supplies
-//! the real engine. It is not a FEEL or CEL implementation.
+//! A small stand-in [`Evaluator`] for tests that need fixed answers (overrides) or a token
+//! budget. It is not a CEL implementation and ignores the checked form; the production engine
+//! is [`crate::CelEvaluator`].
 //!
 //! Grammar (both `=` and `==` compare; `and`/`&&`, `or`/`||`):
 //!
@@ -15,6 +16,7 @@
 //! by the exact expression source.
 
 use crate::port::{EvalError, Evaluator, Scope};
+use procera_expr::CheckedExpr;
 use procera_ir::model::Expr;
 use serde_json::{Number, Value};
 use std::collections::BTreeMap;
@@ -63,7 +65,7 @@ impl MiniEvaluator {
 }
 
 impl Evaluator for MiniEvaluator {
-    fn eval(&self, expr: &Expr, scope: &Scope<'_>) -> Result<Value, EvalError> {
+    fn eval(&self, expr: &Expr, _: Option<&CheckedExpr>, scope: &Scope<'_>) -> Result<Value, EvalError> {
         if let Some(v) = self.overrides.get(&expr.0) {
             return Ok(v.clone());
         }

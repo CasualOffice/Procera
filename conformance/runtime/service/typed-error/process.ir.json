@@ -10,7 +10,8 @@
   "variables": [
     {
       "name": "user",
-      "type": "string"
+      "type": "string",
+      "required": true
     }
   ],
   "nodes": [

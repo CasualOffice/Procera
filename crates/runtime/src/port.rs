@@ -1,10 +1,12 @@
 //! The expression-evaluation port (docs/04 §4.5, docs/11 §6).
 //!
 //! The interpreter never parses or evaluates expressions itself. It hands the stored source
-//! (`expr:<lang>: <body>`) and a read-only [`Scope`] to an [`Evaluator`]. The production engine
-//! (BPMS-081, CEL per ADR-0010) implements this trait and owns the step and memory budget; the
+//! (`expr:<lang>: <body>`), the compiler's checked form of it (when the program has one) and a
+//! read-only [`Scope`] to an [`Evaluator`]. The production engine is [`crate::CelEvaluator`]
+//! (procera-expr, CEL per ADR-0010), which owns the step and memory budget; the
 //! [`crate::testkit::MiniEvaluator`] is a small stand-in for tests.
 
+use procera_expr::{CheckedExpr, Schema};
 use procera_ir::model::Expr;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -22,6 +24,9 @@ pub struct Scope<'a> {
     pub initiator: &'a Value,
     /// The triggering event's time.
     pub now: OffsetDateTime,
+    /// The declared variables and process context, with their expression types (from the
+    /// compiled program), so values can be marshalled by type.
+    pub schema: &'a Schema,
 }
 
 /// Why an evaluation failed. The interpreter turns every failure into an incident on the token
@@ -39,8 +44,10 @@ pub enum EvalError {
 /// Evaluates IR expressions and rule tables. Implementations must be deterministic: the same
 /// expression and scope always give the same result.
 pub trait Evaluator: std::fmt::Debug {
-    /// Evaluates an expression to a JSON value.
-    fn eval(&self, expr: &Expr, scope: &Scope<'_>) -> Result<Value, EvalError>;
+    /// Evaluates an expression to a JSON value. `checked` is the compiler's checked form of
+    /// `expr` for this field (docs/04 §4.5), or `None` when the program carries none.
+    fn eval(&self, expr: &Expr, checked: Option<&CheckedExpr>, scope: &Scope<'_>)
+    -> Result<Value, EvalError>;
 
     /// Evaluates a rule-table decision (docs/11 §13.1): the `output` column of the rule named by
     /// `rule` (a `refs.rules` key, resolved to `reference` when declared). `Value::Null` means

@@ -3,6 +3,7 @@
 use super::Run;
 use crate::command::{Command, InstanceResult, TimerDue, TimerPurpose, WorkKind};
 use crate::state::{Frame, IncidentCode, Split, SplitId, TokenId, TokenState, TraceEvent, Wait, WaitKind};
+use procera_ir::field_key;
 use procera_ir::model::{EndResult, Node, NodeKind};
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -45,7 +46,7 @@ impl Run<'_> {
     fn set(&mut self, id: TokenId, node: &Node) {
         let mut values = BTreeMap::new();
         for (name, expr) in node.assign.iter().flatten() {
-            match self.eval(expr) {
+            match self.eval(&node.id, &field_key("assign", name), expr) {
                 Ok(v) => values.insert(name.clone(), v),
                 Err(e) => return self.eval_failed(id, e),
             };
@@ -73,9 +74,9 @@ impl Run<'_> {
             let outcome = chosen.filter(|c| branches.iter().any(|b| &b.name == c));
             return self.leave(id, outcome.as_deref().unwrap_or("default"));
         }
-        for b in &branches {
+        for (i, b) in branches.iter().enumerate() {
             let Some(when) = &b.when else { continue };
-            match self.eval(when) {
+            match self.eval(&node.id, &format!("branches/{i}/when"), when) {
                 Ok(Value::Bool(true)) => return self.leave(id, &b.name),
                 Ok(Value::Bool(false)) => {}
                 Ok(other) => {
@@ -209,7 +210,7 @@ impl Run<'_> {
 
     fn timer(&mut self, id: TokenId, node: &Node) {
         let due = if let Some(expr) = &node.at {
-            let instant = match self.eval(expr) {
+            let instant = match self.eval(&node.id, "at", expr) {
                 Ok(Value::String(s)) => OffsetDateTime::parse(&s, &Rfc3339).ok(),
                 Ok(_) => None,
                 Err(e) => return self.eval_failed(id, e),
@@ -251,7 +252,7 @@ impl Run<'_> {
     }
 
     fn signal(&mut self, id: TokenId, node: &Node) {
-        let correlation = match node.correlation.as_ref().map(|c| self.eval(c)) {
+        let correlation = match node.correlation.as_ref().map(|c| self.eval(&node.id, "correlation", c)) {
             Some(Ok(v)) => v,
             Some(Err(e)) => return self.eval_failed(id, e),
             None => Value::Null,
@@ -277,27 +278,28 @@ impl Run<'_> {
     fn service(&mut self, id: TokenId, node: &Node) {
         let mut input = BTreeMap::new();
         for (name, expr) in node.input.iter().flatten() {
-            match self.eval(expr) {
+            match self.eval(&node.id, &field_key("input", name), expr) {
                 Ok(v) => input.insert(name.clone(), v),
                 Err(e) => return self.eval_failed(id, e),
             };
         }
-        let connector_key = match node.idempotency_key.as_ref().map(|e| self.eval(e)) {
-            Some(Ok(Value::String(s))) => s,
-            Some(Ok(Value::Number(n))) => n.to_string(),
-            Some(Ok(other)) => {
-                let msg = format!("idempotencyKey gave {other}, not a string");
-                return self.incident(id, IncidentCode::BadValue, msg);
-            }
-            Some(Err(e)) => return self.eval_failed(id, e),
-            None => {
-                return self.incident(
-                    id,
-                    IncidentCode::BadValue,
-                    "service.call without idempotencyKey".into(),
-                );
-            }
-        };
+        let connector_key =
+            match node.idempotency_key.as_ref().map(|e| self.eval(&node.id, "idempotencyKey", e)) {
+                Some(Ok(Value::String(s))) => s,
+                Some(Ok(Value::Number(n))) => n.to_string(),
+                Some(Ok(other)) => {
+                    let msg = format!("idempotencyKey gave {other}, not a string");
+                    return self.incident(id, IncidentCode::BadValue, msg);
+                }
+                Some(Err(e)) => return self.eval_failed(id, e),
+                None => {
+                    return self.incident(
+                        id,
+                        IncidentCode::BadValue,
+                        "service.call without idempotencyKey".into(),
+                    );
+                }
+            };
         let key = self.activation(node);
         self.cmds.push(Command::CallConnector {
             key: key.clone(),

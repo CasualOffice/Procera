@@ -10,7 +10,8 @@
   "variables": [
     {
       "name": "order",
-      "type": "string"
+      "type": "string",
+      "required": true
     }
   ],
   "nodes": [

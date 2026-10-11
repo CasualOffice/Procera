@@ -10,7 +10,8 @@
   "variables": [
     {
       "name": "note",
-      "type": "string"
+      "type": "string",
+      "required": true
     }
   ],
   "nodes": [

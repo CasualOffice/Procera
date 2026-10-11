@@ -2719,6 +2719,7 @@ name = "procera-runtime"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "procera-expr",
  "procera-ir",
  "procera-kernel",
  "proptest",

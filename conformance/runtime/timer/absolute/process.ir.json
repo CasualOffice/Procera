@@ -10,7 +10,8 @@
   "variables": [
     {
       "name": "go_live",
-      "type": "datetime"
+      "type": "datetime",
+      "required": true
     }
   ],
   "nodes": [
