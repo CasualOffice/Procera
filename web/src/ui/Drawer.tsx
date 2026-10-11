@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 
 /**
@@ -6,10 +7,16 @@ import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
  * close button returns to it, focus is trapped and restored by React Aria. Full screen on phones.
  */
 export function Drawer({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+  const dialog = useRef<HTMLElement>(null);
+  // An action can remove the button that had focus (e.g. "Send for approval"); keep focus inside the
+  // panel so Esc and Tab still work instead of focus falling back to the page.
+  useEffect(() => {
+    if (document.activeElement === document.body) dialog.current?.focus();
+  });
   return (
     <ModalOverlay isOpen onOpenChange={(o) => !o && onClose()} isDismissable className="drawer-overlay">
       <Modal className="drawer">
-        <Dialog className="drawer-dialog">
+        <Dialog ref={dialog} className="drawer-dialog">
           <div className="drawer-head">
             <Heading slot="title" className="drawer-title">{title}</Heading>
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X aria-hidden="true" size="1rem" /></button>

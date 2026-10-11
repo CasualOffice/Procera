@@ -341,7 +341,9 @@ test.describe('complete flows @r1 @ui', () => {
     await admin.reload();
     await admin.getByRole('button', { name: 'Approve and publish' }).click();
     await expect(admin.getByRole('heading', { name: 'Receipts' })).toBeVisible();
-    await page.getByRole('dialog', { name: 'New expense tool' }).getByRole('button', { name: 'Close' }).click();
+    // Focus stayed in the owner's drawer after its button went away, so Esc still closes it.
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog', { name: 'New expense tool' })).toHaveCount(0);
     await request.post('/__test/drain');
     await nav(page, 'Notifications');
     await expect(page.getByRole('link', { name: '“New expense tool” is approved' })).toBeVisible();
