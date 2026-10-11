@@ -65,6 +65,11 @@ impl From<MembersError> for ApiError {
             MembersError::Invalid(m) => Self::new(422, "validation_failed", "Validation failed").detail(m),
             MembersError::Cycle(m) => Self::new(422, "cycle", "This change would create a cycle").detail(m),
             MembersError::Conflict(m) => Self::new(409, "conflict", "Conflict").detail(m),
+            MembersError::QuotaExceeded { limit, used } => {
+                Self::new(429, "quota_exceeded", "This workspace has reached its member limit").detail(format!(
+                    "{used} of {limit} seats are taken (members and open invitations). Ask your system administrator to raise the limit, or revoke an invitation."
+                ))
+            }
             MembersError::Internal(m) => {
                 tracing::error!(error = %m, "members internal error");
                 Self::new(500, "internal", "Internal error")

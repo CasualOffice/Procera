@@ -138,7 +138,7 @@ async fn me(u: SystemUser) -> Json<serde_json::Value> {
 
 async fn list(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceRead)?;
-    Ok(Json(json!({"items": platform(&s)?.list_workspaces().await?})).into_response())
+    Ok(Json(json!({"items": platform(&s)?.list_workspaces(&Default::default()).await?})).into_response())
 }
 
 async fn create(
@@ -227,6 +227,7 @@ async fn restore(
 #[serde(deny_unknown_fields)]
 struct DeletionReq {
     grace_days: i64,
+    reason: String,
 }
 
 async fn schedule_deletion(
@@ -238,7 +239,7 @@ async fn schedule_deletion(
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceWrite)?;
     let ws = platform(&s)?
-        .schedule_deletion(u.user_id, id, if_match(&headers), r.grace_days, &client_info(&headers))
+        .schedule_deletion(u.user_id, id, if_match(&headers), r.grace_days, &r.reason, &client_info(&headers))
         .await?;
     Ok(ws_response(StatusCode::OK, &ws))
 }

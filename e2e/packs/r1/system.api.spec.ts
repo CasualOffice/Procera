@@ -71,8 +71,8 @@ test.describe('system plane @r1 @system', () => {
     const restored = await c.post(`/sysapi/v1/workspaces/${ws.id}/restore`, { headers: { ...headers, 'if-match': sus.headers()['etag'] } });
     expect((await restored.json()).state).toBe('active');
     expect((await c.post(`/sysapi/v1/workspaces/${ws.id}/restore`, { headers })).status()).toBe(409);
-    expect((await c.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers, data: { grace_days: 1 } })).status()).toBe(422);
-    const del = await (await c.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers, data: { grace_days: 30 } })).json();
+    expect((await c.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers, data: { grace_days: 1, reason: 'customer request' } })).status()).toBe(422);
+    const del = await (await c.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers, data: { grace_days: 30, reason: 'customer request' } })).json();
     expect(del.state).toBe('pending_deletion');
     expect(del.deletion_due_at).toBeTruthy();
   });

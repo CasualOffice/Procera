@@ -49,6 +49,9 @@ pub enum MembersError {
     Cycle(String),
     #[error("{0}")]
     Conflict(String),
+    /// The workspace's member quota is reached (FR-S04 hard limit).
+    #[error("member quota reached ({used} of {limit})")]
+    QuotaExceeded { limit: i64, used: i64 },
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -178,6 +181,37 @@ impl Members {
     }
 
     /// Creates an invitation and returns it with its one-time token (to be delivered by email).
+    /// FR-S04 hard limit on members, set by the system admin (`workspace_quotas`, NULL = unlimited).
+    /// Seats are active members plus open invitations, so accepting an invitation never overshoots;
+    /// re-inviting the same address replaces its open invitation and needs no extra seat. The quota
+    /// row is locked so concurrent invitations cannot both take the last seat.
+    async fn check_member_quota(
+        &self,
+        tx: &mut WsTx<'_>,
+        email: &str,
+        now: time::OffsetDateTime,
+    ) -> Result<(), MembersError> {
+        let limit: Option<Option<i32>> = sqlx::query_scalar(
+            "SELECT max_members FROM workspace_quotas WHERE target_workspace_id = $1 FOR UPDATE",
+        )
+        .bind(tx.ctx.workspace_id)
+        .fetch_optional(tx.conn())
+        .await?;
+        let Some(Some(limit)) = limit else { return Ok(()) };
+        let used: i64 = sqlx::query_scalar(
+            "SELECT (SELECT count(*) FROM memberships WHERE status = 'active')
+                  + (SELECT count(*) FROM invitations WHERE accepted_at IS NULL AND revoked_at IS NULL AND expires_at > $1 AND email <> $2)",
+        )
+        .bind(now)
+        .bind(email)
+        .fetch_one(tx.conn())
+        .await?;
+        if used >= i64::from(limit) {
+            return Err(MembersError::QuotaExceeded { limit: i64::from(limit), used });
+        }
+        Ok(())
+    }
+
     pub async fn invite(
         &self,
         tx: &mut WsTx<'_>,
@@ -218,6 +252,7 @@ impl Members {
             return Err(MembersError::AlreadyMember);
         }
         let now = self.clock.now();
+        self.check_member_quota(tx, &email, now).await?;
         sqlx::query("UPDATE invitations SET revoked_at = $2 WHERE email = $1 AND accepted_at IS NULL AND revoked_at IS NULL").bind(&email).bind(now).execute(tx.conn()).await?;
         let id = self.ids.new_id();
         let token = random_token();
