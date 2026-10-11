@@ -1,6 +1,7 @@
 //! The in-process event bus (BPMS-029 consumers): turns outbox events into notifications
 //! (BPMS-048), enrols new joiners in dynamic campaigns (BPMS-046) and delivers published
-//! announcements (BPMS-047), starts re-acknowledgement campaigns for scheduled versions that go
+//! announcements (BPMS-047) and starts their acknowledgement campaigns when they were scheduled,
+//! starts re-acknowledgement campaigns for scheduled versions that go
 //! live (BPMS-045) and drops cached effective settings (CFG-004). Each consumer records the message in the inbox in the same
 //! transaction as its effect, so redelivery is harmless.
 
@@ -157,6 +158,22 @@ impl AppBus {
                                 .map_err(|e| e.to_string())?;
                         }
                     }
+                }
+                tx.commit().await.map_err(|e| e.to_string())?;
+                // FR-AN04: an announcement that asks for acknowledgement runs on the campaign engine.
+                // Immediate publishes started it already (found and skipped); scheduled ones start
+                // it here, as the system.
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CAMPAIGNS, m.id).await.map_err(|e| e.to_string())? {
+                    crate::announcement_ack::start(
+                        &self.announcements,
+                        &self.campaigns,
+                        &self.settings,
+                        &mut tx,
+                        id,
+                        None,
+                    )
+                    .await?;
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }
