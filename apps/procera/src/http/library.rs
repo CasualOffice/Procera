@@ -9,7 +9,7 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
 use procera_db::WsTx;
-use procera_library::{AUTHORABLE, Actor, Library, LibraryError, Reader, ReviewPolicy, permission};
+use procera_library::{AUTHORABLE, Actor, Change, Library, LibraryError, Reader, ReviewPolicy, permission};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -38,6 +38,7 @@ pub fn router() -> Router<AppState> {
         .route("/versions/{id}/withdraw", post(withdraw))
         .route("/versions/{id}/reviews", post(review))
         .route("/versions/{id}/publish", post(publish))
+        .route("/versions/{id}/publish-preview", get(publish_preview))
         .route("/versions/{id}/retire", post(retire))
 }
 
@@ -402,6 +403,9 @@ struct PublishReq {
     effective_at: Option<time::OffsetDateTime>,
     #[serde(default)]
     change_reason: Option<String>,
+    /// `major` (default) or `minor` (BPMS-045); ignored for version 1.
+    #[serde(default)]
+    change: Option<String>,
 }
 
 async fn publish(
@@ -417,19 +421,79 @@ async fn publish(
         me.require_step_up(&s, &mut tx).await?;
     }
     let policy = review_policy(&s, &mut tx).await?;
-    let v = library(&s)?
-        .publish(
-            &mut tx,
-            &actor(&me, &headers),
-            id,
-            r.effective_at,
-            r.change_reason.as_deref(),
-            procera_library::Change::Major,
-            &policy,
-        )
-        .await?;
+    let change = r.change.as_deref().map(Change::parse).transpose()?.unwrap_or_default();
+    let lib = library(&s)?;
+    let who = actor(&me, &headers);
+    let v =
+        lib.publish(&mut tx, &who, id, r.effective_at, r.change_reason.as_deref(), change, &policy).await?;
+    // BPMS-045: a version that goes live now and requires it asks its audience to acknowledge again.
+    let reack = if !v.reack_required {
+        json!({"required": false, "due_at": null, "audience_size": null, "campaign_id": null})
+    } else if v.lifecycle == "published" {
+        let cmp = campaigns_service(&s)?;
+        let by = procera_campaigns::Actor {
+            membership: who.membership,
+            subject_ref: who.subject_ref,
+            ip: who.ip.clone(),
+            user_agent: who.user_agent.clone(),
+        };
+        let c =
+            crate::reack::start(lib, cmp, settings(&s)?, &mut tx, id, Some(&by)).await.map_err(internal)?;
+        json!({"required": true, "due_at": c.as_ref().and_then(|c| c.due_at).map(rfc3339),
+               "audience_size": c.as_ref().map_or(0, |c| c.progress.assigned), "campaign_id": c.map(|c| c.id)})
+    } else {
+        // Scheduled: the campaign starts when the version goes live.
+        let (size, _) = reack_audience(&s, lib, &mut tx, id).await?;
+        let window = lib.reack_window(&mut tx).await?;
+        let due = v.effective_at.map(|t| t + window);
+        json!({"required": true, "due_at": due.map(rfc3339), "audience_size": size, "campaign_id": null})
+    };
     tx.commit().await.map_err(internal)?;
-    Ok(Json(v).into_response())
+    let mut body = serde_json::to_value(&v).map_err(internal)?;
+    body["reack"] = reack;
+    Ok(Json(body).into_response())
+}
+
+fn campaigns_service(s: &AppState) -> Result<&procera_campaigns::Campaigns, ApiError> {
+    s.campaigns.as_ref().ok_or_else(|| ApiError::unavailable("database"))
+}
+
+fn rfc3339(t: time::OffsetDateTime) -> String {
+    t.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+}
+
+/// How many active members a re-acknowledgement of version `id` would reach now.
+async fn reack_audience(
+    s: &AppState,
+    lib: &Library,
+    tx: &mut WsTx<'_>,
+    id: Uuid,
+) -> Result<(usize, Value), ApiError> {
+    let subject = lib.reack_subject(tx, id).await?.ok_or_else(ApiError::not_found)?;
+    let aud = crate::reack::audience(&subject);
+    let size = campaigns_service(s)?.audience_size(tx, &aud).await?;
+    Ok((size, serde_json::to_value(&aud).map_err(internal)?))
+}
+
+/// What publishing a version would do (BPMS-045, docs/05 §3.22): its number as a major or minor
+/// change, whether each asks for a re-acknowledgement, how many people that reaches and by when.
+async fn publish_preview(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_version(&s, &me, &mut tx, id, "publish").await?;
+    let lib = library(&s)?;
+    let plan = lib.publish_plan(&mut tx, id).await?;
+    let (size, audience) = reack_audience(&s, lib, &mut tx, id).await?;
+    let due = lib.reack_due(&mut tx).await?;
+    tx.rollback().await.map_err(internal)?;
+    let mut body = serde_json::to_value(&plan).map_err(internal)?;
+    body["audience"] = audience;
+    body["audience_size"] = json!(size);
+    body["due_at"] = json!(rfc3339(due));
+    Ok(Json(body).into_response())
 }
 
 #[derive(Debug, Deserialize)]

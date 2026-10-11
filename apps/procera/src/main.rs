@@ -6,6 +6,7 @@ use tracing_subscriber::EnvFilter;
 
 mod bus;
 mod http;
+mod reack;
 
 #[derive(Debug, Parser)]
 #[command(name = "procera", version, about = "Procera — turn processes into progress.")]

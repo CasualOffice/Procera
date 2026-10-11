@@ -1,6 +1,7 @@
 //! The in-process event bus (BPMS-029 consumers): turns outbox events into notifications
 //! (BPMS-048), enrols new joiners in dynamic campaigns (BPMS-046) and delivers published
-//! announcements (BPMS-047). Each consumer records the message in the inbox in the same
+//! announcements (BPMS-047), and starts re-acknowledgement campaigns for scheduled versions that go
+//! live (BPMS-045). Each consumer records the message in the inbox in the same
 //! transaction as its effect, so redelivery is harmless.
 
 use procera_announcements::Announcements;
@@ -8,6 +9,7 @@ use procera_campaigns::Campaigns;
 use procera_db::dispatch::{Bus, Message};
 use procera_db::outbox::mark_consumed;
 use procera_db::{Db, WsCtx};
+use procera_library::Library;
 use procera_members::Members;
 use procera_notify::Notify;
 use serde_json::json;
@@ -23,6 +25,8 @@ pub struct AppBus {
     pub notify: Notify,
     pub campaigns: Campaigns,
     pub announcements: Announcements,
+    pub library: Library,
+    pub settings: procera_settings::Settings,
     /// Public base URL for links in emails, without a trailing slash.
     pub public_url: String,
 }
@@ -169,6 +173,28 @@ impl AppBus {
                         )
                         .await
                         .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
+            // BPMS-045: a version that requires it asks its audience to acknowledge again. Immediate
+            // publishes started the campaign already (it is found and skipped); scheduled ones start
+            // it here, as the system.
+            "artifact.published.v1" => {
+                if m.payload.get("reack_required").and_then(|v| v.as_bool()) != Some(true) {
+                    return Ok(());
+                }
+                let version = uuid_field(m, "version_id")?;
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CAMPAIGNS, m.id).await.map_err(|e| e.to_string())? {
+                    crate::reack::start(
+                        &self.library,
+                        &self.campaigns,
+                        &self.settings,
+                        &mut tx,
+                        version,
+                        None,
+                    )
+                    .await?;
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }

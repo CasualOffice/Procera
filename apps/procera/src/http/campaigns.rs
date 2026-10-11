@@ -85,7 +85,14 @@ fn ack_permission(kind: &str) -> &'static str {
 
 /// Workspace defaults (docs/20 §2.14), copied onto a new campaign.
 async fn defaults(s: &AppState, tx: &mut WsTx<'_>) -> Result<Defaults, ApiError> {
-    let st = settings(s)?;
+    Ok(campaign_defaults(settings(s)?, tx).await?)
+}
+
+/// Workspace campaign defaults, also used for re-acknowledgement campaigns (BPMS-045).
+pub(crate) async fn campaign_defaults(
+    st: &procera_settings::Settings,
+    tx: &mut WsTx<'_>,
+) -> Result<Defaults, procera_settings::SettingsError> {
     let snapshot =
         st.effective(tx, "campaign.audience.snapshot").await?.value.as_str().unwrap_or("dynamic").to_owned();
     let cadence = st
