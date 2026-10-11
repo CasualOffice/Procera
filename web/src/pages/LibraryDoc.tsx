@@ -1,4 +1,4 @@
-import { CalendarClock, BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
+import { BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type Member, memberMap, useItems } from '../lib/data';
@@ -16,12 +16,10 @@ import { setCrumb } from '../ui/AppShell';
 import { rememberRecent } from '../lib/recent';
 import { LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
+import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from './docGovernance';
+import { ApplicabilityRow } from './docApplicability';
 
-/** Library governance (BPMS-043/044), shown when the server provides it. */
-interface Governance { review_status: 'none' | 'current' | 'due_soon' | 'overdue'; next_review_at: string | null; verified: boolean; verification_expires_at: string | null }
-const REVIEW: Record<string, { label: string; color: 'green' | 'orange' | 'red' }> = { current: { label: 'Up to date', color: 'green' }, due_soon: { label: 'Review due soon', color: 'orange' }, overdue: { label: 'Review overdue', color: 'red' } };
-
-interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
+interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
 interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null }
 interface Ack { id: string; due_at: string; ack_text: string; subject: { artifact_id: string; version_id: string; content_hash: string; version_no: number } }
 
@@ -64,12 +62,13 @@ export function LibraryDoc({ id }: { id: string }) {
   }, [data, workspace?.workspace_id]);
 
   /** Runs an action; on `step_up_required` asks to verify and retries once. */
-  const act = async (fn: () => Promise<unknown>, done: string) => {
+  const act = async (fn: () => Promise<unknown>, done: string): Promise<boolean> => {
     setError(null);
     const run = async () => { await fn(); setToast(done); setEditing(false); setDialog(null); await load(); reloadAcks(); };
-    try { await run(); } catch (e) {
+    try { await run(); return true; } catch (e) {
       if (e instanceof ApiError && e.code === 'step_up_required') setStepUp(() => async () => { try { await run(); } catch (err) { setError(err instanceof Error ? err.message : 'Failed.'); } });
       else setError(e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'Something went wrong.');
+      return false;
     }
   };
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t); }, [toast]);
@@ -101,11 +100,13 @@ export function LibraryDoc({ id }: { id: string }) {
         <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
         {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
-        {a.governance && a.governance.review_status !== 'none' && <><dt><CalendarClock aria-hidden="true" size={15} /> Next review</dt><dd><Tag color={REVIEW[a.governance.review_status]?.color}>{REVIEW[a.governance.review_status]?.label}</Tag>{a.governance.next_review_at && <span className="muted">{shortDate(a.governance.next_review_at)}</span>}{a.governance.verified && <Tag color="green"><ShieldCheck aria-hidden="true" size={11} /> Verified{a.governance.verification_expires_at ? ` until ${shortDate(a.governance.verification_expires_at)}` : ''}</Tag>}</dd></>}
+        {a.governance && a.current_published_version_id && <GovernanceRows artifactId={a.id} g={a.governance} canRecertify={p('publish')} canVerify={p('approve')} act={act} />}
+        {a.kind === 'policy' && (p('publish') || !!a.category || !!a.restricted || a.applicability != null) && <ApplicabilityRow artifactId={a.id} category={a.category ?? null} applicability={a.applicability ?? null} restricted={!!a.restricted} canEdit={p('publish')} act={act} />}
         {v.content_hash && <><dt><Hash aria-hidden="true" size={15} /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
       </dl>
 
       {error && <Notice tone="danger" title={error} />}
+      {a.governance && a.current_published_version_id && p('publish') && <ReviewCallout artifactId={a.id} g={a.governance} act={act} />}
       {pendingAck && pendingAck.subject.version_id === v.id && (
         <div className="callout callout-info" role="region" aria-label="Acknowledgement requested">
           <BookOpenCheck aria-hidden="true" size={18} />
@@ -140,11 +141,16 @@ export function LibraryDoc({ id }: { id: string }) {
         </div>
       ) : <DocBody blocks={blocks} />}
 
+      {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={people} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
+
       {data.versions.length > 1 && (
         <section aria-labelledby="hist" style={{ marginTop: 40 }}>
           <div className="section-head"><h2 id="hist">Version history</h2></div>
           <ul className="timeline">
-            {data.versions.map((x) => <li key={x.id}><Tag color={STATE_TAG[x.lifecycle]?.color}>{STATE_TAG[x.lifecycle]?.label}</Tag><span><strong>v{x.version_no}</strong>{x.published_at ? ` · published ${shortDate(x.published_at)}` : ''}{x.change_reason ? ` · ${x.change_reason}` : ''}</span></li>)}
+            {data.versions.map((x, i) => {
+              const prev = data.versions[i + 1];
+              return <li key={x.id}><Tag color={STATE_TAG[x.lifecycle]?.color}>{STATE_TAG[x.lifecycle]?.label}</Tag><span><strong>v{x.version_no}</strong>{x.published_at ? ` · published ${shortDate(x.published_at)}` : ''}{x.change_reason ? ` · ${x.change_reason}` : ''}</span>{prev && <Link className="timeline-link" to={`/library/${a.id}/compare?from=${prev.version_no}&to=${x.version_no}`}>Compare with v{prev.version_no}</Link>}</li>;
+            })}
           </ul>
         </section>
       )}
