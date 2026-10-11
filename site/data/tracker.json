@@ -1,0 +1,1299 @@
+{
+ "source": "scripts/build_tracker.py",
+ "last_updated": "2026-10-12",
+ "current_release": "P0",
+ "totals": {
+  "Done": 34,
+  "In review": 0,
+  "In progress": 12,
+  "Blocked": 0,
+  "Not started": 63,
+  "Deferred": 0,
+  "all": 109
+ },
+ "e2e_scenarios": 185,
+ "e2e_ids": [
+  "E2E-P0-01",
+  "E2E-P0-02",
+  "E2E-P0-03",
+  "E2E-P0-04",
+  "E2E-P0-05",
+  "E2E-P0-06",
+  "E2E-P0-07",
+  "E2E-P0-08",
+  "E2E-P0-09",
+  "E2E-P0-10",
+  "E2E-P0-11",
+  "E2E-P0-12",
+  "E2E-P0-13",
+  "E2E-R1-01",
+  "E2E-R1-02",
+  "E2E-R1-03",
+  "E2E-R1-04",
+  "E2E-R1-05",
+  "E2E-R1-06",
+  "E2E-R1-07",
+  "E2E-R1-08",
+  "E2E-R1-09",
+  "E2E-R1-10",
+  "E2E-R1-11",
+  "E2E-R1-12",
+  "E2E-R1-13",
+  "E2E-R1-14",
+  "E2E-R1-15",
+  "E2E-R1-16",
+  "E2E-R1-17",
+  "E2E-R1-18",
+  "E2E-R1-19",
+  "E2E-R1-ADM-01",
+  "E2E-R1-ADM-02",
+  "E2E-R1-ANN-01",
+  "E2E-R1-ANN-02",
+  "E2E-R1-ANN-03",
+  "E2E-R1-ANN-04",
+  "E2E-R1-ANN-05",
+  "E2E-R1-ANN-06",
+  "E2E-R1-AUD-01",
+  "E2E-R1-AUDX-01",
+  "E2E-R1-AUDX-02",
+  "E2E-R1-AUDX-03",
+  "E2E-R1-AUDX-04",
+  "E2E-R1-AUDX-05",
+  "E2E-R1-AUDX-06",
+  "E2E-R1-AUDX-07",
+  "E2E-R1-AUDX-08",
+  "E2E-R1-AUTH-01",
+  "E2E-R1-AUTH-02",
+  "E2E-R1-AUTH-03",
+  "E2E-R1-AUTH-04",
+  "E2E-R1-AUTH-05",
+  "E2E-R1-AUTH-06",
+  "E2E-R1-AUTH-07",
+  "E2E-R1-AUTH-20",
+  "E2E-R1-AUTH-21",
+  "E2E-R1-AUTH-22",
+  "E2E-R1-AUTH-23",
+  "E2E-R1-CFG-01",
+  "E2E-R1-CFG-02",
+  "E2E-R1-CFG-03",
+  "E2E-R1-CFG-04",
+  "E2E-R1-CFG-05",
+  "E2E-R1-CFG-06",
+  "E2E-R1-CFG-07",
+  "E2E-R1-CFG-08",
+  "E2E-R1-CMP-01",
+  "E2E-R1-CMP-02",
+  "E2E-R1-CMP-03",
+  "E2E-R1-CMP-04",
+  "E2E-R1-CMP-05",
+  "E2E-R1-CMP-06",
+  "E2E-R1-CMP-07",
+  "E2E-R1-DIR-01",
+  "E2E-R1-DIR-02",
+  "E2E-R1-DIR-03",
+  "E2E-R1-DIR-04",
+  "E2E-R1-FILE-01",
+  "E2E-R1-FILE-02",
+  "E2E-R1-FILE-03",
+  "E2E-R1-FILE-04",
+  "E2E-R1-FLOW-01",
+  "E2E-R1-FLOW-02",
+  "E2E-R1-FLOW-03",
+  "E2E-R1-FLOW-04",
+  "E2E-R1-FLOW-05",
+  "E2E-R1-FLOW-06",
+  "E2E-R1-ISO",
+  "E2E-R1-KEY-01",
+  "E2E-R1-LIB-01",
+  "E2E-R1-LIB-02",
+  "E2E-R1-LIB-03",
+  "E2E-R1-LIB-04",
+  "E2E-R1-LIB-05",
+  "E2E-R1-LIB-06",
+  "E2E-R1-LIB-07",
+  "E2E-R1-LIB-08",
+  "E2E-R1-LIB-09",
+  "E2E-R1-LIB-10",
+  "E2E-R1-LIB-11",
+  "E2E-R1-LIB-12",
+  "E2E-R1-LIB-13",
+  "E2E-R1-LIB-14",
+  "E2E-R1-LIB-15",
+  "E2E-R1-MEM-01",
+  "E2E-R1-MEM-02",
+  "E2E-R1-MEM-03",
+  "E2E-R1-MEM-04",
+  "E2E-R1-MEM-05",
+  "E2E-R1-MEM-06",
+  "E2E-R1-MEM-07",
+  "E2E-R1-MEM-08",
+  "E2E-R1-MEM-09",
+  "E2E-R1-MEM-10",
+  "E2E-R1-NOT-01",
+  "E2E-R1-NOT-02",
+  "E2E-R1-NOT-03",
+  "E2E-R1-NOT-04",
+  "E2E-R1-NOT-05",
+  "E2E-R1-POL-01",
+  "E2E-R1-POL-02",
+  "E2E-R1-POL-03",
+  "E2E-R1-POL-04",
+  "E2E-R1-POL-05",
+  "E2E-R1-RET-01",
+  "E2E-R1-RET-02",
+  "E2E-R1-SRCH-01",
+  "E2E-R1-SRCH-02",
+  "E2E-R1-SRCH-03",
+  "E2E-R1-SYS-01",
+  "E2E-R1-SYS-02",
+  "E2E-R1-SYS-03",
+  "E2E-R1-SYS-04",
+  "E2E-R1-SYS-05",
+  "E2E-R1-SYS-06",
+  "E2E-R1-SYS-07",
+  "E2E-R1-SYS-08",
+  "E2E-R1-SYS-09",
+  "E2E-R1-UI-01",
+  "E2E-R1-UI-02",
+  "E2E-R1-UI-03",
+  "E2E-R1-UI-04",
+  "E2E-R1-UI-05",
+  "E2E-R1-UI-06",
+  "E2E-R1-UI-07",
+  "E2E-R1-UI-08",
+  "E2E-R1-UI-09",
+  "E2E-R1-UI-10",
+  "E2E-R1-UI-11",
+  "E2E-R1-UI-12",
+  "E2E-R1-UI-13",
+  "E2E-R1-UI-14",
+  "E2E-R1-UI-15",
+  "E2E-R1-UI-16",
+  "E2E-R1-UI-17",
+  "E2E-R1-UI-18",
+  "E2E-R1-UI-19",
+  "E2E-R1-UI-20",
+  "E2E-R1-UI-21",
+  "E2E-R1-UI-22",
+  "E2E-R1-UI-23",
+  "E2E-R1-UI-24",
+  "E2E-R1-UI-25",
+  "E2E-R1-UI-26",
+  "E2E-R1-UI-27",
+  "E2E-R1-UI-28",
+  "E2E-R1-UI-29",
+  "E2E-R1-UI-30",
+  "E2E-R1-UI-31",
+  "E2E-R1-UI-32",
+  "E2E-R1-UI-33",
+  "E2E-R1-UI-34",
+  "E2E-R1-UI-35",
+  "E2E-R1-UI-36",
+  "E2E-R1-UI-38",
+  "E2E-R1-UI-39",
+  "E2E-R1-UI-40",
+  "E2E-R1-UI-41",
+  "E2E-R1-UI-42",
+  "E2E-R1-UI-43",
+  "E2E-R1-UI-44",
+  "E2E-R1-UI-45",
+  "E2E-R1-VIEW-01"
+ ],
+ "releases": [
+  {
+   "code": "P0",
+   "name": "Spikes + G1 + design system",
+   "start": "2026-11-02",
+   "end": "2026-11-20",
+   "gate": "G1",
+   "scope": "SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)",
+   "total": 14,
+   "done": 10,
+   "in_progress": 0,
+   "not_started": 4,
+   "epics": [
+    "BPMS-001",
+    "BPMS-002",
+    "BPMS-003",
+    "BPMS-004",
+    "BPMS-005",
+    "BPMS-006",
+    "BPMS-007",
+    "BPMS-008",
+    "BPMS-009",
+    "BPMS-010",
+    "BPMS-011",
+    "BPMS-012",
+    "BPMS-013",
+    "BPMS-014"
+   ]
+  },
+  {
+   "code": "R1",
+   "name": "Workspace & Policies",
+   "start": "2026-11-23",
+   "end": "2027-01-15",
+   "gate": "G-R1",
+   "scope": "System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)",
+   "total": 32,
+   "done": 23,
+   "in_progress": 8,
+   "not_started": 1,
+   "epics": [
+    "BPMS-020",
+    "BPMS-021",
+    "BPMS-022",
+    "BPMS-023",
+    "BPMS-024",
+    "BPMS-025",
+    "BPMS-026",
+    "BPMS-027",
+    "BPMS-028",
+    "BPMS-029",
+    "BPMS-030",
+    "BPMS-031",
+    "BPMS-032",
+    "BPMS-033",
+    "BPMS-034",
+    "BPMS-040",
+    "BPMS-041",
+    "BPMS-042",
+    "BPMS-043",
+    "BPMS-044",
+    "BPMS-045",
+    "BPMS-046",
+    "BPMS-047",
+    "BPMS-048",
+    "BPMS-049",
+    "BPMS-060",
+    "BPMS-061",
+    "BPMS-062",
+    "BPMS-063",
+    "BPMS-064",
+    "BPMS-065",
+    "BPMS-120"
+   ]
+  },
+  {
+   "code": "R2",
+   "name": "Requests & Approvals",
+   "start": "2027-01-18",
+   "end": "2027-03-12",
+   "gate": "G-R2",
+   "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
+   "total": 17,
+   "done": 0,
+   "in_progress": 4,
+   "not_started": 13,
+   "epics": [
+    "BPMS-080",
+    "BPMS-081",
+    "BPMS-082",
+    "BPMS-083",
+    "BPMS-084",
+    "BPMS-085",
+    "BPMS-086",
+    "BPMS-087",
+    "BPMS-088",
+    "BPMS-089",
+    "BPMS-100",
+    "BPMS-101",
+    "BPMS-103",
+    "BPMS-105",
+    "BPMS-106",
+    "BPMS-111",
+    "BPMS-121"
+   ]
+  },
+  {
+   "code": "R3",
+   "name": "Operate & Sign",
+   "start": "2027-03-15",
+   "end": "2027-05-07",
+   "gate": "G-R3",
+   "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
+   "total": 8,
+   "done": 1,
+   "in_progress": 0,
+   "not_started": 7,
+   "epics": [
+    "BPMS-066",
+    "BPMS-102",
+    "BPMS-104",
+    "BPMS-107",
+    "BPMS-108",
+    "BPMS-109",
+    "BPMS-110",
+    "BPMS-112"
+   ]
+  },
+  {
+   "code": "R4",
+   "name": "Enterprise Connect",
+   "start": "2027-05-10",
+   "end": "2027-07-02",
+   "gate": "G-R4",
+   "scope": "SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8)",
+   "total": 13,
+   "done": 0,
+   "in_progress": 0,
+   "not_started": 13,
+   "epics": [
+    "BPMS-140",
+    "BPMS-141",
+    "BPMS-142",
+    "BPMS-143",
+    "BPMS-144",
+    "BPMS-145",
+    "BPMS-146",
+    "BPMS-147",
+    "BPMS-148",
+    "BPMS-149",
+    "BPMS-150",
+    "BPMS-151",
+    "BPMS-152"
+   ]
+  },
+  {
+   "code": "R5",
+   "name": "Cases & Compliance",
+   "start": "2027-07-05",
+   "end": "2027-08-27",
+   "gate": "G-R5",
+   "scope": "Cases, investigations, legal hold, Part 11, reports, AI optional (old M9)",
+   "total": 11,
+   "done": 0,
+   "in_progress": 0,
+   "not_started": 11,
+   "epics": [
+    "BPMS-160",
+    "BPMS-161",
+    "BPMS-162",
+    "BPMS-163",
+    "BPMS-164",
+    "BPMS-165",
+    "BPMS-166",
+    "BPMS-167",
+    "BPMS-168",
+    "BPMS-169",
+    "BPMS-186"
+   ]
+  },
+  {
+   "code": "GA",
+   "name": "1.0 hardening + release",
+   "start": "2027-08-30",
+   "end": "2027-10-15",
+   "gate": "G4/G5",
+   "scope": "Load/HA/DR, pentest, a11y/VPAT, i18n, docs, full E2E regression (old M10–M11)",
+   "total": 8,
+   "done": 0,
+   "in_progress": 0,
+   "not_started": 8,
+   "epics": [
+    "BPMS-180",
+    "BPMS-181",
+    "BPMS-182",
+    "BPMS-183",
+    "BPMS-184",
+    "BPMS-185",
+    "BPMS-187",
+    "BPMS-190"
+   ]
+  },
+  {
+   "code": "POST",
+   "name": "Post-GA expansion",
+   "start": "2027-10-18",
+   "end": "2028-03-31",
+   "gate": "Demand",
+   "scope": "Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)",
+   "total": 6,
+   "done": 0,
+   "in_progress": 0,
+   "not_started": 6,
+   "epics": [
+    "BPMS-200",
+    "BPMS-201",
+    "BPMS-202",
+    "BPMS-203",
+    "BPMS-204",
+    "BPMS-205"
+   ]
+  }
+ ],
+ "epics": [
+  {
+   "id": "BPMS-001",
+   "area": "DISC",
+   "title": "User interviews (12+, startup/SME/MNC × HR/IT/Fin/Compliance/Admin) + synthesis",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-002",
+   "area": "DISC",
+   "title": "Model 5 reference processes in IR on paper",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-003",
+   "area": "SPIKE",
+   "title": "SP-01…SP-06 runtime spikes (native vs Temporal vs Operaton)",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-004",
+   "area": "SPIKE",
+   "title": "SP-07 licence/SBOM review of candidate deps",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-005",
+   "area": "SPIKE",
+   "title": "SP-08 expression language (dsntk FEEL vs CEL, incl. WASM)",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-006",
+   "area": "SPIKE",
+   "title": "SP-09 Cedar + RLS + sqlx pool + partial eval",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-007",
+   "area": "SPIKE",
+   "title": "SP-10 audit chain 10M events: append + explorer",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-008",
+   "area": "UX",
+   "title": "Clickable prototype of Wave-1 flows + 5-user test",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-009",
+   "area": "ARCH",
+   "title": "G1: accept ADR-0010/0011/0015; freeze IR v1",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-010",
+   "area": "UX",
+   "title": "Design tokens + core components + visual direction",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-011",
+   "area": "ENG",
+   "title": "Monorepo, CI gates (fmt, clippy, deny, tests, a11y, SBOM)",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-012",
+   "area": "SEC",
+   "title": "Threat model review",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-013",
+   "area": "E2E",
+   "title": "E2E harness: Playwright + compose.e2e (PG, SeaweedFS, Valkey, Mailpit, ClamAV), seed A/B, personas, __test clock/drain/fault (feature-gated)",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-014",
+   "area": "ENG",
+   "title": "AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas",
+   "priority": "P0",
+   "release": "P0",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-020",
+   "area": "PLAT",
+   "title": "System plane: bootstrap, system roles, workspaces lifecycle, quotas",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-021",
+   "area": "IAM",
+   "title": "Local auth (Argon2id), email verify, lockout, sessions",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-022",
+   "area": "IAM",
+   "title": "MFA TOTP + WebAuthn, recovery codes, step-up",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-023",
+   "area": "IAM",
+   "title": "Memberships, invites, directory (departments/groups/positions/managers), CSV import",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-024",
+   "area": "IAM",
+   "title": "Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-025",
+   "area": "SEC",
+   "title": "Forced RLS + repository WsCtx + CI cross-workspace sweep",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-026",
+   "area": "AUD",
+   "title": "Audit chain append + coverage contract test",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-027",
+   "area": "CFG",
+   "title": "Settings layering, floors, profiles, explainer",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-028",
+   "area": "UX",
+   "title": "Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-029",
+   "area": "ENG",
+   "title": "Outbox + dispatcher + inbox dedup + idempotency keys",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-030",
+   "area": "ENG",
+   "title": "Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-031",
+   "area": "UX",
+   "title": "App shell, workspace switcher, system console shell, ⌘K",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-032",
+   "area": "E2E",
+   "title": "E2E-R1 pack (R1-01…19 + ISO)",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-033",
+   "area": "OPS",
+   "title": "Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-034",
+   "area": "BRAND",
+   "title": "Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-040",
+   "area": "LIB",
+   "title": "Artifacts, versions, lifecycle state machine, immutability trigger, SoD",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-041",
+   "area": "LIB",
+   "title": "Landscape, collections, owners, RACI, visibility",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-042",
+   "area": "LIB",
+   "title": "SOP/policy block editor + renderer (web/PDF)",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-043",
+   "area": "LIB",
+   "title": "Semantic diff across artifact kinds",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-044",
+   "area": "LIB",
+   "title": "Reviews, change requests, effective-date scheduling, renewal date, verification badge",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-045",
+   "area": "LIB",
+   "title": "Policy library + employee policy portal + applicability",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-046",
+   "area": "CAMP",
+   "title": "Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-047",
+   "area": "COMMS",
+   "title": "Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-048",
+   "area": "NOTIF",
+   "title": "In-app notification centre + SMTP email + templates + digests",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-049",
+   "area": "SRCH",
+   "title": "Postgres FTS + trgm, permission-filtered search",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-060",
+   "area": "FILE",
+   "title": "Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-061",
+   "area": "FILE",
+   "title": "Previews (image/PDF) in sandbox; Office preview spike",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-062",
+   "area": "FILE",
+   "title": "Workspace Files view, quotas, orphan cleanup",
+   "priority": "P0",
+   "release": "R1",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-063",
+   "area": "ADMIN",
+   "title": "Workspace overview dashboard + people & access monitor",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-064",
+   "area": "AUD",
+   "title": "Audit explorer, timelines, saved queries, export",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-065",
+   "area": "PLAT",
+   "title": "System console: workspaces grid, quotas, health, system audit",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-120",
+   "area": "PILOT",
+   "title": "Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks",
+   "priority": "P0",
+   "release": "R1",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-080",
+   "area": "RT",
+   "title": "IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",
+   "priority": "P0",
+   "release": "R2",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-081",
+   "area": "RT",
+   "title": "Expression engine integration (typed, budgeted, WASM build)",
+   "priority": "P0",
+   "release": "R2",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-082",
+   "area": "RT",
+   "title": "Interpreter: advance loop, tokens, splits/joins, end/terminate",
+   "priority": "P0",
+   "release": "R2",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-083",
+   "area": "RT",
+   "title": "Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks",
+   "priority": "P0",
+   "release": "R2",
+   "status": "In progress"
+  },
+  {
+   "id": "BPMS-084",
+   "area": "RT",
+   "title": "Release bundles + publish integration",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-085",
+   "area": "WORK",
+   "title": "Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-086",
+   "area": "WORK",
+   "title": "Delegation, OOO substitution, SoD re-check, send-back",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-087",
+   "area": "RT",
+   "title": "Rule tables (UNIQUE/FIRST/COLLECT)",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-088",
+   "area": "RT",
+   "title": "Incidents, retry/skip/cancel, instance admin ops",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-089",
+   "area": "QA",
+   "title": "Conformance suite + model-based tests + deterministic simulation harness",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-100",
+   "area": "DES",
+   "title": "Step builder + React Flow canvas + properties + validate/test-run/review/publish",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-101",
+   "area": "FORM",
+   "title": "Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-103",
+   "area": "REQ",
+   "title": "Request portal/catalogue, start form, request detail, comments/@mentions/watchers",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-105",
+   "area": "WORK",
+   "title": "My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-106",
+   "area": "TPL",
+   "title": "Template gallery + install wizard + Wave-1 templates (13)",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-111",
+   "area": "E2E",
+   "title": "E2E-R2 pack (R2-01…16 + ISO) + Firefox",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-121",
+   "area": "UX",
+   "title": "Usability round + SUS measurement + fixes",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-066",
+   "area": "AUD",
+   "title": "Retention policy per record class (policy only)",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Done"
+  },
+  {
+   "id": "BPMS-102",
+   "area": "DATA",
+   "title": "Master-data tables (CSV import, lookups, versioned)",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-104",
+   "area": "REQ",
+   "title": "Recall/withdraw, edit-after-submit, request-on-behalf, numbering",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-107",
+   "area": "SIGN",
+   "title": "E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-108",
+   "area": "ADMIN",
+   "title": "All requests / all work / workload / process health / ops monitor",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-109",
+   "area": "UX",
+   "title": "PWA (360px) for My Work, requests, acks, signing",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-110",
+   "area": "LIB",
+   "title": "BPMN 2.0 XML import (subset) + compatibility report",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-112",
+   "area": "E2E",
+   "title": "E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-140",
+   "area": "IAM",
+   "title": "OIDC SSO, SAML-broker, SSO enforcement, JIT",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-141",
+   "area": "IAM",
+   "title": "SCIM 2.0 server",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-142",
+   "area": "IAM",
+   "title": "Scoped/delegated admins; IP allowlists",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-143",
+   "area": "INT",
+   "title": "Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-144",
+   "area": "INT",
+   "title": "Public API hardening, OpenAPI, CLI, TS/Python SDKs",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-145",
+   "area": "NOTIF",
+   "title": "Email-actionable approvals, reply-by-email, web push",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-146",
+   "area": "IAM",
+   "title": "Guests + external signers (magic link + OTP); self-serve signing links",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-147",
+   "area": "SIGN",
+   "title": "E-sign v2: DOCX + merge, anchor tags, conditional fields, delegate, correction, embedded",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-148",
+   "area": "FORM",
+   "title": "Public forms (privacy CAPTCHA), save & resume, partials, form signature field",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-149",
+   "area": "EXEC",
+   "title": "Subprocesses, reusable sub-flows, duplicate detection, bulk import, env promotion",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-150",
+   "area": "LIB",
+   "title": "Auto-generated process documentation; policy exceptions; policy templates",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-151",
+   "area": "COMMS",
+   "title": "Emergency alerts, content validation period, moderation, quiz",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-152",
+   "area": "E2E",
+   "title": "E2E-R4 pack incl. Keycloak, SCIM, webhook receiver",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-160",
+   "area": "CASE",
+   "title": "Case types, queues, macros, SLAs, link/merge, restricted cases",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-161",
+   "area": "AUD",
+   "title": "Investigations: pins, legal hold, signed export, conflict-of-interest",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-162",
+   "area": "AUD",
+   "title": "Checkpoints, RFC 3161, WORM export, procera-verify CLI",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-163",
+   "area": "GOV",
+   "title": "Attestation campaigns, control mapping, access reviews",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-164",
+   "area": "GOV",
+   "title": "Retention disposition + certificates, DSAR template, legal hold engine",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-165",
+   "area": "SIGN",
+   "title": "Part 11 mode, PAdES-LTV, TSA; in-person/kiosk signing",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-166",
+   "area": "ADMIN",
+   "title": "Alert centre, custom dashboards, report builder, scheduled reports, KPI goals, usage analytics, CSAT",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-167",
+   "area": "IAM",
+   "title": "Separation mode; break-glass",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-168",
+   "area": "LIB",
+   "title": "Role-based onboarding/training paths",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-169",
+   "area": "E2E",
+   "title": "E2E-R5 pack incl. investigations, Part 11, break-glass",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-186",
+   "area": "AI",
+   "title": "AI assistance P1 set (drafting, summaries, translate, Q&A) behind kill switch",
+   "priority": "P1",
+   "release": "R5",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-180",
+   "area": "OPS",
+   "title": "Load test at reference load; HA failover; RPO/RTO restore drill",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-181",
+   "area": "SEC",
+   "title": "External pentest + ASVS L2 self-assessment + fixes",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-182",
+   "area": "UX",
+   "title": "WCAG 2.2 AA audit + VPAT 2.5 INT",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-183",
+   "area": "I18N",
+   "title": "3 UI languages + RTL + pseudo-locale",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-184",
+   "area": "OPS",
+   "title": "Helm chart, air-gapped bundle, upgrade N-1→N tests, dedicated-DB tier",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-185",
+   "area": "DOC",
+   "title": "Docs site, admin guide, API reference, trust pack",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-187",
+   "area": "E2E",
+   "title": "E2E-GA regression: 3 browsers × 2 viewports, cache-off, upgrade-path R1→1.0, air-gapped",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-190",
+   "area": "REL",
+   "title": "GA release: signed artefacts, SBOM, provenance, runbooks",
+   "priority": "P1",
+   "release": "GA",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-200",
+   "area": "INT",
+   "title": "Chat/host-platform connectors (identity, embed, cards, notifications, directory)",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-201",
+   "area": "INT",
+   "title": "Chat cards (Slack/Teams), M365/Google, HRIS, ERP connectors",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-202",
+   "area": "SIGN",
+   "title": "QES via QTSP; Aadhaar eSign via ESP; SMS/IDV providers",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-203",
+   "area": "EXEC",
+   "title": "BPMN view (diagram-js), DMN import/export, migration tool, simulation",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-204",
+   "area": "INS",
+   "title": "Event-log export OCEL 2.0 / XES",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-205",
+   "area": "AI",
+   "title": "Governed AI agent steps",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  }
+ ]
+}

@@ -1,0 +1,22 @@
+<!--
+title: Roadmap and progress: Procera
+description: Procera's phased releases from P0 to 1.0, with target dates, progress and every epic's status, generated from the public delivery tracker.
+nav: roadmap
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Roadmap and progress</span>
+    <h1>Phased releases, each one usable and gated by its tests</h1>
+    <p class="summary-line">The first usable release, <strong>R1: Workspace and Policies</strong>, targets <strong>{{ r1_end }}</strong>, and 1.0 targets {{ ga_end }}. Today <strong>{{ done }} of {{ total }}</strong> epics are done.</p>
+    {{ stats }}
+    <p class="small muted" style="margin-top:1rem">Generated from <a href="{{ gh }}/blob/main/scripts/build_tracker.py">scripts/build_tracker.py</a> when this site was built. Tracker last updated <time datetime="{{ updated_iso }}">{{ updated }}</time>. Dates are indicative; a release ships when its end-to-end gate passes. "Active" marks releases with epics in progress. Earlier phases can show open items, such as research and reviews, that don't block later work.</p>
+  </div>
+</section>
+<section class="section">
+  <div class="wrap">
+    {{ roadmap }}
+    <div class="notes">
+      <p>An epic is a tracker work item. Each release lists the epics assigned to it; status values are those in the tracker (done, in review, in progress, blocked, not started, deferred). The bars count in review as in progress, and blocked or deferred as not started. Detail lives in the <a href="{{ gh }}/blob/main/trackers/README.md">tracker dashboard</a> and <a href="{{ docs }}/07-ROADMAP-AND-MILESTONES.md">docs/07</a>.</p>
+    </div>
+  </div>
+</section>

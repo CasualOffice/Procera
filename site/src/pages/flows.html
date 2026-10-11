@@ -1,0 +1,26 @@
+<!--
+title: User flows: Procera
+description: Six step-by-step journeys through Procera, from onboarding to policy acknowledgement evidence, each verified end to end by an automated browser test.
+nav: flows
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">User flows</span>
+    <h1>Journeys that are tested end to end today</h1>
+    <p class="lede">Each journey below is an automated Playwright test that drives the real web app in a browser against the real server, PostgreSQL and a mail catcher, clicking the links in the emails it receives. The test ids come from the E2E plan in <a href="{{ docs }}/23-E2E-TEST-PLAN.md">docs/23</a>; the build checks that each one exists in the test packs.</p>
+    {{ flows_toc }}
+  </div>
+</section>
+{{ flows }}
+<section class="section band" aria-labelledby="run-h">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="run-h">Run them yourself</h2>
+      <p class="muted">The browser packs live in <code>e2e/packs/r1</code>. The journeys above are in <code>flows.ui.spec.ts</code> and the R1 gate pack, <code>gate.ui.spec.ts</code>. They need the database-backed E2E stack described in the plan.</p>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="{{ gh }}/tree/main/e2e">{{ icon github }}Browse the E2E packs</a>
+      <a class="btn btn-secondary" href="features.html">All features</a>
+    </div>
+  </div>
+</section>

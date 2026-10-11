@@ -1,0 +1,30 @@
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<meta name="description" content="{{ description }}">
+<meta name="robots" content="{{ robots }}">
+<link rel="canonical" href="{{ canonical }}">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F7F7F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1B1B1A" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preload" href="assets/fonts/geist-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Procera">
+<meta property="og:title" content="{{ title }}">
+<meta property="og:description" content="{{ description }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ og_image }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Procera: Turn processes into progress. Design, Execute, Govern, Improve.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ title }}">
+<meta name="twitter:description" content="{{ description }}">
+<meta name="twitter:image" content="{{ og_image }}">
+<script>try{var t=localStorage.getItem('procera-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<link rel="stylesheet" href="assets/css/site.css">
+<script src="assets/js/site.js" defer></script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Procera","applicationCategory":"BusinessApplication","operatingSystem":"Linux, self-hosted","license":"https://www.apache.org/licenses/LICENSE-2.0","url":"{{ site_url }}/","codeRepository":"https://github.com/CasualOffice/Procera","description":"Open-source, self-hostable process governance: policies, SOPs, acknowledgements, announcements and a tamper-evident audit trail."}</script>
+</head>
