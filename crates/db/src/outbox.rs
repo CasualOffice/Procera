@@ -53,7 +53,7 @@ pub struct Pending {
 pub async fn claim_batch(tx: &mut WsTx<'_>, limit: i64) -> Result<Vec<Pending>, DbError> {
     Ok(sqlx::query_as(
         "SELECT id, topic, aggregate_id, aggregate_revision, payload FROM outbox
-         WHERE published_at IS NULL ORDER BY created_at, id LIMIT $1 FOR UPDATE SKIP LOCKED",
+         WHERE published_at IS NULL AND (next_attempt_at IS NULL OR next_attempt_at <= now()) ORDER BY created_at, id LIMIT $1 FOR UPDATE SKIP LOCKED",
     )
     .bind(limit)
     .fetch_all(tx.conn())

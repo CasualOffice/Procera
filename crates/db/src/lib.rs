@@ -4,6 +4,7 @@
 //! sets `app.workspace_id` transaction-locally, so forced RLS scopes every query that follows
 //! (docs/03 §7, docs/24 §3.2). Session-level settings are never used (SP-09 finding A-2).
 
+pub mod dispatch;
 pub mod idempotency;
 pub mod outbox;
 #[cfg(feature = "test-support")]
