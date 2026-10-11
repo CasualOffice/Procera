@@ -1102,6 +1102,16 @@ async fn export_version(
     let lib = library(&s)?;
     let (v, a) = lib.version(&mut tx, id, None).await?;
     lib.audit_export(&mut tx, &actor(&me, &headers), id, format).await?;
+    // The kind line uses the workspace's term for SOPs (CFG-008); the API kind stays `sop`.
+    let kind_label = if a.kind == "sop" {
+        let stored =
+            super::settings::settings(&s)?.effective(&mut tx, procera_settings::terms::KEY).await?.value;
+        procera_settings::terms::effective(&stored)
+            .get("sop")
+            .map_or_else(|| "SOP".to_owned(), |l| l.singular.clone())
+    } else {
+        "Policy".to_owned()
+    };
     // The printable page is self-contained: images go in as data: URIs (metadata stripped, like previews).
     let mut images = std::collections::HashMap::new();
     if format == "html" {
@@ -1146,7 +1156,7 @@ async fn export_version(
             v.published_at.and_then(|t| t.format(&time::format_description::well_known::Rfc3339).ok());
         let subtitle = format!(
             "{} · version {}{}{} · status {}",
-            if a.kind == "sop" { "SOP" } else { "Policy" },
+            kind_label,
             v.version_no,
             v.semver.as_deref().map(|s| format!(" ({s})")).unwrap_or_default(),
             published.as_deref().map(|p| format!(" · published {}", &p[..10])).unwrap_or_default(),
@@ -1230,7 +1240,7 @@ async fn export_version(
 </body></html>"#,
         title = esc(&a.title),
         no = v.version_no,
-        kind = if a.kind == "sop" { "SOP" } else { "Policy" },
+        kind = esc(&kind_label),
         semver = v.semver.as_deref().map(|s| format!(" ({s})")).unwrap_or_default(),
         published = published.map(|p| format!(" · published {p}")).unwrap_or_default(),
         status = esc(&v.lifecycle),

@@ -158,6 +158,20 @@ impl Notify {
         Self { db, keys, clock, ids, settings, workspace_keys }
     }
 
+    /// `ctx` with the workspace's terminology as `terms` (CFG-008), read in the caller's transaction.
+    pub async fn with_terms(&self, tx: &mut WsTx<'_>, ctx: &Value) -> Result<Value, NotifyError> {
+        if ctx.get("terms").is_some() {
+            return Ok(ctx.clone());
+        }
+        let stored = self
+            .settings
+            .effective(tx, procera_settings::terms::KEY)
+            .await
+            .map_err(|e| NotifyError::Internal(e.to_string()))?
+            .value;
+        Ok(templates::with_terms(ctx, &stored))
+    }
+
     /// Renders and queues an email in the caller's transaction. `dedupe_key` makes it idempotent
     /// (e.g. the outbox message id). Returns `false` when it was already queued.
     pub async fn queue_email(
@@ -168,6 +182,7 @@ impl Notify {
         ctx: &Value,
         dedupe_key: &str,
     ) -> Result<bool, NotifyError> {
+        let ctx = &self.with_terms(tx, ctx).await?;
         let r = templates::email(kind, ctx)?;
         let id = self.ids.new_id();
         let body = serde_json::to_vec(&json!({"text": r.text, "html": r.html}))
@@ -195,6 +210,7 @@ impl Notify {
         reference: Option<(&str, Uuid)>,
         dedupe_key: &str,
     ) -> Result<bool, NotifyError> {
+        let ctx = &self.with_terms(tx, ctx).await?;
         let r = templates::in_app(kind, ctx)?;
         let n = sqlx::query("INSERT INTO notifications (workspace_id, id, membership_id, kind, title, body, link, ref_type, ref_id, dedupe_key, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (workspace_id, dedupe_key) DO NOTHING")
             .bind(tx.ctx.workspace_id).bind(self.ids.new_id()).bind(membership).bind(kind).bind(&r.title).bind(&r.body).bind(link)
