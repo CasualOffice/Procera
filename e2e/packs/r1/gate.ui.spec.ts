@@ -613,7 +613,7 @@ test.describe('R1 gate @r1 @ui', () => {
     // A permission change previews who is affected, with the right count.
     const hd2 = page.getByRole('dialog', { name: 'HR Designer' }); // still open after granting
     await hd2.getByRole('button', { name: /^All/ }).click();
-    await hd2.getByRole('checkbox', { name: /sop:submit_review/ }).check();
+    await hd2.getByRole('checkbox', { name: /sop:review$/ }).check();
     await hd2.getByRole('button', { name: 'Review changes' }).click();
     const review = page.getByRole('dialog', { name: 'Review changes to HR Designer' });
     await expect(review.getByText(/1 person gains 1 permission/)).toBeVisible();

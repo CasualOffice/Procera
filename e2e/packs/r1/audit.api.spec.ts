@@ -166,7 +166,8 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const draftV = await (await own.post('/api/v1/artifacts', { headers: oh, data: { kind: 'sop', key: 'audit.files', title: 'Files SOP', content: { blocks: [] } } })).json();
   await step('POST', '/api/v1/files/{id}/links', () => own.post(`/api/v1/files/${fc.file.id}/links`, { headers: oh, data: { object_type: 'artifact_version', object_id: draftV.version.id } }));
   await step('DELETE', '/api/v1/files/{id}/links/{object_type}/{object_id}', () => own.delete(`/api/v1/files/${fc.file.id}/links/artifact_version/${draftV.version.id}`, { headers: oh }));
-  await step('POST', '/api/v1/files/retention', () => own.post('/api/v1/files/retention', { headers: oh, data: { file_ids: [fc.file.id], class: 'operational', reason: 'Scratch upload' } }));
+  const ret = await step('POST', '/api/v1/files/retention', () => own.post('/api/v1/files/retention', { headers: oh, data: { file_ids: [fc.file.id], class: 'operational', reason: 'Scratch upload' } }));
+  expect(ret.status(), await ret.text()).toBe(200);
   await step('POST', '/api/v1/files/orphans/purge', () => own.post('/api/v1/files/orphans/purge', { headers: oh }));
   await step('DELETE', '/api/v1/files/{id}', () => own.delete(`/api/v1/files/${fc.file.id}`, { headers: oh }));
   await step('PUT', '/api/v1/me/notification-preferences', () => own.put('/api/v1/me/notification-preferences', { headers: oh, data: { digest: 'daily' } }));

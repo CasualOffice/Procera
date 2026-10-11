@@ -549,6 +549,8 @@ impl Files {
             )
             .object("file", *id);
             ev.reason = Some(reason.trim().to_owned());
+            ev.ip = actor.ip.clone();
+            ev.user_agent = actor.user_agent.clone();
             ev.diff = Some(json!({"retention_class": {"before": before, "after": class}}));
             append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
         }
