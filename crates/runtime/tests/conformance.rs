@@ -227,7 +227,11 @@ fn runtime_conformance_suite() {
             std::fs::write(&fp, &fin).unwrap();
             continue;
         }
-        if std::fs::read_to_string(&tp).ok().as_deref() != Some(trace.as_str()) {
+        // Compared as JSON values line by line: key order depends on serde_json features that other
+        // workspace crates may switch on (preserve_order), and is not part of the contract.
+        let lines =
+            |t: &str| t.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).collect::<Vec<_>>();
+        if std::fs::read_to_string(&tp).ok().map(|t| lines(&t)) != Some(lines(&trace)) {
             failures.push(format!("{name}: trace differs:\n{trace}"));
         }
         if std::fs::read_to_string(&fp).ok().map(|t| serde_json::from_str::<Value>(&t).unwrap())
