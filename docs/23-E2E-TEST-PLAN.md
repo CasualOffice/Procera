@@ -78,6 +78,7 @@ ID format: `E2E-<release>-<nn>`. Every row lists the PRD/catalogue refs it prove
 | E2E-P0-07 | Keyboard: skip link is the first tab stop and moves focus to main; every following tab stop shows a visible focus outline | WCAG 2.4.1, 2.4.7, 2.4.11 |
 | E2E-P0-08 | Reflows at 320 px with no horizontal scrolling | WCAG 1.4.10 |
 | E2E-P0-09 | Every visible interactive target is ≥ 24×24 px (visually hidden native inputs are measured through their label) | WCAG 2.5.8 |
+| E2E-P0-10 | The root size follows the display width, not the window: 16px on displays up to 1440 wide and on small screens, about 17.7px at 1920, 20px at 2560 (also in a half-width window) | docs/05 §7.1.0 |
 | E2E-P0-10 | Confirm dialog: Cancel focused first, focus trapped, axe-clean, Esc closes and restores focus to the trigger; confirm performs the action | WCAG 2.4.3, 2.1.2; docs/05 §7.1.1 |
 | E2E-P0-11 | Data grid: `aria-sort` none→ascending→descending, filter result count announced in a live region, select-all count | FR-V01/V02/V06/V08 |
 | E2E-P0-12 | Select operable by keyboard only (open, move, choose) | WCAG 2.1.1 |

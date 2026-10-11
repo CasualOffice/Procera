@@ -13,7 +13,7 @@ export function FormDialog({ isOpen, onOpenChange, title, description, children,
 }) {
   return (
     <ModalOverlay isOpen={isOpen} onOpenChange={onOpenChange} isDismissable className="modal-overlay">
-      <Modal className="sheet" style={{ width: `min(${width}px, calc(100vw - 32px))` }}>
+      <Modal className="sheet" style={{ width: `min(${width / 16}rem, calc(100vw - 2rem))` }}>
         <Dialog className="sheet-dialog">
           {({ close }) => (
             <>

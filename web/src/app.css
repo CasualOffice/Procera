@@ -113,6 +113,11 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 
 /* Sheets / dialogs */
 .sheet { background: var(--color-surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); animation: drop-in 180ms var(--ease-out); }
+/* A dialog never outgrows the window: the body scrolls and the actions stay in view. */
+.sheet { max-height: calc(100dvh - 2rem); display: flex; flex-direction: column; }
+.sheet-dialog { display: flex; flex-direction: column; min-height: 0; max-height: inherit; }
+.sheet-head, .sheet-foot { flex: none; }
+.sheet-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .sheet-dialog { outline: none; font-size: 0.875rem; }
 .sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 1.25rem 1.25rem 0.25rem 1.5rem; }
 .sheet-title { font-size: 1.0625rem; line-height: 1.5rem; letter-spacing: -0.015em; margin: 0; }

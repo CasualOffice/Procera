@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-// E2E-P0-05..09 — design-system foundations are accessible (BPMS-010, docs/05 §7, docs/23).
+// E2E-P0-05..10 — design-system foundations are accessible (BPMS-010, docs/05 §7, docs/23).
 // Runs against the built web app (vite preview). Set WEB_BASE_URL to point elsewhere.
 const WEB = process.env.WEB_BASE_URL ?? 'http://127.0.0.1:14173';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
@@ -130,5 +130,23 @@ test.describe('design system components @a11y', () => {
     await expect(sop).toBeFocused();
     await expect(sop).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByRole('tabpanel')).toContainText('The governed procedure');
+  });
+
+  test('E2E-P0-10 the UI scales with the display, not the window; laptops and short windows stay at 16px; text never shrinks', async ({ browser }) => {
+    const root = async (screen: number, window: number, height = 900) => {
+      const ctx = await browser.newContext({ viewport: { width: window, height }, screen: { width: screen, height: 1440 } });
+      const page = await ctx.newPage();
+      await page.goto(`${WEB}/design`);
+      await expect(page.getByRole('heading', { level: 1, name: 'Design system' })).toBeVisible();
+      const px = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+      await ctx.close();
+      return px;
+    };
+    expect(await root(1440, 1440)).toBe(16);
+    expect(await root(1280, 800)).toBe(16); // small displays never go below 16px
+    expect(await root(1920, 1920)).toBeCloseTo(17.71, 1);
+    expect(await root(2560, 2560)).toBe(20);
+    expect(await root(2560, 1280)).toBe(20); // a half-width window on a big display keeps its scale
+    expect(await root(2560, 1280, 720)).toBe(16); // a short window keeps the base size so dialogs fit
   });
 });

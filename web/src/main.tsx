@@ -4,6 +4,9 @@ import './ui/base.css';
 import './app.css';
 import { App } from './App';
 import { SessionProvider } from './lib/session';
+import { applyRootScale } from './lib/scale';
+
+applyRootScale();
 
 const root = document.getElementById('root');
 if (root) {

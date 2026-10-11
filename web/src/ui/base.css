@@ -4,12 +4,12 @@
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
-/* Fluid root size: every rem in the app scales with the screen. 16px up to 1280px wide, then
-   growing to about 17px at 1920px and 18px on large high-resolution screens (2560px+). Never below
-   16px, so minimum target sizes (WCAG 2.5.8) and body text never shrink. In % so the user's own
-   browser font size still applies (WCAG 1.4.4 resize text). */
+/* Display-aware root size: every rem in the app scales with it. `--root-scale` is set from the
+   display width by src/lib/scale.ts (16px on laptops up to 1440 wide, 20px on 2560+ displays); page
+   zoom applies fully on top because it does not change the display width. In % so the user's own
+   browser font size still applies (WCAG 1.4.4). Never below 100%, so targets and text never shrink. */
 html {
-  font-size: clamp(100%, 87.5% + 0.15625vw, 112.5%);
+  font-size: calc(100% * var(--root-scale, 1));
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
