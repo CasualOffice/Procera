@@ -1,6 +1,6 @@
 # Procera brand assets
 
-Status: **Concept v1 (2026-10-11)**. These are raster extractions from the generated brand board. Vector masters and trademark clearance are still to do (see [Production caveats](#production-caveats)). How the brand is applied in the product UI is normative in [docs/05 §7.1.1](../../docs/05-UX-AND-DESIGN.md).
+Status: **v2 (2026-10-12): vector masters.** Every mark is built from one geometry by [`vector/build.py`](vector/build.py), and the wordmark is outlined from Geist (SIL OFL 1.1, the product UI font). The PNGs are exported from those SVGs. Trademark clearance is still to do (see [Production caveats](#production-caveats)). How the brand is applied in the product UI is normative in [docs/05 §7.1.1](../../docs/05-UX-AND-DESIGN.md).
 
 <p align="center">
   <picture>
@@ -54,11 +54,12 @@ Writing rules:
 
 | Path | What | Use |
 |---|---|---|
+| `vector/*.svg` | **Masters.** Symbol (colour, small/flat, white, ink), horizontal lockups with and without the supporting line (light and dark), stacked lockups, app-icon tiles, banner | Use these wherever SVG works; rebuild with `python3 assets/brand/vector/build.py` |
 | `logo/procera-logo-horizontal.png` | Horizontal lockup with supporting line, light background | Docs and light backgrounds |
 | `logo/procera-logo-horizontal-transparent.png` | Same, transparent | Light theme (README, site) |
 | `logo/procera-logo-horizontal-dark.png` | White wordmark, transparent | Dark theme |
 | `logo/procera-logo-stacked*.png` | Stacked lockup (light / transparent / dark) | Square placements, splash, login |
-| `logo/procera-symbol.png` | P-ribbon symbol, transparent 256² | App shell, avatars, small placements |
+| `logo/procera-symbol.png` | P-ribbon symbol, transparent 512² (from `vector/procera-symbol.svg`) | App shell, avatars, small placements |
 | `logo/procera-symbol-on-light.png` | Symbol on light background | Where transparency isn't supported |
 | `icons/app-icon-{light,dark,dark-alt,red}.png` | App icon tiles, padded square | PWA/manifest previews, store mock-ups (re-render from vector for production sizes) |
 | `favicon/favicon.ico`, `favicon/favicon-{16,32,48,64,128,256,512}.png` | Favicon set | Web app and docs site (`<link rel="icon">`, PWA manifest 192/512 to be generated from vector) |
@@ -67,7 +68,7 @@ Writing rules:
 | `marketing/procera-color-palette.png`, `-monochrome-logos.png`, `-favicon-reference.png` | Board reference sheets | Reference only |
 | `source/` | Untouched originals from `Procera_Brand_Assets.zip` (incl. `BRAND_COPY.md`) | Provenance; don't edit |
 
-Cleaned variants were derived from `source/`. Board labels were cropped, icons padded to square, the light background keyed to transparency, and the wordmark recoloured for dark theme. Edges may show a slight halo at large sizes. Use the vector masters once they exist.
+The PNGs in `logo/`, `icons/`, `favicon/` and `marketing/procera-banner.png` are exported from `vector/` (2× sizes, crisp edges, no halo). Favicons at 16 and 32 px use the flat small symbol, where the fold shading would turn to mush. `source/` keeps the original concept board for provenance.
 
 ## Logo usage
 
@@ -78,7 +79,7 @@ Cleaned variants were derived from `source/`. Board labels were cropped, icons p
 
 ## Production caveats
 
-1. **Vector masters.** SVGs of the symbol, wordmark and lockups, plus an optically corrected symbol for 16–32 px, must be produced before R1. Tracked as **BPMS-034**.
+1. **Vector masters: done (v2).** `vector/` holds the SVG masters, including a flat symbol for 16–32 px. A professional type and mark review before GA is still recommended (BPMS-034).
 2. **Trademark and domain clearance** for "Procera" in target markets has **not** been performed. Tracked as **OQ-01** in [docs/22](../../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md). Other companies and products already use "Procera", so a search is required before public launch.
-3. The palette was transcribed from the board. Verify it against the vector masters.
+3. The palette matches the vector masters: brand red `#EE4136`, shading `#F24C3D` → `#E5392E` on the band and `#AE231D` → `#F24C3D` on the fold.
 4. Licence: brand assets are **not** covered by the Apache-2.0 code licence. They are trademarks of CasualOffice. Use follows [GOVERNANCE.md §7](../../GOVERNANCE.md#7-trademark).

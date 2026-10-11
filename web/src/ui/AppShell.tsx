@@ -241,7 +241,7 @@ export function PlainShell({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#main">Skip to main content</a>
       <div className="auth-column">
         <div className="auth-brand">
-          <img src="/procera-symbol.png" alt="" width={28} height={28} />
+          <img src="/procera-symbol.svg" alt="" width={28} height={28} />
           <span>Procera</span>
         </div>
         <main id="main" className="auth-card" tabIndex={-1}>{children}</main>
