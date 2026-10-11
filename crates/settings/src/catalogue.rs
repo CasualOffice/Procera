@@ -313,6 +313,30 @@ pub const CATALOGUE: &[Def] = &[
     def("policies.numbering_pattern", "policies", Kind::Text { max_len: 40 }, Some(SETTINGS), || {
         json!("POL-{seq:4}")
     }),
+    // 2.17 Announcements
+    def("announcements.enabled", "announcements", Kind::Bool, Some(SETTINGS), || json!(true)),
+    def(
+        "announcements.approval_required",
+        "announcements",
+        Kind::Enum { values: &["off", "for_workspace_wide", "always"] },
+        Some(SETTINGS),
+        || json!("for_workspace_wide"),
+    ),
+    def("announcements.require_ack.default", "announcements", Kind::Bool, Some(SETTINGS), || json!(false)),
+    def(
+        "announcements.expiry.default",
+        "announcements",
+        Kind::Duration { min: HOUR, max: 730 * DAY },
+        Some(SETTINGS),
+        || json!(30 * DAY),
+    ),
+    def(
+        "announcements.channels",
+        "announcements",
+        Kind::Set { values: &["in_app", "email"], allow_all: false },
+        Some(SETTINGS),
+        || json!(["email", "in_app"]),
+    ),
 ];
 
 pub fn get(key: &str) -> Option<&'static Def> {
