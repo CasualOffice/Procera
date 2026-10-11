@@ -337,3 +337,224 @@ async fn campaigns_are_isolated_per_workspace() -> anyhow::Result<()> {
     tx.rollback().await?;
     Ok(())
 }
+
+const LINKS: &str = "SELECT count(*) FROM notifications WHERE membership_id = $1 AND kind = $2 AND link = $3";
+
+/// BPMS-047 (FR-AN04, FR-AK01 "one engine"): an announcement that requires acknowledgement runs
+/// on the campaign engine: its recipients are the assignments (no joiners), acknowledging the
+/// announcement completes the assignment, the reminder ladder and a one-time manager escalation
+/// follow the application clock, evidence exports, and archiving closes the campaign.
+#[tokio::test]
+async fn announcement_acknowledgements_run_on_the_campaign_engine() -> anyhow::Result<()> {
+    let Some(t) = test_support::fresh().await else { return Ok(()) };
+    let t = t?;
+    let start = procera_kernel::clock::to_micros(time::OffsetDateTime::now_utc());
+    let clock = Arc::new(ManualClock::new(start));
+    let keys = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64())?);
+    let identity = Identity::new(
+        t.db.clone(),
+        keys.clone(),
+        clock.clone(),
+        Arc::new(UuidV7Gen),
+        IdentityConfig { cost: HashCost::FAST_FOR_TESTS, ..IdentityConfig::default() },
+    )?;
+    let members = Members::new(
+        t.db.clone(),
+        identity,
+        procera_access::Access::new(),
+        keys.clone(),
+        clock.clone(),
+        Arc::new(UuidV7Gen),
+    );
+    let notify = Notify::new(t.db.clone(), keys, clock.clone(), Arc::new(UuidV7Gen));
+    let cmp =
+        Campaigns::new(t.db.clone(), members, notify, clock.clone(), Arc::new(UuidV7Gen), "https://app.test");
+    let anns = procera_announcements::Announcements::new(t.db.clone(), clock.clone(), Arc::new(UuidV7Gen));
+    let mut admin = <sqlx::PgConnection as sqlx::Connection>::connect(&t.admin_url).await?;
+    let ws = WsCtx { workspace_id: Uuid::now_v7() };
+    let mut tx = t.db.begin_ws(ws).await?;
+    let ops = Uuid::now_v7();
+    sqlx::query("INSERT INTO departments (workspace_id, id, name, path) VALUES ($1, $2, 'Ops', ARRAY[$2])")
+        .bind(ws.workspace_id)
+        .bind(ops)
+        .execute(tx.conn())
+        .await?;
+    let author = member(&mut tx, &mut admin, "Olivia", None).await?;
+    let boss = member(&mut tx, &mut admin, "Boss", None).await?;
+    let ann = member(&mut tx, &mut admin, "Ann", Some(ops)).await?;
+    let ben = member(&mut tx, &mut admin, "Ben", Some(ops)).await?;
+    sqlx::query("UPDATE departments SET head_membership_id = $2 WHERE id = $1")
+        .bind(ops)
+        .bind(boss.membership)
+        .execute(tx.conn())
+        .await?;
+
+    // "Office move" to Ops, acknowledge within 3 days.
+    let a_actor = |a: &Actor| procera_announcements::Actor {
+        membership: a.membership,
+        subject_ref: a.subject_ref,
+        ip: Some("198.51.100.4".into()),
+        user_agent: Some("UA/2".into()),
+    };
+    let compose = procera_announcements::Compose {
+        title: "Office move".into(),
+        content: json!({"blocks": [{"type": "paragraph", "text": "We move on Monday."}]}),
+        audience: Audience { departments: vec![ops], ..Audience::default() },
+        priority: "normal".into(),
+        pinned: false,
+        require_ack: Some(true),
+        publish_at: None,
+        expires_at: None,
+        ack_by: Some(start + time::Duration::days(3)),
+    };
+    let d = procera_announcements::Defaults { require_ack: false, expiry: time::Duration::days(30) };
+    let a = anns.create(&mut tx, &a_actor(&author), &compose, &d).await?;
+    let a = anns.publish(&mut tx, &a_actor(&author), a.id, "off", &["in_app".to_owned()]).await?;
+    let raw = a.content_hash.clone().unwrap_or_default();
+    let hash: String = raw.iter().map(|b| format!("{b:02x}")).collect();
+    let subject = procera_campaigns::AnnouncementSubject {
+        announcement_id: a.id,
+        title: a.title.clone(),
+        content_hash: raw,
+        audience: a.audience.clone(),
+        recipients: anns.recipients(&mut tx, a.id).await?,
+        due_at: start + time::Duration::days(3),
+    };
+    let defaults = Defaults {
+        snapshot: "dynamic".into(),
+        cadence: vec![2 * DAY, DAY],
+        escalation_after: Some(DAY),
+        due_in: 14 * DAY,
+        ack_text: "I have read and understood this announcement.".into(),
+    };
+
+    let c = cmp.start_announcement(&mut tx, Some(&author), author.membership, &subject, &defaults).await?;
+    let c = c.ok_or_else(|| anyhow::anyhow!("started"))?;
+    assert_eq!(
+        (c.state.as_str(), c.origin.as_str(), c.audience_snapshot.as_str(), c.progress.assigned),
+        ("active", "announcement", "at_launch", 2)
+    );
+    assert_eq!(
+        (c.subject.kind.as_str(), c.subject.title.as_str(), c.subject.announcement_id, c.subject.version_id),
+        ("announcement", "Office move", Some(a.id), None)
+    );
+    assert_eq!(c.subject.link, format!("/announcements/{}", a.id));
+    assert_eq!(c.subject.content_hash, hash);
+    assert_eq!(c.escalation_after_secs, Some(3 * DAY), "escalation never before the deadline");
+    assert_eq!(c.due_at, Some(start + time::Duration::days(3)));
+    assert_eq!(c.reminder_schedule, vec![DAY, 2 * DAY]);
+    assert!(cmp.start_announcement(&mut tx, None, author.membership, &subject, &defaults).await?.is_none());
+    assert_eq!(
+        notes(&mut tx, ann.membership, "campaign_assigned").await?,
+        0,
+        "the announcement is the notice"
+    );
+    let found = cmp.announcement_campaigns(&mut tx, &[a.id, Uuid::now_v7()]).await?;
+    assert_eq!(found.get(&a.id), Some(&(c.id, c.due_at)));
+    assert_eq!(found.len(), 1);
+    let listed = cmp.list(&mut tx, None).await?;
+    assert_eq!(listed.iter().find(|x| x.id == c.id).map(|x| x.subject.kind.as_str()), Some("announcement"));
+
+    // The member's queue shows it; it is acknowledged on the announcement only (one record).
+    let mine = cmp.my_assignments(&mut tx, ann.membership, Some("pending")).await?;
+    assert_eq!((mine.len(), mine[0].subject.kind.as_str()), (1, "announcement"));
+    assert_eq!(cmp.assignment_kind(&mut tx, mine[0].id, ann.membership).await?, "announcement");
+    assert!(matches!(
+        cmp.acknowledge(&mut tx, &ann, mine[0].id, None, json!({})).await,
+        Err(CampaignError::Conflict(_))
+    ));
+    let ann_ua = Actor { ip: Some("198.51.100.4".into()), user_agent: Some("UA/2".into()), ..ann.clone() };
+    let done = cmp.complete_for_announcement(&mut tx, &ann_ua, a.id, json!({"amr": ["pwd"]})).await?;
+    assert_eq!(done, Some((c.id, mine[0].id)));
+    assert_eq!(cmp.complete_for_announcement(&mut tx, &ann_ua, a.id, json!({})).await?, None);
+    let (ack_ann, ack_hash): (Option<Uuid>, Option<String>) = sqlx::query_as(
+        "SELECT ack_announcement_id, encode(ack_content_hash, 'hex') FROM campaign_recipients WHERE id = $1",
+    )
+    .bind(mine[0].id)
+    .fetch_one(tx.conn())
+    .await?;
+    assert_eq!((ack_ann, ack_hash.as_deref()), (Some(a.id), Some(hash.as_str())));
+    let own: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM audit_events WHERE action = 'acknowledgement.completed'")
+            .fetch_one(tx.conn())
+            .await?;
+    assert_eq!(own, 0, "the caller's announcement.acknowledged is the audit record");
+
+    // Recipients are a snapshot: a new member of Ops is not enrolled.
+    let cy = member(&mut tx, &mut admin, "Cy", Some(ops)).await?;
+    assert_eq!(cmp.enroll_joiner(&mut tx, cy.membership).await?, 0);
+    tx.commit().await?;
+
+    // Reminder at +1 d (to the announcement), one for the missed step at +3 d, escalation once.
+    clock.advance(time::Duration::days(1) + time::Duration::minutes(1));
+    assert_eq!(cmp.run_due().await?, procera_campaigns::DuePass { reminders: 1, escalations: 0 });
+    assert_eq!(cmp.run_due().await?.reminders, 0, "each step once");
+    clock.advance(time::Duration::days(2));
+    assert_eq!(cmp.run_due().await?, procera_campaigns::DuePass { reminders: 1, escalations: 1 });
+    assert_eq!(cmp.run_due().await?, procera_campaigns::DuePass::default(), "escalation happens once");
+    let mut tx = t.db.begin_ws(ws).await?;
+    let link = format!("/announcements/{}", a.id);
+    let reminded: i64 = sqlx::query_scalar(LINKS)
+        .bind(ben.membership)
+        .bind("announcement_ack_reminder")
+        .bind(&link)
+        .fetch_one(tx.conn())
+        .await?;
+    assert_eq!(reminded, 2);
+    assert_eq!(notes(&mut tx, ann.membership, "announcement_ack_reminder").await?, 0, "acknowledged");
+    assert_eq!(notes(&mut tx, boss.membership, "announcement_ack_escalated").await?, 1);
+    assert_eq!(notes(&mut tx, ben.membership, "campaign_reminder").await?, 0);
+
+    // Evidence export: the same columns; the announcement's hash, no version.
+    let csv = cmp.evidence_csv(&mut tx, &author, c.id).await?;
+    let ann_line = csv.lines().find(|l| l.starts_with("Ann,")).unwrap_or_default().to_owned();
+    assert!(
+        ann_line.contains(",completed,") && ann_line.contains(&hash) && ann_line.ends_with(",pwd"),
+        "{ann_line}"
+    );
+    assert_eq!(csv.lines().count(), 3);
+
+    // Archiving the announcement closes its campaign; Ben's open assignment stays as the record.
+    let closed = cmp.close_for_announcement(&mut tx, &author, a.id).await?;
+    let closed = closed.ok_or_else(|| anyhow::anyhow!("closed"))?;
+    assert_eq!((closed.state.as_str(), closed.progress.pending), ("closed", 1));
+    assert_eq!(closed.end_reason.as_deref(), Some("the announcement was archived"));
+    assert!(cmp.close_for_announcement(&mut tx, &author, a.id).await?.is_none());
+
+    // Once the announcement has expired it cannot be acknowledged: steps are used up without
+    // reminders, and the escalation still records the miss (A-32).
+    let now = clock.now();
+    let short = procera_announcements::Compose {
+        title: "Lunch today".into(),
+        expires_at: Some(now + time::Duration::hours(2)),
+        ack_by: Some(now + time::Duration::hours(1)),
+        ..compose
+    };
+    let l = anns.create(&mut tx, &a_actor(&author), &short, &d).await?;
+    let l = anns.publish(&mut tx, &a_actor(&author), l.id, "off", &["in_app".to_owned()]).await?;
+    let lunch = procera_campaigns::AnnouncementSubject {
+        announcement_id: l.id,
+        title: l.title.clone(),
+        content_hash: l.content_hash.clone().unwrap_or_default(),
+        audience: l.audience.clone(),
+        recipients: anns.recipients(&mut tx, l.id).await?,
+        due_at: now + time::Duration::hours(1),
+    };
+    let lc = cmp.start_announcement(&mut tx, None, author.membership, &lunch, &defaults).await?;
+    assert_eq!(
+        lc.map(|c| (c.progress.assigned, c.escalation_after_secs)),
+        Some((3, Some(DAY))),
+        "Cy too now"
+    );
+    tx.commit().await?;
+    clock.advance(time::Duration::days(3));
+    assert_eq!(cmp.run_due().await?, procera_campaigns::DuePass { reminders: 0, escalations: 3 });
+    assert_eq!(cmp.run_due().await?, procera_campaigns::DuePass::default());
+    let mut tx = t.db.begin_ws(ws).await?;
+    assert_eq!(notes(&mut tx, cy.membership, "announcement_ack_reminder").await?, 0);
+    tx.commit().await?;
+
+    let report = procera_audit::verify(&t.db, ws).await?;
+    assert_eq!(report.first_broken, None);
+    Ok(())
+}

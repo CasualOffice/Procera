@@ -26,6 +26,7 @@ uuid.workspace = true
 anyhow.workspace = true
 tokio.workspace = true
 procera-access.workspace = true
+procera-announcements.workspace = true
 procera-crypto.workspace = true
 procera-identity.workspace = true
 procera-library.workspace = true

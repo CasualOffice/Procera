@@ -2517,6 +2517,7 @@ dependencies = [
  "anyhow",
  "csv",
  "procera-access",
+ "procera-announcements",
  "procera-audit",
  "procera-crypto",
  "procera-db",
