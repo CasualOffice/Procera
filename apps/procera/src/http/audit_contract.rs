@@ -74,6 +74,17 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/role-grants", &[&["role.granted"]]),
     emits("DELETE", "/api/v1/role-grants/{id}", &[&["role.revoked"]]),
     emits("PUT", "/api/v1/settings/{key}", &[&["setting.changed"]]),
+    // Notifications: personal read state only.
+    exempt(
+        "POST",
+        "/api/v1/notifications/read-all",
+        "personal read state of the caller's own inbox; no security or business effect",
+    ),
+    exempt(
+        "POST",
+        "/api/v1/notifications/{id}/read",
+        "personal read state of the caller's own inbox; no security or business effect",
+    ),
     // Directory.
     emits("POST", "/api/v1/departments", &[&["department.created"]]),
     emits("PATCH", "/api/v1/departments/{id}", &[&["department.updated"]]),
@@ -102,6 +113,7 @@ mod tests {
             ("/api/v1", include_str!("workspace.rs")),
             ("/api/v1", include_str!("settings.rs")),
             ("/api/v1", include_str!("directory.rs")),
+            ("/api/v1", include_str!("notifications.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];

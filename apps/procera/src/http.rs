@@ -12,6 +12,7 @@ pub mod audit_contract;
 pub mod auth;
 pub mod directory;
 pub mod error;
+pub mod notifications;
 pub mod settings;
 pub mod system;
 #[cfg(feature = "e2e")]
@@ -28,7 +29,10 @@ pub struct AppState {
     pub platform: Option<procera_platform::Platform>,
     pub members: Option<procera_members::Members>,
     /// Outbox dispatcher (BPMS-029); runs in the worker role (`serve --all`).
-    pub dispatcher: Option<Arc<procera_db::dispatch::Dispatcher<procera_db::dispatch::NullBus>>>,
+    pub dispatcher: Option<Arc<procera_db::dispatch::Dispatcher<crate::bus::AppBus>>>,
+    pub notify: Option<procera_notify::Notify>,
+    /// Public base URL used in email links (`--public-url`).
+    pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
     pub secure_cookies: bool,
     /// Per-IP login attempts per minute, in front of the per-account backoff (default 30).
@@ -54,14 +58,19 @@ impl AppState {
     }
 
     /// Wires members (and through it access) and the platform once the database, identity and keys exist.
-    pub fn with_services(mut self, keys: Option<Arc<dyn procera_crypto::KeyProvider>>) -> Self {
+    pub fn with_services(
+        mut self,
+        keys: Option<Arc<dyn procera_crypto::KeyProvider>>,
+        public_url: &str,
+    ) -> Self {
+        self.public_url = public_url.trim_end_matches('/').to_owned();
         if let (Some(db), Some(id), Some(keys)) = (&self.db, &self.identity, keys) {
             let ids: Arc<dyn procera_kernel::IdGen> = Arc::new(procera_kernel::UuidV7Gen);
             let members = procera_members::Members::new(
                 db.clone(),
                 id.clone(),
                 procera_access::Access::new(),
-                keys,
+                keys.clone(),
                 self.clock.clone(),
                 ids.clone(),
             );
@@ -72,11 +81,21 @@ impl AppState {
                 self.clock.clone(),
                 ids,
             ));
-            self.members = Some(members);
-            self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(
+            let notify = procera_notify::Notify::new(
                 db.clone(),
-                procera_db::dispatch::NullBus,
-            )));
+                keys,
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            );
+            let bus = crate::bus::AppBus {
+                db: db.clone(),
+                members: members.clone(),
+                notify: notify.clone(),
+                public_url: self.public_url.clone(),
+            };
+            self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));
+            self.notify = Some(notify);
+            self.members = Some(members);
         }
         self
     }
@@ -92,6 +111,8 @@ impl AppState {
             platform: None,
             members: None,
             dispatcher: None,
+            notify: None,
+            public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
         }
@@ -116,6 +137,8 @@ impl AppState {
             platform: None,
             members: None,
             dispatcher: None,
+            notify: None,
+            public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
         }
@@ -137,6 +160,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", workspace::router())
         .nest("/api/v1", settings::router())
         .nest("/api/v1", directory::router())
+        .nest("/api/v1", notifications::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

@@ -114,6 +114,14 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
 
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
+  // Notifications (exempt: personal read state). Adam's join put a notification in the owner's inbox.
+  await request.post('/__test/drain');
+  const inbox = await (await own.get('/api/v1/notifications', { headers: oh })).json();
+  if (inbox.items.length) {
+    await step('POST', '/api/v1/notifications/{id}/read', () => own.post(`/api/v1/notifications/${inbox.items[0].id}/read`, { headers: oh }));
+  }
+  await step('POST', '/api/v1/notifications/read-all', () => own.post('/api/v1/notifications/read-all', { headers: oh }));
+
   // Settings: a workspace value, and a platform floor re-set to its current value (no effect on other tests).
   await step('PUT', '/api/v1/settings/{key}', () => own.put('/api/v1/settings/locale.week_start', { headers: oh, data: { value: 'sun' } }));
   const floors = await (await sys.get('/sysapi/v1/settings', { headers: sh })).json();

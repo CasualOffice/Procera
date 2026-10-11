@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::net::SocketAddr;
 use tracing_subscriber::EnvFilter;
 
+mod bus;
 mod http;
 
 #[derive(Debug, Parser)]
@@ -38,6 +39,15 @@ enum Command {
         /// Per-IP login attempts per minute (docs/06 §3.6). Raise only for test environments behind one IP.
         #[arg(long, env = "PROCERA_LOGIN_RATE_PER_MIN", default_value_t = 30)]
         login_rate_per_min: u32,
+        /// Public base URL of the web app, used in email links.
+        #[arg(long, env = "PROCERA_PUBLIC_URL", default_value = "http://127.0.0.1:8080")]
+        public_url: String,
+        /// SMTP relay, e.g. smtp://user:pass@host:587?tls=required or smtps://host:465. Without it, emails stay queued.
+        #[arg(long, env = "PROCERA_SMTP_URL", hide_env_values = true)]
+        smtp_url: Option<String>,
+        /// Sender address for platform email.
+        #[arg(long, env = "PROCERA_MAIL_FROM", default_value = "Procera <no-reply@localhost>")]
+        mail_from: String,
     },
     /// Print a new random master key (base64) for PROCERA_MASTER_KEY.
     Keygen,
@@ -76,6 +86,9 @@ async fn main() -> anyhow::Result<()> {
             master_key,
             insecure_cookies,
             login_rate_per_min,
+            public_url,
+            smtp_url,
+            mail_from,
         } => {
             let db = match database_url.as_deref() {
                 Some(url) => {
@@ -130,7 +143,7 @@ async fn main() -> anyhow::Result<()> {
             if insecure_cookies {
                 tracing::warn!("insecure cookies enabled: local HTTP development / E2E only");
             }
-            let mut state = base.with_identity(identity, !insecure_cookies).with_services(keys);
+            let mut state = base.with_identity(identity, !insecure_cookies).with_services(keys, &public_url);
             state.login_rate_per_min = login_rate_per_min;
             // FR-S01: until a system owner exists, print a one-time bootstrap token (24 h) to the log.
             if let Some(p) = &state.platform
@@ -154,9 +167,35 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
+            let mailer = match smtp_url.as_deref() {
+                Some(url) => Some(procera_notify::SmtpMailer::from_url(url, &mail_from)?),
+                None => {
+                    tracing::warn!("no PROCERA_SMTP_URL: emails are queued but not sent");
+                    None
+                }
+            };
+            let mail_worker = match (&state.notify, mailer, all) {
+                (Some(n), Some(m), true) => {
+                    let n = n.clone();
+                    let mut rx = stop_rx.clone();
+                    tracing::info!("email sender started");
+                    Some(tokio::spawn(async move {
+                        loop {
+                            if let Err(e) = n.send_due(&m).await {
+                                tracing::error!(error = %e, "email send pass failed");
+                            }
+                            tokio::select! {
+                                _ = rx.wait_for(|stop| *stop) => return,
+                                () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {}
+                            }
+                        }
+                    }))
+                }
+                _ => None,
+            };
             axum::serve(listener, http::router(state)).with_graceful_shutdown(shutdown_signal()).await?;
             let _ = stop_tx.send(true);
-            if let Some(w) = worker {
+            for w in [worker, mail_worker].into_iter().flatten() {
                 let _ = w.await;
             }
         }

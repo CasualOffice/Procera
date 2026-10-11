@@ -25,6 +25,7 @@ pub fn router() -> Router<AppState> {
         .route("/system-roles", post(grant_system_role))
         .route("/invitations/token", get(invitation_token))
         .route("/session/backdate", post(backdate_session))
+        .route("/mail", get(mail))
 }
 
 /// Issues a bootstrap token if the platform is not bootstrapped yet (E2E only; prod prints it to the log).
@@ -330,5 +331,22 @@ async fn backdate_session(
     match id.resign_with_auth_time(&c, at) {
         Ok(token) => Json(serde_json::json!({ "access_token": token })).into_response(),
         Err(e) => super::error::ApiError::from(e).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct MailQuery {
+    workspace: uuid::Uuid,
+    to: String,
+}
+
+/// Emails queued or sent to `to` in a workspace, decrypted (the local stand-in for Mailpit).
+async fn mail(State(s): State<AppState>, Query(q): Query<MailQuery>) -> Response {
+    let Some(n) = s.notify.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match n.emails_to(procera_db::WsCtx { workspace_id: q.workspace }, &q.to).await {
+        Ok(items) => Json(serde_json::json!({ "items": items })).into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
     }
 }
