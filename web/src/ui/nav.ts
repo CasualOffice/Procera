@@ -1,7 +1,7 @@
-import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, Gauge, Archive, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, Files, Gauge, Archive, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
-export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'templates' | 'overview' | 'members' | 'roles' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'templates' | 'overview' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -22,6 +22,7 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
   const admin: (NavItem | false)[] = [
     can('monitoring:view_dashboards') && { key: 'overview', label: 'Overview', to: '/admin/overview', icon: Gauge, keywords: 'dashboard attention overdue security' },
     any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite roles' },
+    can('directory:manage') && { key: 'departments', label: 'Departments', to: '/admin/departments', icon: Network, keywords: 'org chart teams hierarchy head structure' },
     can('role:view') && { key: 'roles', label: 'Roles & access', to: '/admin/roles', icon: UserCog, keywords: 'permissions custom role grant scope expiry rbac' },
     can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     any('announcement:create', 'announcement:publish', 'announcement:manage') && { key: 'manage-announcements', label: 'Manage announcements', to: '/admin/announcements', icon: SquarePen, keywords: 'compose write publish approve posts' },
