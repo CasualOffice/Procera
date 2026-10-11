@@ -162,6 +162,8 @@ Users may override locale/timezone in their profile. Terminology overrides apply
 | `governance.signature.meanings` | localised list | authored/reviewed/approved/responsible | workspace:settings.manage | – | P1 |
 | `governance.reason_for_change.required` | bool | true for controlled | workspace:settings.manage | ✓ | P0 |
 
+As built (BPMS-045): `governance.reack.policy` applies to SOPs and policies alike (the catalogue has no separate `policies.reack.policy`; §2.15 lists it as the policy-library view of the same decision). It is read when a version is published or scheduled: `every_publish` asks for a re-acknowledgement on every version after the first, `major_only` on majors after the first, `none` never. `governance.reack.window` is the due window of the resulting campaign, from the moment the version goes live. Changing either setting never alters a decision already recorded on a version or a running campaign.
+
 ### 2.7 Execution
 
 | Key | Type | Default | Perm | Ovr | Ph |
