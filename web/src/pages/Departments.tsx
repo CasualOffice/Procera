@@ -1,5 +1,5 @@
 import { CornerDownRight, FileUp, FolderTree, Move, Network, Pencil, Plus, Trash2, UserRoundCog } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../lib/api';
 import { type Member, useItems } from '../lib/data';
@@ -34,10 +34,9 @@ export function Departments() {
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
   const ordered = useMemo(() => treeOrder(items ?? []), [items]);
-  useEffect(() => {
-    if (items && !items.some((d) => d.id === selected)) setSelected(ordered[0]?.id ?? null);
-  }, [items, ordered, selected]);
-  const current = ordered.find((d) => d.id === selected) ?? null;
+  // The selection may name a department the list hasn't reloaded yet (just added); until then, and
+  // after a delete, the first department is shown.
+  const current = ordered.find((d) => d.id === selected) ?? ordered[0] ?? null;
   const done = (title: string, select?: string) => { setNotice({ tone: 'success', title }); setDialog(null); if (select) setSelected(select); reload(); };
 
   const head = (
@@ -72,7 +71,7 @@ export function Departments() {
           <ul aria-label="Department tree">
             {ordered.map((d) => (
               <li key={d.id}>
-                <button type="button" aria-current={d.id === selected ? 'true' : undefined} onClick={() => setSelected(d.id)} style={{ paddingLeft: `${0.625 + (d.path.length - 1) * 1.125}rem` }}>
+                <button type="button" aria-current={d.id === current?.id ? 'true' : undefined} onClick={() => setSelected(d.id)} style={{ paddingLeft: `${0.625 + (d.path.length - 1) * 1.125}rem` }}>
                   {d.path.length > 1 ? <CornerDownRight aria-hidden="true" size="0.875rem" /> : <FolderTree aria-hidden="true" size="0.875rem" />}
                   <span className="dept-name">{d.name}</span>
                   <span className="dept-count">{d.member_count}<span className="visually-hidden"> {d.member_count === 1 ? 'person' : 'people'}</span></span>
