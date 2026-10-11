@@ -623,7 +623,7 @@ impl Library {
         Ok(self.version(tx, vid, None).await?.0)
     }
 
-    /// Every image block must show a clean image attached to this version (BPMS-042, A-28).
+    /// Every image block must show a clean image attached to this version (BPMS-042, A-30).
     async fn ensure_images_attached(
         tx: &mut WsTx<'_>,
         version: Uuid,
