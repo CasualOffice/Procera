@@ -1,0 +1,32 @@
+<!--
+title: Features: Procera
+description: Every Procera capability grouped by Design, Execute, Govern and Improve, each with its status from the delivery tracker: available now, in progress or planned.
+nav: features
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Features</span>
+    <h1>What Procera does, and what it doesn't do yet</h1>
+    <p class="lede">Grouped by the four pillars. Each feature's status is computed from the tracker epics it depends on when this site is built, so it can't drift from the plan. "Available now" means built on the main branch and covered by automated tests; the first packaged release, R1, targets {{ r1_end }}.</p>
+    {{ legend }}
+    <nav class="pillar-nav" aria-label="Pillars">
+      <a class="btn btn-secondary btn-sm" href="#design">Design</a>
+      <a class="btn btn-secondary btn-sm" href="#execute">Execute</a>
+      <a class="btn btn-secondary btn-sm" href="#govern">Govern</a>
+      <a class="btn btn-secondary btn-sm" href="#improve">Improve</a>
+    </nav>
+  </div>
+</section>
+{{ features }}
+<section class="section band" aria-labelledby="next-h">
+  <div class="wrap">
+    <div class="section-head">
+      <h2 id="next-h">See it working, step by step</h2>
+      <p class="muted">The user flows page walks through six journeys that the automated suite runs end to end in a real browser.</p>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="flows.html">User flows</a>
+      <a class="btn btn-secondary" href="roadmap.html">Roadmap and progress</a>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,87 @@
+<!--
+title: Procera: open-source process governance you host yourself
+description: Policies, SOPs, reviews, acknowledgements, announcements and a tamper-evident audit trail in one Apache-2.0 product you run on your own infrastructure.
+nav: index
+-->
+<section class="hero" aria-labelledby="hero-h">
+  <div class="wrap">
+    <div class="hero-copy">
+      <span class="eyebrow">Open source · Apache-2.0 · Self-hosted</span>
+      <h1 id="hero-h">Turn processes into progress.</h1>
+      <div class="hero-side">
+      <p class="lede">Procera is process governance for teams from ten people to multinationals. Write policies and SOPs, review them with separation of duties, ask people to acknowledge them, and keep a tamper-evident record of everything, on infrastructure you control.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="{{ gh }}">{{ icon github }}View on GitHub</a>
+        <a class="btn btn-secondary" href="{{ docs }}/00-INDEX.md">{{ icon book }}Read the docs</a>
+      </div>
+      <p class="status-line"><span class="dot" aria-hidden="true"></span><span>Pre-release. The first usable release, R1, targets {{ r1_end }}; {{ r1_done }} of its {{ r1_total }} epics are done.</span> <a href="roadmap.html">See progress</a></p>
+      </div>
+    </div>
+    <div class="hero-visual">
+      {{ shot document shot-main eager full }}
+      {{ shot phone-home shot-phone eager }}
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="pillars-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Design · Execute · Govern · Improve</span>
+      <h2 id="pillars-h">From the written rule to the proof that people follow it</h2>
+      <p class="lede">Governance and execution usually live in separate tools: documents in one place, sign-offs in email, evidence in spreadsheets. Procera keeps them together, with one history.</p>
+    </div>
+    {{ pillars }}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="caps-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">What you can do today</span>
+      <h2 id="caps-h">Built and tested on the main branch</h2>
+      <p class="lede">Every screenshot below is the real product, and each capability carries its status from the public tracker. Workflow automation (requests, forms, the designer) is still being built; the <a href="features.html#workflow">features page</a> says exactly where it stands.</p>
+    </div>
+    {{ home_caps }}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="who-h">
+  <div class="wrap split">
+    <div class="section-head">
+      <span class="eyebrow">Who it's for</span>
+      <h2 id="who-h">Built for startups to multinationals, in every department</h2>
+      <p class="muted">The same product scales from a starter profile with sensible defaults to an enterprise profile with stricter floors. Settings are layered, so a department can tighten a rule without a fork.</p>
+    </div>
+    <div>
+      <dl class="sizes">
+        <div><dt>Startups</dt><dd>Install the employee handbook pack, publish it and have 20 people acknowledge on their phones within 15 minutes. That run is an automated test.</dd></div>
+        <div><dt>Growing companies</dt><dd>Departments, managers and locations from a CSV import; announcements to one office with a confirm-by date and manager escalation.</dd></div>
+        <div><dt>Large organisations</dt><dd>Custom roles scoped to departments and collections, separation of duties on reviews, a hash-chained audit log and per-workspace encryption keys.</dd></div>
+      </dl>
+      <ul class="depts" aria-label="Departments">
+        <li>People and HR</li><li>IT and security</li><li>Finance</li><li>Compliance and risk</li><li>Quality</li><li>Legal</li><li>Operations</li><li>Facilities</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section band" aria-labelledby="oss-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Open source and self-hosted</span>
+      <h2 id="oss-h">Your policies and your evidence stay on your servers</h2>
+      <p class="lede">Procera is Apache-2.0 licensed, with no telemetry by default. It needs PostgreSQL and an SMTP server. Valkey is an optional cache, and files sit on local disk today, with an S3-compatible backend next.</p>
+    </div>
+    <div class="facts">
+      <div><strong>Apache-2.0</strong><p>Use it, change it, run it commercially. Contributions are DCO signed-off.</p></div>
+      <div><strong>Workspace isolation</strong><p>Every workspace table has forced row-level security, checked by an automated cross-workspace test sweep.</p></div>
+      <div><strong>{{ e2e_count }} browser and API scenarios</strong><p>Automated end-to-end tests gate each release; the user flows on this site name theirs.</p></div>
+    </div>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="{{ gh }}">{{ icon github }}Star or fork on GitHub</a>
+      <a class="btn btn-secondary" href="security.html#self-hosting">Self-hosting requirements</a>
+      <a class="btn btn-secondary" href="open-source.html">How the project works</a>
+    </div>
+  </div>
+</section>
