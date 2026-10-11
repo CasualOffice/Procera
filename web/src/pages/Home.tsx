@@ -183,7 +183,7 @@ export function Home() {
               <div className="avatar-stack" role="img" aria-label={`${members.filter((m) => m.status === 'active').length} active members`}>
                 {members.filter((m) => m.status === 'active').slice(0, 9).map((m) => <span key={m.id} title={m.display_name}><Avatar name={m.display_name} size="1.875rem" /></span>)}
               </div>
-              <p className="rail-note">{members.filter((m) => m.status === 'active').length} people in this workspace</p>
+              <p className="rail-note">{((n) => `${n} ${n === 1 ? 'person' : 'people'}`)(members.filter((m) => m.status === 'active').length)} in this workspace</p>
             </section>
           )}
         </aside>

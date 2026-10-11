@@ -6,6 +6,7 @@ import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
+import { RadioCards } from '../ui/components/RadioCards';
 import { Select } from '../ui/components/Select';
 import { TextField } from '../ui/components/TextField';
 import { Skeleton } from '../ui/States';
@@ -42,7 +43,7 @@ export function useSetup(): { steps: SetupStep[] | null; reload: () => void } {
       const others = members.filter((m) => m.user_id !== user?.id && m.status === 'active');
       const mfa = (set('auth.mfa.required_roles')?.value as string[] | undefined) ?? [];
       setSteps([
-        { id: 'brand', label: 'Name and brand your workspace', hint: 'Logo, colour and time zone', done: changed('branding.accent') || changed('branding.logo'), to: '/welcome' },
+        { id: 'brand', label: 'Name and brand your workspace', hint: 'Logo, colour and time zone', done: changed('branding.accent') || changed('branding.logo') || changed('locale.timezone'), to: '/welcome' },
         { id: 'departments', label: 'Add your departments', hint: 'Used to target documents and campaigns', done: depts.length > 0, to: '/welcome?step=3' },
         { id: 'invite', label: 'Invite your team', hint: 'They join by email', done: others.length > 0 || invites.length > 0, to: '/welcome?step=4' },
         { id: 'roles', label: 'Choose who reviews and who manages', hint: 'Reviewers, compliance, admins', done: others.some((m) => m.roles.some((r) => r !== 'member')), to: '/admin/roles' },
@@ -68,6 +69,8 @@ export function SetupChecklist() {
   if (!steps || steps.length === 0 || hidden || !workspace) return null;
   const done = steps.filter((s) => s.done).length;
   if (done === steps.length) return null;
+  // Steps that can be in place from the starting profile (two-step for admins) don't count as "started".
+  const started = steps.some((s) => s.done && s.id !== 'mfa');
   const hide = () => {
     try { localStorage.setItem(HIDE_KEY(workspace.workspace_id), '1'); } catch { /* storage unavailable: hidden for this page only */ }
     setHidden(true);
@@ -80,7 +83,7 @@ export function SetupChecklist() {
           <h2 id="setup-title">Set up {workspace.name}</h2>
           <p>{done} of {steps.length} done. Each step ticks itself when it’s in place.</p>
         </div>
-        <Link className="btn btn-primary btn-md link-btn" to="/welcome">{done === 0 ? 'Start setup' : 'Continue setup'}</Link>
+        <Link className="btn btn-primary btn-md link-btn" to="/welcome">{started ? 'Continue setup' : 'Start setup'}</Link>
         <Button variant="ghost" className="btn-sm" aria-label="Hide the setup checklist" onPress={hide}><X aria-hidden="true" size="1rem" /></Button>
       </div>
       <div className="setup-bar" role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={done}><span style={{ width: `${(done / steps.length) * 100}%` }} /></div>
@@ -145,6 +148,7 @@ function BrandStep({ onDone, onSkip }: { onDone: () => Promise<void>; onSkip: ()
   const [name, setName] = useState(workspace?.name ?? '');
   const [accent, setAccent] = useState('#EE4136');
   const [tz, setTz] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+  const [review, setReview] = useState<'all' | 'controlled' | 'none'>('all');
   const [settings, setSettings] = useState<SettingRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,6 +170,11 @@ function BrandStep({ onDone, onSkip }: { onDone: () => Promise<void>; onSkip: ()
     if (name.trim() && name.trim() !== workspace?.name) await api('/api/v1/workspace', { method: 'PATCH', body: { name: name.trim() } });
     await put('branding.accent', accent.toUpperCase());
     await put('locale.timezone', tz);
+    await put('governance.review.required_for', review);
+    if (review !== 'none') {
+      const min = settings?.find((x) => x.key === 'governance.review.min_reviewers')?.value;
+      if (typeof min !== 'number' || min < 1) await put('governance.review.min_reviewers', 1);
+    }
     setBusy(false);
     await onDone();
   });
@@ -182,6 +191,11 @@ function BrandStep({ onDone, onSkip }: { onDone: () => Promise<void>; onSkip: ()
         <input id="welcome-accent" type="color" value={accent} onChange={(e) => setAccent(e.target.value)} />
         <span className="welcome-accent-hint">Used for links and highlights. Procera adjusts it so text stays readable.</span>
       </div>
+      <RadioCards label="How documents get approved" value={review} onChange={(v) => setReview(v as typeof review)} options={[
+        { id: 'all', label: 'Someone else reviews every document', description: 'Recommended. The author can’t approve their own work; invite a reviewer in step 4.' },
+        { id: 'controlled', label: 'Only controlled documents', description: 'Everyday documents publish straight away.' },
+        { id: 'none', label: 'No review', description: 'Authors publish directly. You can change this later.' },
+      ]} />
       <Select label="Time zone" options={zones} selectedKey={tz} onSelectionChange={(k) => k && setTz(String(k))} description="Due dates, reminders and digests follow it." />
       <StepActions busy={busy || settings === null} label="Save and continue" onSkip={onSkip} />
       {dialog}

@@ -137,7 +137,7 @@ export function LibraryDoc({ id }: { id: string }) {
 
       <dl className="props">
         <dt><CircleDot aria-hidden="true" size="0.9375rem" /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
-        <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>v{v.version_no}{v.semver && <span className="muted">· {v.semver}</span>}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
+        <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>{v.semver ? `v${v.semver}` : `v${v.version_no}`}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <OwnerRow artifactId={a.id} owner={owner} canEdit={p('publish')} act={act} />
         <CollectionRow artifactId={a.id} collectionId={a.collection_id ?? null} canEdit={p('publish')} act={act} />
         <RaciRows artifactId={a.id} canEdit={p('publish')} act={act} />
@@ -160,7 +160,8 @@ export function LibraryDoc({ id }: { id: string }) {
 
       {/* Lifecycle actions for this version */}
       {v.lifecycle === 'scheduled' && v.effective_at && <Notice tone="info" title={`Scheduled: goes live ${new Date(v.effective_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}>Until then readers keep seeing the current version.</Notice>}
-      {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} />}
+      {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at}
+        approvedBy={v.reviews.filter((r) => r.decision === 'approve').map((r) => directory.get(r.reviewer_membership_id)?.display_name).filter((x): x is string => !!x)} />}
       <div className="doc-actions">
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setEdited(null); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/submit`, { method: 'POST' }), 'Submitted.')} isDisabled={!blocks.length}><Send aria-hidden="true" size="0.9375rem" /> Submit for review</Button>}
@@ -245,12 +246,13 @@ const STEPS = [['draft', 'Draft'], ['in_review', 'In review'], ['approved', 'App
  * Where this version is in its lifecycle and what happens next, in one sentence (docs/05 §6).
  * The stepper marks the current step with weight and finished steps with a check, not colour alone.
  */
-function Lifecycle({ state, hasContent, approvals, required, canReview, canEdit, canPublish, publishedAt }: { state: string; hasContent: boolean; approvals: number; required: number; canReview: boolean; canEdit: boolean; canPublish: boolean; publishedAt: string | null }) {
+function Lifecycle({ state, hasContent, approvals, required, canReview, canEdit, canPublish, publishedAt, approvedBy = [] }: { state: string; hasContent: boolean; approvals: number; required: number; canReview: boolean; canEdit: boolean; canPublish: boolean; publishedAt: string | null; approvedBy?: string[] }) {
+  const by = approvedBy.length ? ` by ${approvedBy.join(' and ')}` : '';
   const at = STEPS.findIndex(([k]) => k === state);
   const next: Record<string, string> = {
     draft: !hasContent ? 'This draft is empty. Add the content, then submit it for review.' : canEdit ? 'Only editors can see this draft. Submit it for review when it reads well.' : 'This draft is still being written.',
     in_review: `Waiting for review: ${approvals} of ${required} ${required === 1 ? 'approval' : 'approvals'} so far.${canReview ? ' You can approve it or ask for changes.' : ''}`,
-    approved: canPublish ? 'Approved. Publish it to make it the version everyone reads.' : 'Approved and waiting to be published.',
+    approved: canPublish ? `Approved${by}. Publish it to make it the version everyone reads.` : `Approved${by} and waiting to be published.`,
     published: `Published${publishedAt ? ` on ${shortDate(publishedAt)}` : ''}. This is the version everyone reads.`,
     deprecated: 'A newer version replaced this one. It stays here for the record.',
     retired: 'This document was retired. It stays here for the record.',
