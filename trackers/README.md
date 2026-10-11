@@ -7,9 +7,9 @@
 
 ```text
 Overall   █████████░░░░░░░░░░░░░░░░░░░░░  32/109 epics done  (29%)
-Partial   █████████░░░░░░░░░░░░░░░░░░░░░  32% counting in-progress epics as half done
-Tests     142 automated E2E scenarios · 116 Rust tests (incl. property tests)
-Status    done 32 · in review 0 · in progress 5 · blocked 0 · not started 72 · deferred 0
+Partial   ██████████░░░░░░░░░░░░░░░░░░░░  33% counting in-progress epics as half done
+Tests     147 automated E2E scenarios · 118 Rust tests (incl. property tests)
+Status    done 32 · in review 0 · in progress 7 · blocked 0 · not started 70 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -34,6 +34,8 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app on the Notion/Attio direction (owner choice): warm paper palette in tokens (contrast-checked), full-bleed pages with a warm icon sidebar, workspace + account menus (persisted theme), action-first Home (acknowledgements, reviews, announcements with inline actions, library table, activity, people), Library (filters, Attio-style table, New document dialog), document reading view with properties, lifecycle actions (edit, submit, approve, request changes, publish with step-up, new version), acknowledgement callout, Announcements feed with read/ack, Members with invite dialog; split sign-in with product preview; single-flight token refresh. E2E-R1-UI-01..10 with axe. Remaining: ⌘K command palette (search API is ready), system console shell, mobile bottom bar Second UI pass: Geist type, state kit (skeletons, empty states, load errors with retry), ⌘K palette over search + commands (E2E-R1-UI-12..13), admin screens: Manage announcements, Campaigns, Settings, Audit log, Overview, People & access (E2E-R1-UI-14..17, 23); Policies portal and document governance (E2E-R1-UI-18..22). Remaining: system console shell, keyboard nav audit |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-042 | SOP/policy block editor + renderer (web/PDF) | **In progress** | Block editor (TipTap core, MIT; U-10 closed): headings, bold/italic/links, bullet and numbered lists, callouts, tables, accessible single-tab-stop toolbar, markdown shortcuts; block model validated server-side (ADR-0013 as built); shared renderer; HTML (print to tagged PDF in the browser) and Markdown export with a superseded banner, audited. E2E-R1-LIB-14, E2E-R1-UI-07, 28. Remaining: deterministic server-side tagged PDF, DOCX export/import, images and variables blocks. |
+| BPMS-060 | Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs | **In progress** | procera-files (migration 0027): resumable chunked upload (offset-checked, resume from received), size limit and storage quota, SHA-256, magic-byte type with a platform deny list (executables, scripts, HTML, SVG), clamd INSTREAM scanner (built-in EICAR-only fallback, warned), quarantine and rejection, per-file DEK under the workspace KEK (rotated and shredded with it), local storage port, 5-minute signed download links re-authorized per request (nosniff, CSP sandbox), audited; attachments on draft versions fixed once past draft. E2E-R1-FILE-01..03, E2E-R1-UI-32..33. Remaining: S3-compatible storage backend, EXIF stripping, attachments elsewhere (forms, cases). |
+| BPMS-062 | Workspace Files view, quotas, orphan cleanup | **In progress** | Files admin view: usage against the storage quota, scan states, every file with uploader, use and scan result, delete (blocked while held by a version past draft), orphan report and purge (files.orphan_purge_after). E2E-R1-FILE-03, E2E-R1-UI-33. Remaining: legal hold and retention class per file, bulk actions, last accessed. |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
 
 ## Done
@@ -127,9 +129,9 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [x] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
 - [x] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests
 - [x] **BPMS-049** (P0, M) Postgres FTS + trgm, permission-filtered search
-- [ ] **BPMS-060** (P0, L) Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs
+- [ ] **BPMS-060** (P0, L) Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs **[In progress]**
 - [ ] **BPMS-061** (P0, M) Previews (image/PDF) in sandbox; Office preview spike
-- [ ] **BPMS-062** (P0, M) Workspace Files view, quotas, orphan cleanup
+- [ ] **BPMS-062** (P0, M) Workspace Files view, quotas, orphan cleanup **[In progress]**
 - [x] **BPMS-063** (P0, L) Workspace overview dashboard + people & access monitor
 - [ ] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export **[In progress]**
 - [x] **BPMS-065** (P0, M) System console: workspaces grid, quotas, health, system audit
@@ -257,7 +259,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 218 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 223 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 20 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

@@ -183,6 +183,8 @@ Root key (KMS / HSM / Vault-OpenBao Transit; self-host fallback: file key sealed
 - Secrets MUST NOT appear in IR, release bundles, events, logs, traces, error messages,
   exports or config-as-code (FR-W12). Log scrubbing filter with tests.
 
+**Files as built (BPMS-060).** Chunks are AES-256-GCM under a per-file DEK (AAD `files:<id>:<chunk>`); the DEK is an envelope under the workspace KEK, so rotation rewraps it and shredding destroys it. Storage keys are `ws/<workspace>/<file>/<chunk>` in the local store (`PROCERA_FILES_DIR`; an S3-compatible backend is next). Malware scanning uses clamd over TCP (`PROCERA_CLAMD_ADDR`, `INSTREAM`); without it, a built-in scanner detects only the EICAR test file and the server logs a warning. Types are sniffed from content; executables, scripts, HTML and SVG are always rejected. Download links are HMAC tokens valid 5 minutes, bound to file, workspace and member, re-authorized per request and served with `nosniff` and `CSP: sandbox`.
+
 ## 5. Application security controls
 
 1. **Input validation**: typed DTOs (serde with `deny_unknown_fields`), JSON Schema for forms,
