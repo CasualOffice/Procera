@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.expr-null", "version": 1, "name": { "en": "Nullable condition" } },
+  "variables": [
+    { "name": "urgent", "type": "boolean", "classification": "internal" },
+    { "name": "amount", "type": "decimal", "classification": "internal" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    {
+      "id": "route",
+      "kind": "decision",
+      "branches": [
+        { "name": "urgent", "when": "expr:cel: urgent" },
+        { "name": "big", "when": "expr:cel: amount > 1000" },
+        { "name": "guarded", "when": "expr:cel: amount != null && amount > 10" }
+      ]
+    },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "route" },
+    { "id": "e2", "from": "route", "to": "done", "on": "urgent" },
+    { "id": "e3", "from": "route", "to": "done", "on": "big" },
+    { "id": "e4", "from": "route", "to": "done", "on": "guarded" },
+    { "id": "e5", "from": "route", "to": "done", "on": "default" }
+  ]
+}

@@ -2590,6 +2590,7 @@ dependencies = [
  "anyhow",
  "jsonschema",
  "procera-conformance",
+ "procera-expr",
  "proptest",
  "serde",
  "serde_jcs",

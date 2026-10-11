@@ -1,240 +1,269 @@
-//! Compile-time expression hook (docs/11 §6, §11 check 7).
+//! Expression compilation (docs/11 §6, §6.1, §11 check 7), backed by `procera-expr`.
 //!
-//! The expression engine is BPMS-081 (CEL with Procera extensions, ADR-0010). Until it lands the
-//! compiler needs only one thing from an expression: which variables it reads. That is the
-//! [`ExpressionChecker`] port. [`LexicalChecker`] is the built-in implementation: a tokenizer that
-//! checks the source is well formed (balanced brackets, closed strings, non-empty) and collects
-//! root identifiers. BPMS-081 replaces it with the real parser and type checker.
+//! Every expression site in the document is parsed and type-checked against a [`Schema`] built
+//! from the declared variables plus the process context (`initiator`, `instance`; `now()` is a
+//! function). Each site knows what it needs: a branch condition is a non-null boolean, a `set`
+//! assignment has its variable's type, a timer `at` is a datetime, an idempotency key is a string,
+//! and an assignee reference is a principal, group or id. Event-facing sites (every `notify`
+//! field, `correlation`, `idempotencyKey`) are checked in [`ExprContext::EventFacing`], so reading
+//! a `restricted` variable there is an error.
+//!
+//! The checked forms are kept in [`CompiledExpressions`], keyed by node id and the field's
+//! pointer relative to the node, so the runtime evaluates them without parsing again.
 
-use crate::model::ExprLang;
-use std::collections::BTreeSet;
+use crate::diag::{Code, Diagnostic, escape_pointer};
+use crate::model::{self, Assignment, Expr, ExprLang, IrDocument, NodeKind};
+use procera_expr::{CheckOptions, CheckedExpr, Classification, ExprContext, Schema, Type};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
-/// Names every expression may use without declaring them (docs/11 §13.10).
-pub const CONTEXT_ROOTS: &[&str] = &["initiator", "instance", "now"];
-
-/// What the compiler needs to know about one expression.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Analysis {
-    /// Variable names the expression reads (context roots and bound names excluded).
-    pub references: BTreeSet<String>,
+/// The checked expressions of one compiled document, and the schema they were checked against.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct CompiledExpressions {
+    /// Declared variables plus the process context (docs/11 §5, §13.10).
+    pub schema: Schema,
+    /// Node id → field pointer relative to the node (`branches/0/when`, `assign/total`, `at`,
+    /// `assignment/candidates/0/ref`, …) → checked expression.
+    pub sites: BTreeMap<String, BTreeMap<String, CheckedExpr>>,
 }
 
-/// Parses and analyses expression source. Implementations must be pure and deterministic.
-pub trait ExpressionChecker {
-    /// Returns the analysis, or a human-readable syntax error.
-    fn analyse(&self, lang: ExprLang, body: &str) -> Result<Analysis, String>;
+impl CompiledExpressions {
+    /// The checked expression at `field` of node `node`.
+    pub fn get(&self, node: &str, field: &str) -> Option<&CheckedExpr> {
+        self.sites.get(node).and_then(|f| f.get(field))
+    }
+
+    /// Number of compiled sites.
+    pub fn len(&self) -> usize {
+        self.sites.values().map(BTreeMap::len).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Every site as `(node, field, expression)`, in key order.
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &str, &CheckedExpr)> {
+        self.sites.iter().flat_map(|(n, f)| f.iter().map(move |(k, e)| (n.as_str(), k.as_str(), e)))
+    }
 }
 
-/// Built-in lexical checker (see the module docs). Conservative: it reports identifiers at the
-/// root of a member path that are not function names, keywords, bound names or context roots.
-#[derive(Debug, Clone, Copy, Default)]
-pub struct LexicalChecker;
-
-const KEYWORDS: &[&str] = &[
-    "and",
-    "between",
-    "every",
-    "else",
-    "external",
-    "false",
-    "for",
-    "function",
-    "if",
-    "in",
-    "instance",
-    "not",
-    "null",
-    "of",
-    "or",
-    "return",
-    "satisfies",
-    "some",
-    "then",
-    "true",
-];
-/// CEL macros whose first argument binds a name (`items.all(i, i.qty > 0)`).
-const CEL_BINDING_MACROS: &[&str] = &["all", "exists", "exists_one", "map", "filter"];
-/// FEEL built-ins whose names contain spaces.
-const FEEL_SPACED_BUILTINS: &[(&str, &str)] = &[
-    ("date and time", "date_and_time"),
-    ("years and months duration", "years_and_months_duration"),
-    ("days and time duration", "days_and_time_duration"),
-];
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Tok {
-    Ident(String),
-    Dot,
-    Comma,
-    Open,
-    Other,
+/// The site key for `assign/<name>` and `input/<name>` (RFC 6901 escaping of the name).
+pub fn field_key(section: &str, name: &str) -> String {
+    format!("{section}/{}", escape_pointer(name))
 }
 
-fn tokenize(src: &str) -> Result<Vec<Tok>, String> {
-    let chars: Vec<char> = src.chars().collect();
-    let mut toks = Vec::new();
-    let mut stack: Vec<char> = Vec::new();
-    let mut i = 0;
-    while i < chars.len() {
-        let c = chars[i];
-        match c {
-            c if c.is_whitespace() => i += 1,
-            '"' | '\'' => {
-                let quote = c;
-                i += 1;
-                loop {
-                    match chars.get(i) {
-                        None => return Err("unterminated string literal".to_owned()),
-                        Some('\\') => i += 2,
-                        Some(&q) if q == quote => break,
-                        Some(_) => i += 1,
-                    }
-                }
-                i += 1;
-                toks.push(Tok::Other);
+/// What a site needs its expression to produce.
+#[derive(Debug, Clone)]
+enum Want {
+    Any,
+    Type(Type),
+    /// A principal, group or id (string), or a list of them; may be null (the fallback applies).
+    Assignee,
+}
+
+#[derive(Debug)]
+struct Site<'a> {
+    index: usize,
+    node: &'a str,
+    field: String,
+    expr: Expr,
+    facing: bool,
+    want: Want,
+}
+
+fn classification(c: Option<model::Classification>) -> Classification {
+    match c {
+        Some(model::Classification::Public) => Classification::Public,
+        Some(model::Classification::Confidential) => Classification::Confidential,
+        Some(model::Classification::Restricted) => Classification::Restricted,
+        // A-21 (9): no classification counts as not restricted.
+        Some(model::Classification::Internal) | None => Classification::Internal,
+    }
+}
+
+/// The schema expressions are checked against: the process context plus every declared
+/// variable whose type maps to an expression type. A variable that does not (a `money` without a
+/// currency) is reported as `IR-E035` at its type and left out.
+pub fn schema_of(doc: &IrDocument) -> (Schema, Vec<Diagnostic>) {
+    let mut schema = Schema::with_process_context();
+    let mut diags = Vec::new();
+    for (k, v) in doc.variables.iter().enumerate() {
+        let ty = serde_json::to_value(&v.ty).map_err(|e| e.to_string()).and_then(|j| Type::from_ir(&j));
+        match ty {
+            Ok(ty) => {
+                schema.declare(&v.name, ty, v.required == Some(true), classification(v.classification));
             }
-            c if c.is_ascii_digit() => {
-                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '.') {
-                    // A dot followed by a letter is member access on a number literal; stop there.
-                    if chars[i] == '.' && !chars.get(i + 1).is_some_and(char::is_ascii_digit) {
-                        break;
-                    }
-                    i += 1;
-                }
-                toks.push(Tok::Other);
-            }
-            c if c.is_ascii_alphabetic() || c == '_' => {
-                let start = i;
-                while i < chars.len() && (chars[i].is_ascii_alphanumeric() || chars[i] == '_') {
-                    i += 1;
-                }
-                toks.push(Tok::Ident(chars[start..i].iter().collect()));
-            }
-            '(' | '[' | '{' => {
-                stack.push(c);
-                toks.push(if c == '(' { Tok::Open } else { Tok::Other });
-                i += 1;
-            }
-            ')' | ']' | '}' => {
-                let want = match c {
-                    ')' => '(',
-                    ']' => '[',
-                    _ => '{',
-                };
-                if stack.pop() != Some(want) {
-                    return Err(format!("unbalanced '{c}'"));
-                }
-                toks.push(Tok::Other);
-                i += 1;
-            }
-            '.' => {
-                toks.push(Tok::Dot);
-                i += 1;
-            }
-            ',' => {
-                toks.push(Tok::Comma);
-                i += 1;
-            }
-            _ => {
-                toks.push(Tok::Other);
-                i += 1;
-            }
+            Err(e) => diags.push(Diagnostic::new(
+                Code::E035,
+                format!("/variables/{k}/type"),
+                format!("variable '{}' has no expression type: {e}", v.name),
+            )),
         }
     }
-    if let Some(open) = stack.last() {
-        return Err(format!("unclosed '{open}'"));
-    }
-    Ok(toks)
+    (schema, diags)
 }
 
-impl ExpressionChecker for LexicalChecker {
-    fn analyse(&self, lang: ExprLang, body: &str) -> Result<Analysis, String> {
-        if body.trim().is_empty() {
-            return Err("empty expression".to_owned());
-        }
-        let mut src = body.to_owned();
-        if lang == ExprLang::Feel {
-            for (spaced, joined) in FEEL_SPACED_BUILTINS {
-                src = src.replace(spaced, joined);
-            }
-        }
-        let toks = tokenize(&src)?;
-        let ident = |i: usize| match toks.get(i) {
-            Some(Tok::Ident(s)) => Some(s.as_str()),
-            _ => None,
+fn sites<'a>(doc: &'a IrDocument, schema: &Schema) -> Vec<Site<'a>> {
+    let mut out = Vec::new();
+    for (index, n) in doc.nodes.iter().enumerate() {
+        let notify = n.kind == NodeKind::Notify;
+        let mut push = |field: String, expr: &Expr, facing: bool, want: Want| {
+            out.push(Site { index, node: &n.id, field, expr: expr.clone(), facing: facing || notify, want });
         };
-        let mut bound: BTreeSet<&str> = BTreeSet::new();
-        for i in 0..toks.len() {
-            let Some(name) = ident(i) else { continue };
-            let after_dot = i > 0 && toks[i - 1] == Tok::Dot;
-            if after_dot
-                && CEL_BINDING_MACROS.contains(&name)
-                && toks.get(i + 1) == Some(&Tok::Open)
-                && toks.get(i + 3) == Some(&Tok::Comma)
-                && let Some(var) = ident(i + 2)
-            {
-                bound.insert(var);
-            }
-            if matches!(name, "for" | "some" | "every")
-                && let Some(var) = ident(i + 1)
-                && ident(i + 2) == Some("in")
-            {
-                bound.insert(var);
+        if let Some(e) = &n.at {
+            push("at".into(), e, false, Want::Type(Type::DateTime));
+        }
+        // Correlation keys and idempotency keys are recorded in events and job rows.
+        if let Some(e) = &n.correlation {
+            push("correlation".into(), e, true, Want::Any);
+        }
+        if let Some(e) = &n.idempotency_key {
+            push("idempotencyKey".into(), e, true, Want::Type(Type::String));
+        }
+        for (k, e) in n.input.iter().flatten() {
+            push(field_key("input", k), e, false, Want::Any);
+        }
+        for (k, e) in n.assign.iter().flatten() {
+            let want = schema.get(k).map_or(Want::Any, |d| Want::Type(d.ty.clone()));
+            push(field_key("assign", k), e, false, want);
+        }
+        for (b, br) in n.branches.iter().flatten().enumerate() {
+            if let Some(e) = &br.when {
+                push(format!("branches/{b}/when"), e, false, Want::Type(Type::Bool));
             }
         }
-        let mut references = BTreeSet::new();
-        for i in 0..toks.len() {
-            let Some(name) = ident(i) else { continue };
-            let after_dot = i > 0 && toks[i - 1] == Tok::Dot;
-            let is_call = toks.get(i + 1) == Some(&Tok::Open);
-            if after_dot || is_call || KEYWORDS.contains(&name) || bound.contains(name) {
-                continue;
-            }
-            if name == "vars" {
-                // `vars.amount` reads `amount` (docs/11 §3.1 example form).
-                if toks.get(i + 1) == Some(&Tok::Dot)
-                    && let Some(var) = ident(i + 2)
-                {
-                    references.insert(var.to_owned());
+        let mut assignee = |base: String, a: &Assignment| {
+            for (c, cand) in a.candidates.iter().enumerate() {
+                if let Some(expr) = cand.reference.as_expr() {
+                    out.push(Site {
+                        index,
+                        node: &n.id,
+                        field: format!("{base}/candidates/{c}/ref"),
+                        expr,
+                        facing: notify,
+                        want: Want::Assignee,
+                    });
                 }
-                continue;
             }
-            if !CONTEXT_ROOTS.contains(&name) {
-                references.insert(name.to_owned());
+            if let Some(expr) = a.fallback.as_ref().and_then(|f| f.reference.as_expr()) {
+                out.push(Site {
+                    index,
+                    node: &n.id,
+                    field: format!("{base}/fallback/ref"),
+                    expr,
+                    facing: notify,
+                    want: Want::Assignee,
+                });
+            }
+        };
+        for (field, a) in n.assignments() {
+            assignee(field.to_owned(), a);
+        }
+        for (k, esc) in n.escalations.iter().flatten().enumerate() {
+            if let Some(expr) = esc.to.as_ref().and_then(|t| t.reference.as_expr()) {
+                out.push(Site {
+                    index,
+                    node: &n.id,
+                    field: format!("escalations/{k}/to/ref"),
+                    expr,
+                    facing: notify,
+                    want: Want::Assignee,
+                });
             }
         }
-        Ok(Analysis { references })
     }
+    out
+}
+
+/// IR code for an expression diagnostic (docs/11 §14, check 7).
+fn ir_code(c: procera_expr::Code) -> Code {
+    use procera_expr::Code as X;
+    match c {
+        X::Syntax | X::Lexical | X::BadNumber | X::SourceTooLong | X::TooDeep | X::Reserved => Code::E019,
+        X::UnknownVariable => Code::E020,
+        X::RestrictedInContext => Code::E021,
+        X::Nullable | X::NullableCondition => Code::E036,
+        _ => Code::E035,
+    }
+}
+
+fn is_assignee(t: &Type) -> bool {
+    match t.non_null() {
+        Type::Principal | Type::Group | Type::String | Type::Enum(_) | Type::Never => true,
+        Type::List(inner) => matches!(inner.non_null(), Type::Principal | Type::Group | Type::String),
+        _ => false,
+    }
+}
+
+/// Parses and type-checks every expression in `doc`. Returns the sites that compiled and the
+/// diagnostics of those that did not, with pointers into the source document.
+pub fn compile_expressions(doc: &IrDocument) -> (CompiledExpressions, Vec<Diagnostic>) {
+    let (schema, mut diags) = schema_of(doc);
+    let mut compiled: BTreeMap<String, BTreeMap<String, CheckedExpr>> = BTreeMap::new();
+    for site in sites(doc, &schema) {
+        let ptr = format!("/nodes/{}/{}", site.index, site.field);
+        let err = |code: Code, msg: String| Diagnostic::new(code, ptr.clone(), msg).at_node(site.node);
+        let body = match site.expr.parse() {
+            None => {
+                diags.push(err(Code::E019, format!("'{}' is not `expr:cel: …`", site.expr.0)));
+                continue;
+            }
+            Some((ExprLang::Feel, _)) => {
+                diags.push(err(
+                    Code::E019,
+                    "language `feel` is not supported: expressions are CEL (`expr:cel: …`, ADR-0010, docs/11 §6.1)"
+                        .into(),
+                ));
+                continue;
+            }
+            Some((ExprLang::Cel, body)) => body,
+        };
+        let expected = match &site.want {
+            Want::Type(t) => Some(t.clone()),
+            Want::Any | Want::Assignee => None,
+        };
+        let context = if site.facing { ExprContext::EventFacing } else { ExprContext::General };
+        match procera_expr::compile(body, &schema, &CheckOptions { expected, context }) {
+            Ok(checked) => {
+                if matches!(site.want, Want::Assignee) && !is_assignee(&checked.ty) {
+                    diags.push(err(
+                        Code::E035,
+                        format!("an assignee must be a principal, group or id, found {}", checked.ty),
+                    ));
+                    continue;
+                }
+                compiled.entry(site.node.to_owned()).or_default().insert(site.field, checked);
+            }
+            Err(ds) => {
+                for d in ds {
+                    let (line, col) = d.span.line_col(body);
+                    diags.push(err(ir_code(d.code), format!("{} at {line}:{col}: {}", d.code, d.message)));
+                }
+            }
+        }
+    }
+    (CompiledExpressions { schema, sites: compiled }, diags)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn refs(lang: ExprLang, body: &str) -> Vec<String> {
-        LexicalChecker.analyse(lang, body).unwrap().references.into_iter().collect()
+    #[test]
+    fn maps_every_expression_code() {
+        use procera_expr::Code as X;
+        assert_eq!(ir_code(X::Syntax), Code::E019);
+        assert_eq!(ir_code(X::UnknownVariable), Code::E020);
+        assert_eq!(ir_code(X::RestrictedInContext), Code::E021);
+        assert_eq!(ir_code(X::NullableCondition), Code::E036);
+        assert_eq!(ir_code(X::CurrencyMismatch), Code::E035);
     }
 
     #[test]
-    fn collects_roots_and_skips_members_calls_keywords() {
-        assert_eq!(refs(ExprLang::Feel, "initiator.manager"), Vec::<String>::new());
-        assert_eq!(refs(ExprLang::Feel, "sensitivity = \"high\""), vec!["sensitivity"]);
-        assert_eq!(
-            refs(ExprLang::Feel, "(if severity = \"critical\" then 5 else 1) * occurrence"),
-            vec!["occurrence", "severity"]
-        );
-        assert_eq!(refs(ExprLang::Feel, "date and time(start_date, time(\"09:00:00\"))"), vec!["start_date"]);
-        assert_eq!(refs(ExprLang::Cel, "vars.amount > 50000 && size(items) > 0"), vec!["amount", "items"]);
-        assert_eq!(refs(ExprLang::Cel, "items.all(i, i.quantity > 0)"), vec!["items"]);
-        assert_eq!(refs(ExprLang::Feel, "some x in items satisfies x.qty > 1"), vec!["items"]);
-        assert_eq!(refs(ExprLang::Cel, "instance.id + \":grant\""), Vec::<String>::new());
-    }
-
-    #[test]
-    fn rejects_malformed_source() {
-        assert!(LexicalChecker.analyse(ExprLang::Cel, "   ").is_err());
-        assert!(LexicalChecker.analyse(ExprLang::Cel, "size(items").is_err());
-        assert!(LexicalChecker.analyse(ExprLang::Cel, "a)").is_err());
-        assert!(LexicalChecker.analyse(ExprLang::Feel, "\"open").is_err());
+    fn assignee_types() {
+        assert!(is_assignee(&Type::optional(Type::Principal)));
+        assert!(is_assignee(&Type::list(Type::Group)));
+        assert!(!is_assignee(&Type::Decimal));
     }
 }

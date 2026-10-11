@@ -11,8 +11,9 @@
 //!
 //! The compiler is pure and deterministic: no I/O, clock or randomness. Workspace facts (are the
 //! referenced artifacts published, is the connector enabled, does the group exist) come in
-//! through [`Environment`]; expression parsing goes through [`ExpressionChecker`] (the engine
-//! itself is BPMS-081).
+//! through [`Environment`]. Expressions are parsed and type-checked with `procera-expr` (CEL,
+//! BPMS-081), and the checked forms are part of the output ([`CompiledExpressions`]) so the
+//! runtime never parses them again.
 //!
 //! ```
 //! use procera_ir::{CompileContext, compile};
@@ -37,10 +38,10 @@ mod expr;
 pub mod model;
 
 pub use canon::{COMPILER_VERSION, canonical_bytes, checksum_of, normalize};
-pub use diag::{Code, Diagnostic, Severity};
+pub use diag::{Code, Diagnostic, Severity, escape_pointer};
 pub use diff::{Change, ChangeKind, DiffError, Section, SemanticDiff, diff};
 pub use env::{Environment, Resolution};
-pub use expr::{Analysis, CONTEXT_ROOTS, ExpressionChecker, LexicalChecker};
+pub use expr::{CompiledExpressions, compile_expressions, field_key, schema_of};
 pub use model::IrDocument;
 
 use serde_json::Value;
@@ -50,20 +51,12 @@ use std::sync::OnceLock;
 pub const SCHEMA_V1: &str = include_str!("../../../schemas/ir/v1.schema.json");
 
 /// What the compiler may consult. All of it is caller-provided and read-only.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct CompileContext<'a> {
-    /// Expression parser/analyser (BPMS-081 supplies the real engine).
-    pub expressions: &'a dyn ExpressionChecker,
     /// Workspace snapshot for checks 8-10; `None` skips them and reports `IR-I001`.
     pub environment: Option<&'a dyn Environment>,
     /// The previous published version, to produce a semantic diff.
     pub previous: Option<&'a IrDocument>,
-}
-
-impl Default for CompileContext<'_> {
-    fn default() -> Self {
-        Self { expressions: &LexicalChecker, environment: None, previous: None }
-    }
 }
 
 impl std::fmt::Debug for CompileContext<'_> {
@@ -84,6 +77,9 @@ pub struct Compiled {
     pub canonical: Vec<u8>,
     /// Lowercase hex SHA-256 of `canonical`.
     pub checksum: String,
+    /// Every expression, parsed and type-checked, keyed by node and field. Derived from `ir`, so
+    /// it is not part of the canonical bytes or the checksum.
+    pub expressions: CompiledExpressions,
 }
 
 /// Everything a compile produces.
@@ -140,7 +136,7 @@ pub fn compile(source: &Value, ctx: &CompileContext<'_>) -> CompileOutput {
         Ok(d) => d,
         Err(e) => return CompileOutput::failed(vec![Diagnostic::new(Code::E100, "", e.to_string())]),
     };
-    let mut diagnostics = check::run(&doc, ctx.expressions, ctx.environment);
+    let (mut diagnostics, expressions) = check::run(&doc, ctx.environment);
     diagnostics.sort();
     diagnostics.dedup();
     if diagnostics.iter().any(|d| d.severity == Severity::Error) {
@@ -153,7 +149,9 @@ pub fn compile(source: &Value, ctx: &CompileContext<'_>) -> CompileOutput {
     };
     let checksum = checksum_of(&canonical);
     let diff = ctx.previous.map(|prev| diff(&normalize(prev), &ir));
-    CompileOutput { compiled: Some(Compiled { ir, canonical, checksum }), diagnostics, diff }
+    // Sites are keyed by node id and a node-relative field, so normalising (which reorders nodes
+    // but not the contents of a node) keeps every key valid.
+    CompileOutput { compiled: Some(Compiled { ir, canonical, checksum, expressions }), diagnostics, diff }
 }
 
 /// [`compile`] from JSON text; unparseable text is a single `IR-E100`.

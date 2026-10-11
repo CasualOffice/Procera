@@ -5,7 +5,7 @@ mod semantic;
 
 use crate::diag::Diagnostic;
 use crate::env::Environment;
-use crate::expr::ExpressionChecker;
+use crate::expr::CompiledExpressions;
 use crate::model::{IrDocument, Node};
 use std::collections::BTreeMap;
 
@@ -77,15 +77,11 @@ impl<'a> Index<'a> {
     }
 }
 
-/// Runs every check and returns the findings, unsorted.
-pub(crate) fn run(
-    doc: &IrDocument,
-    expressions: &dyn ExpressionChecker,
-    env: Option<&dyn Environment>,
-) -> Vec<Diagnostic> {
+/// Runs every check and returns the findings, unsorted, with the expressions that compiled.
+pub(crate) fn run(doc: &IrDocument, env: Option<&dyn Environment>) -> (Vec<Diagnostic>, CompiledExpressions) {
     let ix = Index::new(doc);
     let mut out = Vec::new();
     graph::check(&ix, &mut out);
-    semantic::check(&ix, expressions, env, &mut out);
-    out
+    let expressions = semantic::check(&ix, env, &mut out);
+    (out, expressions)
 }

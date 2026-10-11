@@ -59,7 +59,7 @@ codes! {
     E016 = "IR-E016", Error, "Duplicate variable name";
     E017 = "IR-E017", Error, "Outcome handled by more than one edge";
     E018 = "IR-E018", Error, "Field required by the node kind is missing";
-    E019 = "IR-E019", Error, "Expression is malformed or uses an unknown language";
+    E019 = "IR-E019", Error, "Expression is malformed or uses an unsupported language";
     E020 = "IR-E020", Error, "Expression or assignment references an undeclared variable";
     E021 = "IR-E021", Error, "`restricted` variable used in a notification or event-facing field";
     E022 = "IR-E022", Error, "Node references a `refs` key that is not declared";
@@ -75,6 +75,8 @@ codes! {
     E032 = "IR-E032", Error, "SLA references an unknown node";
     E033 = "IR-E033", Error, "Duplicate SLA id";
     E034 = "IR-E034", Error, "Duplicate branch name";
+    E035 = "IR-E035", Error, "Expression does not type-check, or gives the wrong type for its field";
+    E036 = "IR-E036", Error, "Expression uses a value that may be null where a value is required";
     E100 = "IR-E100", Error, "Schema violation (shape, unknown field, pattern)";
     W001 = "IR-W001", Warning, "`readers` on a variable that is not `restricted` has no effect";
     W002 = "IR-W002", Warning, "`excludeActorsOf` references a node that has no human actors";

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.expr-feel", "version": 1, "name": { "en": "FEEL is not supported" } },
+  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal", "required": true }],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "route", "kind": "decision", "branches": [{ "name": "big", "when": "expr:feel: amount > 1000" }] },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "route" },
+    { "id": "e2", "from": "route", "to": "done", "on": "big" },
+    { "id": "e3", "from": "route", "to": "done", "on": "default" }
+  ]
+}

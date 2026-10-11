@@ -287,11 +287,11 @@ fn e020_undeclared_variable() {
 fn e021_restricted_in_notification_or_event_field() {
     let mut d = reference("hr.employee-onboarding");
     let i = d["nodes"].as_array().unwrap().iter().position(|n| n["id"] == "welcome").unwrap();
-    d["nodes"][i]["to"]["candidates"][0]["ref"] = json!("expr:feel: salary");
+    d["nodes"][i]["to"]["candidates"][0]["ref"] = json!("expr:cel: salary");
     expect(&d, Code::E021, &format!("/nodes/{i}/to/candidates/0/ref"));
     let mut d = reference("hr.employee-onboarding");
     let i = d["nodes"].as_array().unwrap().iter().position(|n| n["id"] == "laptop_delivered").unwrap();
-    d["nodes"][i]["correlation"] = json!("expr:feel: salary");
+    d["nodes"][i]["correlation"] = json!("expr:cel: salary");
     expect(&d, Code::E021, &format!("/nodes/{i}/correlation"));
 }
 
@@ -366,12 +366,12 @@ fn e028_timer_shape() {
 #[test]
 fn e029_instant_without_offset() {
     let d = chain(
-        json!({"id": "x", "kind": "wait.timer", "at": "expr:cel: timestamp(\"2026-11-01T09:00:00\")"}),
+        json!({"id": "x", "kind": "wait.timer", "at": "expr:cel: datetime(\"2026-11-01T09:00:00\")"}),
         "fired",
     );
     expect(&d, Code::E029, "/nodes/1/at");
     let ok = chain(
-        json!({"id": "x", "kind": "wait.timer", "at": "expr:cel: timestamp(\"2026-11-01T09:00:00+05:30\")"}),
+        json!({"id": "x", "kind": "wait.timer", "at": "expr:cel: datetime(\"2026-11-01T09:00:00+05:30\")"}),
         "fired",
     );
     assert_eq!(codes(&offline(&ok)), ["IR-I001"]);
@@ -419,6 +419,121 @@ fn e034_duplicate_branch() {
     let mut d = fin();
     d["nodes"][1]["branches"].as_array_mut().unwrap().push(json!({"name": "cfo"}));
     expect(&d, Code::E034, "/nodes/1/branches/3/name");
+}
+
+/// `start → x → done` with typed variables, for the expression type checks.
+fn typed(x: Value, outcome: &str) -> Value {
+    let mut d = chain(x, outcome);
+    d["variables"] = json!([
+        { "name": "amount", "type": "decimal", "required": true },
+        { "name": "limit", "type": { "money": { "currency": "EUR" } }, "required": true },
+        { "name": "fee", "type": { "money": { "currency": "INR" } }, "required": true },
+        { "name": "note", "type": "string" },
+        { "name": "urgent", "type": "boolean" },
+        { "name": "level", "type": { "enum": ["low", "high"] }, "required": true },
+        { "name": "salary", "type": "decimal", "classification": "restricted", "required": true }
+    ]);
+    if d["nodes"][1]["kind"] == "decision" {
+        edges(&mut d).push(json!({"id": "e-default", "from": "x", "to": "done", "on": "default"}));
+    }
+    d
+}
+
+fn message(doc: &Value, code: Code, pointer: &str) -> String {
+    let out = offline(doc);
+    let d = out.diagnostics.iter().find(|d| d.code == code && d.pointer == pointer);
+    d.unwrap_or_else(|| panic!("no {code} at {pointer}: {:#?}", out.diagnostics)).message.clone()
+}
+
+#[test]
+fn e035_type_errors() {
+    // Assigning a decimal to a string variable.
+    let d = typed(json!({"id": "x", "kind": "set", "assign": {"note": "expr:cel: amount * 2"}}), "next");
+    expect(&d, Code::E035, "/nodes/1/assign/note");
+    assert!(message(&d, Code::E035, "/nodes/1/assign/note").starts_with("EXPR-E017 at 1:1:"));
+    // A non-boolean branch condition.
+    let br = |when: &str| json!({"id": "x", "kind": "decision", "branches": [{"name": "a", "when": when}]});
+    let d = typed(br("expr:cel: amount + 1"), "a");
+    expect(&d, Code::E035, "/nodes/1/branches/0/when");
+    // Mixing currencies, ordering across types, a value outside the enum, a bad literal.
+    for (src, expr_code) in [
+        ("expr:cel: limit + fee > limit", "EXPR-E020"),
+        ("expr:cel: amount > 'x'", "EXPR-E014"),
+        ("expr:cel: level == 'medium'", "EXPR-E019"),
+        ("expr:cel: date('2026-02-30') == date('2026-03-01')", "EXPR-E021"),
+    ] {
+        let d = typed(br(src), "a");
+        let msg = message(&d, Code::E035, "/nodes/1/branches/0/when");
+        assert!(msg.starts_with(expr_code), "{src}: {msg}");
+    }
+    // A timer instant must be a datetime; an idempotency key a string.
+    let d = typed(json!({"id": "x", "kind": "wait.timer", "at": "expr:cel: amount"}), "fired");
+    expect(&d, Code::E035, "/nodes/1/at");
+    // An assignee must be a principal, group or id.
+    let mut d = typed(task(), "submitted");
+    d["nodes"][1]["assignment"]["candidates"][0] = json!({"type": "user", "ref": "expr:cel: amount"});
+    expect(&d, Code::E035, "/nodes/1/assignment/candidates/0/ref");
+    // A variable type with no expression type (money without a currency).
+    let mut d = typed(task(), "submitted");
+    d["variables"][1]["type"] = json!({"money": {}});
+    expect(&d, Code::E035, "/variables/1/type");
+}
+
+#[test]
+fn e036_null_misuse() {
+    let br = |when: &str| json!({"id": "x", "kind": "decision", "branches": [{"name": "a", "when": when}]});
+    // An optional boolean decides nothing on its own (docs/11 §6).
+    let d = typed(br("expr:cel: urgent"), "a");
+    expect(&d, Code::E036, "/nodes/1/branches/0/when");
+    assert!(message(&d, Code::E036, "/nodes/1/branches/0/when").starts_with("EXPR-E018"));
+    // Using an optional value in arithmetic, at its exact position in the source.
+    let d = typed(br("expr:cel: amount > 1 && size(note) > 3"), "a");
+    let msg = message(&d, Code::E036, "/nodes/1/branches/0/when");
+    assert!(msg.starts_with("EXPR-E016 at 1:"), "{msg}");
+    // Guards make both fine.
+    for ok in ["expr:cel: urgent == true", "expr:cel: note != null && size(note) > 3"] {
+        assert_eq!(codes(&offline(&typed(br(ok), "a"))), ["IR-I001"], "{ok}");
+    }
+}
+
+#[test]
+fn restricted_reads_only_fail_in_event_facing_fields() {
+    // A decision may read a restricted variable; nothing about it leaves the instance.
+    let br = json!({"id": "x", "kind": "decision", "branches": [{"name": "a", "when": "expr:cel: salary > 100.0"}]});
+    assert_eq!(codes(&offline(&typed(br, "a"))), ["IR-I001"]);
+    // An idempotency key may not.
+    let mut d = typed(
+        json!({"id": "x", "kind": "service.call", "connector": "c", "action": "a",
+               "idempotencyKey": "expr:cel: string(salary)"}),
+        "ok",
+    );
+    d["refs"] = json!({"connectors": {"c": "connector:c"}});
+    edges(&mut d).push(json!({"id": "e3", "from": "x", "to": "done", "on": "error"}));
+    expect(&d, Code::E021, "/nodes/1/idempotencyKey");
+    assert!(message(&d, Code::E021, "/nodes/1/idempotencyKey").starts_with("EXPR-E023 at 1:8:"));
+}
+
+#[test]
+fn compiled_output_carries_every_checked_expression() {
+    let d = typed(
+        json!({"id": "x", "kind": "decision", "branches": [
+            {"name": "a", "when": "expr:cel: amount > 10"},
+            {"name": "b", "when": "expr:cel: level == 'high'"}
+        ]}),
+        "a",
+    );
+    let mut d = d;
+    edges(&mut d).push(json!({"id": "e3", "from": "x", "to": "done", "on": "b"}));
+    let compiled = offline(&d).compiled.unwrap();
+    assert_eq!(compiled.expressions.len(), 2);
+    let a = compiled.expressions.get("x", "branches/0/when").unwrap();
+    assert_eq!(a.source, "amount > 10");
+    assert_eq!(a.ty, procera_expr::Type::Bool);
+    assert!(compiled.expressions.get("x", "branches/1/when").is_some());
+    // The checked forms are derived data: they do not change the checksum.
+    let again = offline(&serde_json::to_value(&compiled.ir).unwrap()).compiled.unwrap();
+    assert_eq!(again.checksum, compiled.checksum);
+    assert_eq!(again.expressions, compiled.expressions);
 }
 
 #[test]

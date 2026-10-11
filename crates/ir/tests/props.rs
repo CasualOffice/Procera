@@ -149,7 +149,8 @@ fn build(s: &Spec) -> Value {
     }
     b.nodes.push(json!({"id": "end", "kind": "end"}));
     b.connect(&open, "end");
-    let mut vars = vec![json!({"name": "amount", "type": "decimal", "classification": "internal"})];
+    let mut vars =
+        vec![json!({"name": "amount", "type": "decimal", "classification": "internal", "required": true})];
     for (i, (t, c)) in s.vars.iter().enumerate() {
         let mut v = json!({"name": format!("v{i}"), "type": TYPES[*t as usize]});
         if let Some(c) = CLASSES[*c as usize] {

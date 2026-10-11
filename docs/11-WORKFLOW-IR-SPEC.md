@@ -432,13 +432,14 @@ The production compiler (BPMS-080, §14) keeps these codes and meanings and adds
 
 ## 14. As built (BPMS-080)
 
-**Crate.** `crates/ir` (`procera-ir`) holds the IR v1 model, the compiler, the canonical form and the semantic diff. It depends on serde, `serde_jcs`, `sha2` and `jsonschema` only. It does no I/O and reads no clock or randomness, so the same input always gives the same output.
+**Crate.** `crates/ir` (`procera-ir`) holds the IR v1 model, the compiler, the canonical form and the semantic diff. It depends on serde, `serde_jcs`, `sha2`, `jsonschema` and `procera-expr` (§6.1) only. It does no I/O and reads no clock or randomness, so the same input always gives the same output.
 
 **Pipeline.**
 
 ```text
-source JSON ─ JSON Schema (IR-E100) ─ typed parse ─ §11 checks ─┬─ any error → diagnostics only
-                                                                └─ none → normal form → JCS bytes → sha256
+source JSON ─ JSON Schema (IR-E100) ─ typed parse ─ §11 checks (incl. CEL type check) ─┬─ any error → diagnostics only
+                                                                                       └─ none → normal form → JCS bytes → sha256
+                                                                                                 + checked expressions
 ```
 
 **Source format.** The compiler's input is an IR v1 document as authored, which need not be in normal form. Each editor maps its own canvas JSON to this shape before compiling. See A-21 in [22](22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md).
@@ -455,15 +456,29 @@ Order inside a node (branches, candidates, escalations) is meaningful and is kep
 
 | Item | Purpose |
 |---|---|
-| `compile(&Value, &CompileContext) -> CompileOutput` / `compile_str` | Compile. `CompileOutput { compiled: Option<Compiled { ir, canonical, checksum }>, diagnostics, diff }`. `compiled` is `None` when any diagnostic is an error. |
-| `CompileContext { expressions, environment, previous }` | Injected ports. `Default` uses the built-in `LexicalChecker` and no environment. `previous` is the last published IR, used for the diff. |
-| `ExpressionChecker` (port) | `analyse(lang, body) -> Result<Analysis { references }, String>`. `LexicalChecker` checks brackets and strings, collects root variable names (§13.10 context roots excluded) and is a stand-in until BPMS-081 (CEL, ADR-0010) supplies the real parser and type checker. |
+| `compile(&Value, &CompileContext) -> CompileOutput` / `compile_str` | Compile. `CompileOutput { compiled: Option<Compiled { ir, canonical, checksum, expressions }>, diagnostics, diff }`. `compiled` is `None` when any diagnostic is an error. |
+| `CompileContext { environment, previous }` | Injected ports. `Default` has no environment. `previous` is the last published IR, used for the diff. |
+| `CompiledExpressions { schema, sites }`, `compile_expressions(&IrDocument)`, `schema_of(&IrDocument)`, `field_key` | Expression compilation, explained under *Expressions* below. `Compiled::expressions` holds every checked expression keyed by node id and node-relative field (`get(node, field)`). |
 | `Environment` (port) | Workspace snapshot for checks 8–10: `resolve(ref) -> Resolution`, `connector_usable(ref)`, `principal_exists(type, name)`. Without one, those checks are skipped and `IR-I001` is reported. |
 | `normalize`, `canonical_bytes`, `checksum_of`, `COMPILER_VERSION` | Canonical form and hash. |
 | `diff(old, new) -> SemanticDiff`, `SemanticDiff::apply(base)` | Semantic diff, explained below. |
-| `validate_schema`, `SCHEMA_V1`, `model::*`, `Code`, `Severity`, `Diagnostic` | Shape check, the data model and diagnostics. |
+| `validate_schema`, `SCHEMA_V1`, `model::*`, `Code`, `Severity`, `Diagnostic`, `escape_pointer` | Shape check, the data model and diagnostics. |
 
 **Diagnostics.** Each diagnostic has a stable `code`, a fixed `severity` (`error`, `warning` or `info`), a JSON `pointer` into the *source* document (RFC 6901), the `node` id when there is one, and a message. Diagnostics are sorted by code, then pointer. Only errors block the output.
+
+**Expressions** (§11 check 7, BPMS-080 with BPMS-081). Every expression is parsed and type-checked with `procera-expr` against a schema built from the declared variables (`Type::from_ir`; a variable without `required: true` may be null) plus the process context (`initiator`, `instance`, and the `now()` function). What each field needs:
+
+| Field | Needs | Context |
+|---|---|---|
+| decision `branches[].when` | `boolean`, never null | general |
+| `set` `assign.<var>` | the variable's declared type | general |
+| `wait.timer` `at` | `datetime` | general |
+| `service.call` `idempotencyKey` | `string` | event-facing |
+| `wait.signal` `correlation` | any type | event-facing |
+| `service.call` `input.<k>` | any type | general |
+| assignee `ref` (`assignment`, `signers`, `to`, `fallback`, escalation `to`) | `principal`, `group` or `string` (an id), a list of them, or null | event-facing on `notify`, else general |
+
+Every field of a `notify` node is event-facing. An expression diagnostic becomes an IR diagnostic at the field's pointer; its message starts with the `EXPR-…` code and the line and column inside the expression (`EXPR-E016 at 1:14: …`). The checked forms (`CheckedExpr`: AST with widenings, type, variables read) are kept in `Compiled::expressions`, keyed by node id and the field's pointer relative to the node (`branches/0/when`, `assign/total`, `at`, `assignment/candidates/0/ref`). They are derived from the IR, so they are not part of the canonical bytes or the checksum, and the runtime evaluates them without parsing again (§15).
 
 **Semantic diff.** Entities are matched by stable id:
 - nodes and edges by `id`;
@@ -498,9 +513,9 @@ Each change is `added`, `removed` or `changed`. A changed entity lists the top-l
 | IR-E016 | error | 2 | Duplicate variable name |
 | IR-E017 | error | 3 | One outcome handled by more than one edge (that would be an implicit fork, §1.4) |
 | IR-E018 | error | 3 | A field the node kind requires is missing. The required fields are: `assignment` on `human.task`, `human.approval` and `human.acknowledge`; `signers` and `document` on `human.sign`; `subject` on `human.acknowledge`; `branches` on a decision or split; `rule` and `output` together on a rule-table decision; `when` on each branch of an expression decision; `correlation` on `wait.signal`; `connector`, `action` and `idempotencyKey` on `service.call`; `to` and `template` on `notify`; `process` on `subprocess.call` |
-| IR-E019 | error | 7 | Expression is malformed or uses an unknown language tag |
-| IR-E020 | error | 7 | Expression reads, or `set` assigns, an undeclared variable |
-| IR-E021 | error | 7 | `restricted` variable used in an event-facing field: any `notify` field, a `correlation` key or an `idempotencyKey` |
+| IR-E019 | error | 7 | Expression is malformed (EXPR-E001…E006) or its language tag is not `cel`. `expr:feel:` is rejected: the engine is CEL (ADR-0010, §6.1) |
+| IR-E020 | error | 7 | Expression reads (EXPR-E010), or `set` assigns, an undeclared variable |
+| IR-E021 | error | 7 | `restricted` variable used in an event-facing field: any `notify` field, a `correlation` key or an `idempotencyKey` (EXPR-E023) |
 | IR-E022 | error | 8 | `form`, `inputForm`, `quiz`, `rule`, `calendar`, `connector`, `process`, `document` or `subject` names a `refs` key that is not declared. `document` may instead name a `file` variable |
 | IR-E023 | error | 8 | Reference not found, not published, or not usable by this author (environment) |
 | IR-E024 | error | 9 | Connector not enabled for the workspace, or scopes not granted (environment) |
@@ -514,6 +529,8 @@ Each change is `added`, `removed` or `changed`. A changed entity lists the top-l
 | IR-E032 | error | §9 | SLA `scope` or `pauseWhile` names an unknown node |
 | IR-E033 | error | 2 | Duplicate SLA id |
 | IR-E034 | error | 2 | Duplicate branch name on a decision or split |
+| IR-E035 | error | 7 | Expression does not type-check, or gives the wrong type for its field (EXPR-E011…E015, E017, E019…E022, E024, E025); or a variable's type has no expression type (`money` without a currency), reported at `/variables/<k>/type` |
+| IR-E036 | error | 7 | Expression uses a value that may be null where a value is required (EXPR-E016), or a condition may be null (EXPR-E018, §6) |
 | IR-E100 | error | — | Schema violation (shape, unknown field, pattern), or the source is not JSON |
 | IR-W001 | warning | 7 | `readers` on a variable that is not `restricted` has no effect |
 | IR-W002 | warning | 10 | `excludeActorsOf` names a node that has no human actors |
@@ -521,7 +538,7 @@ Each change is `added`, `removed` or `changed`. A changed entity lists the top-l
 
 **Gaps against §11.**
 - *Check 1:* there is no IR field that declares a "perpetual wait", so a process with no reachable end is always IR-E010.
-- *Check 7:* types are not checked. That needs the BPMS-081 type checker behind `ExpressionChecker`. Today's checks cover syntax, variable references and classification only.
+- *Check 7:* expressions inside rule tables and form `ui` conditions are checked by their own artifacts (BPMS-087, BPMS-101), not here.
 - *Check 10:* "SoD satisfiable" is limited to the initiator-only case. A full check needs directory data at publish time.
 - *Checks 8–10* run only when the caller supplies an `Environment`. The publish integration (BPMS-084) must always supply one.
 - *§1.5:* only `schemaVersion: 1` exists, so there is no migration function yet.
@@ -531,6 +548,8 @@ Each change is `added`, `removed` or `changed`. A changed entity lists the top-l
 - `qms.capa` used business-time `due` with no `refs.calendars` (check 11).
 
 Both fixtures are fixed.
+
+The five reference processes were written with `expr:feel:` placeholders before ADR-0010 was settled. They now use `expr:cel:` with the CEL forms from `crates/expr/tests/reference.rs`: `=` became `==`, the FEEL `if … then … else` became `?:` with a null guard on the optional `occurrence`, `date and time(start_date, time("09:00:00"))` became `datetime(start_date) + duration("PT9H")`, and the optional boolean condition `needs_doc_change` became `needs_doc_change == true`. Their golden checksums in `reference.checksums.json` changed only because of that text.
 
 ## 15. As built (BPMS-082)
 
