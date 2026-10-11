@@ -1,4 +1,4 @@
-import { KeyRound, Lock, UserPlus } from 'lucide-react';
+import { BriefcaseBusiness, KeyRound, Lock, UserPlus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useItems, useResource } from '../lib/data';
 import { type Catalog, type Grant, type Role } from '../lib/roles';
@@ -12,6 +12,7 @@ import { Tabs } from '../ui/components/Tabs';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
 import '../ui/admin.css';
+import { PresetDialog } from './rolePresets';
 import { PeopleTabs } from '../ui/PeopleTabs';
 import { RoleDrawer } from './roleDrawer';
 import { GrantDialog, RevokeDialog, expiryLabel, granteeLabel, holders, isLive, scopeLabel, useAccessDirectory } from './roleGrants';
@@ -32,6 +33,7 @@ export function Roles() {
   const [granting, setGranting] = useState<{ roleKey?: string } | null>(null);
   const [revoking, setRevoking] = useState<Grant | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [presets, setPresets] = useState(false);
   const canGrant = can('member:manage_roles');
   const open = roles?.find((r) => r.id === openId) ?? null;
   const roleName = (key: string) => roles?.find((r) => r.key === key)?.name ?? key;
@@ -82,7 +84,12 @@ export function Roles() {
       <PeopleTabs current="roles" />
       <div className="page-head">
         <div><h1>Roles &amp; access</h1><p>{roles ? `${roles.filter((r) => r.is_builtin).length} built-in roles · ${roles.filter((r) => !r.is_builtin).length} custom · ${(grants ?? []).filter((g) => isLive(g)).length} active grants` : 'What each role allows, and who holds it where.'}</p></div>
-        {canGrant && <div className="actions"><Button onPress={() => setGranting({})}><UserPlus aria-hidden="true" size="1rem" /> Grant a role</Button></div>}
+        {(canGrant || can('role:manage')) && (
+          <div className="actions">
+            {can('role:manage') && <Button variant="secondary" onPress={() => setPresets(true)}><BriefcaseBusiness aria-hidden="true" size="1rem" /> Add a role for a job</Button>}
+            {canGrant && <Button onPress={() => setGranting({})}><UserPlus aria-hidden="true" size="1rem" /> Grant a role</Button>}
+          </div>
+        )}
       </div>
       {notice && <Notice tone="success" title={notice} />}
       {error ? <LoadError error={error} onRetry={changed} what="roles" /> : loading ? <Skeleton variant="table" rows={8} label="Loading roles" /> : (
@@ -96,6 +103,8 @@ export function Roles() {
       <GrantDialog isOpen={granting !== null} roles={roles ?? []} roleKey={granting?.roleKey} dir={dir} onClose={() => setGranting(null)}
         onGranted={() => { setNotice('Role granted.'); reloadGrants(); }} />
       <RevokeDialog grant={revoking} roles={roles ?? []} dir={dir} onClose={() => setRevoking(null)} onRevoked={() => { setNotice('Grant revoked.'); reloadGrants(); }} />
+      <PresetDialog isOpen={presets} roles={roles ?? []} onClose={() => setPresets(false)}
+        onCreated={(r) => { setPresets(false); changed(); setNotice(`“${r.name}” is ready. Grant it to the people who do that job.`); if (canGrant) setGranting({ roleKey: r.key }); }} />
     </>
   );
 }
