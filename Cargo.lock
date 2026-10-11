@@ -2544,6 +2544,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "procera-ir"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "jsonschema",
+ "procera-conformance",
+ "proptest",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "procera-kernel"
 version = "0.0.0"
 dependencies = [

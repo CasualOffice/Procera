@@ -199,6 +199,14 @@
         "en": "Employee acknowledges Code of Conduct"
       },
       "subject": "policy",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "user",
+            "ref": "expr:feel: employee"
+          }
+        ]
+      },
       "due": {
         "after": "P7D"
       }

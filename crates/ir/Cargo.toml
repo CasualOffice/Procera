@@ -1,0 +1,24 @@
+[package]
+name = "procera-ir"
+description = "Workflow IR v1 model, compiler (docs/11 §11 checks, stable diagnostics), canonical form + checksum, semantic diff (BPMS-080, ADR-0003)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+jsonschema = { version = "0.58", default-features = false }
+serde.workspace = true
+serde_jcs = "0.2"
+serde_json.workspace = true
+sha2 = "0.10"
+
+[dev-dependencies]
+anyhow.workspace = true
+procera-conformance = { path = "../../conformance" }
+proptest.workspace = true
+
+[lints]
+workspace = true
