@@ -99,6 +99,8 @@ test.describe('block editor @r1 @ui', () => {
     await dlg.getByRole('button', { name: 'Insert' }).click();
     await expect(page.getByRole('textbox', { name: 'Content' }).getByRole('img', { name: 'Printer settings screen with the Network tab open' })).toBeVisible();
     await page.getByRole('button', { name: 'Save draft' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Content' })).toHaveCount(0); // out of the editor: the reader view
     await expect(page.getByRole('img', { name: 'Printer settings screen with the Network tab open' })).toBeVisible();
     await expect(page.getByText('Step 2')).toBeVisible();
     await page.reload();
