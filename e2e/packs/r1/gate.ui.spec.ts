@@ -699,4 +699,69 @@ test.describe('R1 gate @r1 @ui', () => {
       expect([401, 422, 429]).toContain(r.status());
     }
   });
+
+  test('E2E-R1-07 a major version asks everyone to re-acknowledge; 50 people do (10 on phones); the evidence lists the version hash and how each signed in', async ({ page, browser, request }) => {
+    test.setTimeout(300_000);
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const people: { email: string; id: string }[] = [];
+    for (let i = 0; i < 50; i += 10) {
+      people.push(...(await Promise.all(Array.from({ length: 10 }, (_, k) => member(request, owner, ws.id, `emp${i + k}`)))));
+    }
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key: 'conduct', title: 'Code of conduct', content: { blocks: [{ type: 'paragraph', text: 'Be kind.' }] } } })).json();
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+    const v2 = await (await owner.c.post(`/api/v1/artifacts/${r.artifact.id}/versions`, { headers: h })).json();
+    await owner.c.patch(`/api/v1/versions/${v2.id}`, { headers: h, data: { content: { blocks: [{ type: 'paragraph', text: 'Be kind. Report harassment.' }] } } });
+    await owner.c.post(`/api/v1/versions/${v2.id}/submit`, { headers: h });
+
+    // The owner publishes v2 as a major change in the browser.
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    const dlg = page.getByRole('dialog', { name: 'Publish v2' });
+    await dlg.getByLabel('What changed?').fill('Harassment reporting');
+    await expect(dlg.getByText(/^Publishing v2\.0 asks 51 people to re-acknowledge/)).toBeVisible();
+    await dlg.getByRole('button', { name: 'Publish now' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Published v2.0. 51 people asked to re-acknowledge.' })).toBeVisible();
+    await request.post('/__test/drain');
+
+    // Ten acknowledge on a phone-sized screen, from Home.
+    for (const p of people.slice(0, 10)) {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      const m = await ctx.newPage();
+      await signInPassword(m, p.email);
+      await m.getByRole('button', { name: 'Read and acknowledge' }).first().click();
+      await m.getByRole('region', { name: 'Acknowledgement requested' }).getByRole('button', { name: 'I acknowledge' }).click();
+      await expect(m.getByRole('status').filter({ hasText: 'Acknowledged' })).toBeVisible();
+      await ctx.close();
+    }
+    // Forty more through the API (same endpoint the page uses).
+    await Promise.all(people.slice(10).map(async (p) => {
+      const s = await passwordSession(p.email);
+      const sw = await s.c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${s.token}` }, data: { workspace_id: ws.id } });
+      const hh = { authorization: `Bearer ${(await sw.json()).access_token}` };
+      const mine = (await (await s.c.get('/api/v1/me/acknowledgements?state=pending', { headers: hh })).json()).items;
+      expect(mine).toHaveLength(1);
+      const done = await s.c.post(`/api/v1/acknowledgements/${mine[0].id}/complete`, { headers: hh, data: { content_hash: mine[0].subject.content_hash } });
+      expect(done.status()).toBe(200);
+    }));
+
+    // The evidence: 50 done, each with the v2 hash and the sign-in method.
+    await page.reload();
+    await page.getByRole('link', { name: /of 51 people/ }).click();
+    await expect(page.getByText('50 of 51')).toBeVisible();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Evidence CSV' }).click();
+    const csv: string = (await import('node:fs')).readFileSync((await (await download).path())!, 'utf8');
+    const [head, ...rows] = csv.trim().split(/\r?\n/);
+    const cols = head!.split(',');
+    expect(cols).toEqual(expect.arrayContaining(['version', 'content_hash', 'auth_method']));
+    const done = rows.map((l) => l.split(',')).filter((c) => c[cols.indexOf('state')] === 'completed');
+    expect(done).toHaveLength(50);
+    const hash = (await (await owner.c.get(`/api/v1/versions/${v2.id}`, { headers: h })).json()).content_hash;
+    expect(done.every((c) => c[cols.indexOf('content_hash')] === hash && c[cols.indexOf('version')] === '2')).toBe(true);
+    expect(done.every((c) => (c[cols.indexOf('auth_method')] ?? '').includes('pwd'))).toBe(true);
+  });
 });

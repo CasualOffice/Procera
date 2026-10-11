@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const banned = [/waitForTimeout\s*\(/, /setTimeout\s*\(/, /\bsleep\s*\(/];
+const banned = [/waitForTimeout\s*\(/, /(?<!\btest\.|\btestInfo\.)setTimeout\s*\(/, /\bsleep\s*\(/]; // test.setTimeout() is a test timeout, not a sleep
 const offenders = [];
 const walk = (dir) => {
   for (const name of readdirSync(dir)) {
