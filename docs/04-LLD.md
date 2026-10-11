@@ -466,6 +466,14 @@ Chain append algorithm (in the same transaction as the business change, so it is
 
 High-volume categories (`data_access` reads) use **batched appends**: events are buffered in an `audit_pending` table and a 1-second chain-sealer job takes over the head lock. This keeps hot read paths from contending, and the chain is still gap-free.
 
+Explorer, as built (0015, BPMS-064; `procera_audit::explorer`, `/api/v1/audit/*`):
+- **Queries** filter on time range (`from` inclusive, `to` exclusive), actor subject (or a membership id resolved to it), action prefix (`LIKE 'prefix%'`, served by the new `(workspace_id, action text_pattern_ops, occurred_at DESC)` index), category, object type/id and result. Keyset pagination on `seq`, newest first (`seq < cursor ORDER BY seq DESC`, per-partition PK scans merged); the cursor is the last `seq`. Actor names are resolved only for members of the workspace; other subjects stay pseudonymous.
+- **Scope:** `audit:view` reads the whole workspace chain; `audit:view_own` adds `actor_subject_ref = caller`.
+- **Timelines:** every event for one object, oldest first; `artifact` expands to its versions (the library records lifecycle events per `artifact_version`).
+- **Saved queries:** `audit_saved_queries (workspace_id, id, membership_id, name, filters jsonb, created_at)`, forced RLS, unique `(workspace_id, membership_id, lower(name))`, at most 100 per member; `filters` uses the same strict shape as the query (unknown fields rejected). Saving and deleting append `audit.query_saved` / `audit.query_deleted` (category `admin`).
+- **Exports:** synchronous CSV (RFC 4180; cells starting with `= + - @` are prefixed with `'`) or JSON lines, newest first, capped at 10 000 rows with a truncated flag; `audit:view` + `audit:export` + step-up. Each export appends `audit.exported` (category `export`, with format, row count, truncated flag and filters) in the same transaction. The object-store export job (04 §5) replaces the cap later.
+- **Reads are not logged per query:** audit events carry no restricted values (diffs are redacted when written), and `data_access` events are defined for restricted/confidential reads (06 §7, 24 §3.5). Exports are always logged (FR-T01).
+
 Checkpoints:
 - Every 5 minutes or every 10 000 events, compute an RFC 9162-style Merkle root over `(last_checkpoint, upto_seq]` and sign it with the platform audit key (Ed25519 in KMS).
 - Optionally request an RFC 3161 token for it.
@@ -650,6 +658,13 @@ GET /v1/requests?view=… or POST /v1/requests/query
 - `tsvector` columns are maintained by triggers on artifacts, instances, cases and announcements, with weighted title, body and tags, and `simple` plus language configs per workspace locale. `pg_trgm` handles fuzzy and short queries.
 - Results are filtered by the same scope predicates as lists. Restricted variables are never indexed.
 - An optional Tantivy index is fed from the outbox (one index per workspace) for large tenants.
+
+**As built (0015, BPMS-049; crate `procera-search`, `GET /api/v1/search`):**
+- **Artifacts:** `artifacts.search_body` (every string `text` value of the indexed version's content, capped at 200 000 characters) and `artifacts.tsv` = `simple`(title + key words, A) ‖ `english`(title, A) ‖ `english`(body, B). A `BEFORE INSERT OR UPDATE` trigger on `artifacts` recomputes both; an `AFTER INSERT OR UPDATE OF content, lifecycle` trigger on `artifact_versions` touches the artifact row (revision untouched, so ETags hold). The indexed version is the published one, else the newest: what `sop:view`/`policy:view` holders can already read through the library API. Triggers were chosen over write-path updates so every writer (API, scheduler, future imports) keeps the index current in the same transaction.
+- **Members, departments, groups:** matched live, not copied. Users are global and change outside any workspace transaction, so a copied index could go stale; expression indexes (`gin_trgm_ops` on `users.display_name`, `users.email::text`, `memberships.title`, `departments.name`, `groups.name`; `to_tsvector('simple', …)` on departments and groups) keep it fast. Only active members are returned.
+- **Query:** `websearch_to_tsquery('english', q) || websearch_to_tsquery('simple', q)`, OR `ILIKE '%q%'`, OR `q <% title` (word similarity, threshold 0.45 set transaction-locally), OR `q % title`. Rank = `ts_rank_cd` + `word_similarity(q, title)` + 0.5 when the title starts with q; one ranked list across types, at most 50. Snippets: `ts_headline` with control-character delimiters, then HTML-escaped and turned into `<mark>` (indexed text can never inject markup).
+- **Permissions:** the handler asks the policy evaluator for each requested type first (`sop:view`, `policy:view`, `member:view`, `directory:view` for departments and groups) and passes only the allowed ones; forced RLS scopes every row. Nothing classified is indexed (library content has no classified fields today; when classified fields arrive they stay out of `search_body`).
+- Trigram GIN indexes do not lead with `workspace_id` (that needs `btree_gin`); the RLS predicate filters after the index. Revisit with the Tantivy option for large tenants.
 
 ---
 
