@@ -953,4 +953,58 @@ test.describe('R1 gate @r1 @ui', () => {
     const head = (await import('node:fs')).readFileSync((await x.path())!).subarray(0, 2).toString('latin1');
     expect(head).toBe('PK');
   });
+
+  test('E2E-R1-18 startup day one (J12): a Starter workspace installs the handbook pack, publishes it, launches the acknowledgement, and 20 people acknowledge on phones', async ({ page, browser, request }) => {
+    test.setTimeout(300_000);
+    const started = Date.now();
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request, 'starter');
+    const people: { email: string; id: string }[] = [];
+    for (let i = 0; i < 20; i += 10) people.push(...(await Promise.all(Array.from({ length: 10 }, (_, k) => member(request, owner, ws.id, `starter${i + k}`)))));
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await page.getByRole('link', { name: 'Browse templates' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Templates' })).toBeVisible();
+    await axe(page);
+    await page.getByRole('button', { name: 'Install Employee handbook & acknowledgement' }).click();
+    const wiz = page.getByRole('dialog', { name: 'Install Employee handbook & acknowledgement' });
+    await expect(wiz.getByRole('group', { name: 'Documents' }).getByRole('checkbox')).toHaveCount(5);
+    await wiz.getByRole('button', { name: 'Continue' }).click();
+    await wiz.getByRole('button', { name: 'Install 5 documents' }).click();
+    const done = page.getByRole('dialog', { name: 'Template installed' });
+    await expect(done.getByRole('list', { name: 'Installed documents' }).getByRole('link')).toHaveCount(5);
+    await done.getByRole('link', { name: 'Employee handbook' }).click();
+
+    // Publish the handbook (a standard policy needs no review on Starter).
+    await expect(page.getByRole('heading', { level: 1, name: 'Employee handbook' })).toBeVisible();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await page.getByRole('button', { name: 'Publish', exact: true }).click();
+    await page.getByRole('dialog', { name: 'Publish v1' }).getByRole('button', { name: 'Publish now' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Published.' })).toBeVisible();
+
+    // Launch the acknowledgement for everyone.
+    await nav(page, 'Campaigns');
+    await page.getByRole('button', { name: 'New campaign' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New campaign' });
+    await dlg.getByRole('button', { name: /Employee handbook/ }).click();
+    await dlg.getByRole('button', { name: 'Create draft' }).click();
+    await page.getByRole('button', { name: 'Launch' }).click();
+    await expect(page.getByRole('table', { name: 'People in this campaign' })).toBeVisible();
+    const campaignUrl = page.url();
+    await request.post('/__test/drain');
+
+    // 20 employees acknowledge on phone-sized screens.
+    for (const p of people) {
+      const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+      const m = await ctx.newPage();
+      await signInPassword(m, p.email);
+      await m.getByRole('button', { name: 'Read and acknowledge' }).first().click();
+      await m.getByRole('region', { name: 'Acknowledgement requested' }).getByRole('button', { name: 'I acknowledge' }).click();
+      await expect(m.getByRole('status').filter({ hasText: 'Acknowledged' })).toBeVisible();
+      await ctx.close();
+    }
+    await page.goto(campaignUrl);
+    await expect(page.getByText('20 of 21')).toBeVisible();
+    expect(Date.now() - started).toBeLessThan(15 * 60_000);
+  });
 });
