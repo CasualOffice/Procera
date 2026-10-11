@@ -325,7 +325,7 @@ test.describe('complete flows @r1 @ui', () => {
     await back.getByRole('button', { name: 'Send back' }).click();
 
     // Owner: told it came back, with the note; edits and resubmits from the notification.
-    await page.keyboard.press('Escape'); // close the drawer left open after sending
+    await page.getByRole('dialog', { name: 'New expense tool' }).getByRole('button', { name: 'Close' }).click(); // the drawer stays open after sending
     await request.post('/__test/drain');
     await nav(page, 'Notifications');
     const note = page.getByRole('listitem').filter({ hasText: '“New expense tool” was sent back' });
@@ -341,7 +341,7 @@ test.describe('complete flows @r1 @ui', () => {
     await admin.reload();
     await admin.getByRole('button', { name: 'Approve and publish' }).click();
     await expect(admin.getByRole('heading', { name: 'Receipts' })).toBeVisible();
-    await page.keyboard.press('Escape');
+    await page.getByRole('dialog', { name: 'New expense tool' }).getByRole('button', { name: 'Close' }).click();
     await request.post('/__test/drain');
     await nav(page, 'Notifications');
     await expect(page.getByRole('link', { name: '“New expense tool” is approved' })).toBeVisible();
