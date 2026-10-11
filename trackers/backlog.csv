@@ -25,7 +25,7 @@ BPMS-028,UX,"Shared DataGrid v1 (sort, filter builder, saved views, export, keyb
 BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,Done
 BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,In progress
 BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,In progress
-BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,Not started
+BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,In progress
 BPMS-033,OPS,"Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback",P0,R1,Platform,ADR-0019,E2E passes with cache off,M,BPMS-020,Done
 BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,In progress
 BPMS-040,LIB,"Artifacts, versions, lifecycle state machine, immutability trigger, SoD",P0,R1,Backend,"FR-G04, T07",T07 passes,L,"BPMS-024,026",Done
