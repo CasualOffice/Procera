@@ -129,10 +129,12 @@ svg.lucide { stroke-width: 1.75; }
 
 /* Command palette: a quick, quiet sheet near the top of the screen. */
 .cmd-overlay { position: fixed; inset: 0; z-index: 120; background: rgb(25 23 20 / .28); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; }
-.cmd-overlay[data-entering] { animation: fade-in 120ms var(--ease-out); }
+.cmd-overlay[data-entering] { animation: scrim-in 120ms var(--ease-out); }
 @keyframes fade-in { from { opacity: 0; } }
 .cmd-modal { width: min(640px, 100%); outline: none; }
-.cmd-modal[data-entering] { animation: pop-in 160ms var(--ease-out); }
+.cmd-modal[data-entering] { animation: drop-in 160ms var(--ease-out); }
+@keyframes drop-in { from { transform: translateY(-6px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .cmd-modal[data-entering], .cmd-overlay[data-entering] { animation: none; } }
 .cmd { display: flex; flex-direction: column; max-height: min(560px, 76vh); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; outline: none; font-size: 14px; }
 .cmd-input-row { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line-subtle); }
 .cmd-input-icon { flex: none; color: var(--color-text-secondary); }

@@ -13,6 +13,7 @@ import { LibraryDoc } from './pages/LibraryDoc';
 import { Announcements } from './pages/Announcements';
 import { ManageAnnouncements } from './pages/ManageAnnouncements';
 import { CampaignDetail, Campaigns } from './pages/Campaigns';
+import { Settings } from './pages/Settings';
 import { Members } from './pages/Members';
 import { SignIn } from './pages/SignIn';
 
@@ -48,6 +49,7 @@ export function App() {
   if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;
   const camp = match('/admin/campaigns/:id', path);
   if (camp) return <AppShell current="campaigns" crumbs={[ADMIN, ['Campaigns', '/admin/campaigns'], 'Campaign']}><CampaignDetail id={camp.id!} /></AppShell>;
+  if (path === '/admin/settings') return <AppShell current="settings" crumbs={[ADMIN, 'Settings']}><Settings /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>
       <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist, or you don’t have access to it.</p></div></div>
