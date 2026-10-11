@@ -52,6 +52,7 @@ sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio",
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+procera-db = { workspace = true, features = ["test-support"] }
 
 [lints]
 workspace = true
