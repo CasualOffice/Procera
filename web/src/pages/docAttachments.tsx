@@ -1,9 +1,10 @@
-import { Download, Paperclip, ShieldAlert, Trash2, Upload } from 'lucide-react';
+import { Download, Eye, Paperclip, ShieldAlert, Trash2, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type FileInfo, downloadFile, formatBytes, uploadFile } from '../lib/upload';
 import { Notice } from '../ui/components/Notice';
 import { Tag, type TagColor } from '../ui/Tag';
+import { FilePreview, canPreview } from './FilePreview';
 
 const STATE: Record<string, [string, TagColor]> = { clean: ['Clean', 'green'], scanning: ['Scanning', 'yellow'], quarantined: ['Quarantined', 'red'], rejected: ['Rejected', 'red'], uploading: ['Uploading', 'gray'] };
 
@@ -16,6 +17,7 @@ export function Attachments({ versionId, canEdit }: { versionId: string; canEdit
   const [editable, setEditable] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
   const [notice, setNotice] = useState<{ tone: 'danger' | 'success'; title: string } | null>(null);
+  const [previewing, setPreviewing] = useState<FileInfo | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const load = () => { api<{ items: FileInfo[]; editable: boolean }>(`/api/v1/versions/${versionId}/attachments`).then((r) => { setItems(r.items); setEditable(r.editable); }).catch(() => setItems([])); };
   useEffect(load, [versionId]);
@@ -65,6 +67,7 @@ export function Attachments({ versionId, canEdit }: { versionId: string; canEdit
               <span className="muted">{formatBytes(f.size)}</span>
               <Tag color={STATE[f.state]?.[1] ?? 'gray'} dot>{STATE[f.state]?.[0] ?? f.state}</Tag>
               <span className="attachment-actions">
+                {canPreview(f) && <button type="button" className="prop-link" onClick={() => setPreviewing(f)} aria-label={`Preview ${f.name}`}><Eye aria-hidden="true" size="0.875rem" /> Preview</button>}
                 {f.state === 'clean' ? <button type="button" className="prop-link" onClick={() => void downloadFile(f.id).catch((e) => fail(e, 'The download failed.'))} aria-label={`Download ${f.name}`}><Download aria-hidden="true" size="0.875rem" /> Download</button> : <span className="muted"><ShieldAlert aria-hidden="true" size="0.875rem" /> Not available</span>}
                 {mayEdit && <button type="button" className="prop-link" aria-label={`Remove ${f.name}`} onClick={() => void api(`/api/v1/files/${f.id}/links/artifact_version/${versionId}`, { method: 'DELETE' }).then(load).catch((e) => fail(e, 'Could not remove it.'))}><Trash2 aria-hidden="true" size="0.875rem" /> Remove</button>}
               </span>
@@ -72,6 +75,7 @@ export function Attachments({ versionId, canEdit }: { versionId: string; canEdit
           ))}
         </ul>
       )}
+      <FilePreview file={previewing} onClose={() => setPreviewing(null)} />
     </section>
   );
 }
