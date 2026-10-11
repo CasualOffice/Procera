@@ -19,6 +19,7 @@ import { CampaignDetail, Campaigns } from './pages/Campaigns';
 import { Settings } from './pages/Settings';
 import { Audit } from './pages/Audit';
 import { Members } from './pages/Members';
+import { Roles } from './pages/Roles';
 import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
 import { Retention } from './pages/Retention';
@@ -104,6 +105,7 @@ export function App() {
   const person = match('/members/:id', path);
   if (person) return <AppShell current="home" crumbs={[['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
+  if (path === '/admin/roles') return <AppShell current="roles" crumbs={[ADMIN, 'Roles & access']}><Roles /></AppShell>;
   if (path === '/admin/announcements') return <AppShell current="manage-announcements" crumbs={[ADMIN, 'Manage announcements']}><ManageAnnouncements /></AppShell>;
   if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;
   const camp = match('/admin/campaigns/:id', path);

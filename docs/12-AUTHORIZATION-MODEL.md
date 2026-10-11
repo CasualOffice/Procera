@@ -156,6 +156,13 @@ Configuration rules:
 3. **Role assignment targets:** users, groups, or a *directory rule* (e.g. "all members of department Finance with position = Manager"). The rule form keeps access in sync with SCIM/HR data.
 4. **Time-boxed grants** with an expiry date, e.g. an external auditor for 30 days.
 5. **Role change preview:** before saving, the UI shows "this change gives 14 people `request:view_all` in Finance". The change is audited with a diff.
+
+As built (BPMS-024, R1):
+- **Who counts as affected.** The role change preview counts every active member who holds the role through a live grant, directly or through a group, at any scope. All of them gain every added permission and lose every removed one, within the scope of their own grant.
+- **No-escalation applies in both directions.** Editing a custom role needs every permission in the old set and in the new set. Granting or revoking needs every permission in the role.
+- **Owner-only permissions** (`workspace:delete.request`, `workspace:billing.view`) can't be put in a custom role. Duplicating the Owner role leaves them out.
+- **Step-up.** Creating, editing, granting and revoking roles all need a recent step-up.
+- **The owner role** goes to people only, never to groups.
 6. **Access reviews** (CMP-04): periodic recertification campaigns where role holders' managers or owners confirm each grant.
 
 ### 6.1 Separation mode (opt-in, for regulated workspaces)

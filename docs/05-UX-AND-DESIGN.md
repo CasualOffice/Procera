@@ -277,6 +277,15 @@ DataGrid with columns: name, email, department, roles, MFA, last active, status.
   - Default scope picker.
   - Assignment tab: users, groups and directory rules, plus an expiry option.
 - **Effect preview before save:** "+14 people gain `request:view_all` in Finance; 2 lose `process:publish`". Expandable list. Save requires step-up auth and records a diff in the audit trail.
+- **As built (BPMS-024, E2E-R1-05; R1 subset).** One page, `/admin/roles` ("Roles & access", Administration nav, needs `role:view`):
+  - Tabs **Roles** and **Grants**, both on the shared DataGrid. Roles shows name and description, Built-in or Custom, the permission count, and "Held by" (distinct people with a live direct grant, plus groups; counted in the browser from `GET /role-grants`, because `GET /roles` has no holder count). Grants shows role, granted to, where (whole workspace, a collection or a department, named by its path), expiry, reason, and Revoke.
+  - Opening a role shows a drawer instead of a separate page. It lists permissions grouped by catalogue area as a checkbox group per area (React Aria), not a matrix, so it reflows to phone width. It has an Included / All switch, a search box and "Select all" per area. Each permission shows its action in words and its key (`process:publish`).
+  - Built-in roles are read-only and say "Duplicate it to make a custom role you can edit". In a custom role, permissions the editor doesn't hold are disabled with the visible note "You don't have this", and owner-only permissions say "Owners only". A custom role that holds permissions the editor lacks can't be edited at all, because the server checks the old set as well as the new one.
+  - "Duplicate" works on any role. It asks only for a name; the key is derived as `custom.<name>` and shown. Owner-only permissions are never copied, and the dialog says so.
+  - "Review changes" calls `POST /roles/{id}/preview` and shows it in plain language ("3 people gain 1 permission: Processes: Publish.") with an expandable list of names. Saving (`PATCH`) and every other change (duplicate, grant, revoke) goes through "Confirm it's you" when the server asks for step-up.
+  - "Grant a role" asks for the role, a person or a group (from `/members`, `/groups`), where it applies (whole workspace, a collection from `/collections`, a department from `/departments`), an optional "Expires on" date (access ends at the end of that local day) and an optional reason. Revoking asks for confirmation.
+  - Server refusals are shown in words, for example "You can't give permissions you don't have yourself: Audit: Export."
+  - API gaps for later: `POST /roles` takes no description, and `PATCH /roles/{id}` has no `If-Match` or revision check (the response is 204 with no body). Role grants for a single process and directory-rule targets are not in the picker yet.
 
 ### 3.16 Admin · Directory, Settings, Calendars
 - **Directory:** department tree with drag-free moves (a "Move to…" menu), groups, positions, a manager chain viewer, CSV import with dry-run, and cycle detection errors.
