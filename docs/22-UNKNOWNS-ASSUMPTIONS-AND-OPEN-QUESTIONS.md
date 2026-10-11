@@ -22,6 +22,7 @@ Purpose: to make sure **nothing turns into a wild card**. Every uncertainty that
 | OQ-12 | **Admin full visibility vs confidential HR/whistleblower cases.** Must admins always see everything? | Default: admins see everything, with access-logging. Cases flagged *restricted* need an audited admin self-grant that the case team sees. Separation mode removes admin content access entirely. | **Product owner (you)** | M3 |
 | OQ-13 | Is a public/anonymous intake (whistleblowing, public forms) in GA scope? | Public forms P1 (M8); anonymous two-way whistleblowing P2 | Product | M8 |
 | OQ-14 | Who curates the global template gallery long-term (in-house SMEs, community, partners)? | In-house for Waves 1–2; community contributions with review from Wave 3 | Product | M6 |
+| OQ-15 | **Forgotten passwords.** Self-service reset by email link, or admin-initiated reset only (the sign-in page today says "Lost access? Ask your workspace admin", and there is no reset flow at all)? What happens to MFA on reset? | Self-service email reset (single-use 30-minute link, signs out all sessions, keeps MFA so a mailbox alone can't take the account) plus an admin "send reset link" on Members; lost second factor stays admin-assisted with step-up and audit | Product owner | R1 |
 
 ## 2. Technical unknowns (resolved by spikes or research)
 
