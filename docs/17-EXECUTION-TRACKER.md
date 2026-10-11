@@ -84,7 +84,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-106 | TPL | Template gallery + install wizard + Wave-1 templates (13) | P0 | R2 | Fullstack/SMEs | FR-G08, TPL-001.. | All W1 test-run green | XL | BPMS-100,101 | Not started |
 | BPMS-111 | E2E | E2E-R2 pack (R2-01…16 + ISO) + Firefox | P0 | R2 | SDET + feature owners | 23 §5 | Green; race/restart/timer stable | L | BPMS-032 | Not started |
 | BPMS-121 | UX | Usability round + SUS measurement + fixes | P0 | R2 | Design | 02 §9 | SUS targets | M | BPMS-120 | Not started |
-| BPMS-066 | AUD | Retention policy per record class (policy only) | P0 | R3 | Backend | PRV-04 | Jobs honour classes | M | BPMS-026 | Not started |
+| BPMS-066 | AUD | Retention policy per record class (policy only) | P0 | R3 | Backend | PRV-04 | Jobs honour classes | M | BPMS-026 | Done |
 | BPMS-102 | DATA | Master-data tables (CSV import, lookups, versioned) | P0 | R3 | Fullstack | FX-E02 | Cascading dropdowns | M | BPMS-101 | Not started |
 | BPMS-104 | REQ | Recall/withdraw, edit-after-submit, request-on-behalf, numbering | P0 | R3 | Backend | FX-E03/E04/E06 | Audited | M | BPMS-103 | Not started |
 | BPMS-107 | SIGN | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | P0 | R3 | Fullstack | FR-DS01–07, FX-S01/02/05/06/07 | J13 passes | XL | BPMS-046,060 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 30 · In review: 0 · In progress: 4 · Blocked: 0 · Not started: 75 · Deferred: 0 (of 109)
+**Progress:** Done: 31 · In review: 0 · In progress: 4 · Blocked: 0 · Not started: 74 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -171,6 +171,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-063 | Workspace overview dashboard + people & access monitor | Done | API: GET /admin/overview (needs-attention ranking: overdue acknowledgements, admins without MFA, documents past review, drafts in review, announcements to approve; acknowledgement metrics, published-versions series, security strip from the audit chain, departments; requests/storage reported as null with guidance until those modules ship) and GET /admin/people (MFA, last active, roles, dormant, privileged, expiring grants, pending invites, filters); migration 0018 discovery.member_login_failures. UI: Overview (typographic summary, ranked list, metric rows, security strip; time range + department in the URL) and People & access (filter chips). E2E-R1-ADM-01..02, E2E-R1-UI-23. |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | In progress | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
 | BPMS-065 | System console: workspaces grid, quotas, health, system audit | Done | System console (0022): workspaces grid with usage and quotas, suspend/reactivate/schedule deletion with step-up on the system chain, quota defaults per profile with the member quota enforced at invite, platform health, system audit explorer; console shell for system admins (metadata only, never workspace content). E2E-R1-SYS-01..09, E2E-R1-UI-40..41 (A-18) |
+| BPMS-066 | Retention policy per record class (policy only) | Done | Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26. |
 
 ## Domain backlogs (detail, owned by their docs)
 
@@ -179,7 +180,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 207 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 210 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

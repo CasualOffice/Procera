@@ -221,6 +221,10 @@ As built (BPMS-045): `governance.reack.policy` applies to SOPs and policies alik
 
 | Key | Type | Default | Perm | Floor | Ph |
 |---|---|---|---|---|---|
+| `retention.draft.inactive_after` | duration (30 d – 3 y), from the last edit | 180 d | workspace:settings.manage + reason + step-up | – | P0 (BPMS-066) |
+| `retention.draft.notice_before` | duration (1–60 d): authors are notified this long before deletion | 14 d | workspace:settings.manage | – | P0 (BPMS-066) |
+| `retention.operational.keep_for` | duration (30 d – 10 y): sent/failed emails, read notifications, sent digests | 400 d | workspace:settings.manage + reason + step-up | – | P0 (BPMS-066) |
+| `retention.governance_record.keep_for` | duration (1–50 y) after retirement; shown as policy, nothing is deleted until disposition (P1) | 10 y | workspace:settings.manage + reason + step-up | ✓ (larger is stricter) | P0 policy / P1 job |
 | `retention.classes` | per class duration + disposition mode ([14 §4](14-DATA-GOVERNANCE-AND-COMPLIANCE.md)) | 14 §4 defaults | workspace:settings.manage + step-up | ✓ (audit ≥ 1 y) | P1 |
 | `retention.disposition.approval` | `auto \| approval_required` | approval_required | workspace:settings.manage | – | P1 |
 | `legal_hold.managers` | role set | Compliance Officer, Security Admin | workspace:settings.manage | – | P1 |

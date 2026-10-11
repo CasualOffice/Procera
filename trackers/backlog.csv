@@ -62,7 +62,7 @@ BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview
 BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,"BPMS-100,101",Not started
 BPMS-111,E2E,E2E-R2 pack (R2-01…16 + ISO) + Firefox,P0,R2,SDET + feature owners,23 §5,Green; race/restart/timer stable,L,BPMS-032,Not started
 BPMS-121,UX,Usability round + SUS measurement + fixes,P0,R2,Design,02 §9,SUS targets,M,BPMS-120,Not started
-BPMS-066,AUD,Retention policy per record class (policy only),P0,R3,Backend,PRV-04,Jobs honour classes,M,BPMS-026,Not started
+BPMS-066,AUD,Retention policy per record class (policy only),P0,R3,Backend,PRV-04,Jobs honour classes,M,BPMS-026,Done
 BPMS-102,DATA,"Master-data tables (CSV import, lookups, versioned)",P0,R3,Fullstack,FX-E02,Cascading dropdowns,M,BPMS-101,Not started
 BPMS-104,REQ,"Recall/withdraw, edit-after-submit, request-on-behalf, numbering",P0,R3,Backend,FX-E03/E04/E06,Audited,M,BPMS-103,Not started
 BPMS-107,SIGN,"E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate",P0,R3,Fullstack,"FR-DS01–07, FX-S01/02/05/06/07",J13 passes,XL,"BPMS-046,060",Not started

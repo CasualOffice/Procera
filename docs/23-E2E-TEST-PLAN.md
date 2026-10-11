@@ -192,6 +192,8 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-POL-05 | Every_publish asks on minors, none never asks, and a scheduled major asks when it goes live | BPMS-045, FR-PL03 |
 | E2E-R1-ADM-01 | Overview: overdue acknowledgements rank first in "needs attention", followed by an admin without two-step verification; acknowledgement metrics and a daily published series; the security strip counts a failed sign-in, members without MFA and the new admin grant; requests/storage are null; members get 403; an inverted range → 422 | BPMS-063, FR-A01 |
 | E2E-R1-ADM-02 | People & access: counts (members, no MFA, privileged, pending invites), member row (MFA off, last active set, not dormant), no-MFA and admin filters; unknown filter → 422; members get 403 | BPMS-063, FR-A06 |
+| E2E-R1-RET-01 | Retention classes are listed (draft and operational automatic; governance records and audit never). Drafts untouched for 170 of 180 days are due and their author is notified once; editing one resets its clock; 11 days later the untouched drafts are deleted (a never-published artifact with its draft, a v2 draft beside a published v1 that stays); the run is recorded and audited (`retention.purged`) | BPMS-066, PRV-04 |
+| E2E-R1-RET-02 | A read notification older than the operational period is removed by the job; members cannot see retention (403) | BPMS-066, PRV-04 |
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
@@ -227,6 +229,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-23 | An admin opens Overview: the summary and "Needs attention" show overdue acknowledgements, and the security strip shows one member without two-step verification; drilling in opens People & access filtered to them; the Admins filter shows the owner | BPMS-063 |
 | E2E-R1-UI-24 | An owner publishes v2 as a major change, sees who will be asked, then finds the campaign | BPMS-045 |
 | E2E-R1-UI-25 | A member opens Notifications → Preferences, picks a daily digest and quiet hours, saves, sees them after a reload, and resets to the workspace defaults | BPMS-048 |
+| E2E-R1-UI-26 | An admin opens Retention, sees each record class and a draft due for deletion, and shortens the draft period with a reason | BPMS-066 |
 | E2E-R1-UI-30 | Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022 |
 | E2E-R1-UI-31 | Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022 |
 | E2E-R1-UI-35 | Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027 |
