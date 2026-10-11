@@ -1,4 +1,4 @@
-import { Bell, ChevronDown, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -72,7 +72,7 @@ export function AppShell({ children, current = 'home' }: { children: React.React
                     ))}
                   </MenuSection>
                   <Separator className="menu-separator" />
-                  <MenuItem id="signout" className="menu-item" textValue="Sign out">
+                  <MenuItem id="signout" className="menu-item menu-item-action" textValue="Sign out">
                     <LogOut aria-hidden="true" size={16} /> Sign out
                   </MenuItem>
                 </Menu>
@@ -88,8 +88,8 @@ export function AppShell({ children, current = 'home' }: { children: React.React
             </Link>
           )}
           {user && <span className="shell-user">{user.display_name}</span>}
-          <button type="button" className="shell-theme" onClick={cycle} aria-label={`Theme: ${theme}. Change theme`}>
-            Theme: {theme}
+          <button type="button" className="shell-theme shell-theme-icon" onClick={cycle} aria-label={`Theme: ${theme}. Change theme`} title={`Theme: ${theme}`}>
+            {theme === 'light' ? <Sun aria-hidden="true" size={18} /> : theme === 'dark' ? <Moon aria-hidden="true" size={18} /> : <Monitor aria-hidden="true" size={18} />}
           </button>
         </div>
       </header>

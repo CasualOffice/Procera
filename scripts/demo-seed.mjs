@@ -1,0 +1,92 @@
+// Seeds a local demo (scripts/demo.sh): a system admin, the "Acme" workspace with an owner, people,
+// departments and a few library documents. Prints the sign-in details. Needs an `e2e` build.
+import { createHmac } from 'node:crypto';
+
+const API = process.env.API ?? 'http://127.0.0.1:18500';
+const PW = 'correct horse battery staple';
+const CSRF = { 'x-requested-with': 'procera' };
+
+function b32(s) {
+  const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = '';
+  for (const c of s.replace(/=+$/, '').toUpperCase()) bits += a.indexOf(c).toString(2).padStart(5, '0');
+  const out = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2));
+  return Buffer.from(out);
+}
+function totp(secret, at, offset = 0) {
+  const c = Buffer.alloc(8);
+  c.writeBigUInt64BE(BigInt(Math.floor(at / 30000) + offset));
+  const h = createHmac('sha1', b32(secret)).update(c).digest();
+  const o = h[19] & 15;
+  return String((((h[o] & 127) << 24) | (h[o + 1] << 16) | (h[o + 2] << 8) | h[o + 3]) % 1e6).padStart(6, '0');
+}
+
+async function call(method, path, { token, body, headers } = {}) {
+  const res = await fetch(API + path, {
+    method,
+    headers: { accept: 'application/json', ...(body ? { 'content-type': 'application/json' } : {}), ...(token ? { authorization: `Bearer ${token}` } : {}), ...headers },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : undefined;
+  if (!res.ok) throw new Error(`${method} ${path} → ${res.status} ${text}`);
+  return json;
+}
+const now = async () => Date.parse((await call('GET', '/version')).server_time);
+
+/** Signs in with MFA (enrolling TOTP first) and returns { token, recovery }. */
+async function mfaLogin(email) {
+  const pw = await call('POST', '/api/v1/auth/login', { body: { email, password: PW }, headers: CSRF });
+  const enr = await call('POST', '/api/v1/me/mfa/totp', { token: pw.access_token });
+  const t = await now();
+  const { recovery_codes } = await call('POST', '/api/v1/me/mfa/totp/confirm', { token: pw.access_token, body: { code: totp(enr.secret, t) } });
+  const step = await call('POST', '/api/v1/auth/login', { body: { email, password: PW }, headers: CSRF });
+  const done = await call('POST', '/api/v1/auth/mfa', { body: { mfa_token: step.mfa_token, code: totp(enr.secret, t, 1) }, headers: CSRF });
+  return { token: done.access_token, recovery: recovery_codes, secret: enr.secret };
+}
+
+const { token: boot } = await call('POST', '/__test/bootstrap-token');
+await call('POST', '/sysapi/v1/bootstrap', { body: { token: boot, email: 'root@acme.test', display_name: 'Riley Root', password: PW } });
+const sys = await mfaLogin('root@acme.test');
+
+const ws = await call('POST', '/sysapi/v1/workspaces', { token: sys.token, body: { name: 'Acme', slug: 'acme', profile: 'standard', owner_email: 'olivia@acme.test' } });
+const ownerInvite = (await call('GET', `/__test/invitations/token?workspace=${ws.id}&email=olivia%40acme.test`)).token;
+await call('POST', '/api/v1/invitations/register', { body: { token: ownerInvite, display_name: 'Olivia Owner', password: PW } });
+const owner = await mfaLogin('olivia@acme.test');
+const sw = await call('POST', '/api/v1/session/workspace', { token: owner.token, body: { workspace_id: ws.id } });
+const o = sw.access_token;
+
+// People and directory.
+const people = [
+  ['ben@acme.test', 'Ben Baker', 'reviewer'],
+  ['cara@acme.test', 'Cara Chen', 'member'],
+  ['dev@acme.test', 'Dev Patel', 'member'],
+];
+const ids = {};
+for (const [email, name, role] of people) {
+  await call('POST', '/__test/users', { body: { email, display_name: name, password: PW } });
+  await call('POST', '/api/v1/members/invitations', { token: o, body: { email, roles: [role] } });
+  const t = (await call('GET', `/__test/invitations/token?workspace=${ws.id}&email=${encodeURIComponent(email)}`)).token;
+  const login = await call('POST', '/api/v1/auth/login', { body: { email, password: PW }, headers: CSRF });
+  ids[email] = (await call('POST', '/api/v1/invitations/accept', { token: login.access_token, body: { token: t } })).membership_id;
+}
+const ops = await call('POST', '/api/v1/departments', { token: o, body: { name: 'Operations' } });
+await call('POST', '/api/v1/departments', { token: o, body: { name: 'People & Culture' } });
+await call('PATCH', `/api/v1/members/${ids['cara@acme.test']}`, { token: o, body: { department_id: ops.id, title: 'Support lead' } });
+await call('POST', '/api/v1/members/invitations', { token: o, body: { email: 'nina@acme.test', roles: ['member'] } });
+
+// Library: a published policy, a published SOP, a draft.
+const p = (text) => ({ type: 'paragraph', text });
+async function publish(kind, key, title, blocks) {
+  const { version } = await call('POST', '/api/v1/artifacts', { token: o, body: { kind, key, title, content: { blocks } } });
+  await call('POST', `/api/v1/versions/${version.id}/submit`, { token: o });
+  await call('POST', `/api/v1/versions/${version.id}/publish`, { token: o, body: {} });
+}
+await publish('policy', 'code-of-conduct', 'Code of Conduct', [p('We treat each other with respect.'), p('Report concerns to People & Culture or anonymously.')]);
+await publish('policy', 'acceptable-use', 'Acceptable Use of IT', [p('Company devices are for work. Keep them locked.'), p('Never share passwords or MFA codes.')]);
+await publish('sop', 'laptop-onboarding', 'Laptop onboarding', [p('Order the laptop five days before the start date.'), p('Enrol the device and install the standard image.')]);
+await call('POST', '/api/v1/artifacts', { token: o, body: { kind: 'policy', key: 'travel', title: 'Travel and expenses', content: { blocks: [p('Book economy for flights under six hours.')] } } });
+await call('POST', '/__test/drain');
+
+console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, recovery_codes: owner.recovery, system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]) }, null, 2));

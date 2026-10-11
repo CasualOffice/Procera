@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Local demo: throwaway Postgres + the e2e build of procera + the web app (http://127.0.0.1:5173).
+# Seeds the "Acme" workspace and prints sign-in details. Ctrl-C stops everything.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+PGBIN=$(dirname "$(command -v initdb || echo /opt/homebrew/opt/postgresql@16/bin/initdb)")
+PGTMP=$(mktemp -d /tmp/procera-demo.XXXX); PORT=16599
+cleanup() { kill "${API_PID:-}" "${WEB_PID:-}" 2>/dev/null || true; "$PGBIN/pg_ctl" -D "$PGTMP" stop -m fast >/dev/null 2>&1 || true; rm -rf "$PGTMP"; }
+trap cleanup EXIT
+"$PGBIN/initdb" -D "$PGTMP" -U postgres --auth=trust -E UTF8 >/dev/null
+"$PGBIN/pg_ctl" -D "$PGTMP" -o "-p $PORT -c unix_socket_directories='' -c listen_addresses=127.0.0.1" -l "$PGTMP/log" start >/dev/null
+until "$PGBIN/pg_isready" -h 127.0.0.1 -p $PORT -q; do sleep 0.3; done
+psql "postgres://postgres@127.0.0.1:$PORT/postgres" -q -f deploy/sql/00-roles.sql >/dev/null
+cargo build -q -p procera --features e2e
+target/debug/procera migrate --migrator-url "postgres://procera_migrator@127.0.0.1:$PORT/postgres" 2>/dev/null
+PROCERA_DATABASE_URL="postgres://procera_app@127.0.0.1:$PORT/postgres" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" \
+  PROCERA_INSECURE_COOKIES=true PROCERA_PUBLIC_URL=http://127.0.0.1:5173 PROCERA_BIND=127.0.0.1:18500 \
+  target/debug/procera serve --all >/tmp/procera-demo.log 2>&1 & API_PID=$!
+until curl -fs -o /dev/null http://127.0.0.1:18500/healthz; do sleep 0.2; done
+API=http://127.0.0.1:18500 node scripts/demo-seed.mjs | tee /tmp/procera-demo-credentials.json
+(cd web && PROCERA_API_URL=http://127.0.0.1:18500 exec ./node_modules/.bin/vite --port 5173 --strictPort --host 127.0.0.1 >/tmp/procera-demo-web.log 2>&1) & WEB_PID=$!
+until curl -fs -o /dev/null http://127.0.0.1:5173/; do sleep 0.2; done
+echo; echo "Procera demo: http://127.0.0.1:5173  (design gallery: /design). Sign in as olivia@acme.test with the password and a recovery code above."
+wait "$API_PID"

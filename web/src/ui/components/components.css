@@ -16,8 +16,8 @@
 .btn-danger[data-hovered] { background: var(--color-danger-bg); }
 .btn-accent { background: var(--color-accent-strong); color: var(--color-text-inverse); }
 .btn-accent[data-hovered] { background: var(--color-accent-strong-hover); }
-.btn-ghost { background: transparent; color: var(--color-accent-text); }
-.btn-ghost[data-hovered] { text-decoration: underline; }
+.btn-ghost { background: transparent; color: var(--color-text); text-decoration: underline; text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; }
+.btn-ghost[data-hovered] { text-decoration-color: currentColor; }
 
 /* Fields */
 .field { display: flex; flex-direction: column; gap: var(--space-1); max-width: 28rem; }

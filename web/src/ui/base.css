@@ -17,7 +17,9 @@ h1 { font-size: var(--font-size-3xl); }
 h2 { font-size: var(--font-size-2xl); }
 h3 { font-size: var(--font-size-lg); }
 p { margin: 0 0 var(--space-4); max-width: var(--measure); }
-a { color: var(--color-accent-text); text-underline-offset: 2px; }
+/* Links are ink with a quiet underline; brand red is reserved for the logo, focus and active states (docs/05 §7.1.1). */
+a { color: var(--color-text); text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-color: currentColor; }
 
 /* Visible focus everywhere: 2px ring, 2px offset, never removed (WCAG 2.4.7 / 2.4.11). */
 :focus-visible, [data-focus-visible] {

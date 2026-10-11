@@ -4,7 +4,7 @@
   background: var(--color-surface); border-bottom: 1px solid var(--color-border);
 }
 .shell-brand { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text); text-decoration: none; font-weight: var(--font-weight-bold); font-size: var(--font-size-lg); min-height: var(--target-comfortable); }
-.shell-theme { font: inherit; font-size: var(--font-size-sm); min-height: var(--target-comfortable); padding: 0 var(--space-3); background: transparent; color: var(--color-text); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); cursor: pointer; }
+.shell-theme { display: inline-flex; align-items: center; justify-content: center; min-width: var(--target-comfortable); font: inherit; font-size: var(--font-size-sm); min-height: var(--target-comfortable); padding: 0 var(--space-3); background: transparent; color: var(--color-text); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); cursor: pointer; }
 .shell-body { display: grid; grid-template-columns: 220px 1fr; min-height: calc(100vh - 57px); }
 /* Grid children default to min-width:auto; without this the nav's no-wrap links widen the page (SP-reflow, WCAG 1.4.10). */
 .shell-body > * { min-width: 0; }
@@ -55,13 +55,17 @@
 /* Menus (workspace switcher). Elevation only for things that float (docs/05 §7.0). */
 .menu-popover { background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-control); box-shadow: 0 6px 24px rgb(0 0 0 / 0.12); min-width: 16rem; }
 .menu { padding: var(--space-1) 0; outline: none; }
+.menu section { margin: 0; }
 .menu-header { padding: var(--space-2) var(--space-3); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 .menu-item { display: flex; align-items: center; gap: var(--space-2); justify-content: space-between; min-height: var(--target-comfortable); padding: 0 var(--space-3); cursor: pointer; outline: none; }
 .menu-item[data-focused] { background: var(--color-surface-muted); }
 .menu-item[data-focus-visible] { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.menu-item-action { justify-content: flex-start; }
 .menu-item-meta { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
 .menu-separator { height: 1px; background: var(--color-border); margin: var(--space-1) 0; }
 
 @media (max-width: 720px) {
   .shell-user, .shell-theme { display: none; }
 }
+.shell-theme-icon { padding: 0; border-color: transparent; }
+.shell-theme-icon:hover { background: var(--color-surface-muted); }
