@@ -143,6 +143,41 @@ workspace plane · **B7** workspace admin ↔ workspace content · **B8** produc
   is signed in, enrols TOTP in the system console's MFA gate, signs in again with the code and
   reaches the console.
 
+### 3.6.1 Account recovery and admin account controls (decided 2026-10-12, OQ-15, A-39)
+
+Self-service, signed-in and admin paths. Every path keeps two-step verification unless an admin
+explicitly resets it, so a mailbox alone never takes over an account.
+
+- **Forgot password (self-service).** `POST /auth/password/forgot {email}` always answers 202 with
+  the same body and similar timing, whether or not the account exists (no enumeration). Rate-limited
+  per IP and per email (3 per email per hour). For an active account it creates a reset token
+  (32 random bytes, stored only as SHA-256, single use, 30 minutes; a newer request voids older
+  ones) and emails a link to `/reset-password?token=…` (the page reads the token and removes it
+  from the address bar). These are system emails, not tied to a workspace.
+- **Reset with the link.** `POST /auth/password/reset {token, password}`: the password policy above
+  applies; on success the password is replaced, **every session and refresh token is revoked**, a
+  "your password was changed" email is sent, and `password.reset` is audited (system chain). Two-step
+  verification is unchanged: the next sign-in still asks for it.
+- **Change password (signed in).** Account › Security: `POST /me/password {current_password,
+  new_password}`. The current password is checked (failures count toward lockout); other sessions are
+  revoked, the current one stays; email notice; `password.changed` audited.
+- **Admin controls** (workspace plane, permission `member:security.manage`, owners and admins by
+  default; each needs a recent sign-in (step-up) and a reason, and is audited in the workspace chain
+  and the system chain):
+  - **Send a reset link**: the same email as self-service, triggered for the member.
+  - **Require a password change at next sign-in**: sign-in then returns
+    `{status: "password_change_required", change_token}` (short-lived, single use) instead of a session;
+    `POST /auth/password/expired {change_token, password}` sets the new one and continues to two-step
+    verification as usual.
+  - **Sign out everywhere**: revokes all of the member's sessions and refresh tokens.
+  - **Reset two-step verification** (lost authenticator): removes TOTP, passkeys and recovery codes; the
+    member enrols again at next sign-in where their role requires it.
+  Accounts are global and can belong to several workspaces. **Require password change, sign out
+  everywhere and reset two-step verification** are allowed only when this workspace is the member's
+  only active workspace; otherwise the page explains that a system administrator must do it (the
+  system console offers the same actions). Sending a reset link is always allowed (the member still
+  needs their mailbox and second factor). Admins never see or set a member's password.
+
 ### 3.7 Magic links (guests) and email-action links
 - 256-bit random token, stored hashed, **single-use**, **15 min** TTL, bound to
   `(user or guest identity, workspace, work_item, action set)`.
