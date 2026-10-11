@@ -53,7 +53,7 @@ async function joinAsNewPerson(browser: Browser, request: APIRequestContext, ws:
   await expect(page.getByRole('heading', { level: 1, name: 'Join Acme' })).toBeVisible();
   await expect(page.getByLabel('Work email')).toHaveValue(email);
   await page.getByLabel('Your name').fill(name);
-  await page.getByLabel('Password', { exact: true }).fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByLabel('Confirm password').fill(PW);
   await page.getByRole('button', { name: 'Create account and join' }).click();
   await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
@@ -79,7 +79,7 @@ test.describe('complete flows @r1 @ui', () => {
     await expect(hire.getByText(/Olivia invited/)).toBeVisible();
     await axe(hire);
     await hire.getByLabel('Your name').fill('Nina Hire');
-    await hire.getByLabel('Password', { exact: true }).fill(PW);
+    await hire.getByLabel(/^Password/).fill(PW);
     await hire.getByLabel('Confirm password').fill(`${PW}x`);
     await expect(hire.getByText('The passwords don’t match.')).toBeVisible();
     await expect(hire.getByRole('button', { name: 'Create account and join' })).toBeDisabled();
@@ -290,7 +290,7 @@ test.describe('complete flows @r1 @ui', () => {
     const admin = await personPage(browser);
     await admin.goto(link);
     await admin.getByLabel('Your name').fill('Ada Approver');
-    await admin.getByLabel('Password', { exact: true }).fill(PW);
+    await admin.getByLabel(/^Password/).fill(PW);
     await admin.getByLabel('Confirm password').fill(PW);
     await admin.getByRole('button', { name: 'Create account and join' }).click();
     await expect(admin.getByRole('heading', { level: 1, name: 'Turn on two-step verification' })).toBeVisible();
