@@ -284,4 +284,49 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.goto(campaignUrl);
     await expect(page.getByRole('row', { name: /Jo Joiner/ }).getByText('Done')).toBeVisible();
   });
+
+  test('E2E-R1-09 an announcement to the Bangalore location reaches only people there; their acknowledgement shows in the receipts', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const ana = await member(request, owner, ws.id, 'ana');
+    const raj = await member(request, owner, ws.id, 'raj');
+    const csv = `email,department,location\n${ana.email},Finance,Bangalore\n${raj.email},Operations,Pune`;
+    const imp = await owner.c.post('/api/v1/members/import?mode=apply', { headers: { ...owner.headers, 'content-type': 'text/csv' }, data: csv });
+    expect(imp.status(), await imp.text()).toBe(200);
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Manage announcements');
+    await page.getByRole('button', { name: 'New announcement' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New announcement' });
+    await dlg.getByLabel('Title').fill('Bangalore office power cut');
+    await dlg.getByLabel('Message').fill('Power is off on Saturday from 9 to 1.');
+    await dlg.getByRole('button', { name: 'Specific people' }).click();
+    const places = dlg.getByRole('group', { name: 'Locations' });
+    await expect(places.getByRole('button', { name: /Pune/ })).toBeVisible();
+    await places.getByRole('button', { name: /Bangalore/ }).click();
+    await expect(dlg.getByText('Sends to:')).toContainText('Bangalore');
+    await dlg.getByText('Ask people to confirm they’ve read it').click();
+    await axe(page);
+    await dlg.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Publish now' }).click(); // a targeted post needs no approval
+    await expect(page.getByText(/\(0 of 1\)/).first()).toBeVisible();
+    await request.post('/__test/drain');
+
+    // Ana (Bangalore) has it; Raj (Pune) does not.
+    const anaPage = await (await browser.newContext()).newPage();
+    await signInPassword(anaPage, ana.email);
+    await nav(anaPage, 'Announcements');
+    const post = anaPage.getByRole('listitem').filter({ hasText: 'Bangalore office power cut' });
+    await post.getByRole('button', { name: /Bangalore office power cut/ }).click();
+    await post.getByRole('button', { name: 'I’ve read this' }).click();
+    await expect(post.getByText('Acknowledged')).toBeVisible();
+    const rajPage = await (await browser.newContext()).newPage();
+    await signInPassword(rajPage, raj.email);
+    await nav(rajPage, 'Announcements');
+    await expect(rajPage.getByText('Bangalore office power cut')).toHaveCount(0);
+
+    await page.reload();
+    await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Bangalore office power cut' }).click();
+    await expect(page.getByText(/100%/).first()).toBeVisible();
+  });
 });

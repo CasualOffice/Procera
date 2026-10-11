@@ -28,6 +28,7 @@ pub fn router() -> Router<AppState> {
         .route("/groups/{id}/members", get(group_members).post(add_group_member))
         .route("/groups/{id}/members/{membership_id}", delete(remove_group_member))
         .route("/positions", get(list_positions).post(create_position))
+        .route("/locations", get(list_locations))
         .route("/positions/{id}", delete(delete_position))
         .route("/members/{id}", patch(update_member))
         .route("/members/{id}/directory", get(member_directory))
@@ -182,6 +183,22 @@ async fn remove_group_member(
         .remove_group_member(&mut tx, me.actor, id, membership, &client_info(&headers))
         .await?);
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// The directory locations in use, with how many active members each has (audience pickers).
+async fn list_locations(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let rows: Vec<(String, i64)> = read!(s, me, |m, tx| {
+        sqlx::query_as(
+        "SELECT min(trim(location)), count(*) FROM memberships WHERE status = 'active' AND location IS NOT NULL AND trim(location) <> ''
+         GROUP BY lower(trim(location)) ORDER BY lower(trim(location))",
+    )
+    .fetch_all(tx.conn())
+    .await
+    .map_err(internal)?
+    });
+    let items: Vec<serde_json::Value> =
+        rows.into_iter().map(|(name, members)| json!({"name": name, "members": members})).collect();
+    Ok(Json(json!({ "items": items })).into_response())
 }
 
 async fn list_positions(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
