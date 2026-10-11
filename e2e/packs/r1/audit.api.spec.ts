@@ -152,6 +152,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('DELETE', '/api/v1/collections/{id}', () => own.delete(`/api/v1/collections/${col.id}`, { headers: oh }));
   await step('PUT', '/api/v1/artifacts/{id}/owner', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/owner`, { headers: oh, data: { membership_id: joined.membership_id } }));
   await step('PUT', '/api/v1/artifacts/{id}/raci', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/raci`, { headers: oh, data: { accountable: [{ membership_id: joined.membership_id }] } }));
+  await step('POST', '/api/v1/security/encryption/rotate', () => own.post('/api/v1/security/encryption/rotate', { headers: oh, data: { reason: 'drill' } }));
   await step('PUT', '/api/v1/me/notification-preferences', () => own.put('/api/v1/me/notification-preferences', { headers: oh, data: { digest: 'daily' } }));
   await step('PUT', '/api/v1/artifacts/{id}/applicability', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/applicability`, { headers: oh, data: { category: 'Audit' } }));
   const cr = await (await step('POST', '/api/v1/artifacts/{id}/change-requests', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/change-requests`, { headers: oh, data: { title: 'Add a step' } }))).json();

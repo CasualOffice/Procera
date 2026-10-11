@@ -110,6 +110,102 @@ pub fn open(
     Ok(Zeroizing::new(pt))
 }
 
+// ---- Envelope encryption under a workspace KEK (BPMS-030, docs/06 §4) ----
+//
+// `0x02 ‖ kek_version u32 BE ‖ wrapped_dek (12 nonce + 32 key + 16 tag = 60) ‖ nonce 12 ‖ ciphertext+tag`
+// The DEK is random per value and wrapped by the KEK with AAD "dek"; the data is sealed by the DEK with
+// the caller's context as AAD. Rotation rewraps the DEK only; the ciphertext never changes.
+
+const ENVELOPE: u8 = 2;
+const WRAPPED_DEK: usize = 12 + 32 + 16;
+const HEADER: usize = 1 + 4 + WRAPPED_DEK;
+
+fn gcm(key: &[u8]) -> Result<Aes256Gcm, CryptoError> {
+    Aes256Gcm::new_from_slice(key).map_err(|e| CryptoError::Key(e.to_string()))
+}
+
+fn gcm_seal(key: &[u8], aad: &[u8], pt: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
+    let ct = gcm(key)?
+        .encrypt(Nonce::from_slice(&nonce), Payload { msg: pt, aad })
+        .map_err(|_| CryptoError::Open)?;
+    let mut out = Vec::with_capacity(12 + ct.len());
+    out.extend_from_slice(&nonce);
+    out.extend_from_slice(&ct);
+    Ok(out)
+}
+
+fn gcm_open(key: &[u8], aad: &[u8], sealed: &[u8]) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+    if sealed.len() < 12 + 16 {
+        return Err(CryptoError::Open);
+    }
+    let pt = gcm(key)?
+        .decrypt(Nonce::from_slice(&sealed[..12]), Payload { msg: &sealed[12..], aad })
+        .map_err(|_| CryptoError::Open)?;
+    Ok(Zeroizing::new(pt))
+}
+
+/// Whether `sealed` is an envelope (as opposed to a legacy [`seal`] value).
+pub fn is_envelope(sealed: &[u8]) -> bool {
+    sealed.len() > HEADER && sealed[0] == ENVELOPE
+}
+
+/// The KEK version an envelope's DEK is wrapped with.
+pub fn envelope_version(sealed: &[u8]) -> Option<u32> {
+    is_envelope(sealed).then(|| u32::from_be_bytes([sealed[1], sealed[2], sealed[3], sealed[4]]))
+}
+
+/// Seals `plaintext` under a fresh DEK wrapped by `kek` (version `version`), bound to `context`.
+pub fn envelope_seal(
+    kek: &[u8; 32],
+    version: u32,
+    context: &str,
+    plaintext: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    let dek: Zeroizing<[u8; 32]> = Zeroizing::new(random_bytes());
+    let wrapped = gcm_seal(kek, b"dek", dek.as_ref())?;
+    let body = gcm_seal(dek.as_ref(), context.as_bytes(), plaintext)?;
+    let mut out = Vec::with_capacity(HEADER + body.len());
+    out.push(ENVELOPE);
+    out.extend_from_slice(&version.to_be_bytes());
+    out.extend_from_slice(&wrapped);
+    out.extend_from_slice(&body);
+    Ok(out)
+}
+
+/// Opens an envelope with the KEK of its version (looked up by `kek_for`).
+pub fn envelope_open(
+    kek_for: impl FnOnce(u32) -> Result<Zeroizing<[u8; 32]>, CryptoError>,
+    context: &str,
+    sealed: &[u8],
+) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+    let version = envelope_version(sealed).ok_or(CryptoError::Open)?;
+    let kek = kek_for(version)?;
+    let dek = gcm_open(kek.as_ref(), b"dek", &sealed[5..HEADER])?;
+    gcm_open(&dek, context.as_bytes(), &sealed[HEADER..])
+}
+
+/// Rewraps an envelope's DEK from `old` to `new` (version `new_version`). The ciphertext is unchanged.
+pub fn envelope_rewrap(
+    sealed: &[u8],
+    old: &[u8; 32],
+    new: &[u8; 32],
+    new_version: u32,
+) -> Result<Vec<u8>, CryptoError> {
+    if !is_envelope(sealed) {
+        return Err(CryptoError::Open);
+    }
+    let dek = gcm_open(old, b"dek", &sealed[5..HEADER])?;
+    let wrapped = gcm_seal(new, b"dek", &dek)?;
+    let mut out = Vec::with_capacity(sealed.len());
+    out.push(ENVELOPE);
+    out.extend_from_slice(&new_version.to_be_bytes());
+    out.extend_from_slice(&wrapped);
+    out.extend_from_slice(&sealed[HEADER..]);
+    Ok(out)
+}
+
 /// A 256-bit random token, base64url (43 chars). Give it to the client; store only [`hash_token`].
 pub fn random_token() -> String {
     let mut b = [0u8; 32];
@@ -170,5 +266,26 @@ mod tests {
     #[test]
     fn rejects_short_root_key() {
         assert!(LocalKey::from_base64(&STANDARD.encode([0u8; 16])).is_err());
+    }
+
+    #[test]
+    fn envelopes_open_with_their_kek_rewrap_without_reencrypting_and_shred_with_the_kek() {
+        let (k1, k2) = (random_bytes::<32>(), random_bytes::<32>());
+        let e = envelope_seal(&k1, 1, "email_messages:1", b"hello").expect("seals");
+        assert!(is_envelope(&e) && envelope_version(&e) == Some(1));
+        let key = |k: [u8; 32]| {
+            move |_v: u32| -> Result<Zeroizing<[u8; 32]>, CryptoError> { Ok(Zeroizing::new(k)) }
+        };
+        assert_eq!(envelope_open(key(k1), "email_messages:1", &e).expect("opens").as_slice(), b"hello");
+        assert!(envelope_open(key(k1), "email_messages:2", &e).is_err(), "context is bound");
+        assert!(envelope_open(key(k2), "email_messages:1", &e).is_err(), "another KEK cannot open it");
+        let r = envelope_rewrap(&e, &k1, &k2, 2).expect("rewraps");
+        assert_eq!(envelope_version(&r), Some(2));
+        assert_eq!(&r[HEADER..], &e[HEADER..], "the ciphertext is unchanged");
+        assert_eq!(envelope_open(key(k2), "email_messages:1", &r).expect("opens").as_slice(), b"hello");
+        let mut tampered = r.clone();
+        let last = tampered.len() - 1;
+        tampered[last] ^= 1;
+        assert!(envelope_open(key(k2), "email_messages:1", &tampered).is_err(), "tampering is detected");
     }
 }

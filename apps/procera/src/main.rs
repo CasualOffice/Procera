@@ -214,6 +214,7 @@ async fn main() -> anyhow::Result<()> {
                     let (l, c, a) = (l.clone(), c.clone(), a.clone());
                     let notify = state.notify.clone();
                     let retention = state.retention.clone();
+                    let keys = state.keys.clone();
                     // Retention runs at most hourly (BPMS-066).
                     let mut last_retention: Option<std::time::Instant> = None;
                     let mut rx = stop_rx.clone();
@@ -247,6 +248,15 @@ async fn main() -> anyhow::Result<()> {
                                     Ok(0) => {}
                                     Ok(n) => tracing::info!(removed = n, "retention removed records"),
                                     Err(e) => tracing::error!(error = %e, "retention pass failed"),
+                                }
+                            }
+                            if let Some(k) = keys.as_ref() {
+                                match k.rewrap_due(500).await {
+                                    Ok(0) => {}
+                                    Ok(n) => {
+                                        tracing::info!(rewrapped = n, "values rewrapped to the active key")
+                                    }
+                                    Err(e) => tracing::error!(error = %e, "key rewrap pass failed"),
                                 }
                             }
                             if let Some(n) = notify.as_ref() {

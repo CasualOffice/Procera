@@ -137,6 +137,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/api/v1/artifacts/{id}/collection", &[&["artifact.collection_set"]]),
     emits("PUT", "/api/v1/artifacts/{id}/owner", &[&["artifact.owner_set"]]),
     emits("PUT", "/api/v1/artifacts/{id}/raci", &[&["artifact.raci_set"]]),
+    emits("POST", "/api/v1/security/encryption/rotate", &[&["key.rotated"]]),
     emits("PUT", "/api/v1/artifacts/{id}/applicability", &[&["artifact.applicability_set"]]),
     // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
     // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).
@@ -217,6 +218,7 @@ mod tests {
             ("/api/v1", include_str!("announcements.rs")),
             ("/api/v1", include_str!("search.rs")),
             ("/api/v1", include_str!("audit.rs")),
+            ("/api/v1", include_str!("encryption.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("", include_str!("../http.rs")),

@@ -1,0 +1,28 @@
+[package]
+name = "procera-keys"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+procera-audit.workspace = true
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-kernel.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+uuid.workspace = true
+zeroize = "1"
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+procera-kernel = { workspace = true, features = ["test-clock"] }
+
+[lints]
+workspace = true

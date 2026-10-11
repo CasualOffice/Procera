@@ -14,6 +14,7 @@ pub mod audit_contract;
 pub mod auth;
 pub mod campaigns;
 pub mod directory;
+pub mod encryption;
 pub mod error;
 pub mod library;
 pub mod notifications;
@@ -44,6 +45,8 @@ pub struct AppState {
     pub announcements: Option<procera_announcements::Announcements>,
     /// Retention jobs (BPMS-066); run by the scheduler and by `/__test/drain`.
     pub retention: Option<crate::retention::Retention>,
+    /// Workspace KEKs (BPMS-030).
+    pub keys: Option<procera_keys::Keys>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -93,6 +96,12 @@ impl AppState {
                 members.clone(),
                 self.clock.clone(),
                 ids,
+            ));
+            self.keys = Some(procera_keys::Keys::new(
+                db.clone(),
+                keys.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
             ));
             let notify = procera_notify::Notify::new(
                 db.clone(),
@@ -164,6 +173,7 @@ impl AppState {
             campaigns: None,
             announcements: None,
             retention: None,
+            keys: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -194,6 +204,7 @@ impl AppState {
             campaigns: None,
             announcements: None,
             retention: None,
+            keys: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -224,6 +235,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", audit::router())
         .nest("/api/v1", overview::router())
         .nest("/api/v1", retention::router())
+        .nest("/api/v1", encryption::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

@@ -22,6 +22,7 @@ import { Members } from './pages/Members';
 import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
 import { Retention } from './pages/Retention';
+import { Encryption } from './pages/Encryption';
 import { SignIn } from './pages/SignIn';
 import { SystemAudit } from './pages/system/SystemAudit';
 import { SystemHealth } from './pages/system/SystemHealth';
@@ -78,6 +79,7 @@ export function App() {
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
+  if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;

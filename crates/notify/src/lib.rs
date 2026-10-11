@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 use lettre::message::{Mailbox, MultiPart};
 use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
-use procera_crypto::{KeyProvider, open, seal};
+use procera_crypto::{KeyProvider, open};
 use procera_db::{Db, DbError, WsCtx, WsTx};
 use procera_kernel::{Clock, IdGen};
 use serde::Serialize;
@@ -136,6 +136,8 @@ impl SmtpMailer {
 pub struct Notify {
     db: Db,
     keys: Arc<dyn KeyProvider>,
+    /// Workspace KEKs: email bodies are envelope-encrypted per workspace (BPMS-030).
+    workspace_keys: procera_keys::Keys,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
     settings: procera_settings::Settings,
@@ -152,7 +154,8 @@ const PURPOSE: &str = "secrets";
 impl Notify {
     pub fn new(db: Db, keys: Arc<dyn KeyProvider>, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>) -> Self {
         let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
-        Self { db, keys, clock, ids, settings }
+        let workspace_keys = procera_keys::Keys::new(db.clone(), keys.clone(), clock.clone(), ids.clone());
+        Self { db, keys, clock, ids, settings, workspace_keys }
     }
 
     /// Renders and queues an email in the caller's transaction. `dedupe_key` makes it idempotent
@@ -169,7 +172,11 @@ impl Notify {
         let id = self.ids.new_id();
         let body = serde_json::to_vec(&json!({"text": r.text, "html": r.html}))
             .map_err(|e| NotifyError::Internal(e.to_string()))?;
-        let sealed = seal(self.keys.as_ref(), PURPOSE, &format!("email_messages:{id}"), &body)?;
+        let sealed = self
+            .workspace_keys
+            .seal(tx, &format!("email_messages:{id}"), &body)
+            .await
+            .map_err(|e| NotifyError::Internal(e.to_string()))?;
         let n = sqlx::query("INSERT INTO email_messages (workspace_id, id, kind, to_email, subject, body_sealed, dedupe_key, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (workspace_id, dedupe_key) DO NOTHING")
             .bind(tx.ctx.workspace_id).bind(id).bind(kind).bind(to.trim().to_lowercase()).bind(&r.subject).bind(sealed).bind(dedupe_key).bind(self.clock.now())
             .execute(tx.conn()).await?.rows_affected();
@@ -266,8 +273,22 @@ impl Notify {
         Ok(n)
     }
 
-    fn decode(&self, id: Uuid, sealed: &[u8]) -> Result<(String, String), NotifyError> {
-        let pt = open(self.keys.as_ref(), PURPOSE, &format!("email_messages:{id}"), sealed)?;
+    /// Decrypts a stored body: workspace envelopes (BPMS-030), or the earlier root-key format.
+    async fn decode(
+        &self,
+        tx: &mut WsTx<'_>,
+        id: Uuid,
+        sealed: &[u8],
+    ) -> Result<(String, String), NotifyError> {
+        let context = format!("email_messages:{id}");
+        let pt = if procera_crypto::is_envelope(sealed) {
+            self.workspace_keys
+                .open(tx, &context, sealed)
+                .await
+                .map_err(|e| NotifyError::Internal(e.to_string()))?
+        } else {
+            open(self.keys.as_ref(), PURPOSE, &context, sealed)?
+        };
         let v: Value = serde_json::from_slice(&pt).map_err(|e| NotifyError::Internal(e.to_string()))?;
         Ok((
             v["text"].as_str().unwrap_or_default().to_owned(),
@@ -281,13 +302,13 @@ impl Notify {
         let rows: Vec<(Uuid, String, String, String, Vec<u8>, String, i32, Option<OffsetDateTime>)> = sqlx::query_as(
             "SELECT id, kind, to_email::text, subject, body_sealed, state, attempts, next_attempt_at FROM email_messages WHERE to_email = $1 ORDER BY created_at DESC",
         ).bind(to.trim().to_lowercase()).fetch_all(tx.conn()).await?;
+        let mut out = Vec::with_capacity(rows.len());
+        for (id, kind, to, subject, sealed, state, attempts, not_before) in rows {
+            let (text, html) = self.decode(&mut tx, id, &sealed).await?;
+            out.push(OutboundEmail { id, kind, to, subject, text, html, state, attempts, not_before });
+        }
         tx.rollback().await?;
-        rows.into_iter()
-            .map(|(id, kind, to, subject, sealed, state, attempts, not_before)| {
-                let (text, html) = self.decode(id, &sealed)?;
-                Ok(OutboundEmail { id, kind, to, subject, text, html, state, attempts, not_before })
-            })
-            .collect()
+        Ok(out)
     }
 
     /// Sends due emails in every workspace once. Returns (sent, failed).
@@ -309,7 +330,7 @@ impl Notify {
                  WHERE state = 'queued' AND (next_attempt_at IS NULL OR next_attempt_at <= now()) ORDER BY created_at LIMIT 100 FOR UPDATE SKIP LOCKED",
             ).fetch_all(tx.conn()).await?;
             for (id, kind, to, subject, sealed, attempts) in rows {
-                let (text, html) = self.decode(id, &sealed)?;
+                let (text, html) = self.decode(&mut tx, id, &sealed).await?;
                 let email = OutboundEmail {
                     id,
                     kind,

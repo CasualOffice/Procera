@@ -33,6 +33,7 @@ pub fn router() -> Router<AppState> {
         .route("/library/backdate", post(backdate_artifact))
         .route("/retention/backdate", post(backdate_retention))
         .route("/retention/run", post(run_retention))
+        .route("/keys/rewrap", post(rewrap_keys))
 }
 
 #[derive(Debug, Deserialize)]
@@ -145,6 +146,17 @@ async fn run_retention(State(s): State<AppState>) -> Response {
     match r.run().await {
         Ok(n) => Json(serde_json::json!({ "removed": n })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+/// Runs the key rewrap job now (BPMS-030).
+async fn rewrap_keys(State(s): State<AppState>) -> Response {
+    let Some(k) = s.keys.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match k.rewrap_due(10_000).await {
+        Ok(n) => Json(serde_json::json!({ "rewrapped": n })).into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
     }
 }
 
