@@ -1,0 +1,74 @@
+/** API client: bearer access token kept in memory only; renewed through the HttpOnly refresh cookie. */
+
+export interface Problem {
+  status: number;
+  code: string;
+  title: string;
+  detail?: string;
+}
+
+export class ApiError extends Error {
+  constructor(public problem: Problem) {
+    super(problem.detail ? `${problem.title}: ${problem.detail}` : problem.title);
+  }
+  get code() {
+    return this.problem.code;
+  }
+  get status() {
+    return this.problem.status;
+  }
+}
+
+let accessToken: string | null = null;
+export const setAccessToken = (t: string | null) => {
+  accessToken = t;
+};
+
+const CSRF = { 'X-Requested-With': 'procera' };
+
+async function parse(res: Response) {
+  if (res.status === 204) return undefined;
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : undefined;
+  if (!res.ok) throw new ApiError(body?.code ? body : { status: res.status, code: 'http_error', title: res.statusText });
+  return body;
+}
+
+/** Renews the access token from the refresh cookie. Returns false when the session is gone. */
+export async function refresh(): Promise<boolean> {
+  const res = await fetch('/api/v1/auth/refresh', { method: 'POST', headers: CSRF, credentials: 'same-origin' });
+  if (!res.ok) {
+    accessToken = null;
+    return false;
+  }
+  accessToken = (await res.json()).access_token;
+  return true;
+}
+
+export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; raw?: string } = {}, retried = false): Promise<T> {
+  const headers: Record<string, string> = { accept: 'application/json', ...init.headers };
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  let body: BodyInit | undefined;
+  if (init.raw !== undefined) body = init.raw;
+  else if (init.body !== undefined) {
+    headers['content-type'] = 'application/json';
+    body = JSON.stringify(init.body);
+  }
+  const res = await fetch(path, { method: init.method ?? 'GET', headers, body, credentials: 'same-origin' });
+  if (res.status === 401 && !retried && !path.startsWith('/api/v1/auth/')) {
+    const problem = await res.clone().json().catch(() => null);
+    if (problem?.code !== 'step_up_required' && (await refresh())) return api<T>(path, init, true);
+  }
+  return parse(res) as Promise<T>;
+}
+
+/** Same as `api` but for the cookie-bearing auth endpoints. */
+export async function authPost<T = unknown>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { ...CSRF, accept: 'application/json', ...(body ? { 'content-type': 'application/json' } : {}) },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin',
+  });
+  return parse(res) as Promise<T>;
+}

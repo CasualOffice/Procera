@@ -9,7 +9,7 @@ const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 test.describe('design system @a11y', () => {
   test('E2E-P0-05 gallery has no WCAG 2.2 AA violations (light)', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     await expect(page.getByRole('heading', { level: 1, name: 'Design system' })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
@@ -17,14 +17,14 @@ test.describe('design system @a11y', () => {
 
   test('E2E-P0-06 gallery has no WCAG 2.2 AA violations (dark)', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
     expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
   });
 
   test('E2E-P0-07 keyboard: skip link first, focus is always visible', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Skip to main content' });
     await expect(skip).toBeFocused();
@@ -45,13 +45,13 @@ test.describe('design system @a11y', () => {
 
   test('E2E-P0-08 reflows at 320px without horizontal scrolling', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 800 });
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
   test('E2E-P0-09 interactive targets are at least 24×24px', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const small = await page.evaluate(() =>
       [...document.querySelectorAll<HTMLElement>('main button, main a, main input, main label.checkbox, .shell-nav a, header a, header button')]
         // Visually hidden native inputs (React Aria) are not the pointer target; their visible label is measured instead.
@@ -72,7 +72,7 @@ test.describe('design system @a11y', () => {
 
 test.describe('design system components @a11y', () => {
   test('E2E-P0-10 confirm dialog traps focus, Esc restores focus to the trigger', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const trigger = page.getByRole('region', { name: 'Dialogs' }).getByRole('button', { name: 'Delete policy' });
     await trigger.click();
     const dialog = page.getByRole('alertdialog', { name: /Delete “Travel policy v3”/ });
@@ -92,7 +92,7 @@ test.describe('design system components @a11y', () => {
   });
 
   test('E2E-P0-11 data grid: aria-sort, filter announcements, select all', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const grid = page.getByRole('table', { name: 'All requests' });
     const due = grid.getByRole('columnheader', { name: /Due/ });
     await expect(due).toHaveAttribute('aria-sort', 'none');
@@ -109,7 +109,7 @@ test.describe('design system components @a11y', () => {
   });
 
   test('E2E-P0-12 select is operable with the keyboard only', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const trigger = page.getByRole('button', { name: /Department/ });
     await trigger.focus();
     await page.keyboard.press('ArrowDown');
@@ -122,7 +122,7 @@ test.describe('design system components @a11y', () => {
   });
 
   test('E2E-P0-13 tabs move with arrow keys and expose the selected state', async ({ page }) => {
-    await page.goto(WEB);
+    await page.goto(`${WEB}/design`);
     const first = page.getByRole('tab', { name: 'Overview' });
     await first.focus();
     await page.keyboard.press('ArrowRight');

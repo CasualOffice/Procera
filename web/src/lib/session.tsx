@@ -1,0 +1,136 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { ApiError, api, authPost, refresh, setAccessToken } from './api';
+
+export interface User {
+  id: string;
+  email: string;
+  display_name: string;
+  mfa_enabled: boolean;
+}
+export interface Workspace {
+  workspace_id: string;
+  slug: string;
+  name: string;
+  state: string;
+}
+
+type Status = 'loading' | 'signed_out' | 'choose_workspace' | 'ready';
+
+interface Session {
+  status: Status;
+  user: User | null;
+  workspaces: Workspace[];
+  workspace: Workspace | null;
+  permissions: Set<string>;
+  can: (permission: string) => boolean;
+  /** Returns the MFA token when a second factor is needed. */
+  signIn: (email: string, password: string) => Promise<{ mfaToken?: string }>;
+  completeMfa: (mfaToken: string, code: string) => Promise<void>;
+  selectWorkspace: (id: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  reload: () => Promise<void>;
+}
+
+const Ctx = createContext<Session | null>(null);
+
+export function useSession(): Session {
+  const s = useContext(Ctx);
+  if (!s) throw new Error('useSession outside SessionProvider');
+  return s;
+}
+
+export function SessionProvider({ children }: { children: React.ReactNode }) {
+  const [status, setStatus] = useState<Status>('loading');
+  const [user, setUser] = useState<User | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspace, setWorkspace] = useState<Workspace | null>(null);
+  const [permissions, setPermissions] = useState<Set<string>>(new Set());
+  const autoSelected = useRef(false);
+
+  /** Loads who I am and where I am from the current access token. */
+  const load = useCallback(async () => {
+    const me = await api<{ user: User; token: { workspace: string | null } }>('/api/v1/me');
+    const mine = await api<{ items: Workspace[] }>('/api/v1/me/workspaces');
+    setUser(me.user);
+    setWorkspaces(mine.items);
+    const current = mine.items.find((w) => w.workspace_id === me.token.workspace) ?? null;
+    if (current) {
+      try {
+        const p = await api<{ permissions: string[] }>('/api/v1/me/permissions');
+        setPermissions(new Set(p.permissions));
+        setWorkspace(current);
+        setStatus('ready');
+        return;
+      } catch (e) {
+        if (!(e instanceof ApiError)) throw e;
+        // e.g. mfa_required for this role: fall through to the chooser, which explains it.
+      }
+    }
+    setWorkspace(null);
+    setPermissions(new Set());
+    const only = mine.items.length === 1 ? mine.items[0] : undefined;
+    if (only && !current && !autoSelected.current) {
+      autoSelected.current = true; // once: if entry fails (e.g. MFA required), stay on the chooser
+      await select(only.workspace_id);
+      return;
+    }
+    setStatus('choose_workspace');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const select = useCallback(
+    async (id: string) => {
+      const r = await api<{ access_token: string }>('/api/v1/session/workspace', { method: 'POST', body: { workspace_id: id } });
+      setAccessToken(r.access_token);
+      await load();
+    },
+    [load],
+  );
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (await refresh()) await load();
+        else setStatus('signed_out');
+      } catch {
+        setStatus('signed_out');
+      }
+    })();
+  }, [load]);
+
+  const value = useMemo<Session>(
+    () => ({
+      status,
+      user,
+      workspaces,
+      workspace,
+      permissions,
+      can: (p) => permissions.has(p),
+      async signIn(email, password) {
+        const r = await authPost<{ status: string; access_token?: string; mfa_token?: string }>('/api/v1/auth/login', { email, password });
+        if (r.status === 'mfa_required') return { mfaToken: r.mfa_token };
+        setAccessToken(r.access_token ?? null);
+        await load();
+        return {};
+      },
+      async completeMfa(mfaToken, code) {
+        const r = await authPost<{ access_token: string }>('/api/v1/auth/mfa', { mfa_token: mfaToken, code: code.trim() });
+        setAccessToken(r.access_token);
+        await load();
+      },
+      selectWorkspace: select,
+      async signOut() {
+        await authPost('/api/v1/auth/logout').catch(() => undefined);
+        setAccessToken(null);
+        setUser(null);
+        setWorkspace(null);
+        setWorkspaces([]);
+        setPermissions(new Set());
+        setStatus('signed_out');
+      },
+      reload: load,
+    }),
+    [status, user, workspaces, workspace, permissions, load, select],
+  );
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}

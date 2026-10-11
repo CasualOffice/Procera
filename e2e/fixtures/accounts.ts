@@ -43,8 +43,10 @@ export async function mfaSession(email: string) {
   const auth = { authorization: `Bearer ${token}` };
   const enr = await (await c.post('/api/v1/me/mfa/totp', { headers: auth })).json();
   const now = await serverNow(c);
-  expect((await c.post('/api/v1/me/mfa/totp/confirm', { headers: auth, data: { code: totp(enr.secret, now) } })).status()).toBe(200);
+  const confirmed = await c.post('/api/v1/me/mfa/totp/confirm', { headers: auth, data: { code: totp(enr.secret, now) } });
+  expect(confirmed.status()).toBe(200);
+  const recovery: string[] = (await confirmed.json()).recovery_codes;
   const step1 = await (await c.post('/api/v1/auth/login', { data: { email, password: PW } })).json();
   const done = await (await c.post('/api/v1/auth/mfa', { data: { mfa_token: step1.mfa_token, code: totp(enr.secret, now, 1) } })).json();
-  return { c, token: done.access_token as string, headers: { authorization: `Bearer ${done.access_token}` }, secret: enr.secret as string };
+  return { c, token: done.access_token as string, headers: { authorization: `Bearer ${done.access_token}` }, secret: enr.secret as string, recovery };
 }

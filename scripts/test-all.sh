@@ -67,6 +67,12 @@ docker compose -f deploy/compose.e2e.yml config -q && echo "compose ok"
 step "Web: tokens, contrast, types, build"
 (cd web && npm run check --silent && npm run build --silent >/dev/null && echo "web build ok")
 step "E2E: start e2e API build (database-backed when Postgres is available) and web preview"
+for port in "$API_PORT" "$WEB_PORT"; do
+  if lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "port $port is already in use (a stale server from an earlier run?): $(lsof -nP -iTCP:"$port" -sTCP:LISTEN | tail -1)" >&2
+    echo "stop it, or run with another PORT_OFFSET" >&2; exit 1
+  fi
+done
 cargo build -q -p procera --features e2e
 API_ENV=()
 if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
@@ -80,7 +86,7 @@ if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
   echo "e2e database $E2E_DB"
 fi
 env "${API_ENV[@]}" PROCERA_BIND=127.0.0.1:$API_PORT PROCERA_PUBLIC_URL="http://127.0.0.1:$WEB_PORT" target/debug/procera serve --all >/tmp/procera-test-all-$OFF.log 2>&1 & API_PID=$!
-(cd web && PROCERA_API_URL="http://127.0.0.1:$API_PORT" npx vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all-$OFF.log 2>&1) & WEB_PID=$!
+(cd web && PROCERA_API_URL="http://127.0.0.1:$API_PORT" exec ./node_modules/.bin/vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all-$OFF.log 2>&1) & WEB_PID=$!
 until curl -fs -o /dev/null "http://127.0.0.1:$API_PORT/healthz"; do sleep 0.2; done
 until curl -fs -o /dev/null "http://127.0.0.1:$WEB_PORT/"; do sleep 0.2; done
 step "E2E: no-sleeps lint, API smoke pack, accessibility pack"

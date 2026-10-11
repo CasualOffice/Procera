@@ -4,3 +4,20 @@ section { margin-bottom: var(--space-8); }
 section .field { margin-bottom: var(--space-4); }
 ul.plain { list-style: none; padding: 0; margin: 0; }
 ul.plain li { margin-bottom: var(--space-2); }
+
+/* Page furniture (docs/05 §7.0: typography over boxes). */
+.lede { color: var(--color-text-secondary); margin: calc(-1 * var(--space-2)) 0 var(--space-6); max-width: 70ch; }
+.muted { color: var(--color-text-secondary); }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+.page-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
+.plain-list { margin: 0; padding-left: var(--space-6); }
+ul.plain-list { list-style: disc; }
+.plain-list li { margin-bottom: var(--space-2); line-height: 1.5; }
+.choice-list { list-style: none; padding: 0; margin: 0 0 var(--space-6); display: flex; flex-direction: column; gap: var(--space-2); }
+.choice-list .btn { width: 100%; justify-content: flex-start; }
+.feed { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--color-border); }
+.feed-item { display: flex; justify-content: space-between; gap: var(--space-4); align-items: flex-start; padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border); }
+.feed-item p { margin: 0; }
+.feed-title { font-weight: var(--font-weight-medium); }
+.feed-unread .feed-title { font-weight: var(--font-weight-bold); }
+.feed-unread { box-shadow: inset 3px 0 0 var(--color-brand); padding-left: var(--space-3); }
