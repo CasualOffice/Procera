@@ -1,0 +1,275 @@
+import { type APIRequestContext, type Browser, type Page, expect, test } from '@playwright/test';
+import { PW, hasDatabase, seedUser, uniqueEmail } from '../../fixtures/accounts';
+import { WEB, axe, nav, signIn } from '../../fixtures/ui';
+import { workspaceWithOwner } from '../../fixtures/workspace';
+
+// E2E-R1-FLOW-01..05: complete user flows, start to finish, in the browser with every person in
+// their own browser. Links are taken from the emails the product sent, the way people arrive.
+
+/** The newest email of `kind` to `to`, after delivery runs; returns the first link in its text. */
+async function emailLink(request: APIRequestContext, ws: string, to: string, kind: string, path: RegExp): Promise<string> {
+  let link = '';
+  await expect.poll(async () => {
+    await request.post('/__test/drain');
+    const mail = await (await request.get(`/__test/mail?workspace=${ws}&to=${encodeURIComponent(to)}`)).json();
+    const m = (mail.items as { kind: string; text: string }[]).find((x) => x.kind === kind);
+    link = m?.text.match(/https?:\/\/\S+/)?.[0] ?? '';
+    return path.test(link);
+  }, { message: `a ${kind} email to ${to}` }).toBe(true);
+  // The test build mails links on the web origin; keep only the path so the browser stays on WEB.
+  const u = new URL(link);
+  return `${WEB}${u.pathname}${u.search}`;
+}
+
+async function personPage(browser: Browser): Promise<Page> {
+  return (await browser.newContext()).newPage();
+}
+
+/** Sign-in form, password only (members without an admin role have no second step). */
+async function signInForm(page: Page, email: string) {
+  await expect(page.getByRole('heading', { level: 1, name: 'Sign in to Procera' })).toBeVisible();
+  await page.getByLabel('Work email').fill(email);
+  await page.getByLabel('Password').fill(PW);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+}
+
+/** The owner invites `email` from Members (Member role unless another is named). */
+async function inviteFromMembers(page: Page, email: string, role?: string) {
+  await nav(page, 'Members');
+  await page.getByRole('button', { name: 'Invite people' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Invite people' });
+  await dialog.getByLabel('Email address').fill(email);
+  if (role) await dialog.getByRole('button', { name: new RegExp(`^${role}`) }).click();
+  await dialog.getByRole('button', { name: 'Send invitation' }).click();
+  await expect(page.getByRole('row', { name: new RegExp(email) }).getByText('Invited')).toBeVisible();
+}
+
+/** A new person opens the invitation email, creates an account and lands on Home in the workspace. */
+async function joinAsNewPerson(browser: Browser, request: APIRequestContext, ws: string, email: string, name: string): Promise<Page> {
+  const link = await emailLink(request, ws, email, 'invitation', /\/invite\?token=/);
+  const page = await personPage(browser);
+  await page.goto(link);
+  await expect(page.getByRole('heading', { level: 1, name: 'Join Acme' })).toBeVisible();
+  await expect(page.getByLabel('Work email')).toHaveValue(email);
+  await page.getByLabel('Your name').fill(name);
+  await page.getByLabel('Password', { exact: true }).fill(PW);
+  await page.getByLabel('Confirm password').fill(PW);
+  await page.getByRole('button', { name: 'Create account and join' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+  return page;
+}
+
+test.describe('complete flows @r1 @ui', () => {
+  test.beforeEach(async ({ request }) => {
+    test.slow(); // several people, each in their own browser
+    test.skip(!(await hasDatabase(request)), 'needs a database-backed e2e build');
+  });
+
+  test('E2E-R1-FLOW-01 onboarding: invited from Members, the email link creates the account and lands in the workspace', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    const email = uniqueEmail('newhire');
+    await inviteFromMembers(page, email);
+
+    const link = await emailLink(request, ws.id, email, 'invitation', /\/invite\?token=/);
+    const hire = await personPage(browser);
+    await hire.goto(link);
+    await expect(hire.getByRole('heading', { level: 1, name: 'Join Acme' })).toBeVisible();
+    await expect(hire.getByText(/Olivia invited/)).toBeVisible();
+    await axe(hire);
+    await hire.getByLabel('Your name').fill('Nina Hire');
+    await hire.getByLabel('Password', { exact: true }).fill(PW);
+    await hire.getByLabel('Confirm password').fill(`${PW}x`);
+    await expect(hire.getByText('The passwords don’t match.')).toBeVisible();
+    await expect(hire.getByRole('button', { name: 'Create account and join' })).toBeDisabled();
+    await hire.getByLabel('Confirm password').fill(PW);
+    await hire.getByRole('button', { name: 'Create account and join' }).click();
+    await expect(hire.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), Nina/ })).toBeVisible();
+    await expect(hire.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
+
+    // The link worked once.
+    await hire.goto(link);
+    await expect(hire.getByRole('heading', { level: 1, name: 'This invitation link doesn’t work' })).toBeVisible();
+
+    // The owner sees the new member as active.
+    await page.reload();
+    const row = page.getByRole('row', { name: /Nina Hire/ });
+    await expect(row.getByText('Active')).toBeVisible();
+  });
+
+  test('E2E-R1-FLOW-02 someone with an account signs in from the invitation and joins with one click', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const email = await seedUser(request, 'existing');
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await inviteFromMembers(page, email);
+
+    const link = await emailLink(request, ws.id, email, 'invitation', /\/invite\?token=/);
+    const them = await personPage(browser);
+    await them.goto(link);
+    await expect(them.getByText('You already have a Procera account. Sign in to accept.')).toBeVisible();
+    await them.getByRole('button', { name: 'Sign in to accept' }).click();
+    await signInForm(them, email);
+    // Back on the invitation, now signed in.
+    await expect(them).toHaveURL(/\/invite\?token=/);
+    await them.getByRole('button', { name: 'Join Acme' }).click();
+    await expect(them.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await expect(them.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
+
+    // A link that never existed explains itself.
+    await them.goto(`${WEB}/invite?token=not-a-real-token`);
+    await expect(them.getByRole('heading', { level: 1, name: 'This invitation link doesn’t work' })).toBeVisible();
+  });
+
+  test('E2E-R1-FLOW-03 policy to evidence: write and publish, launch a campaign, a colleague acknowledges from the email, the owner sees it done', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    const email = uniqueEmail('colleague');
+    await inviteFromMembers(page, email);
+    const colleague = await joinAsNewPerson(browser, request, ws.id, email, 'Cara Colleague');
+
+    // Owner: author and publish.
+    await nav(page, 'Library');
+    await page.getByRole('button', { name: 'New document' }).first().click();
+    const create = page.getByRole('dialog', { name: 'New document' });
+    await create.getByLabel('Title').fill('Travel policy');
+    await create.getByRole('button', { name: 'Create draft' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Content' }).click();
+    await page.keyboard.type('Book travel through the portal at least two weeks ahead.');
+    await page.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await page.getByRole('button', { name: 'Publish' }).click();
+    await page.getByRole('dialog', { name: 'Publish v1' }).getByRole('button', { name: 'Publish now' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Published.' })).toBeVisible();
+
+    // Owner: campaign for everyone, launched.
+    await nav(page, 'Campaigns');
+    await page.getByRole('button', { name: 'New campaign' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New campaign' });
+    await dlg.getByRole('button', { name: /Travel policy/ }).click();
+    await dlg.getByRole('button', { name: 'Create draft' }).click();
+    await expect(page.getByText(/people will be asked to acknowledge/)).toBeVisible();
+    await page.getByRole('button', { name: 'Launch' }).click();
+    await expect(page.getByRole('table', { name: 'People in this campaign' })).toBeVisible();
+    const campaignUrl = page.url();
+
+    // Colleague: the task is on Home; the email link opens the document with the request.
+    await colleague.reload();
+    await expect(colleague.getByText('Acknowledge “Travel policy”')).toBeVisible();
+    const ackLink = await emailLink(request, ws.id, email, 'campaign_assigned', /\/acknowledgements\//);
+    await colleague.goto(ackLink);
+    await expect(colleague.getByRole('heading', { level: 1, name: 'Travel policy' })).toBeVisible();
+    const callout = colleague.getByRole('region', { name: 'Acknowledgement requested' });
+    await expect(callout).toBeVisible();
+    await callout.getByRole('button', { name: 'I acknowledge' }).click();
+    await expect(colleague.getByRole('status').filter({ hasText: 'Acknowledged' })).toBeVisible();
+    await colleague.goto(`${WEB}/`);
+    await expect(colleague.getByText('Acknowledge “Travel policy”')).toHaveCount(0);
+
+    // Owner: the colleague is done; the evidence downloads.
+    await page.goto(campaignUrl);
+    const row = page.getByRole('row', { name: /Cara Colleague/ });
+    await expect(row.getByText('Done')).toBeVisible();
+    await expect(page.getByText(/1 of 2/)).toBeVisible();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Evidence CSV' }).click();
+    expect((await download).suggestedFilename()).toMatch(/evidence\.csv$/);
+    await axe(page);
+  });
+
+  test('E2E-R1-FLOW-04 announcement: compose and publish, a colleague opens it from the email signed out, reads it, the owner sees the receipt', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await request.post('/__test/settings', { data: { workspace: ws.id, key: 'announcements.approval_required', value: 'off' } });
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    const email = uniqueEmail('reader');
+    await inviteFromMembers(page, email);
+    const reader = await joinAsNewPerson(browser, request, ws.id, email, 'Rae Reader');
+    await reader.close(); // they come back later from the email, signed out
+
+    await nav(page, 'Manage announcements');
+    await page.getByRole('button', { name: 'New announcement' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New announcement' });
+    await dlg.getByLabel('Title').fill('Office closed Friday');
+    await dlg.getByLabel('Message').fill('The office is closed for maintenance. Work from home.');
+    await dlg.getByText('Ask people to confirm they’ve read it').click();
+    await dlg.getByText('Critical', { exact: true }).click();
+    await dlg.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Publish now' }).click();
+    await expect(page.getByRole('heading', { name: 'Receipts' })).toBeVisible();
+
+    const link = await emailLink(request, ws.id, email, 'announcement', /\/announcements\//);
+    const back = await personPage(browser);
+    await back.goto(link);
+    await signInForm(back, email);
+    const post = back.getByRole('listitem').filter({ hasText: 'Office closed Friday' });
+    await expect(post.getByText('The office is closed for maintenance.')).toBeVisible();
+    await post.getByRole('button', { name: 'I’ve read this' }).click();
+    await expect(post.getByText('Acknowledged')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText(/\(1 of 2\)/).first()).toBeVisible();
+  });
+
+  test('E2E-R1-FLOW-05 review loop: a controlled draft is submitted, the reviewer is emailed and asks for changes, the author fixes it, the reviewer approves, the author publishes', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    const email = uniqueEmail('reviewer');
+    await inviteFromMembers(page, email, 'Reviewer');
+    const reviewer = await joinAsNewPerson(browser, request, ws.id, email, 'Rob Reviewer');
+
+    // Author: a controlled policy always needs an independent review.
+    await nav(page, 'Library');
+    await page.getByRole('button', { name: 'New document' }).first().click();
+    const create = page.getByRole('dialog', { name: 'New document' });
+    await create.getByLabel('Title').fill('Data retention');
+    await create.getByText('Controlled', { exact: true }).click();
+    await create.getByRole('button', { name: 'Create draft' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Content' }).click();
+    await page.keyboard.type('Keep customer records for five years.');
+    await page.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('In review', { exact: true }).first()).toBeVisible();
+    const docUrl = page.url();
+
+    // Reviewer: the email asks for a review; they send it back with a comment.
+    const reviewLink = await emailLink(request, ws.id, email, 'review_requested', /\/library\//);
+    await reviewer.goto(reviewLink);
+    await expect(reviewer.getByRole('heading', { level: 1, name: 'Data retention' })).toBeVisible();
+    await reviewer.getByRole('button', { name: 'Request changes' }).click();
+    const changes = reviewer.getByRole('dialog', { name: 'Request changes' });
+    await changes.getByLabel('What should change?').fill('Say which records and who deletes them.');
+    await changes.getByRole('button', { name: 'Send' }).click();
+    await expect(reviewer.getByRole('status').filter({ hasText: 'Sent back to the author.' })).toBeVisible();
+
+    // Author: the notification explains what to change and leads back to the draft.
+    await request.post('/__test/drain');
+    await nav(page, 'Notifications');
+    const note = page.getByRole('listitem').filter({ hasText: 'Changes requested on Data retention' });
+    await expect(note.getByText('Say which records and who deletes them.')).toBeVisible();
+    await note.getByRole('link', { name: 'Changes requested on Data retention' }).click();
+    await expect(page).toHaveURL(docUrl);
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Content' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' The records team deletes them after that.');
+    await page.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('In review', { exact: true }).first()).toBeVisible();
+
+    // Reviewer approves from Home this time.
+    await reviewer.goto(`${WEB}/`);
+    await reviewer.getByRole('listitem').filter({ hasText: 'Review “Data retention”' }).getByRole('button', { name: 'Review' }).click();
+    await reviewer.getByRole('button', { name: 'Approve' }).click();
+    await expect(reviewer.getByRole('status').filter({ hasText: 'Approved.' })).toBeVisible();
+
+    // Author: told it is approved, publishes.
+    await request.post('/__test/drain');
+    await nav(page, 'Notifications');
+    await page.getByRole('link', { name: 'Data retention is approved' }).click();
+    await page.getByRole('button', { name: 'Publish' }).click();
+    await page.getByRole('dialog', { name: 'Publish v1' }).getByRole('button', { name: 'Publish now' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Published.' })).toBeVisible();
+    await axe(page);
+  });
+});
