@@ -16,6 +16,9 @@ import { LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
 import { DirectoryImport } from './DirectoryImport';
 
+/** Specialist roles add to the employee basics, so invites pair them with Member (narrow custom roles stay possible through the API). */
+const BASE_ROLES = new Set(['member', 'workspace.owner', 'workspace.admin']);
+
 interface PersonRow { id: string; name: string; email: string; roles: string[]; title: string | null; status: string; date: string; invite: boolean }
 interface Invitation { id: string; email: string; role_keys: string[]; expires_at: string }
 const ROLE_COLOR: Record<string, TagColor> = { 'workspace.owner': 'red', 'workspace.admin': 'orange', reviewer: 'blue', 'compliance.officer': 'purple', member: 'gray' };
@@ -70,7 +73,7 @@ function InviteDialog({ isOpen, onClose, onInvited }: { isOpen: boolean; onClose
   const submit = async () => {
     setError(null);
     try {
-      await api('/api/v1/members/invitations', { method: 'POST', body: { email, roles: [role] } });
+      await api('/api/v1/members/invitations', { method: 'POST', body: { email, roles: BASE_ROLES.has(role) ? [role] : ['member', role] } });
       setEmail(''); onInvited(); onClose();
     } catch (e) { setError(e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'Could not send the invitation.'); }
   };

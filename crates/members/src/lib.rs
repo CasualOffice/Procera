@@ -470,12 +470,6 @@ impl Members {
                 id
             }
         };
-        // Everyone is at least a member: specialist roles (reviewer, compliance officer…) add to the
-        // employee basics (read, acknowledge, announcements) rather than replacing them.
-        let mut roles = roles;
-        if !roles.iter().any(|r| matches!(r.as_str(), "member" | "workspace.owner" | "workspace.admin")) {
-            roles.push("member".to_owned());
-        }
         for key in &roles {
             // Authorized when the invitation was created; granted here by the system on the inviter's behalf.
             self.access
