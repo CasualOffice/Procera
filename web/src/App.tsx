@@ -21,6 +21,7 @@ import { Settings } from './pages/Settings';
 import { Audit } from './pages/Audit';
 import { Members } from './pages/Members';
 import { Departments } from './pages/Departments';
+import { GroupDetail, Groups } from './pages/Groups';
 import { Roles } from './pages/Roles';
 import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
@@ -116,6 +117,9 @@ export function App() {
   if (person) return <AppShell current="home" crumbs={[['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
   if (path === '/admin/departments') return <AppShell current="departments" crumbs={[ADMIN, 'Departments']}><Departments /></AppShell>;
+  if (path === '/admin/groups') return <AppShell current="groups" crumbs={[ADMIN, 'Groups']}><Groups /></AppShell>;
+  const grp = match('/admin/groups/:id', path);
+  if (grp) return <AppShell current="groups" crumbs={[ADMIN, ['Groups', '/admin/groups'], 'Group']}><GroupDetail id={grp.id!} created={query.get('created') === '1'} /></AppShell>;
   if (path === '/admin/roles') return <AppShell current="roles" crumbs={[ADMIN, 'Roles & access']}><Roles /></AppShell>;
   if (path === '/admin/announcements') return <AppShell current="manage-announcements" crumbs={[ADMIN, 'Manage announcements']}><ManageAnnouncements /></AppShell>;
   if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;

@@ -23,6 +23,7 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
     can('monitoring:view_dashboards') && { key: 'overview', label: 'Overview', to: '/admin/overview', icon: Gauge, keywords: 'dashboard attention overdue security' },
     any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite roles' },
     can('directory:manage') && { key: 'departments', label: 'Departments', to: '/admin/departments', icon: Network, keywords: 'org chart teams hierarchy head structure' },
+    can('directory:manage') && { key: 'groups', label: 'Groups', to: '/admin/groups', icon: UsersRound, keywords: 'sets teams fire wardens auditors audience' },
     can('role:view') && { key: 'roles', label: 'Roles & access', to: '/admin/roles', icon: UserCog, keywords: 'permissions custom role grant scope expiry rbac' },
     can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     any('announcement:create', 'announcement:publish', 'announcement:manage') && { key: 'manage-announcements', label: 'Manage announcements', to: '/admin/announcements', icon: SquarePen, keywords: 'compose write publish approve posts' },

@@ -5,6 +5,7 @@ import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/wo
 
 // Directory and member management in the browser (BPMS-023, docs/design/ia-competitive-analysis.md §5.4, §8.3).
 // E2E-R1-UI-51 — departments: empty state, add (parent, head), rename inline, move (no cycles), delete only when empty.
+// E2E-R1-UI-52 — groups: empty state, new group, add several people, remove one, delete.
 
 const home = (page: Page) => expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 
@@ -103,6 +104,59 @@ test.describe('directory @r1 @ui', () => {
 
     const items = (await (await owner.c.get('/api/v1/departments', { headers: owner.headers })).json()).items;
     expect(items.map((d: { name: string; parent_id: string | null }) => [d.name, d.parent_id])).toEqual([['Customer Support', null]]);
+  });
+
+  test('E2E-R1-UI-52 an owner creates a group, adds and removes people, and deletes it', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await member(request, owner, ws.id, 'Nina');
+    await member(request, owner, ws.id, 'Theo');
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await home(page);
+    await nav(page, 'Groups');
+    await expect(page.getByRole('heading', { level: 1, name: 'Groups' })).toBeVisible();
+    await expect(page.getByText('No groups yet')).toBeVisible();
+    await expect(page.getByText(/Groups are flexible sets of people across departments/)).toBeVisible();
+    await axe(page);
+
+    await page.getByRole('button', { name: 'New group' }).click();
+    let dialog = page.getByRole('dialog', { name: 'New group' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('Fire wardens');
+    await dialog.getByRole('textbox', { name: /Purpose/ }).fill('Trained to lead evacuations');
+    await dialog.getByRole('button', { name: 'Create group' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Fire wardens' })).toBeVisible();
+    await expect(page.getByText('Group created. Add the people who belong in it.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add members' }).first().click();
+    dialog = page.getByRole('dialog', { name: 'Add members to Fire wardens' });
+    await dialog.getByRole('textbox', { name: 'Find people' }).fill('ni');
+    await dialog.getByRole('checkbox', { name: /^Nina/ }).check();
+    await dialog.getByRole('textbox', { name: 'Find people' }).fill('');
+    await dialog.getByRole('checkbox', { name: /^Theo/ }).check();
+    await axe(page);
+    await dialog.getByRole('button', { name: 'Add 2 people' }).click();
+    await expect(page.getByText('Added 2 people to Fire wardens.')).toBeVisible();
+    const list = page.getByRole('list', { name: 'Members of Fire wardens' });
+    await expect(list.getByRole('link')).toHaveText(['Nina', 'Theo']);
+    await axe(page);
+
+    await list.getByRole('button', { name: 'Remove Theo' }).click();
+    dialog = page.getByRole('dialog', { name: 'Remove Theo from Fire wardens?' });
+    await dialog.getByRole('button', { name: 'Remove' }).click();
+    await expect(page.getByText('Theo removed from Fire wardens.')).toBeVisible();
+    await expect(list.getByRole('link')).toHaveText(['Nina']);
+
+    await page.getByRole('navigation', { name: 'People' }).getByRole('link', { name: 'Groups' }).click();
+    const row = page.getByRole('row', { name: /Fire wardens/ });
+    await expect(row).toContainText('Trained to lead evacuations');
+    await expect(row).toContainText('1 person');
+    await axe(page);
+
+    await row.getByRole('link', { name: 'Fire wardens' }).click();
+    await page.getByRole('button', { name: 'Delete group' }).click();
+    dialog = page.getByRole('dialog', { name: 'Delete Fire wardens?' });
+    await dialog.getByRole('button', { name: 'Delete group' }).click();
+    await expect(page.getByText('No groups yet')).toBeVisible();
+    expect((await (await owner.c.get('/api/v1/groups', { headers: owner.headers })).json()).items).toEqual([]);
   });
 });
 
