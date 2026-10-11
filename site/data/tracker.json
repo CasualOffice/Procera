@@ -3,15 +3,15 @@
  "last_updated": "2026-10-12",
  "current_release": "P0",
  "totals": {
-  "Done": 34,
+  "Done": 33,
   "In review": 0,
-  "In progress": 12,
+  "In progress": 14,
   "Blocked": 0,
-  "Not started": 63,
+  "Not started": 62,
   "Deferred": 0,
   "all": 109
  },
- "e2e_scenarios": 185,
+ "e2e_scenarios": 190,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -197,6 +197,11 @@
   "E2E-R1-UI-43",
   "E2E-R1-UI-44",
   "E2E-R1-UI-45",
+  "E2E-R1-UI-46",
+  "E2E-R1-UI-47",
+  "E2E-R1-UI-48",
+  "E2E-R1-UI-49",
+  "E2E-R1-UI-50",
   "E2E-R1-VIEW-01"
  ],
  "releases": [
@@ -236,8 +241,8 @@
    "gate": "G-R1",
    "scope": "System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)",
    "total": 32,
-   "done": 23,
-   "in_progress": 8,
+   "done": 22,
+   "in_progress": 9,
    "not_started": 1,
    "epics": [
     "BPMS-020",
@@ -283,8 +288,8 @@
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
    "total": 17,
    "done": 0,
-   "in_progress": 4,
-   "not_started": 13,
+   "in_progress": 5,
+   "not_started": 12,
    "epics": [
     "BPMS-080",
     "BPMS-081",
@@ -565,7 +570,7 @@
    "title": "Memberships, invites, directory (departments/groups/positions/managers), CSV import",
    "priority": "P0",
    "release": "R1",
-   "status": "Done"
+   "status": "In progress"
   },
   {
    "id": "BPMS-024",
@@ -637,7 +642,7 @@
    "title": "E2E-R1 pack (R1-01…19 + ISO)",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-033",
@@ -781,7 +786,7 @@
    "title": "System console: workspaces grid, quotas, health, system audit",
    "priority": "P0",
    "release": "R1",
-   "status": "Done"
+   "status": "In progress"
   },
   {
    "id": "BPMS-120",
@@ -909,7 +914,7 @@
    "title": "Template gallery + install wizard + Wave-1 templates (13)",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-111",
