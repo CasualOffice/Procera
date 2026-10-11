@@ -168,6 +168,16 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-UI-01 | Sign in through the browser (password + recovery code) lands on Home; navigation is permission-shaped with the current page marked; axe clean on sign-in and Home; reload keeps the session | docs/05 §2.1, §3.1, WCAG 2.2 AA |
+| E2E-R1-UI-02 | Wrong password and wrong code produce clear, non-revealing messages (role=alert); axe clean | docs/06 §3, WCAG 3.3.1 |
+| E2E-R1-UI-03 | With several workspaces the chooser appears; choosing one and switching from the header changes the context and the navigation (no Admin for a plain member) | docs/05 §2.1 workspace switcher |
+| E2E-R1-UI-04 | The bell announces the unread count; the inbox lists the "joined" notification; mark all as read | FR-N01 |
+| E2E-R1-UI-05 | Sign out returns to sign-in; reloading stays signed out | docs/06 §3 |
+
+Implemented in `e2e/packs/r1/shell.ui.spec.ts` (Chromium, against the built app behind the Vite proxy).
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

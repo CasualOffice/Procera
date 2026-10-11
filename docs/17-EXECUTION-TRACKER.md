@@ -46,7 +46,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-028 | UX | Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard) | P0 | R1 | FE | FR-V01–V09 | Used by Members & Workspaces | L | BPMS-010 | Not started |
 | BPMS-029 | ENG | Outbox + dispatcher + inbox dedup + idempotency keys | P0 | R1 | Platform | ADR-0005 | T02 skeleton passes | M | BPMS-011 | Done |
 | BPMS-030 | ENG | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | P0 | R1 | Platform/Sec | 04 §8, 06 §4 | Rotation + shred tested | M | BPMS-020 | In progress |
-| BPMS-031 | UX | App shell, workspace switcher, system console shell, ⌘K | P0 | R1 | FE | UX-002/003 | Keyboard nav | M | BPMS-010 | Not started |
+| BPMS-031 | UX | App shell, workspace switcher, system console shell, ⌘K | P0 | R1 | FE | UX-002/003 | Keyboard nav | M | BPMS-010 | In progress |
 | BPMS-032 | E2E | E2E-R1 pack (R1-01…19 + ISO) | P0 | R1 | SDET + feature owners | 23 §5 | Green on Chromium + mobile | L | BPMS-013 | Not started |
 | BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Done |
 | BPMS-034 | BRAND | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | P0 | R1 | Design + Product | assets/brand, OQ-01, U-16 | SVGs in assets/brand/vector; clearance memo | S |  | In progress |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 19 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 85 · Deferred: 0 (of 109)
+**Progress:** Done: 19 · In review: 0 · In progress: 6 · Blocked: 0 · Not started: 84 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -157,6 +157,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-027 | Settings layering, floors, profiles, explainer | In progress | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | Done | Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048 |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | In progress | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
+| BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | In progress | Web app slice 1: history router, API client (in-memory access token, silent refresh via HttpOnly cookie, RFC 9457 errors), session provider, Vite proxy (same-origin), sign-in with MFA (TOTP or recovery code), workspace chooser, app shell with workspace switcher menu, notification bell with unread count, permission-shaped navigation, Home, notifications inbox; design gallery moved to /design. E2E-R1-UI-01..05 (axe on every screen). Remaining: system console shell, ⌘K command palette, mobile bottom bar |
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-040 | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | Done | procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler |
@@ -169,7 +170,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 127 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 132 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

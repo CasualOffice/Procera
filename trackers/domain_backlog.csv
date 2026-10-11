@@ -203,6 +203,11 @@ E2E scenarios (E2E),E2E-R1-LIB-02,"Controlled policy needs a review: the author'
 E2E scenarios (E2E),E2E-R1-LIB-03,"Changes requested needs a comment and returns the draft; withdraw; later versions need a reason for change; publishing supersedes (previous → deprecated) | FR-G04, docs/20 §2.6",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-LIB-04,"A scheduled version goes live when its effective time passes (test clock + drain) and supersedes the live one; retire | FR-G05, FR-PL01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-LIB-05,Members read published policies but cannot author; lists contain only kinds the member may view | docs/12 §5,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-01,"Sign in through the browser (password + recovery code) lands on Home; navigation is permission-shaped with the current page marked; axe clean on sign-in and Home; reload keeps the session | docs/05 §2.1, §3.1, WCAG 2.2 AA",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-02,"Wrong password and wrong code produce clear, non-revealing messages (role=alert); axe clean | docs/06 §3, WCAG 3.3.1",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-03,With several workspaces the chooser appears; choosing one and switching from the header changes the context and the navigation (no Admin for a plain member) | docs/05 §2.1 workspace switcher,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-04,"The bell announces the unread count; the inbox lists the ""joined"" notification; mark all as read | FR-N01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-05,Sign out returns to sign-in; reloading stays signed out | docs/06 §3,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

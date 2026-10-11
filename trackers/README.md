@@ -8,8 +8,8 @@
 ```text
 Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  19/109 epics done  (17%)
 Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  20% counting in-progress epics as half done
-Tests     52 automated E2E scenarios · 66 Rust tests (incl. property tests)
-Status    done 19 · in review 0 · in progress 5 · blocked 0 · not started 85 · deferred 0
+Tests     57 automated E2E scenarios · 66 Rust tests (incl. property tests)
+Status    done 19 · in review 0 · in progress 6 · blocked 0 · not started 84 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -33,11 +33,16 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login (E2E-R1-AUTH-06). Step-up: POST /session/step-up (TOTP code, or password without MFA) re-issues the token with a fresh auth_time; enforced against auth.stepup.window (401 step_up_required) for step-up settings, role create/edit and grant/revoke (E2E-R1-CFG-03). MFA required by role (auth.mfa.required_roles) enforced at workspace entry, 403 mfa_required (E2E-R1-MEM-10). Remaining: WebAuthn/passkeys |
 | BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
+| BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app slice 1: history router, API client (in-memory access token, silent refresh via HttpOnly cookie, RFC 9457 errors), session provider, Vite proxy (same-origin), sign-in with MFA (TOTP or recovery code), workspace chooser, app shell with workspace switcher menu, notification bell with unread count, permission-shaped navigation, Home, notifications inbox; design gallery moved to /design. E2E-R1-UI-01..05 (axe on every screen). Remaining: system console shell, ⌘K command palette, mobile bottom bar |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-048 | In-app notification centre + SMTP email + templates + digests | **In progress** | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 
 ## Recently shipped (last 12 commits on main)
 
+- `b3ae597` feat(web): sign-in with MFA, workspace chooser and switcher, app shell, Home and inbox; browser E2E-R1-UI-01..05 (BPMS-031)
+- `266f27b` feat(members): shared audience resolver — all, department subtrees, groups, roles (BPMS-046/047 groundwork)
+- `7040fa1` chore: PORT_OFFSET for parallel test-all runs; lean dev profile
+- `14d9492` docs: library API and E2E plan; tracker marks BPMS-040 done
 - `2d693ae` feat(api): library API with step-up for controlled approval and publication, scheduler role; E2E-R1-LIB-01..05 (BPMS-040)
 - `b9a2354` feat(library): [protected] governed artifacts, immutable versions, review rounds with SoD, scheduled publication (BPMS-040)
 - `ddeb618` docs: notifications API, LLD as-built note, E2E plan; tracker BPMS-048
@@ -46,10 +51,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `1f86c00` docs: tracker marks BPMS-029 done
 - `93e4b83` feat(worker): run the outbox dispatcher in serve --all; /__test/drain drains for real (BPMS-029)
 - `d4b0106` feat(outbox): [protected] dispatcher with per-aggregate order, backoff, hold-back and NOTIFY wake-ups (BPMS-029)
-- `33db515` docs: step-up API and E2E scenarios; tracker BPMS-022
-- `9b56bf4` feat(api): [protected] step-up endpoint and enforcement, MFA required by role at workspace entry; E2E-R1-CFG-03, E2E-R1-MEM-10 (BPMS-022)
-- `771ba5f` feat(identity): [protected] step-up re-authentication with fresh auth_time (BPMS-022)
-- `6a54a7d` docs: E2E-R1-MEM-09; tracker marks BPMS-024 done
 
 ## Done
 
@@ -115,7 +116,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
 - [x] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys
 - [ ] **BPMS-030** (P0, M) Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK **[In progress]**
-- [ ] **BPMS-031** (P0, M) App shell, workspace switcher, system console shell, ⌘K
+- [ ] **BPMS-031** (P0, M) App shell, workspace switcher, system console shell, ⌘K **[In progress]**
 - [ ] **BPMS-032** (P0, L) E2E-R1 pack (R1-01…19 + ISO)
 - [x] **BPMS-033** (P0, M) Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback
 - [ ] **BPMS-034** (P0, S) Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search **[In progress]**
@@ -259,7 +260,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 127 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 132 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
