@@ -2574,6 +2574,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "procera-engine"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-audit",
+ "procera-db",
+ "procera-ir",
+ "procera-kernel",
+ "procera-runtime",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "procera-expr"
 version = "0.0.0"
 dependencies = [
