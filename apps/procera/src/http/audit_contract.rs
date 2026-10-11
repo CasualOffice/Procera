@@ -40,6 +40,11 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/auth/mfa", &[&["login.succeeded"]]),
     exempt(
         "POST",
+        "/api/v1/auth/mfa/webauthn/options",
+        "issues a single-use passkey challenge only; the answer is audited by /auth/mfa (login.succeeded or mfa.failed)",
+    ),
+    exempt(
+        "POST",
         "/api/v1/auth/refresh",
         "rotation on every session renewal; reuse is audited as security.token_reuse and sign-in as login.succeeded",
     ),
@@ -47,6 +52,13 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/me/sign-out-everywhere", &[&["sessions.revoked_all"]]),
     emits("POST", "/api/v1/me/mfa/totp", &[&["mfa.totp_enrollment_started"]]),
     emits("POST", "/api/v1/me/mfa/totp/confirm", &[&["mfa.totp_enabled"]]),
+    exempt(
+        "POST",
+        "/api/v1/me/mfa/webauthn/options",
+        "issues a single-use passkey challenge only; the registration is audited as mfa.webauthn_added",
+    ),
+    emits("POST", "/api/v1/me/mfa/webauthn", &[&["mfa.webauthn_added"]]),
+    emits("DELETE", "/api/v1/me/mfa/webauthn/{id}", &[&["mfa.webauthn_removed"]]),
     // System plane.
     emits("POST", "/sysapi/v1/bootstrap", &[&["platform.bootstrapped", "user.created"]]),
     emits("POST", "/sysapi/v1/workspaces", &[&["member.invited", "workspace.created"]]),
@@ -59,6 +71,11 @@ pub const CONTRACT: &[Entry] = &[
     // Workspace plane.
     emits("POST", "/api/v1/session/workspace", &[&["session.workspace_selected"]]),
     emits("POST", "/api/v1/session/step-up", &[&["session.stepped_up"]]),
+    exempt(
+        "POST",
+        "/api/v1/session/step-up/webauthn/options",
+        "issues a single-use passkey challenge only; the answer is audited by /session/step-up",
+    ),
     emits("POST", "/api/v1/invitations/accept", &[&["member.joined"]]),
     emits("POST", "/api/v1/invitations/register", &[&["member.joined", "user.created"]]),
     emits("POST", "/api/v1/members/invitations", &[&["member.invited"]]),

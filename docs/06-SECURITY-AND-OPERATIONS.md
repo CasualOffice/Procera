@@ -123,6 +123,13 @@ workspace plane · **B7** workspace admin ↔ workspace content · **B8** produc
 - **TOTP** RFC 6238 (SHA-1, 6 digits, 30 s, ±1 step), secrets encrypted; replay of the same
   code within its window rejected. **WebAuthn Level 3** / passkeys with user verification
   required for admin roles where possible. 10 single-use recovery codes (hashed).
+- Passkeys as built (BPMS-022, docs/22 A-16): RP ID = public URL host (`PROCERA_WEBAUTHN_RP_ID`
+  overrides), exact-origin check, single-use 32-byte challenges (5 min, bound to user and
+  ceremony), user presence required and user verification preferred, attestation `none`,
+  ES256/EdDSA/RS256 verified with `ring`, signature counters must increase (clone detection),
+  public keys stored as COSE in `user_credentials`. Every add, removal, sign-in and step-up is
+  audited in the system chain (`mfa.webauthn_added`, `mfa.webauthn_removed`, `login.succeeded`,
+  `mfa.failed`, `session.stepped_up`, `session.step_up_failed`).
 - MFA required: all system-plane users (always); workspace owners/admins (default on);
   any role a workspace marks.
 
