@@ -2,6 +2,7 @@
 //! override, clamped by the platform floor. Collection overrides arrive with collections;
 //! process-level values live in release bundles (ADR-0012).
 
+pub mod cache;
 pub mod catalogue;
 mod scoped;
 mod switch;

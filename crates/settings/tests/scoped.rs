@@ -1,8 +1,11 @@
-//! BPMS-027 remainder: department overrides (layer 4) and profile switch plan/apply (CFG-017). Properties extend "never looser than the floor" to the
+//! BPMS-027 remainder: department overrides (layer 4), profile switch plan/apply (CFG-017) and the
+//! effective-settings cache (CFG-004). Properties extend "never looser than the floor" to the
 //! department layer; the database tests run against real Postgres (and Valkey when configured).
 
+use procera_cache::{Cache, MemoryCache};
 use procera_db::{WsCtx, test_support};
 use procera_kernel::{SystemClock, UuidV7Gen};
+use procera_settings::cache::{Outcome, SettingsCache};
 use procera_settings::catalogue::{CATALOGUE, Def, Kind};
 use procera_settings::{
     DeptOverride, Settings, SettingsError, at_least_as_strict, resolve, resolve_scoped, validate,
@@ -233,5 +236,36 @@ async fn profile_switch_plans_then_applies() -> anyhow::Result<()> {
     tx.commit().await?;
     let report = procera_audit::verify(&t.db, ws).await?;
     assert_eq!((report.first_broken, report.checked), (None, 1), "one event for the whole switch");
+    Ok(())
+}
+
+#[tokio::test]
+async fn cached_snapshots_are_invalidated_by_generation() -> anyhow::Result<()> {
+    let Some((t, ws, actor)) = fixture().await? else { return Ok(()) };
+    let s = svc();
+    // Cache: memory always; Valkey too when the suite provides one.
+    let mut caches = vec![SettingsCache::new(Cache::Memory(MemoryCache::default()))];
+    if let Ok(url) = std::env::var("PROCERA_TEST_CACHE_URL") {
+        caches.push(SettingsCache::new(Cache::from_url(Some(&url)).await?));
+    }
+    for cache in caches {
+        let mut tx = t.db.begin_ws(ws).await?;
+        let (first, o1) = cache.snapshot(&mut tx).await?;
+        let (_, o2) = cache.snapshot(&mut tx).await?;
+        assert_eq!((o1, o2), (Outcome::Miss, Outcome::Hit));
+        let week = first.effective(procera_settings::def("locale.week_start")?, &[]).value;
+        let next = if week == json!("sun") { "mon" } else { "sun" };
+        s.set_workspace(&mut tx, actor, "locale.week_start", &json!(next), None, None, c()).await?;
+        tx.commit().await?;
+        cache.invalidate_workspace(ws.workspace_id).await;
+        let mut tx = t.db.begin_ws(ws).await?;
+        let (fresh, o3) = cache.snapshot(&mut tx).await?;
+        assert_eq!(o3, Outcome::Miss, "a change is never served from the old entry");
+        assert_eq!(fresh.effective(procera_settings::def("locale.week_start")?, &[]).value, json!(next));
+        cache.invalidate_floors().await;
+        assert_eq!(cache.snapshot(&mut tx).await?.1, Outcome::Miss, "a floor change drops every workspace");
+        tx.rollback().await?;
+    }
+
     Ok(())
 }

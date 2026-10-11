@@ -2586,6 +2586,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "procera-audit",
+ "procera-cache",
  "procera-db",
  "procera-kernel",
  "proptest",
