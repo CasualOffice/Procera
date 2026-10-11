@@ -315,6 +315,105 @@ impl AppBus {
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }
+            // BPMS-047: an announcement waits for approval: tell those who may publish, except its author.
+            "announcement.submitted.v1" => {
+                let (id, author) =
+                    (uuid_field(m, "announcement_id")?, uuid_field(m, "author_membership_id")?);
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())? {
+                    let name: Option<String> = sqlx::query_scalar(
+                        "SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
+                    )
+                    .bind(author)
+                    .fetch_optional(tx.conn())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    let approvers = self
+                        .members
+                        .access()
+                        .members_holding(&mut tx, &["announcement:publish", "announcement:manage"])
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    let link = format!("/admin/announcements?id={id}");
+                    let mut vars = json!({"title": m.payload["title"], "author": name.unwrap_or_else(|| "Someone".into()), "link": link});
+                    for (membership, email) in approvers.iter().filter(|(x, _)| *x != author) {
+                        let dedupe = format!("announcement_approval:{}:{membership}", m.id);
+                        vars["link"] = json!(link);
+                        self.notify
+                            .notify_member(
+                                &mut tx,
+                                *membership,
+                                "announcement_approval",
+                                &vars,
+                                Some(&link),
+                                Some(("announcement", id)),
+                                &dedupe,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        vars["link"] = json!(format!("{}{link}", self.public_url));
+                        self.notify
+                            .email_member(
+                                &mut tx,
+                                *membership,
+                                "announcement_approval",
+                                email,
+                                &vars,
+                                &dedupe,
+                                Urgency::Urgent,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
+            // BPMS-047: the author hears whether their announcement was approved or sent back.
+            "announcement.decided.v1" => {
+                let (id, author) =
+                    (uuid_field(m, "announcement_id")?, uuid_field(m, "author_membership_id")?);
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())? {
+                    let email: Option<String> = sqlx::query_scalar(
+                        "SELECT u.email::text FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1 AND m.status = 'active'",
+                    )
+                    .bind(author)
+                    .fetch_optional(tx.conn())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    let link = format!("/admin/announcements?id={id}");
+                    let dedupe = format!("announcement_decided:{}", m.id);
+                    let mut vars = json!({"title": m.payload["title"], "outcome": m.payload["outcome"], "comment": m.payload["comment"], "link": link});
+                    self.notify
+                        .notify_member(
+                            &mut tx,
+                            author,
+                            "announcement_decided",
+                            &vars,
+                            Some(&link),
+                            Some(("announcement", id)),
+                            &dedupe,
+                        )
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    if let Some(email) = email {
+                        vars["link"] = json!(format!("{}{link}", self.public_url));
+                        self.notify
+                            .email_member(
+                                &mut tx,
+                                author,
+                                "announcement_decided",
+                                &email,
+                                &vars,
+                                &dedupe,
+                                Urgency::Normal,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
             // Writers already invalidate after commit; this covers a node that failed to (CFG-004).
             procera_settings::CHANGED_TOPIC => {
                 if let Some(c) = &self.settings_cache {

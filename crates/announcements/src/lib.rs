@@ -493,6 +493,10 @@ impl Announcements {
             None,
         )
         .await?;
+        if required {
+            // Approvers are told it is waiting (in-app and email, after commit).
+            Self::decision_event(tx, "announcement.submitted.v1", &a, json!({})).await?;
+        }
         self.load(tx, id, false).await
     }
 
@@ -528,6 +532,15 @@ impl Announcements {
             None,
         )
         .await?;
+        if a.approval_required && a.author_membership_id != actor.membership {
+            Self::decision_event(
+                tx,
+                "announcement.decided.v1",
+                &a,
+                json!({"outcome": "approved", "comment": null}),
+            )
+            .await?;
+        }
         self.go_live(tx, actor, a, channels).await
     }
 
@@ -553,7 +566,40 @@ impl Announcements {
         sqlx::query("UPDATE announcements SET state = 'draft', decided_by = $2, decided_at = $3, decision_comment = $4, revision = revision + 1 WHERE id = $1")
             .bind(id).bind(actor.membership).bind(self.clock.now()).bind(comment).execute(tx.conn()).await?;
         self.audit(tx, Some(actor), "announcement.rejected", id, json!({}), Some(comment)).await?;
+        Self::decision_event(
+            tx,
+            "announcement.decided.v1",
+            &a,
+            json!({"outcome": "rejected", "comment": comment}),
+        )
+        .await?;
         self.load(tx, id, false).await
+    }
+
+    /// An approval-workflow event for the bus: who wrote it and what it is called.
+    async fn decision_event(
+        tx: &mut WsTx<'_>,
+        topic: &'static str,
+        a: &Announcement,
+        extra: serde_json::Value,
+    ) -> Result<(), AnnouncementError> {
+        let mut payload = json!({"announcement_id": a.id, "title": a.title, "author_membership_id": a.author_membership_id});
+        if let (Some(p), Some(e)) = (payload.as_object_mut(), extra.as_object()) {
+            p.extend(e.clone());
+        }
+        outbox::enqueue(
+            tx,
+            OutboxEvent {
+                topic,
+                aggregate_type: "announcement",
+                aggregate_id: a.id,
+                aggregate_revision: a.revision + 1,
+                payload,
+                trace_id: None,
+            },
+        )
+        .await?;
+        Ok(())
     }
 
     /// Publishes (or schedules) a draft directly; refused when approval applies.

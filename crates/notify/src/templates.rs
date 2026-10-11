@@ -169,6 +169,44 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the document</a></p>{% endblock %}
 {% block footer %}You receive this because you wrote this version.{% endblock %}"#,
     ),
+    // BPMS-047: an announcement waits for approval. Vars: title, author, link.
+    ("announcement_approval.title", "Approve “{{ title }}”"),
+    ("announcement_approval.body", "{{ author }} sent an announcement for approval."),
+    ("announcement_approval.subject", "Approval requested: {{ title }}"),
+    (
+        "announcement_approval.text",
+        "{{ author }} sent the announcement “{{ title }}” for approval.\n\nOpen it to approve or send it back:\n{{ link }}\n",
+    ),
+    (
+        "announcement_approval.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{{ author }} sent the announcement <strong>{{ title }}</strong> for approval.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Review the announcement</a></p>{% endblock %}
+{% block footer %}You receive this because you can publish announcements.{% endblock %}"#,
+    ),
+    // BPMS-047: the approval outcome, to the author. Vars: title, outcome (approved | rejected), comment, link.
+    (
+        "announcement_decided.title",
+        "{% if outcome == 'approved' %}“{{ title }}” is approved{% else %}“{{ title }}” was sent back{% endif %}",
+    ),
+    (
+        "announcement_decided.body",
+        "{% if outcome == 'approved' %}It is published, or will be at its scheduled time.{% else %}It is back in draft{% if comment %}: “{{ comment }}”{% else %}.{% endif %}{% endif %}",
+    ),
+    (
+        "announcement_decided.subject",
+        "{% if outcome == 'approved' %}Approved: {{ title }}{% else %}Sent back: {{ title }}{% endif %}",
+    ),
+    (
+        "announcement_decided.text",
+        "{% if outcome == 'approved' %}Your announcement “{{ title }}” is approved.{% else %}Your announcement “{{ title }}” is back in draft.{% if comment %}\n\nComment: {{ comment }}{% endif %}{% endif %}\n\n{{ link }}\n",
+    ),
+    (
+        "announcement_decided.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{% if outcome == 'approved' %}Your announcement <strong>{{ title }}</strong> is approved.{% else %}Your announcement <strong>{{ title }}</strong> is back in draft.{% endif %}</p>
+{% if comment and outcome != 'approved' %}<p style="margin:0 0 16px;padding:12px 16px;background:#f4f4f2;border-radius:6px">{{ comment }}</p>{% endif %}
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because you wrote this announcement.{% endblock %}"#,
+    ),
     // BPMS-044: an artifact's review date passed. Vars: title.
     ("review_overdue.title", "{{ title }} is due for review"),
     (
@@ -241,6 +279,18 @@ mod tests {
             assert!(r.text.contains(word), "{outcome}");
             assert!(!r.html.contains("<b>"), "{outcome}: comment is escaped");
             assert!(!in_app("review_decided", &ctx).expect("renders").title.is_empty());
+        }
+    }
+
+    #[test]
+    fn announcement_approval_templates_render() {
+        let ctx = json!({"title": "Fire <drill>", "author": "Ann", "link": "https://x.test/l"});
+        assert!(email("announcement_approval", &ctx).expect("renders").html.contains("Fire &lt;drill&gt;"));
+        for outcome in ["approved", "rejected"] {
+            let ctx = json!({"title": "T", "outcome": outcome, "comment": "Too <long>", "link": "https://x.test/l"});
+            let r = email("announcement_decided", &ctx).expect("renders");
+            assert!(!r.html.contains("<long>") && r.text.contains("https://x.test/l"), "{outcome}");
+            assert!(!in_app("announcement_decided", &ctx).expect("renders").title.is_empty());
         }
     }
 
