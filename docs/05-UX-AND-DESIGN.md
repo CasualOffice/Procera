@@ -344,6 +344,15 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
 - **States:** empty ("Start from a policy template": Code of Conduct, Acceptable Use, Leave…); superseded versions watermarked and read-only.
 - **Mobile:** fully readable and acknowledgeable at 360 px.
 - **Scale:** startup mode shows a flat list. MNC mode adds applicability by entity and location, localised variants (one policy, several language versions linked) and per-region effective dates.
+- **As built (R1, BPMS-043/044/045):**
+  - **Policies** (`/policies`) is in the sidebar for everyone with `policy:view`. It lists the published policies that apply to me (`GET /me/policies`), with a search box and category chips. The chips come from the unfiltered list so they don't vanish while filtering.
+  - Each row shows verified, "Updated" (v2 and later published in the last 30 days) and review-overdue tags. A "What changed in vN" box gives the counts and change reason and links to the comparison.
+  - **Document properties** add Review (status tag, next date, schedule, with "Recertify" and "Change schedule" for publishers), Verified ("Verify" or "Remove verification" for approvers; controlled documents ask to confirm identity) and, for policies, Applies to (audience summary, category, "Only they can see it").
+  - A due or overdue review also shows a callout with "Recertify now" to publishers.
+  - **Applies to** is edited in a dialog with category, the shared audience picker, and "Only these people can see it" (only with a specific audience).
+  - **Suggested changes** sit under the document. Anyone who can read it can "Suggest a change" (title, optional details). Publishers can Accept, Decline (reason required) or Mark implemented (pick the version). The state is shown as a tag; members never see resolve actions.
+  - **Compare** (`/library/:id/compare?from=&to=`, version numbers) is linked as "Compare with vN" from the version history. It shows the newer version as a document: added blocks tinted green with an underline, removed blocks red and struck through, and word-level `<ins>`/`<del>` inside changed blocks (a left rule marks the block).
+  - The compare page also has a summary line, the change reason and two version pickers. Changes are named for screen readers, so colour is never the only signal.
 
 ### 3.22 Document signing (Documents)
 - **Purpose:** send any document (PDF/DOCX; DOCX converted to PDF at send time and frozen) to employees or external people for e-signature.
