@@ -252,7 +252,9 @@ async fn get_artifact(
     let reader = Reader { membership: me.actor.membership, full_kinds: &full };
     let versions: Vec<Value> = lib.versions(&mut tx, id).await?.into_iter()
         .filter(|v| Library::version_visible(&a.kind, &v.lifecycle, &reader))
-        .map(|v| json!({"id": v.id, "version_no": v.version_no, "lifecycle": v.lifecycle, "content_hash": v.content_hash, "effective_at": v.effective_at, "published_at": v.published_at, "change_reason": v.change_reason}))
+        // Serialise through `Version` so timestamps are RFC 3339 (json! on OffsetDateTime is a tuple).
+        .filter_map(|v| serde_json::to_value(&v).ok())
+        .map(|v| json!({"id": v["id"], "version_no": v["version_no"], "lifecycle": v["lifecycle"], "content_hash": v["content_hash"], "effective_at": v["effective_at"], "published_at": v["published_at"], "change_reason": v["change_reason"]}))
         .collect();
     tx.rollback().await.map_err(internal)?;
     Ok(etag(Json(json!({ "artifact": a, "versions": versions })).into_response(), a.revision))

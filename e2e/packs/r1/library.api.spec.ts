@@ -46,6 +46,7 @@ test.describe('library @r1 @library', () => {
     expect([again.content, again.content_hash]).toEqual([doc('Create accounts and laptops.'), sub.content_hash]);
     const art = await (await owner.c.get(`/api/v1/artifacts/${artifact.id}`, { headers: h })).json();
     expect([art.artifact.state, art.artifact.current_published_version_id]).toEqual(['published', version.id]);
+    expect(art.versions[0].published_at).toMatch(/^\d{4}-\d{2}-\d{2}T/); // RFC 3339, not a tuple
     const v2 = await owner.c.post(`/api/v1/artifacts/${artifact.id}/versions`, { headers: h });
     expect([v2.status(), (await v2.json()).version_no]).toEqual([201, 2]);
     expect((await owner.c.post(`/api/v1/artifacts/${artifact.id}/versions`, { headers: h })).status()).toBe(409);

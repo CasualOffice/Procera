@@ -167,6 +167,8 @@ pub struct Layer {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Effective {
     pub key: &'static str,
+    /// Catalogue group (docs/20 §2 section), for grouping in the UI.
+    pub group: &'static str,
     pub value: Value,
     /// Layer the value came from: `default`, `profile`, `workspace` or `platform_floor` (when clamped).
     pub source: &'static str,
@@ -209,6 +211,7 @@ pub fn resolve(
     }
     Effective {
         key: d.key,
+        group: d.group,
         value,
         source,
         clamped,

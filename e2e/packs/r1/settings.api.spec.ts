@@ -20,6 +20,7 @@ test.describe('settings @r1 @settings', () => {
     const all = await (await owner.c.get('/api/v1/settings', { headers: owner.headers })).json();
     const week = all.items.find((i: { key: string }) => i.key === 'locale.week_start');
     expect([week.value, week.source]).toEqual(['mon', 'default']);
+    expect(week.group).toBe('locale'); // catalogue group for the settings screen
     expect((await owner.c.get('/api/v1/settings/no.such.key', { headers: owner.headers })).status()).toBe(404);
   });
 
