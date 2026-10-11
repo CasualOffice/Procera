@@ -29,8 +29,12 @@ const PURPOSE: &str = "workspace-kek";
 
 /// Envelope-encrypted columns, so rotation can rewrap them: (table, id column, value column, AAD prefix).
 /// The AAD of a value is `<prefix>:<id>`.
-pub const REGISTRY: &[(&str, &str, &str, &str)] =
-    &[("email_messages", "id", "body_sealed", "email_messages"), ("files", "id", "wrapped_dek", "files")];
+/// `platform_email_config` holds the system plane's SMTP password, sealed under the system workspace.
+pub const REGISTRY: &[(&str, &str, &str, &str)] = &[
+    ("email_messages", "id", "body_sealed", "email_messages"),
+    ("files", "id", "wrapped_dek", "files"),
+    ("platform_email_config", "id", "password_sealed", "platform_email_config"),
+];
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeyError {

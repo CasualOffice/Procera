@@ -50,10 +50,11 @@ enum Command {
         /// of the public URL; a loopback IP maps to `localhost`, since browsers reject IP addresses.
         #[arg(long, env = "PROCERA_WEBAUTHN_RP_ID")]
         webauthn_rp_id: Option<String>,
-        /// SMTP relay, e.g. smtp://user:pass@host:587?tls=required or smtps://host:465. Without it, emails stay queued.
+        /// SMTP relay, e.g. smtp://user:pass@host:587?tls=required or smtps://host:465. Wins over the
+        /// email settings saved in the system console; with neither, emails stay queued.
         #[arg(long, env = "PROCERA_SMTP_URL", hide_env_values = true)]
         smtp_url: Option<String>,
-        /// Sender address for platform email.
+        /// Sender address used with PROCERA_SMTP_URL (the console's settings carry their own).
         #[arg(long, env = "PROCERA_MAIL_FROM", default_value = "Procera <no-reply@localhost>")]
         mail_from: String,
     },
@@ -160,6 +161,16 @@ async fn main() -> anyhow::Result<()> {
             }
             let mut state = base.with_identity(identity, !insecure_cookies).with_services(keys, &public_url);
             state.login_rate_per_min = login_rate_per_min;
+            state.platform_info.public_url_source = if std::env::var("PROCERA_PUBLIC_URL").is_ok() {
+                "environment"
+            } else if public_url != "http://127.0.0.1:8080" {
+                "command_line"
+            } else {
+                "default"
+            };
+            if let Some(url) = smtp_url.as_deref() {
+                state = state.with_smtp_env(url, &mail_from)?;
+            }
             // FR-S01: until a system owner exists, print a one-time bootstrap token (24 h) to the log.
             if let Some(p) = &state.platform
                 && let Some(token) = p.issue_bootstrap_token().await?
@@ -182,22 +193,38 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
-            let mailer = match smtp_url.as_deref() {
-                Some(url) => Some(procera_notify::SmtpMailer::from_url(url, &mail_from)?),
-                None => {
-                    tracing::warn!("no PROCERA_SMTP_URL: emails are queued but not sent");
-                    None
-                }
-            };
-            let mail_worker = match (&state.notify, mailer, all) {
+            // Email delivery (worker role): the transport is re-resolved on every pass, so settings saved
+            // in the system console apply without a restart (BPMS-065). E2E builds deliver only through
+            // PROCERA_SMTP_URL, so the shared queue that the packs read stays put (docs/23).
+            let deliver = cfg!(not(feature = "e2e")) || smtp_url.is_some();
+            if smtp_url.is_none() {
+                tracing::info!(
+                    "no PROCERA_SMTP_URL: using the email settings from the system console, if any"
+                );
+            }
+            let mail_worker = match (&state.notify, &state.mailers, all && deliver) {
                 (Some(n), Some(m), true) => {
-                    let n = n.clone();
+                    let (n, m) = (n.clone(), m.clone());
                     let mut rx = stop_rx.clone();
                     tracing::info!("email sender started");
                     Some(tokio::spawn(async move {
+                        let mut warned = false;
                         loop {
-                            if let Err(e) = n.send_due(&m).await {
-                                tracing::error!(error = %e, "email send pass failed");
+                            match m.current().await {
+                                Ok(Some(mailer)) => {
+                                    warned = false;
+                                    if let Err(e) = n.send_due(&mailer).await {
+                                        tracing::error!(error = %e, "email send pass failed");
+                                    }
+                                }
+                                Ok(None) if !warned => {
+                                    warned = true;
+                                    tracing::warn!(
+                                        "email delivery isn't set up: emails are queued but not sent"
+                                    );
+                                }
+                                Ok(None) => {}
+                                Err(e) => tracing::error!(error = %e, "email settings could not be read"),
                             }
                             tokio::select! {
                                 _ = rx.wait_for(|stop| *stop) => return,

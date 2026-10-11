@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Building2, Gauge, History, LogOut, ShieldAlert } from 'lucide-react';
+import { Activity, ArrowLeftRight, Building2, Gauge, History, LogOut, Mail, ShieldAlert } from 'lucide-react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
@@ -11,12 +11,13 @@ import { Skeleton } from './States';
 import './shell.css';
 import './system.css';
 
-export type SystemNavKey = 'workspaces' | 'quotas' | 'health' | 'audit';
+export type SystemNavKey = 'workspaces' | 'quotas' | 'health' | 'email' | 'audit' | 'setup';
 
-const NAV: { key: SystemNavKey; label: string; to: string; icon: typeof Building2; audit?: boolean }[] = [
+const NAV: { key: SystemNavKey; label: string; to: string; icon: typeof Building2; audit?: boolean; platform?: boolean }[] = [
   { key: 'workspaces', label: 'Workspaces', to: '/system/workspaces', icon: Building2 },
   { key: 'quotas', label: 'Quotas & usage', to: '/system/quotas', icon: Gauge },
   { key: 'health', label: 'Platform health', to: '/system/health', icon: Activity },
+  { key: 'email', label: 'Email & platform', to: '/system/email', icon: Mail, platform: true },
   { key: 'audit', label: 'System audit', to: '/system/audit', icon: History, audit: true },
 ];
 
@@ -50,7 +51,7 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
     return (
       <div className="auth">
         <main id="main" className="auth-card" tabIndex={-1}>
-          <MfaSetup next="/system" intro="System administration needs two-step verification. Turn it on now with an authenticator app; it takes about a minute. Then sign in again to open the system console." />
+          <MfaSetup next={window.location.pathname} intro="System administration needs two-step verification. Turn it on now with an authenticator app; it takes about a minute. Then sign in again to open the system console." />
         </main>
       </div>
     );
@@ -66,7 +67,7 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
                 ? <Notice tone="warning" title="System administration needs two-step verification">It’s on for your account. Sign in again to use it.</Notice>
                 : <p className="lede">{gate === 'hidden' ? 'This page doesn’t exist, or you don’t have access to it.' : 'Try again in a moment.'}</p>}
               <div className="actions">
-                {gate === 'mfa' && <Button onPress={async () => { await signOut(); navigate('/sign-in?next=/system', { replace: true }); }}>Sign in again</Button>}
+                {gate === 'mfa' && <Button onPress={async () => { await signOut(); navigate(`/sign-in?next=${encodeURIComponent(window.location.pathname)}`, { replace: true }); }}>Sign in again</Button>}
                 <Link className="btn btn-secondary btn-md link-btn" to="/">Go to Procera</Link>
               </div>
             </>
@@ -76,7 +77,7 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
     );
   }
 
-  const nav = NAV.filter((n) => !n.audit || sysCan(me.roles, 'audit.read'));
+  const nav = NAV.filter((n) => (!n.audit || sysCan(me.roles, 'audit.read')) && (!n.platform || sysCan(me.roles, 'platform.read')));
   return (
     <SystemCtx.Provider value={me}>
       <div className="app sys-app">

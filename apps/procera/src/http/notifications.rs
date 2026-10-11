@@ -33,6 +33,9 @@ impl From<NotifyError> for ApiError {
         match e {
             NotifyError::NotFound => Self::not_found(),
             NotifyError::Invalid(m) => Self::new(422, "validation_failed", "Validation failed").detail(m),
+            NotifyError::Stale { .. } => {
+                Self::new(412, "precondition_failed", "The settings changed; reload and retry")
+            }
             other => {
                 tracing::error!(error = %other, "notify error");
                 Self::new(500, "internal", "Internal error")

@@ -15,7 +15,8 @@ type Outcome = null | 'already' | 'signin';
 /**
  * First-run setup (`/setup`, FR-S01, E2E-R1-01): the one-time bootstrap token from the server log
  * creates the first system owner. There are no default credentials. Next, the owner turns on
- * two-step verification, which the system console requires (docs/06 §3.6), and opens the console.
+ * two-step verification, which the system console requires (docs/06 §3.6), and finishes setup in the
+ * console at `/system/setup`: optional email settings, then the first workspace (BPMS-065).
  */
 export function Setup() {
   const { query } = useRoute();
@@ -72,7 +73,7 @@ export function Setup() {
     // Signed in, the system console asks for two-step verification before anything else.
     try {
       const r = await signIn(email.trim(), password);
-      navigate(r.mfaToken ? '/sign-in?next=/system' : '/system', { replace: true });
+      navigate(r.mfaToken ? '/sign-in?next=%2Fsystem%2Fsetup' : '/system/setup', { replace: true });
     } catch {
       setBusy(false);
       setOutcome('signin');
@@ -93,7 +94,7 @@ export function Setup() {
       <>
         <h1>Your system owner account is ready</h1>
         <Notice tone="success" title="Setup is complete">Sign in with the email and password you just chose. You’ll then turn on two-step verification.</Notice>
-        <div className="actions"><Link className="btn btn-primary btn-md link-btn" to="/sign-in?next=/system">Sign in</Link></div>
+        <div className="actions"><Link className="btn btn-primary btn-md link-btn" to="/sign-in?next=%2Fsystem%2Fsetup">Sign in</Link></div>
       </>
     );
   }
@@ -105,7 +106,8 @@ export function Setup() {
       <ol className="mfa-steps" aria-label="Setup steps">
         <li>Create the system owner with the one-time setup token.</li>
         <li>Turn on two-step verification with an authenticator app.</li>
-        <li>Open the system console and create the first workspace.</li>
+        <li>Set up email, if you like; you can skip it and do it later.</li>
+        <li>Create the first workspace and invite its owner.</li>
       </ol>
       {error && <Notice tone="danger" title={error.title}>{error.body}</Notice>}
       <Form className="stack" validationBehavior="aria" onSubmit={(e) => { e.preventDefault(); void submit(); }}>

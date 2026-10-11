@@ -66,3 +66,20 @@
   .sys-foot { flex-direction: row; align-items: center; margin-left: auto; padding-top: 0; border-top: 0; }
   .sys-who, .sys-foot-link span { display: none; }
 }
+
+/* Email & platform */
+.sys-card { max-width: 46rem; margin: 0 0 var(--space-8); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.sys-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-4); }
+.sys-card-head h2 { margin: 0; font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); }
+.sys-card .notice { margin-bottom: var(--space-4); }
+.sys-facts { grid-template-columns: 10rem 1fr; font-size: 0.875rem; }
+.sys-source { display: block; margin-top: 0.125rem; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.sys-help { margin-top: var(--space-6); font-size: 0.875rem; }
+.sys-help summary { cursor: pointer; font-weight: var(--font-weight-medium); min-height: 1.5rem; }
+.sys-help summary:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 0.25rem; }
+.sys-help ul { margin: var(--space-2) 0 0; padding-left: 1.25rem; display: grid; gap: var(--space-2); }
+.email-form { display: grid; gap: var(--space-4); }
+.email-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: var(--space-4); }
+.setup-steps { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-6); padding: 0; list-style: none; font-size: 0.875rem; color: var(--color-text-secondary); }
+.setup-steps [aria-current="step"] { color: var(--color-text); font-weight: var(--font-weight-semibold); }
+@media (max-width: 40rem) { .sys-facts { grid-template-columns: 1fr; } }

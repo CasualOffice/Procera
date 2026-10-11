@@ -7,6 +7,8 @@ pub enum SystemAction {
     SystemAuditRead,
     /// Change platform settings and floors.
     PlatformConfig,
+    /// Read platform configuration (email delivery, storage, scanning): owners, admins, auditors.
+    PlatformConfigRead,
 }
 
 /// `true` if any of `roles` permits `action`.
@@ -16,7 +18,12 @@ pub fn can(roles: &[String], action: SystemAction) -> bool {
             (r.as_str(), action),
             ("system.owner" | "system.admin", _)
                 | ("system.operator", SystemAction::WorkspaceRead)
-                | ("system.auditor", SystemAction::WorkspaceRead | SystemAction::SystemAuditRead)
+                | (
+                    "system.auditor",
+                    SystemAction::WorkspaceRead
+                        | SystemAction::SystemAuditRead
+                        | SystemAction::PlatformConfigRead
+                )
         )
     })
 }
@@ -37,6 +44,9 @@ mod tests {
         assert!(!can(&r("system.operator"), SystemAction::WorkspaceWrite));
         assert!(can(&r("system.auditor"), SystemAction::SystemAuditRead));
         assert!(!can(&r("system.auditor"), SystemAction::WorkspaceWrite));
+        assert!(can(&r("system.auditor"), SystemAction::PlatformConfigRead));
+        assert!(!can(&r("system.auditor"), SystemAction::PlatformConfig));
+        assert!(!can(&r("system.operator"), SystemAction::PlatformConfigRead));
         assert!(!can(&[], SystemAction::WorkspaceRead));
     }
 }
