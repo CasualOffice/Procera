@@ -10,11 +10,16 @@
 //! The crate is pure: no I/O, no clock, no randomness, no threads. It builds for
 //! `wasm32-unknown-unknown` so the designer can type-check in the browser.
 
+mod ast;
 mod diag;
+mod lexer;
+mod parser;
 mod types;
 mod value;
 
+pub use ast::{BinaryOp, Expr, ExprKind, Literal, MacroKind, UnaryOp};
 pub use diag::{Code, Diagnostic, Span};
+pub use parser::parse;
 pub use types::{Classification, Schema, Type, VarDecl};
 pub use value::{
     Value, format_date, format_datetime, format_duration, parse_date, parse_datetime, parse_duration,
