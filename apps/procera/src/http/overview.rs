@@ -63,7 +63,8 @@ async fn overview(
     Query(q): Query<RangeQuery>,
 ) -> Result<Json<Value>, ApiError> {
     let now = s.clock.now();
-    let to = q.to.unwrap_or(now);
+    // Ranges end exclusively; a default range ends just after now so this instant's events count.
+    let to = q.to.unwrap_or(now + Duration::seconds(1));
     let from = q.from.unwrap_or(to - Duration::days(q.days.unwrap_or(7).clamp(1, 366)));
     if from >= to || to - from > Duration::days(366) {
         return Err(invalid("from must be before to, at most 366 days apart"));

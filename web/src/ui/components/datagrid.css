@@ -53,3 +53,5 @@
 .grid-table tbody tr[tabindex]:focus-visible { outline: var(--focus-width) solid var(--color-focus); outline-offset: -2px; }
 .density-compact .grid-table th, .density-compact .grid-table td { padding-top: 0.25rem; padding-bottom: 0.25rem; }
 @media (max-width: 40rem) { .grid-table .col-optional { display: none; } }
+/* A row link's overlay (`.cell-link::after`) stays inside its own row. */
+.grid-table tbody tr { position: relative; }

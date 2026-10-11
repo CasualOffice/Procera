@@ -4,7 +4,7 @@ import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 import { totp } from '../../fixtures/totp';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
-import { PNG_1PX } from '../../fixtures/files';
+import { EICAR, PNG_1PX } from '../../fixtures/files';
 import { uniqueEmail } from '../../fixtures/accounts';
 
 // E2E-R1 release gate (docs/23 §R1, BPMS-032): the scenarios whose features have shipped, run in
@@ -400,7 +400,10 @@ test.describe('R1 gate @r1 @ui', () => {
   test('E2E-R1-06 controlled policy: self-approval is blocked, the reviewer approves with step-up, v2 is scheduled, goes live at its time, and v1 is marked superseded', async ({ page, browser, request }) => {
     const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
     const rvMember = await member(request, owner, ws.id, 'rev', 'reviewer');
-    const rv = await enter(rvMember.email, ws.id); // the reviewer turns on two-step verification
+    // The reviewer signs in with a password (the role doesn't require two-step verification).
+    const rvs = await passwordSession(rvMember.email);
+    const rvsw = await rvs.c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${rvs.token}` }, data: { workspace_id: ws.id } });
+    const rv = { c: rvs.c, headers: { authorization: `Bearer ${(await rvsw.json()).access_token}` } };
     const h = owner.headers;
     // v1: a controlled policy, reviewed and published.
     const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key: 'cash', title: 'Cash handling', criticality: 'controlled', content: { blocks: [{ type: 'paragraph', text: 'Count cash twice.' }] } } })).json();
@@ -426,14 +429,13 @@ test.describe('R1 gate @r1 @ui', () => {
 
     // The reviewer approves; their sign-in is not recent, so they confirm it's them.
     const rp = await (await browser.newContext()).newPage();
-    await signIn(rp, rvMember.email, rv.recovery[0]!);
-    await expect(rp.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await signInPassword(rp, rvMember.email);
     await request.post('/__test/session/age', { data: { email: rvMember.email, seconds: 3600 } });
     await rp.goto(`${WEB}/library/${r.artifact.id}`);
     await rp.getByRole('button', { name: 'Approve' }).click();
     const confirm = rp.getByRole('dialog', { name: 'Confirm it’s you' });
     await expect(confirm).toBeVisible();
-    await confirm.getByRole("textbox").fill(totp(rv.secret, await serverNow(request), 1)); // the current step was used when the reviewer enrolled
+    await confirm.getByLabel('Password').fill(PW);
     await confirm.getByRole('button', { name: /Verify|Confirm/ }).click();
     await expect(rp.getByRole('status').filter({ hasText: 'Approved.' })).toBeVisible();
 
@@ -640,12 +642,13 @@ test.describe('R1 gate @r1 @ui', () => {
 
     const suffix = Date.now().toString(36);
     const ownerA = uniqueEmail('owner-a');
-    for (const [name, profile, owner] of [[`Northwind ${suffix}`, /Starter/, ownerA], [`Contoso ${suffix}`, /Enterprise/, uniqueEmail('owner-b')]] as const) {
+    for (const [name, profile, owner] of [[`Northwind ${suffix}`, 'Starter', ownerA], [`Contoso ${suffix}`, 'Enterprise', uniqueEmail('owner-b')]] as const) {
       await page.getByRole('button', { name: 'New workspace' }).first().click();
       const dlg = page.getByRole('dialog', { name: 'New workspace' });
       await dlg.getByLabel('Workspace name').fill(name);
       await expect(dlg.getByLabel('Slug')).not.toHaveValue('');
-      await dlg.getByRole('radio', { name: profile }).check();
+      await dlg.getByText(profile, { exact: true }).click(); // the card (radio) is pressed through its label
+      await expect(dlg.getByRole('radio', { name: new RegExp(profile) })).toBeChecked();
       await dlg.getByLabel('Owner email').fill(owner);
       await axe(page);
       await dlg.getByRole('button', { name: 'Create workspace' }).click();
@@ -763,5 +766,51 @@ test.describe('R1 gate @r1 @ui', () => {
     const hash = (await (await owner.c.get(`/api/v1/versions/${v2.id}`, { headers: h })).json()).content_hash;
     expect(done.every((c) => c[cols.indexOf('content_hash')] === hash && c[cols.indexOf('version')] === '2')).toBe(true);
     expect(done.every((c) => (c[cols.indexOf('auth_method')] ?? '').includes('pwd'))).toBe(true);
+  });
+
+  test('E2E-R1-11 a 50 MB attachment survives a dropped chunk and resumes; EICAR is quarantined and never downloadable; links are short-lived, bound and useless from another workspace', async ({ page, request }) => {
+    test.setTimeout(240_000);
+    const a = await workspaceWithOwner(request);
+    const b = await workspaceWithOwner(request);
+    const r = await (await a.owner.c.post('/api/v1/artifacts', { headers: a.owner.headers, data: { kind: 'sop', key: 'ops.big', title: 'Site survey', content: { blocks: [{ type: 'paragraph', text: 'See the survey.' }] } } })).json();
+    await signIn(page, a.ownerEmail, a.owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+
+    // 50 MB; the third chunk is dropped once on the way, and the upload resumes from what arrived.
+    const big = Buffer.alloc(50_000_000); // 50 MB (decimal), under the browser file-buffer limit
+    for (let i = 0; i < big.length; i += 4096) big.writeUInt32LE((i * 2654435761) >>> 0, i);
+    let dropped = false;
+    await page.route(/\/api\/v1\/files\/[^/]+\/content\?offset=(\d+)/, async (route) => {
+      const offset = Number(new URL(route.request().url()).searchParams.get('offset'));
+      if (!dropped && offset >= 4 * 1024 * 1024) { dropped = true; await route.abort('connectionreset'); return; }
+      await route.continue();
+    });
+    await page.locator('#att-input').setInputFiles({ name: 'survey.bin', mimeType: 'application/octet-stream', buffer: big });
+    await expect(page.getByRole('progressbar', { name: 'Uploading' })).toBeVisible();
+    await expect(page.getByText('survey.bin attached.')).toBeVisible({ timeout: 120_000 });
+    expect(dropped).toBe(true);
+    const list = page.getByRole('region', { name: 'Attachments' });
+    await expect(list.getByRole('listitem').filter({ hasText: 'survey.bin' }).getByText('Clean')).toBeVisible();
+    const att = (await (await a.owner.c.get(`/api/v1/versions/${r.version.id}/attachments`, { headers: a.owner.headers })).json()).items.find((f: { name: string }) => f.name === 'survey.bin');
+    const { createHash } = await import('node:crypto');
+    expect(att.sha256).toBe(createHash('sha256').update(big).digest('hex'));
+    expect(att.size).toBe(big.length);
+
+    // EICAR: quarantined, shown so, and no link is ever issued for it.
+    await page.locator('#att-input').setInputFiles({ name: 'invoice.txt', mimeType: 'text/plain', buffer: Buffer.from(EICAR) });
+    await expect(page.getByText(/invoice\.txt was quarantined/)).toBeVisible();
+    const files = (await (await a.owner.c.get('/api/v1/files', { headers: a.owner.headers })).json()).items as { file: { id: string; name: string; state: string } }[];
+    const eicar = files.find((f) => f.file.name === 'invoice.txt')!;
+    expect(eicar.file.state).toBe('quarantined');
+    expect((await a.owner.c.get(`/api/v1/files/${eicar.file.id}/download-url`, { headers: a.owner.headers })).status()).not.toBe(200);
+
+    // Signed links: short-lived, tamper-proof, and workspace B can neither get one nor see the file.
+    const link = await (await a.owner.c.get(`/api/v1/files/${att.id}/download-url`, { headers: a.owner.headers })).json();
+    expect(Date.parse(link.expires_at) - (await serverNow(request))).toBeLessThanOrEqual(5 * 60_000);
+    expect((await request.get(link.url)).status()).toBe(200);
+    expect((await request.get(link.url.replace(/.$/, (c: string) => (c === 'A' ? 'B' : 'A')))).status()).toBe(403);
+    expect((await b.owner.c.get(`/api/v1/files/${att.id}/download-url`, { headers: b.owner.headers })).status()).toBe(404);
+    expect((await b.owner.c.get(`/api/v1/files/${att.id}`, { headers: b.owner.headers })).status()).toBe(404);
   });
 });
