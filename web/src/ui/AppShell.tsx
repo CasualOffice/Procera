@@ -182,28 +182,19 @@ export function AppShell({
   );
 }
 
-/** Pages outside a workspace (sign-in, chooser): a focused form column beside a product preview. */
+/** Pages outside a workspace (sign-in, chooser): one focused, centred card on the paper background. */
 export function PlainShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="auth">
       <a className="skip-link" href="#main">Skip to main content</a>
-      <div className="auth-form">
-        <main id="main" className="auth-card" tabIndex={-1}>
-          <div className="auth-brand">
-            <img src="/procera-symbol.png" alt="" width={24} height={24} />
-            <span>Procera</span>
-          </div>
-          {children}
-        </main>
-      </div>
-      <aside className="auth-aside" aria-label="About Procera">
-        <div className="auth-aside-copy">
-          <h2>Policies, procedures and approvals that people actually follow.</h2>
-          <p>Publish with review and separation of duties, track acknowledgements, and keep a tamper-evident audit trail of every change.</p>
+      <div className="auth-column">
+        <div className="auth-brand">
+          <img src="/procera-symbol.png" alt="" width={28} height={28} />
+          <span>Procera</span>
         </div>
-        <img className="auth-shot auth-shot-light" src="/preview-light.jpg" alt="" width={1440} height={900} />
-        <img className="auth-shot auth-shot-dark" src="/preview-dark.jpg" alt="" width={1440} height={900} />
-      </aside>
+        <main id="main" className="auth-card" tabIndex={-1}>{children}</main>
+        <p className="auth-legal">Policies, procedures and approvals, with a tamper-evident record of every change.</p>
+      </div>
     </div>
   );
 }
