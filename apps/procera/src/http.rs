@@ -116,6 +116,7 @@ impl AppState {
                 campaigns: campaigns.clone(),
                 announcements: announcements.clone(),
                 public_url: self.public_url.clone(),
+                settings_cache: procera_settings::cache::SettingsCache::shared(&self.cache),
             };
             self.campaigns = Some(campaigns);
             self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));

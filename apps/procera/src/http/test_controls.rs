@@ -467,7 +467,11 @@ async fn set_workspace_setting(State(s): State<AppState>, Json(r): Json<SettingR
     }
     .await;
     match res {
-        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Ok(()) => {
+            // Bypasses the service, so drop cached effective values here (CFG-004).
+            super::settings::invalidate(&s, r.workspace).await;
+            StatusCode::NO_CONTENT.into_response()
+        }
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }

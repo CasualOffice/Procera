@@ -37,6 +37,8 @@ pub struct PlanItem {
     pub customized: bool,
     pub editable_with: Option<&'static str>,
     pub step_up: bool,
+    /// Value type, so clients can format the values.
+    pub kind: catalogue::Kind,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -91,6 +93,7 @@ pub fn plan(snapshot: &Snapshot, from: &str, to: &str) -> Result<ProfilePlan, Se
                 customized: now.source == "workspace",
                 editable_with: d.perm,
                 step_up: d.step_up,
+                kind: d.kind,
             });
         }
     }

@@ -1,6 +1,6 @@
 //! The in-process event bus (BPMS-029 consumers): turns outbox events into notifications
 //! (BPMS-048), enrols new joiners in dynamic campaigns (BPMS-046) and delivers published
-//! announcements (BPMS-047). Each consumer records the message in the inbox in the same
+//! announcements (BPMS-047) and drops cached effective settings (CFG-004). Each consumer records the message in the inbox in the same
 //! transaction as its effect, so redelivery is harmless.
 
 use procera_announcements::Announcements;
@@ -25,6 +25,8 @@ pub struct AppBus {
     pub announcements: Announcements,
     /// Public base URL for links in emails, without a trailing slash.
     pub public_url: String,
+    /// Effective-settings cache to invalidate on `settings.changed.v1` (CFG-004), when shared.
+    pub settings_cache: Option<procera_settings::cache::SettingsCache>,
 }
 
 impl std::fmt::Debug for AppBus {
@@ -171,6 +173,17 @@ impl AppBus {
                         .map_err(|e| e.to_string())?;
                 }
                 tx.commit().await.map_err(|e| e.to_string())
+            }
+            // Writers already invalidate after commit; this covers a node that failed to (CFG-004).
+            procera_settings::CHANGED_TOPIC => {
+                if let Some(c) = &self.settings_cache {
+                    if m.payload["floors"].as_bool() == Some(true) {
+                        c.invalidate_floors().await;
+                    } else {
+                        c.invalidate_workspace(m.workspace_id).await;
+                    }
+                }
+                Ok(())
             }
             _ => Ok(()), // no consumer for this topic yet
         }
