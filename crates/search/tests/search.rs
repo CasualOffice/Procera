@@ -124,6 +124,14 @@ async fn search_ranks_filters_highlights_and_stays_current() -> anyhow::Result<(
         vec![("policy".into(), "Badge policy".into())]
     );
     assert_eq!(
+        kinds(&search(&mut tx, "badg", TYPES, 20).await?),
+        vec![("policy".into(), "Badge policy".into())]
+    );
+    assert_eq!(
+        kinds(&search(&mut tx, "onbording", &["sop"], 20).await?),
+        vec![("sop".into(), "IT onboarding".into())]
+    );
+    assert_eq!(
         kinds(&search(&mut tx, "Fin", TYPES, 20).await?),
         vec![("department".into(), "Finance".into())]
     );

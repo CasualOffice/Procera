@@ -21,6 +21,8 @@ use uuid::Uuid;
 pub const TYPES: &[&str] = &["sop", "policy", "member", "department", "group"];
 pub const MAX_QUERY_CHARS: usize = 200;
 pub const MAX_LIMIT: i64 = 50;
+/// `<%` threshold (pg_trgm.word_similarity_threshold) used for fuzzy matches.
+pub const WORD_SIMILARITY: f32 = 0.45;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SearchError {
@@ -163,6 +165,12 @@ pub async fn search(tx: &mut WsTx<'_>, q: &str, types: &[&str], limit: i64) -> R
     if types.is_empty() {
         return Ok(vec![]);
     }
+    // One typo in a short word ("expnse") scores 0.5 word similarity; the pg_trgm default (0.6)
+    // misses it. Transaction-local, and the trigram indexes honour it.
+    sqlx::query("SELECT set_config('pg_trgm.word_similarity_threshold', $1, true)")
+        .bind(WORD_SIMILARITY.to_string())
+        .execute(tx.conn())
+        .await?;
     let lower = q.to_lowercase();
     let types: Vec<String> = types.iter().map(|t| (*t).to_owned()).collect();
     let rows: Vec<Row> = sqlx::query_as(SQL)
