@@ -853,6 +853,11 @@ impl Identity {
         self.sign(&user, claims.sid, &claims.plane, claims.ws, &amr, auth_time, "access", self.cfg.access_ttl)
     }
 
+    /// The WebAuthn relying party passkeys are bound to.
+    pub fn relying_party(&self) -> &RelyingParty {
+        &self.cfg.relying_party
+    }
+
     /// Verifies an access token's signature and claims (no database). Pair with [`Identity::token_state`].
     pub fn verify_access(&self, token: &str) -> Option<Claims> {
         self.jwt.verify(token, "access")

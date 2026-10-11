@@ -25,6 +25,7 @@ pub fn router() -> Router<AppState> {
         .route("/system-roles", post(grant_system_role))
         .route("/invitations/token", get(invitation_token))
         .route("/session/backdate", post(backdate_session))
+        .route("/webauthn", get(webauthn_rp))
         .route("/mail", get(mail))
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
@@ -422,6 +423,16 @@ async fn backdate_session(
         Ok(token) => Json(serde_json::json!({ "access_token": token })).into_response(),
         Err(e) => super::error::ApiError::from(e).into_response(),
     }
+}
+
+/// The WebAuthn relying party (RP ID and allowed origins), so E2E authenticators answer for the
+/// origin the server expects whatever `--public-url` it runs with.
+async fn webauthn_rp(State(s): State<AppState>) -> Response {
+    let Some(id) = s.identity.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let rp = id.relying_party();
+    Json(serde_json::json!({ "rp_id": rp.id, "origins": rp.origins })).into_response()
 }
 
 #[derive(Debug, Deserialize)]
