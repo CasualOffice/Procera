@@ -115,19 +115,19 @@ function OverviewBody({ data }: { data: Overview }) {
           <dl className="metric-rows">
             <div className="metric-row">
               <dt>Acknowledgements completed</dt>
-              <dd><strong>{ack.completion_rate === null ? '—' : `${Math.round(ack.completion_rate * 100)}%`}</strong><span className="muted">{ack.assigned ? `${ack.completed} of ${ack.assigned} assigned` : 'none assigned in range'}</span></dd>
+              <dd><Link to="/admin/campaigns" aria-label="Acknowledgement completion: see campaigns"><strong>{ack.completion_rate === null ? '—' : `${Math.round(ack.completion_rate * 100)}%`}</strong></Link><span className="muted">{ack.assigned ? `${ack.completed} of ${ack.assigned} assigned` : 'none assigned in range'}</span></dd>
             </div>
             <div className="metric-row">
               <dt>Open acknowledgements</dt>
-              <dd><strong>{ack.pending}</strong><span className="muted">across active campaigns</span></dd>
+              <dd><Link to="/admin/campaigns?status=active" aria-label={`${ack.pending} open acknowledgements: see active campaigns`}><strong>{ack.pending}</strong></Link><span className="muted">across active campaigns</span></dd>
             </div>
             <div className="metric-row">
               <dt>Versions published</dt>
-              <dd><strong>{pub.total}</strong><Sparkline points={pub.series.map((p) => p.count)} label={`Versions published per ${pub.bucket}`} /></dd>
+              <dd><Link to={`/admin/audit?action=version.published&from=${data.range.from.slice(0, 10)}`} aria-label={`${pub.total} versions published: see them in the audit log`}><strong>{pub.total}</strong></Link><Sparkline points={pub.series.map((p) => p.count)} label={`Versions published per ${pub.bucket}`} /></dd>
             </div>
             <div className="metric-row">
               <dt>Announcements published</dt>
-              <dd><strong>{data.metrics.announcements_published}</strong></dd>
+              <dd><Link to="/admin/announcements?status=published" aria-label={`${data.metrics.announcements_published} announcements published: see them`}><strong>{data.metrics.announcements_published}</strong></Link></dd>
             </div>
             <div className="metric-row metric-row-guidance">
               <dt>Requests and SLAs</dt>

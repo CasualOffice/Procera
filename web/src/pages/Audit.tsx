@@ -9,6 +9,7 @@ import { Button } from '../ui/components/Button';
 import { Drawer } from '../ui/Drawer';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
+import { useRoute } from '../lib/router';
 
 export interface AuditEvent {
   seq: number; id: string; occurred_at: string; actor_subject_ref: string | null; actor_kind: string; actor_name: string | null; on_behalf_of: string | null;
@@ -83,8 +84,11 @@ export function Audit() {
 
 /** The shared explorer component (docs/05 §3.20: the system console reuses it on the system chain). */
 export function AuditExplorer({ source }: { source: AuditSource }) {
-  const [draft, setDraft] = useState<Filters>(EMPTY);
-  const [filters, setFilters] = useState<Filters>(EMPTY);
+  // Deep links (e.g. from the overview) open pre-filtered: ?action=…&from=YYYY-MM-DD&to=…&category=…
+  const { query: q } = useRoute();
+  const fromUrl: Filters = { ...EMPTY, action: q.get('action') ?? '', from: q.get('from') ?? '', to: q.get('to') ?? '', category: q.get('category') ?? '' };
+  const [draft, setDraft] = useState<Filters>(fromUrl);
+  const [filters, setFilters] = useState<Filters>(fromUrl);
   const [items, setItems] = useState<AuditEvent[] | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState<LoadFailure | null>(null);
@@ -151,6 +155,7 @@ export function AuditExplorer({ source }: { source: AuditSource }) {
           : <Empty icon={History} title="No events yet">Sign-ins, changes and exports will be recorded here as they happen.</Empty>
       ) : (
         <>
+          <p className="muted audit-count" role="status">{items.length}{cursor ? '+' : ''} {items.length === 1 && !cursor ? 'event' : 'events'}</p>
           <div className="table-wrap">
             <table className="table audit-table" aria-label="Audit events">
               <thead><tr><th>When</th><th className="col-optional">Who</th><th>What</th><th className="col-optional">Object</th><th>Result</th></tr></thead>

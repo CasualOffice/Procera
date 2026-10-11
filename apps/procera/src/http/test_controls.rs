@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
         .route("/library/backdate", post(backdate_artifact))
+        .route("/library/due", post(make_version_due))
         .route("/retention/backdate", post(backdate_retention))
         .route("/retention/run", post(run_retention))
         .route("/keys/rewrap", post(rewrap_keys))
@@ -90,6 +91,42 @@ async fn backdate_artifact(State(s): State<AppState>, Json(b): Json<ArtifactBack
             db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
         let n = sqlx::query("UPDATE artifacts SET next_review_at = next_review_at - make_interval(secs => $2), last_reviewed_at = last_reviewed_at - make_interval(secs => $2), verified_at = verified_at - make_interval(secs => $2), verification_expires_at = verification_expires_at - make_interval(secs => $2) WHERE id = $1")
             .bind(b.artifact).bind(b.seconds as f64).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VersionDue {
+    workspace: uuid::Uuid,
+    version: uuid::Uuid,
+}
+
+/// Makes a scheduled version due now (its `effective_at` one second ago), so a test can watch it go
+/// live without moving the shared clock under parallel tests.
+async fn make_version_due(State(s): State<AppState>, Json(b): Json<VersionDue>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let n = sqlx::query(
+            "UPDATE artifact_versions SET effective_at = $2 WHERE id = $1 AND lifecycle = 'scheduled'",
+        )
+        .bind(b.version)
+        .bind(s.clock.now() - time::Duration::seconds(1))
+        .execute(tx.conn())
+        .await
+        .map_err(|e| e.to_string())?
+        .rows_affected();
         tx.commit().await.map_err(|e| e.to_string())?;
         Ok(n)
     }

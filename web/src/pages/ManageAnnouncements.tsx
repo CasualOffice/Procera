@@ -51,7 +51,7 @@ export function ManageAnnouncements() {
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
   const people = memberMap(members);
   const dir = useDirectory();
-  const [tab, setTab] = useState<string>('all');
+  const [tab, setTab] = useState<string>(query.get('status') ?? 'all');
   const [composing, setComposing] = useState<Announcement | 'new' | null>(query.get('new') ? 'new' : null);
   const [open, setOpen] = useState<string | null>(query.get('id'));
   useEffect(() => { if (query.get('new')) setComposing('new'); }, [query]);

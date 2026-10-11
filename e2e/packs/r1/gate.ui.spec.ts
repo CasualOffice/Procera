@@ -1,7 +1,8 @@
 import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
 import { PW, hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
-import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
+import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
+import { totp } from '../../fixtures/totp';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
 import { PNG_1PX } from '../../fixtures/files';
 import { uniqueEmail } from '../../fixtures/accounts';
@@ -10,9 +11,9 @@ import { uniqueEmail } from '../../fixtures/accounts';
 // the browser. R1-16 deactivation cuts access at once; R1-19 keyboard-only publish and acknowledge.
 
 /** A member (Member role) who joined `ws` through an invitation; signs in with a password only. */
-async function member(request: APIRequestContext, owner: Session, ws: string, tag: string): Promise<{ email: string; id: string }> {
+async function member(request: APIRequestContext, owner: Session, ws: string, tag: string, role = 'member'): Promise<{ email: string; id: string }> {
   const email = await seedUser(request, tag);
-  expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['member'] } })).status()).toBe(201);
+  expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: [role] } })).status()).toBe(201);
   const token = await inviteToken(request, ws, email);
   const pw = await passwordSession(email);
   const acc = await pw.c.post('/api/v1/invitations/accept', { headers: { authorization: `Bearer ${pw.token}` }, data: { token } });
@@ -394,5 +395,119 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim().toUpperCase())).toBe(b.light.focus);
     await expect(them.locator('img.ws-logo')).toBeVisible();
     expect((await owner.c.get('/api/v1/branding/logo', { headers: owner.headers })).headers()['content-type']).toBe('image/png');
+  });
+
+  test('E2E-R1-06 controlled policy: self-approval is blocked, the reviewer approves with step-up, v2 is scheduled, goes live at its time, and v1 is marked superseded', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const rvMember = await member(request, owner, ws.id, 'rev', 'reviewer');
+    const rv = await enter(rvMember.email, ws.id); // the reviewer turns on two-step verification
+    const h = owner.headers;
+    // v1: a controlled policy, reviewed and published.
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key: 'cash', title: 'Cash handling', criticality: 'controlled', content: { blocks: [{ type: 'paragraph', text: 'Count cash twice.' }] } } })).json();
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    expect((await rv.c.post(`/api/v1/versions/${r.version.id}/reviews`, { headers: rv.headers, data: { decision: 'approve' } })).status()).toBe(200);
+    expect((await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} })).status()).toBe(200);
+
+    // The author writes v2 and cannot approve it themselves.
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await page.getByRole('button', { name: 'New version' }).click();
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Content' }).click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' Two people sign the count sheet.');
+    await page.getByRole('button', { name: 'Save draft' }).click();
+    await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('In review', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Approve' }).click();
+    await expect(page.getByText(/cannot review their own/i)).toBeVisible();
+
+    // The reviewer approves; their sign-in is not recent, so they confirm it's them.
+    const rp = await (await browser.newContext()).newPage();
+    await signIn(rp, rvMember.email, rv.recovery[0]!);
+    await expect(rp.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await request.post('/__test/session/age', { data: { email: rvMember.email, seconds: 3600 } });
+    await rp.goto(`${WEB}/library/${r.artifact.id}`);
+    await rp.getByRole('button', { name: 'Approve' }).click();
+    const confirm = rp.getByRole('dialog', { name: 'Confirm it’s you' });
+    await expect(confirm).toBeVisible();
+    await confirm.getByRole('textbox').fill(totp(rv.secret, await serverNow(request)));
+    await confirm.getByRole('button', { name: /Verify|Confirm/ }).click();
+    await expect(rp.getByRole('status').filter({ hasText: 'Approved.' })).toBeVisible();
+
+    // The author schedules it; v1 stays current until then.
+    await page.reload();
+    await page.getByRole('button', { name: 'Publish' }).click();
+    const pub = page.getByRole('dialog', { name: 'Publish v2' });
+    await pub.getByLabel('What changed?').fill('Second signature');
+    const later = new Date((await serverNow(request)) + 2 * 3_600_000);
+    const local = new Date(later.getTime() - later.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+    await pub.getByLabel(/^Goes live/).fill(local);
+    await pub.getByRole('button', { name: 'Schedule' }).click();
+    await expect(page.getByText(/^Scheduled: goes live/)).toBeVisible();
+    const versions = (await (await owner.c.get(`/api/v1/artifacts/${r.artifact.id}`, { headers: h })).json()).versions as { id: string; version_no: number; lifecycle: string }[];
+    const v2 = versions.find((v) => v.version_no === 2)!;
+    expect(v2.lifecycle).toBe('scheduled');
+    expect(versions.find((v) => v.version_no === 1)!.lifecycle).toBe('published');
+
+    // At its time it goes live and v1 says it is superseded, on the page and in the printable export.
+    expect((await request.post('/__test/library/due', { data: { workspace: ws.id, version: v2.id } })).status()).toBe(204);
+    await expect.poll(async () => { await request.post('/__test/drain'); return (await (await owner.c.get(`/api/v1/versions/${v2.id}`, { headers: h })).json()).lifecycle; }).toBe('published');
+    const v1html = await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=html`, { headers: h })).text();
+    expect(v1html).toContain('<strong>Superseded.</strong> This is version 1, not the current version.');
+    await page.reload();
+    await expect(page.getByText('Two people sign the count sheet.')).toBeVisible();
+  });
+
+  test('E2E-R1-15 workspace overview: each activity tile drills into a pre-filtered list with the same count', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    await member(request, owner, ws.id, 'one');
+    await member(request, owner, ws.id, 'two');
+    const published: string[] = [];
+    for (const key of ['hr.leave', 'it.access']) {
+      const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key, title: key, content: { blocks: [{ type: 'paragraph', text: key }] } } })).json();
+      await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+      await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+      published.push(r.version.id);
+    }
+    const camp = await (await owner.c.post('/api/v1/campaigns', { headers: h, data: { version_id: published[0], title: 'Leave policy', audience: { all: true } } })).json();
+    await owner.c.post(`/api/v1/campaigns/${camp.id}/activate`, { headers: h });
+    const ann = await (await owner.c.post('/api/v1/announcements', { headers: h, data: { title: 'Welcome', content: { blocks: [{ type: 'paragraph', text: 'Hi' }] }, audience: { roles: ['member'] } } })).json();
+    await owner.c.post(`/api/v1/announcements/${ann.id}/publish`, { headers: h });
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Overview');
+    await expect(page.getByRole('heading', { level: 2, name: 'Activity' })).toBeVisible();
+    await axe(page);
+
+    const tile = (name: RegExp) => page.getByRole('link', { name });
+    // Open acknowledgements → active campaigns, same number still to acknowledge.
+    const open = (await tile(/open acknowledgements: see active campaigns/).getAttribute('aria-label'))!.split(' ')[0];
+    await tile(/open acknowledgements: see active campaigns/).click();
+    await expect(page.getByRole('button', { name: /^Active/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByText(`${open} still to acknowledge`)).toBeVisible();
+    // Versions published → the audit log filtered to publications in the range.
+    await nav(page, 'Overview');
+    const versions = (await tile(/versions published: see them/).getAttribute('aria-label'))!.split(' ')[0];
+    expect(versions).toBe('2');
+    await tile(/versions published: see them/).click();
+    await expect(page.getByText(`${versions} events`, { exact: true })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Audit events' }).getByText('Version published')).toHaveCount(2);
+    // Announcements published → the published tab, same count.
+    await nav(page, 'Overview');
+    const anns = (await tile(/announcements published: see them/).getAttribute('aria-label'))!.split(' ')[0];
+    await tile(/announcements published: see them/).click();
+    await expect(page.getByRole('button', { name: /^Published/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /^Published/ }).locator('.seg-count')).toHaveText(anns);
+    // Security strip → People & access filtered.
+    await nav(page, 'Overview');
+    const noMfa = await page.locator('.strip-item').filter({ hasText: 'without two-step verification' }).locator('.strip-value').innerText();
+    await page.locator('.strip-item').filter({ hasText: 'without two-step verification' }).click();
+    await expect(page.getByRole('button', { name: /^No two-step verification/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: /^No two-step verification/ }).locator('.filter-chip-count')).toHaveText(noMfa);
   });
 });

@@ -45,7 +45,7 @@ export function Campaigns() {
   const { can } = useSession();
   const { query } = useRoute();
   const [items, reload, error] = useItems<Campaign>('/api/v1/campaigns');
-  const [tab, setTab] = useState<string>('all');
+  const [tab, setTab] = useState<string>(query.get('status') ?? 'all');
   const [creating, setCreating] = useState(query.get('new') === '1');
   useEffect(() => { if (query.get('new') === '1') setCreating(true); }, [query]);
   const canManage = can('campaign:manage');
@@ -64,6 +64,7 @@ export function Campaigns() {
           <div className="segmented seg-scroll" role="group" aria-label="Filter by status">
             {TABS.filter(([k]) => k === 'all' || count(k) > 0).map(([k, label]) => <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)}>{label} <span className="seg-count">{count(k)}</span></button>)}
           </div>
+          {tab === 'active' && <p className="muted" role="status">{rows.reduce((n, c) => n + c.progress.pending, 0)} still to acknowledge</p>}
         </div>
       )}
       {error ? <LoadError error={error} onRetry={reload} what="campaigns" /> : items === null ? <Skeleton variant="table" rows={4} label="Loading campaigns" /> : rows.length === 0 ? (

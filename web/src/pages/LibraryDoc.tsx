@@ -25,7 +25,7 @@ import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from '
 import { ApplicabilityRow } from './docApplicability';
 
 interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean; collection_id?: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
-interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null; semver?: string | null; reack_required?: boolean }
+interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null; semver?: string | null; reack_required?: boolean; effective_at?: string | null }
 /** What publishing would do (BPMS-045): numbers per change, who is asked to re-acknowledge and by when. */
 interface PublishPreview { version_no: number; next_semver_major: string; next_semver_minor: string; reack_required_if_major: boolean; reack_required_if_minor: boolean; audience_size: number; due_at: string }
 interface PublishResult { semver: string; reack: { required: boolean; due_at: string | null; audience_size: number | null; campaign_id: string | null } }
@@ -53,6 +53,7 @@ export function LibraryDoc({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
   const [edited, setEdited] = useState<Block[] | null>(null);
+  const [goLive, setGoLive] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [dialog, setDialog] = useState<null | 'changes' | 'publish'>(null);
@@ -118,6 +119,7 @@ export function LibraryDoc({ id }: { id: string }) {
       const body: Record<string, string> = {};
       if (comment.trim()) body.change_reason = comment;
       if (v.version_no > 1) body.change = change;
+      if (goLive) { body.effective_at = new Date(goLive).toISOString(); done = `Scheduled for ${new Date(goLive).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}.`; }
       const r = await api<PublishResult>(`/api/v1/versions/${v.id}/publish`, { method: 'POST', body });
       if (r.reack.campaign_id && r.reack.audience_size) done = `Published v${r.semver}. ${people(r.reack.audience_size)} asked to re-acknowledge.`;
     }, () => done);
@@ -155,6 +157,7 @@ export function LibraryDoc({ id }: { id: string }) {
       )}
 
       {/* Lifecycle actions for this version */}
+      {v.lifecycle === 'scheduled' && v.effective_at && <Notice tone="info" title={`Scheduled: goes live ${new Date(v.effective_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}>Until then readers keep seeing the current version.</Notice>}
       {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} />}
       <div className="doc-actions">
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setEdited(null); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
@@ -162,7 +165,7 @@ export function LibraryDoc({ id }: { id: string }) {
         {v.lifecycle === 'in_review' && p('approve') && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/reviews`, { method: 'POST', body: { decision: 'approve' } }), 'Approved.')}><Check aria-hidden="true" size="0.9375rem" /> Approve</Button>}
         {v.lifecycle === 'in_review' && (p('review') || p('approve')) && <Button variant="secondary" onPress={() => { setComment(''); setDialog('changes'); }}>Request changes</Button>}
         {v.lifecycle === 'in_review' && p('edit_draft') && <Button variant="ghost" onPress={() => void act(() => api(`/api/v1/versions/${v.id}/withdraw`, { method: 'POST' }), 'Withdrawn to draft.')}>Withdraw</Button>}
-        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setChange('major'); setDialog('publish'); }}><Send aria-hidden="true" size="0.9375rem" /> Publish</Button>}
+        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setChange('major'); setGoLive(''); setDialog('publish'); }}><Send aria-hidden="true" size="0.9375rem" /> Publish</Button>}
         {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size="0.9375rem" /> New version</Button>}
         {!editing && (
           <MenuTrigger>
@@ -215,8 +218,9 @@ export function LibraryDoc({ id }: { id: string }) {
         <TextField label="What should change?" value={comment} onChange={setComment} autoFocus />
       </FormDialog>
       <FormDialog isOpen={dialog === 'publish'} onOpenChange={(o) => !o && setDialog(null)} title={`Publish v${v.version_no}`} description={v.version_no > 1 ? 'The current version will be superseded. Say what changed so readers know.' : 'Everyone who can see the library will be able to read it.'}
-        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void publish()} isDisabled={v.version_no > 1 && !comment.trim()}>Publish now</Button></>}>
+        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void publish()} isDisabled={v.version_no > 1 && !comment.trim()}>{goLive ? 'Schedule' : 'Publish now'}</Button></>}>
         <div className="stack">
+          <div className="field"><label className="field-label" htmlFor="pub-at">Goes live <span className="muted">(optional)</span></label><input id="pub-at" type="datetime-local" className="field-input" value={goLive} onChange={(e) => setGoLive(e.target.value)} /><span className="field-description">Leave empty to publish now. A scheduled version replaces the current one at that time.</span></div>
           <TextField label={v.version_no > 1 ? 'What changed?' : 'Note (optional)'} value={comment} onChange={setComment} autoFocus />
           {v.version_no > 1 && preview && (
             <RadioCards label="Type of change" value={change} onChange={(x) => setChange(x as Change)} options={[
