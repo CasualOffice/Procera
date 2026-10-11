@@ -23,5 +23,5 @@ until curl -fs -o /dev/null http://127.0.0.1:$API_PORT/healthz; do sleep 0.2; do
 API=http://127.0.0.1:$API_PORT node scripts/demo-seed.mjs | tee /tmp/procera-demo-credentials-$OFF.json
 (cd web && PROCERA_API_URL=http://127.0.0.1:$API_PORT exec ./node_modules/.bin/vite --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/procera-demo-web-$OFF.log 2>&1) & WEB_PID=$!
 until curl -fs -o /dev/null http://127.0.0.1:$WEB_PORT/; do sleep 0.2; done
-echo; echo "Procera demo: http://127.0.0.1:$WEB_PORT  (design gallery: /design). Sign in as olivia@acme.test / correct horse battery staple (no code needed)."
+echo; echo "Procera demo: http://127.0.0.1:$WEB_PORT  (design gallery: /design). Sign in as olivia@acme.test / correct horse battery staple (no code needed). All accounts: e2e/TEST-ACCOUNTS.md"
 wait "$API_PID"
