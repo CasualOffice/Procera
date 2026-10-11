@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   ███████░░░░░░░░░░░░░░░░░░░░░░░  26/109 epics done  (24%)
-Partial   ████████░░░░░░░░░░░░░░░░░░░░░░  27% counting in-progress epics as half done
-Tests     111 automated E2E scenarios · 93 Rust tests (incl. property tests)
-Status    done 26 · in review 0 · in progress 7 · blocked 0 · not started 76 · deferred 0
+Overall   ████████░░░░░░░░░░░░░░░░░░░░░░  30/109 epics done  (28%)
+Partial   █████████░░░░░░░░░░░░░░░░░░░░░  29% counting in-progress epics as half done
+Tests     131 automated E2E scenarios · 112 Rust tests (incl. property tests)
+Status    done 30 · in review 0 · in progress 4 · blocked 0 · not started 75 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `██████░░░░░░` | 16/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████░░░░` | 20/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -30,12 +30,9 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 | ID | Item | Status | Note |
 |---|---|---|---|
-| BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login (E2E-R1-AUTH-06). Step-up: POST /session/step-up (TOTP code, or password without MFA) re-issues the token with a fresh auth_time; enforced against auth.stepup.window (401 step_up_required) for step-up settings, role create/edit and grant/revoke (E2E-R1-CFG-03). MFA required by role (auth.mfa.required_roles) enforced at workspace entry, 403 mfa_required (E2E-R1-MEM-10). Remaining: WebAuthn/passkeys |
-| BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app on the Notion/Attio direction (owner choice): warm paper palette in tokens (contrast-checked), full-bleed pages with a warm icon sidebar, workspace + account menus (persisted theme), action-first Home (acknowledgements, reviews, announcements with inline actions, library table, activity, people), Library (filters, Attio-style table, New document dialog), document reading view with properties, lifecycle actions (edit, submit, approve, request changes, publish with step-up, new version), acknowledgement callout, Announcements feed with read/ack, Members with invite dialog; split sign-in with product preview; single-flight token refresh. E2E-R1-UI-01..10 with axe. Remaining: ⌘K command palette (search API is ready), system console shell, mobile bottom bar Second UI pass: Geist type, state kit (skeletons, empty states, load errors with retry), ⌘K palette over search + commands (E2E-R1-UI-12..13), admin screens: Manage announcements, Campaigns, Settings, Audit log, Overview, People & access (E2E-R1-UI-14..17, 23); Policies portal and document governance (E2E-R1-UI-18..22). Remaining: system console shell, keyboard nav audit |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
-| BPMS-045 | Policy library + employee policy portal + applicability | **In progress** | UI: Policies portal (search, category chips, what changed → compare) and applicability control on the document page, E2E-R1-UI-21..22. Migration 0017: policy category, applicability (audience; NULL = everyone) and restricted flag; procera_audience_contains SQL twin of the audience resolver; reader visibility (A-14): view-only readers see published history only, restricted policies hidden outside their applicability in lists, reads, diff, change requests and search; PUT /artifacts/{id}/applicability (audited); GET /me/policies portal with what-changed summaries vs the previous published version, text + category filters; E2E-R1-POL-01..03. Remaining: re-acknowledgement on major publish (FR-PL03), superseded watermark in exports. |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
 
 ## Done
@@ -52,20 +49,24 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-014** AGENTS.md/CLAUDE.md contract, PR template (spec id + E2E id), CODEOWNERS for protected areas — CLAUDE.md, AGENTS.md, PR template, CODEOWNERS, docs/24 rules on main
 - [x] **BPMS-020** System plane: bootstrap, system roles, workspaces lifecycle, quotas — procera-platform + /sysapi/v1: one-time bootstrap token (printed at startup until bootstrapped), system.owner/admin/operator/auditor fixed authz table, MFA required for system plane, workspace create/list/get/rename/suspend/restore/schedule-deletion with If-Match + ETag, profile quotas, platform setting floors seeded, all audited; E2E-R1-SYS-01..05
 - [x] **BPMS-021** Local auth (Argon2id), email verify, lockout, sessions — procera-identity + /api/v1/auth: users, Argon2id (policy, rehash, enumeration-safe), JWT access (ADR-0020) + rotating refresh with reuse detection, DB login throttling + per-IP rate limit, logout, sign-out-everywhere, deactivation via token_version; audited; E2E-R1-AUTH-01..05,07
+- [x] **BPMS-022** MFA TOTP + WebAuthn, recovery codes, step-up — TOTP + recovery codes + step-up + MFA by role (earlier); passkeys (WebAuthn L3, migration 0020): registration, sign-in second factor and step-up, list/rename/remove with step-up, phishing-origin and replay protection, Account › Security page, Use a passkey at sign-in and in step-up. E2E-R1-AUTH-06, 20..23, E2E-R1-UI-30..31. Passkey-only sign-in is P1 (A-19)
 - [x] **BPMS-023** Memberships, invites, directory (departments/groups/positions/managers), CSV import — procera-members + /api/v1: memberships, invitations (hashed + sealed tokens, 7-day expiry, email-bound, single use; list, revoke, resend), register-by-invite, owner onboarding activates the workspace, workspace switch (ws-scoped JWT), deactivation guards, state gate (423). Directory (migration 0008): department tree (uuid[] paths, sibling-unique names, no moves under descendants), static groups, positions (behind directory.positions.enabled), manager links with cycle rejection, deterministic manager resolution (explicit → nearest department head), per-field source attribution, CSV import with plan/apply. All audited; E2E-R1-MEM-01..03,05..07, E2E-R1-DIR-01..04
 - [x] **BPMS-024** Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar — procera-access: permission catalogue + 12 role templates; custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage); grants to members or static groups (migration 0009), scoped (workspace/department/collection/process/case) with expiry, compiled to Cedar; members inherit their department subtree so department-scoped admins reach only it; invariants (workspace isolation, active members only); last-owner protection; role change preview; access_revisions cache; all changes audited. Property tests: no escalation (64 cases) and preview matches effect (48 cases), both against Postgres. E2E-R1-MEM-04,08,09
 - [x] **BPMS-025** Forced RLS + repository WsCtx + CI cross-workspace sweep — procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests
 - [x] **BPMS-026** Audit chain append + coverage contract test — procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)
+- [x] **BPMS-027** Settings layering, floors, profiles, explainer — Catalogue, floors, profiles, explainer (earlier); department overrides as layer 4 with tree inheritance (0021), profile switch plan/apply with If-Match, reason and step-up (CFG-017), effective-settings cache with generation invalidation over Valkey, never authoritative (CFG-004); Settings tabs for departments and profile. E2E-R1-CFG-01..08, E2E-R1-UI-16, 35..36 (A-17)
 - [x] **BPMS-029** Outbox + dispatcher + inbox dedup + idempotency keys — Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 - [x] **BPMS-040** Artifacts, versions, lifecycle state machine, immutability trigger, SoD — procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler
 - [x] **BPMS-043** Semantic diff across artifact kinds — UI: Compare page (/library/:id/compare) with word-level ins/del, version pickers, E2E-R1-UI-20. procera-library diff module: block-level LCS alignment of SOP/policy content with word-level diffs inside changed blocks (removals and additions paired by position within an unmatched run, same block type → changed); GET /versions/{a}/diff/{b} (same artifact only); unit + property test (applying a diff always rebuilds the target) + E2E-R1-LIB-06. Process/form/rule bundle artifacts diff once their editors land (BPMS-050+).
 - [x] **BPMS-044** Reviews, change requests, effective-date scheduling, renewal date, verification badge — UI: document governance panel (review status, recertify, schedule, verify with step-up, suggested changes with accept/decline/implemented), E2E-R1-UI-18..19. Migration 0016: review cadence (per-artifact override or governance.review_cadence.default/.controlled), next_review_at set on every publish, recertification, worker flag of passed review dates (once; artifact.review_overdue.v1 → owner in-app notification), verification badge with governance.verification.validity expiry, change requests (open → accepted/declined/implemented, linked to the implementing version); all audited and in the audit contract; E2E-R1-LIB-07..10. Effective-date scheduling shipped with BPMS-040.
+- [x] **BPMS-045** Policy library + employee policy portal + applicability — Category, applicability and restricted policies; Policies portal with what changed (migration 0017, A-14); re-acknowledgement on publish (0019): major/minor semver fixed at publish or scheduling, governance.reack.policy/window, campaign to the applicable audience bound to the exact version hash (immediate in the publish transaction, scheduled on go-live via the bus), publish preview and dialog. E2E-R1-POL-01..05, E2E-R1-UI-21..22, 24. Later: per-artifact acknowledgement requirement (docs/05), closing older campaigns (A-16)
 - [x] **BPMS-046** Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export — procera-campaigns (migration 0013): acknowledgement campaigns for a published SOP/policy version; audience via the shared resolver (snapshot or dynamic), assignments with in-app + email notices, acknowledgement bound to version id + content hash + statement + auth method, reminder ladder and one-time manager escalation by the scheduler, dynamic new joiners, close/cancel, progress, audited evidence CSV; settings campaign.*; E2E-R1-CMP-01..07. Later: quiz-lite, exemptions, signed PDF evidence, auto re-ack on major publish
 - [x] **BPMS-047** Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics — procera-announcements (migration 0014): drafts with block content, audience snapshot, approval per announcements.approval_required with SoD, scheduling + derived expiry, pinned/critical, channels from settings, in-app + email delivery via the outbox, read and acknowledgement receipts, analytics, archive; settings announcements.*; E2E-R1-ANN-01..06. Later: poster scoping, reminders/escalation for unacked, comments/reactions, reach preview
 - [x] **BPMS-048** In-app notification centre + SMTP email + templates + digests — procera-notify (migrations 0011, 0023): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox, sealed email queue with dedupe, SMTP delivery via lettre with backoff; digests (daily/weekly at the member's hour and time zone; only normal emails are digested), quiet hours (emails held until the window ends; critical override), bounce suppression on permanent SMTP rejection (global email_suppressions); member preferences with workspace defaults (notify.digest.*, notify.quiet_hours.*); Notification preferences page. E2E-R1-NOT-01..05, E2E-R1-UI-25. Later: localisation + terminology (CFG-008), per-day quiet hours (A-15), more event kinds as features land
 - [x] **BPMS-049** Postgres FTS + trgm, permission-filtered search — procera-search (migration 0015): Postgres FTS (english + simple) + pg_trgm fuzzy/prefix over SOPs, policies (artifact tsv kept current by triggers), members, departments, groups; one ranked list with escaped <mark> snippets; permission-filtered per type with Cedar before querying; RLS isolation; E2E-R1-SRCH-01..03
 - [x] **BPMS-063** Workspace overview dashboard + people & access monitor — API: GET /admin/overview (needs-attention ranking: overdue acknowledgements, admins without MFA, documents past review, drafts in review, announcements to approve; acknowledgement metrics, published-versions series, security strip from the audit chain, departments; requests/storage reported as null with guidance until those modules ship) and GET /admin/people (MFA, last active, roles, dormant, privileged, expiring grants, pending invites, filters); migration 0018 discovery.member_login_failures. UI: Overview (typographic summary, ranked list, metric rows, security strip; time range + department in the URL) and People & access (filter chips). E2E-R1-ADM-01..02, E2E-R1-UI-23.
+- [x] **BPMS-065** System console: workspaces grid, quotas, health, system audit — System console (0022): workspaces grid with usage and quotas, suspend/reactivate/schedule deletion with step-up on the system chain, quota defaults per profile with the member quota enforced at invite, platform health, system audit explorer; console shell for system admins (metadata only, never workspace content). E2E-R1-SYS-01..09, E2E-R1-UI-40..41 (A-18)
 
 ## Release checklists
 
@@ -94,18 +95,18 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 16/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 20/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
 - [x] **BPMS-020** (P0, L) System plane: bootstrap, system roles, workspaces lifecycle, quotas
 - [x] **BPMS-021** (P0, M) Local auth (Argon2id), email verify, lockout, sessions
-- [ ] **BPMS-022** (P0, M) MFA TOTP + WebAuthn, recovery codes, step-up **[In progress]**
+- [x] **BPMS-022** (P0, M) MFA TOTP + WebAuthn, recovery codes, step-up
 - [x] **BPMS-023** (P0, M) Memberships, invites, directory (departments/groups/positions/managers), CSV import
 - [x] **BPMS-024** (P0, L) Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar
 - [x] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
 - [x] **BPMS-026** (P0, M) Audit chain append + coverage contract test
-- [ ] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer **[In progress]**
+- [x] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer
 - [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
 - [x] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys
 - [ ] **BPMS-030** (P0, M) Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK **[In progress]**
@@ -118,7 +119,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-042** (P0, L) SOP/policy block editor + renderer (web/PDF)
 - [x] **BPMS-043** (P0, M) Semantic diff across artifact kinds
 - [x] **BPMS-044** (P0, M) Reviews, change requests, effective-date scheduling, renewal date, verification badge
-- [ ] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability **[In progress]**
+- [x] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability
 - [x] **BPMS-046** (P0, L) Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export
 - [x] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
 - [x] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests
@@ -128,7 +129,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-062** (P0, M) Workspace Files view, quotas, orphan cleanup
 - [x] **BPMS-063** (P0, L) Workspace overview dashboard + people & access monitor
 - [ ] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export **[In progress]**
-- [ ] **BPMS-065** (P0, M) System console: workspaces grid, quotas, health, system audit
+- [x] **BPMS-065** (P0, M) System console: workspaces grid, quotas, health, system audit
 - [ ] **BPMS-120** (P0, L) Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks
 
 </details>
@@ -253,7 +254,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 186 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 207 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 14 / 16 / 15 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 14 / 16 / 19 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

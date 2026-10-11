@@ -97,6 +97,10 @@ Implemented in `e2e/packs/p0/harness.api.spec.ts` and `e2e/packs/p0/design-syste
 | E2E-R1-AUTH-05 | Logout revokes the family and clears the cookie | §3.2 |
 | E2E-R1-AUTH-06 | TOTP enrolment (otpauth URI), MFA login (`amr=[pwd,otp]`), MFA token rejected as access token, TOTP replay rejected, recovery code single-use | §3.6 |
 | E2E-R1-AUTH-07 | Sign-out-everywhere rejects another device's unexpired JWT and refresh; system audit chain verifies | SEC-04, AUD-01 |
+| E2E-R1-AUTH-20 | Register a passkey: options, single-use challenge, recovery codes once, duplicates refused | BPMS-022 |
+| E2E-R1-AUTH-21 | Sign in with password + passkey; phishing origin and replayed assertions fail | BPMS-022 |
+| E2E-R1-AUTH-22 | Step up with a passkey; a sign-in challenge cannot be reused for step-up | BPMS-022 |
+| E2E-R1-AUTH-23 | Removing a passkey needs step-up; another user’s passkey is 404; the last one turns MFA off | BPMS-022 |
 
 Implemented in `e2e/packs/r1/auth.api.spec.ts`.
 
@@ -109,6 +113,10 @@ Implemented in `e2e/packs/r1/auth.api.spec.ts`.
 | E2E-R1-SYS-03 | Create workspaces A (starter) and B (enterprise): 201 + Location + ETag, profile quotas, duplicate slug 409, invalid slug 422, listing | FR-S02/S04 (= E2E-R1-02) |
 | E2E-R1-SYS-04 | Suspend read-only with reason; stale `If-Match` → 412; restore with current ETag; invalid transition 409; schedule deletion (grace validated) | FR-S02 (= E2E-R1-17) |
 | E2E-R1-SYS-05 | `system.operator` can read but not write; system audit chain verifies | docs/12 §4.1, FR-S09 |
+| E2E-R1-SYS-06 | Workspaces grid lists metadata, quotas and usage counts with filters | BPMS-065 |
+| E2E-R1-SYS-07 | Suspend, reactivate and schedule deletion need step-up and land on the system chain | BPMS-065 |
+| E2E-R1-SYS-08 | Quota defaults per profile and the member quota enforced at invite time | BPMS-065 |
+| E2E-R1-SYS-09 | Platform health and the system audit explorer; auditors read, never change | BPMS-065 |
 
 Implemented in `e2e/packs/r1/system.api.spec.ts`.
 
@@ -140,6 +148,9 @@ Implemented in `e2e/packs/r1/audit.api.spec.ts`.
 | E2E-R1-CFG-03 | Step-up keys need a recent authentication: a 10-minute-old sign-in gets 401 `step_up_required`; a wrong code fails; `POST /session/step-up` with a current TOTP code issues a fresh token that succeeds | docs/12 §11, SEC-17 |
 | E2E-R1-CFG-04 | A member without settings permissions can neither view nor change settings | docs/12 §5 |
 | E2E-R1-CFG-05 | Raising a platform floor clamps a looser workspace value at resolution (stored value kept, `clamped: true`); floors need a reason; keys without floors are rejected | docs/20 §1 rules 4-5 |
+| E2E-R1-CFG-06 | Department overrides: set on a parent, inherited by a child, explained, cleared; catalogue and workspace isolation enforced | BPMS-027 |
+| E2E-R1-CFG-07 | Profile switch: the plan shows current, new and floor values; apply needs If-Match, a reason and step-up; then nothing is left to change | BPMS-027, CFG-017 |
+| E2E-R1-CFG-08 | A settings change is visible on the very next read, through the cache when one is configured | BPMS-027, CFG-004 |
 
 Implemented in `e2e/packs/r1/settings.api.spec.ts`.
 
@@ -177,6 +188,8 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-POL-01 | Readers never see drafts: absent from lists, reads and search until published; a later draft stays hidden (version 404, diff 404, versions list shows v1 only); authors see drafts in search | BPMS-045, A-14 |
 | E2E-R1-POL-02 | Applicability: empty audience or restricted without one → 422; members cannot set it (403); a restricted policy is hidden from members outside its group in lists, reads, search, the portal and change requests (404), and shown to those inside; an unrestricted one is listed for everyone but only "applicable" to its audience | BPMS-045, FR-PL01/PL02 |
 | E2E-R1-POL-03 | The portal lists published policies that apply to the member (no drafts), ordered by category, with what changed since the previous version (added/changed counts, reason) and text/category filters | BPMS-045, FR-PL02 |
+| E2E-R1-POL-04 | A major version asks the applicable audience to re-acknowledge that exact version; a minor one does not (major_only) | BPMS-045, FR-PL03 |
+| E2E-R1-POL-05 | Every_publish asks on minors, none never asks, and a scheduled major asks when it goes live | BPMS-045, FR-PL03 |
 | E2E-R1-ADM-01 | Overview: overdue acknowledgements rank first in "needs attention", followed by an admin without two-step verification; acknowledgement metrics and a daily published series; the security strip counts a failed sign-in, members without MFA and the new admin grant; requests/storage are null; members get 403; an inverted range → 422 | BPMS-063, FR-A01 |
 | E2E-R1-ADM-02 | People & access: counts (members, no MFA, privileged, pending invites), member row (MFA off, last active set, not dormant), no-MFA and admin filters; unknown filter → 422; members get 403 | BPMS-063, FR-A06 |
 
@@ -212,7 +225,14 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-21 | A member opens Policies, filters by category and follows "what changed" to the comparison | BPMS-045 |
 | E2E-R1-UI-22 | A publisher restricts a policy to a role; a member outside it can't find it in Policies or open it | BPMS-045, A-14 |
 | E2E-R1-UI-23 | An admin opens Overview: the summary and "Needs attention" show overdue acknowledgements, and the security strip shows one member without two-step verification; drilling in opens People & access filtered to them; the Admins filter shows the owner | BPMS-063 |
+| E2E-R1-UI-24 | An owner publishes v2 as a major change, sees who will be asked, then finds the campaign | BPMS-045 |
 | E2E-R1-UI-25 | A member opens Notifications → Preferences, picks a daily digest and quiet hours, saves, sees them after a reload, and resets to the workspace defaults | BPMS-048 |
+| E2E-R1-UI-30 | Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022 |
+| E2E-R1-UI-31 | Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022 |
+| E2E-R1-UI-35 | Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027 |
+| E2E-R1-UI-36 | Configuration profile: preview a switch with every change, then switch with a reason | BPMS-027, CFG-017 |
+| E2E-R1-UI-40 | A system admin finds a workspace, makes it read-only with a reason, and reactivates it | BPMS-065 |
+| E2E-R1-UI-41 | Quotas, platform health and the system audit; non-system users never see the console | BPMS-065 |
 | E2E-R1-CMP-01 | Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05 |
 | E2E-R1-CMP-02 | Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04 |
 | E2E-R1-CMP-03 | Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5 |
