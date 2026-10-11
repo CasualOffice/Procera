@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { Link } from '../lib/router';
 import { Button } from '../ui/components/Button';
-import { timeAgo } from './Home';
+import { timeAgo } from '../lib/format';
 
 interface Notification { id: string; kind: string; title: string; body: string; link: string | null; read_at: string | null; created_at: string }
 

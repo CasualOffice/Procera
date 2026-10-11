@@ -36,18 +36,18 @@ test.describe('app shell @r1 @ui', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Sign in to Procera' })).toBeVisible();
     await axe(page);
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Library' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Members' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Set up Acme' })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Quick actions' }).getByRole('link', { name: 'New policy' })).toBeVisible();
     await axe(page);
     // The session survives a reload (refresh cookie, access token only in memory).
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
   });
 
   test('E2E-R1-UI-02 wrong password and wrong code are explained without revealing which part was wrong', async ({ page, request }) => {
@@ -126,7 +126,7 @@ test.describe('app shell @r1 @ui', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     await page.reload();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
     await axe(page);
   });
 });

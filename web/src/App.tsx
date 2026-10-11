@@ -6,6 +6,10 @@ import { ChooseWorkspace } from './pages/ChooseWorkspace';
 import { DesignGallery } from './pages/DesignGallery';
 import { Home } from './pages/Home';
 import { Notifications } from './pages/Notifications';
+import { Library } from './pages/Library';
+import { LibraryDoc } from './pages/LibraryDoc';
+import { Announcements } from './pages/Announcements';
+import { Members } from './pages/Members';
 import { SignIn } from './pages/SignIn';
 
 function Redirect({ to }: { to: string }) {
@@ -29,7 +33,11 @@ export function App() {
 
   if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
-  if (match('/x/:never', path)) return null;
+  if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  const doc = match('/library/:id', path);
+  if (doc) return <AppShell current="library" crumbs={['Library', 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
+  if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
+  if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={['Administration', 'Members']}><Members /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>
       <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist or you don’t have access to it.</p></div></div>

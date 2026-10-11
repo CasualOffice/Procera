@@ -1,183 +1,157 @@
-import { Bell, BookOpen, Check, FileText, ScrollText, UserPlus, Users } from 'lucide-react';
+import { BookOpenCheck, FilePlus2, FileText, Megaphone, ScrollText, UserPlus } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Link } from '../lib/router';
+import { type Artifact, type Member, memberMap, useItems } from '../lib/data';
+import { shortDate, timeAgo } from '../lib/format';
+import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { Avatar } from '../ui/Avatar';
+import { Button } from '../ui/components/Button';
+import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 
+interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; subject: { artifact_id: string; kind: string; title: string; version_no: number } }
+interface FeedItem { id: string; title: string; priority: string; pinned: boolean; require_ack: boolean; published_at: string | null; read_at: string | null; acked_at: string | null }
 interface Notification { id: string; kind: string; title: string; body: string; link: string | null; created_at: string }
-interface Artifact { id: string; kind: string; key: string; title: string; state: string }
-interface Member { status: string }
-
-export function timeAgo(iso: string) {
-  const s = Math.max(0, (Date.now() - Date.parse(iso)) / 1000);
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
 
 function greeting() {
   const h = new Date().getHours();
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-export const STATE_CHIP: Record<string, { label: string; tone: string }> = {
-  draft: { label: 'Draft', tone: '' },
-  in_review: { label: 'In review', tone: 'chip-info' },
-  approved: { label: 'Approved', tone: 'chip-info' },
-  scheduled: { label: 'Scheduled', tone: 'chip-warning' },
-  published: { label: 'Published', tone: 'chip-success' },
-  deprecated: { label: 'Superseded', tone: '' },
-  retired: { label: 'Retired', tone: '' },
-};
-
-/** Home (docs/05 §3.1): what needs me today. */
+/** Home (docs/05 §3.1): what needs me today — actions first. */
 export function Home() {
   const { user, workspace, can } = useSession();
-  const [notes, setNotes] = useState<Notification[] | null>(null);
-  const [unread, setUnread] = useState(0);
-  const [docs, setDocs] = useState<Artifact[] | null>(null);
-  const [members, setMembers] = useState<number | null>(null);
-  const [invites, setInvites] = useState<number | null>(null);
   const canLibrary = can('policy:view') || can('sop:view');
-  const admin = can('member:invite');
+  const [acks] = useItems<Ack>('/api/v1/me/acknowledgements?state=pending');
+  const [feed] = useItems<FeedItem>(can('announcement:view') ? '/api/v1/announcements/feed' : null);
+  const [docs] = useItems<Artifact>(canLibrary ? '/api/v1/artifacts' : null);
+  const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
+  const [notes, setNotes] = useState<Notification[] | null>(null);
+  useEffect(() => { api<{ items: Notification[] }>('/api/v1/notifications?limit=6').then((r) => setNotes(r.items)).catch(() => setNotes([])); }, []);
 
-  useEffect(() => {
-    api<{ items: Notification[]; unread_count: number }>('/api/v1/notifications?unread=true&limit=6').then((r) => { setNotes(r.items); setUnread(r.unread_count); }).catch(() => setNotes([]));
-    if (canLibrary) api<{ items: Artifact[] }>('/api/v1/artifacts').then((r) => setDocs(r.items)).catch(() => setDocs([]));
-    if (can('member:view')) api<{ items: Member[] }>('/api/v1/members').then((r) => setMembers(r.items.filter((m) => m.status === 'active').length)).catch(() => undefined);
-    if (admin) api<{ items: unknown[] }>('/api/v1/members/invitations').then((r) => setInvites(r.items.length)).catch(() => undefined);
-  }, [can, canLibrary, admin]);
-
-  const published = docs?.filter((d) => d.state === 'published') ?? [];
-  const inProgress = docs?.filter((d) => ['draft', 'in_review', 'approved', 'scheduled'].includes(d.state)) ?? [];
-  const steps = [
-    { done: (members ?? 0) > 1 || (invites ?? 0) > 0, title: 'Invite your team', text: 'They get an email with a link to join.', to: '/admin/members' },
-    { done: published.some((d) => d.kind === 'policy'), title: 'Publish your first policy', text: 'Draft it, get it reviewed, publish it.', to: '/library' },
-    { done: published.some((d) => d.kind === 'sop'), title: 'Document a procedure', text: 'Write an SOP people can follow.', to: '/library' },
+  const people = memberMap(members);
+  const reviews = (docs ?? []).filter((d) => d.state === 'in_review' && (can(`${d.kind}:review`) || can(`${d.kind}:approve`)));
+  const unreadNews = (feed ?? []).filter((f) => !f.read_at || (f.require_ack && !f.acked_at));
+  const todo = [
+    ...(acks ?? []).map((a) => ({
+      key: `ack-${a.id}`, icon: <BookOpenCheck aria-hidden="true" size={16} />, tone: a.overdue ? 'red' : 'purple',
+      title: `Acknowledge “${a.subject.title}”`, meta: `${a.campaign_title} · due ${shortDate(a.due_at)}`,
+      tag: a.overdue ? <Tag color="red" dot>Overdue</Tag> : <Tag color="purple">v{a.subject.version_no}</Tag>,
+      action: <Button variant="secondary" className="btn-sm" onPress={() => navigate(`/library/${a.subject.artifact_id}`)}>Read and acknowledge</Button>,
+    })),
+    ...reviews.map((d) => ({
+      key: `rev-${d.id}`, icon: <FileText aria-hidden="true" size={16} />, tone: 'yellow',
+      title: `Review “${d.title}”`, meta: `${KIND_TAG[d.kind]?.label ?? d.kind} waiting for review`,
+      tag: <Tag color="yellow" dot>In review</Tag>,
+      action: <Button variant="secondary" className="btn-sm" onPress={() => navigate(`/library/${d.id}`)}>Review</Button>,
+    })),
+    ...unreadNews.map((f) => ({
+      key: `ann-${f.id}`, icon: <Megaphone aria-hidden="true" size={16} />, tone: f.priority === 'critical' ? 'red' : 'blue',
+      title: f.title, meta: `Announcement · ${timeAgo(f.published_at)}`,
+      tag: f.require_ack && !f.acked_at ? <Tag color="orange">Acknowledge</Tag> : <Tag color="blue">New</Tag>,
+      action: <Button variant="secondary" className="btn-sm" onPress={() => navigate('/announcements')}>Open</Button>,
+    })),
   ];
-  const doneCount = steps.filter((s) => s.done).length;
+  const loading = acks === null || (canLibrary && docs === null);
+  const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
+  const admin = can('member:invite');
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>Home</h1>
-          <p>{greeting()}, {user?.display_name.split(' ')[0]}. Here’s what’s happening in {workspace?.name}.</p>
+      <div className="home-hero">
+        <p className="home-date">{date}</p>
+        <h1 className="home-title">{greeting()}, {user?.display_name.split(' ')[0]}</h1>
+        <div className="quick-actions" role="group" aria-label="Quick actions">
+          {can('policy:create') && <Link className="quick" to="/library?new=policy"><span className="quick-icon tag-purple"><FilePlus2 aria-hidden="true" size={16} /></span>New policy</Link>}
+          {can('sop:create') && <Link className="quick" to="/library?new=sop"><span className="quick-icon tag-blue"><ScrollText aria-hidden="true" size={16} /></span>New SOP</Link>}
+          {admin && <Link className="quick" to="/admin/members?invite=1"><span className="quick-icon tag-green"><UserPlus aria-hidden="true" size={16} /></span>Invite people</Link>}
+          {can('announcement:view') && <Link className="quick" to="/announcements"><span className="quick-icon tag-orange"><Megaphone aria-hidden="true" size={16} /></span>Announcements</Link>}
         </div>
       </div>
 
-      <section className="card metrics" aria-label="Summary">
-        <div className="metric">
-          <p className="metric-label"><Bell aria-hidden="true" size={14} /> Unread</p>
-          <p className="metric-value"><Link to="/notifications">{unread}</Link></p>
-          <p className="metric-hint">notifications</p>
-        </div>
-        {canLibrary && (
-          <div className="metric">
-            <p className="metric-label"><BookOpen aria-hidden="true" size={14} /> Published</p>
-            <p className="metric-value">{docs ? published.length : '–'}</p>
-            <p className="metric-hint">policies and SOPs</p>
+      <div className="home-grid">
+        <section aria-labelledby="foryou" className="home-main">
+          <div className="section-head">
+            <h2 id="foryou">For you</h2>
+            {todo.length > 0 && <span className="count-pill">{todo.length}</span>}
           </div>
-        )}
-        {canLibrary && (
-          <div className="metric">
-            <p className="metric-label"><FileText aria-hidden="true" size={14} /> In progress</p>
-            <p className="metric-value">{docs ? inProgress.length : '–'}</p>
-            <p className="metric-hint">drafts and reviews</p>
-          </div>
-        )}
-        {members !== null && (
-          <div className="metric">
-            <p className="metric-label"><Users aria-hidden="true" size={14} /> Members</p>
-            <p className="metric-value">{members}</p>
-            <p className="metric-hint">{invites ? `${invites} invitation${invites === 1 ? '' : 's'} pending` : 'active'}</p>
-          </div>
-        )}
-      </section>
-
-      <div className="grid-2">
-        <div className="col">
-          <section className="card" aria-labelledby="attention">
-            <div className="card-head">
-              <h2 id="attention">Needs your attention</h2>
-              <Link to="/notifications">View all</Link>
+          {loading ? <div className="skeleton-list" aria-label="Loading"><span /><span /><span /></div> : todo.length === 0 ? (
+            <div className="empty-soft">
+              <p className="empty-title">You’re all caught up</p>
+              <p className="muted">Acknowledgements, reviews and announcements that need you will show up here.</p>
             </div>
-            {notes === null ? <div className="card-empty">Loading…</div> : notes.length === 0 ? (
-              <div className="card-empty">
-                <Check aria-hidden="true" size={20} /><br />You’re all caught up.
-              </div>
-            ) : (
-              <ul className="rows">
-                {notes.map((n) => (
-                  <li key={n.id} className="rows-link">
-                    <span className="row-icon">{n.kind === 'member_joined' ? <UserPlus aria-hidden="true" size={16} /> : <Bell aria-hidden="true" size={16} />}</span>
-                    <div className="row-main">
-                      <p className="row-title">{n.link ? <Link to={n.link}>{n.title}</Link> : n.title}</p>
-                      <p className="row-sub">{n.body}</p>
-                    </div>
-                    <span className="row-meta"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          ) : (
+            <ul className="tasks">
+              {todo.map((t) => (
+                <li key={t.key}>
+                  <span className={`task-icon tag-${t.tone}`}>{t.icon}</span>
+                  <div className="task-main">
+                    <p className="task-title">{t.title}</p>
+                    <p className="task-meta">{t.meta}</p>
+                  </div>
+                  {t.tag}
+                  {t.action}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {canLibrary && (
-            <section className="card" aria-labelledby="docs">
-              <div className="card-head">
-                <h2 id="docs">Library</h2>
-                <Link to="/library">Open library</Link>
+            <>
+              <div className="section-head" style={{ marginTop: 36 }}>
+                <h2 id="lib">Library</h2>
+                <Link className="section-link" to="/library">View all</Link>
               </div>
-              {docs === null ? <div className="card-empty">Loading…</div> : docs.length === 0 ? (
-                <div className="card-empty">No policies or SOPs yet.</div>
+              {docs === null ? <div className="skeleton-list"><span /><span /></div> : docs.length === 0 ? (
+                <div className="empty-soft"><p className="empty-title">No documents yet</p><p className="muted">Write your first policy or SOP.</p></div>
               ) : (
-                <ul className="rows">
-                  {docs.slice(0, 6).map((d) => (
-                    <li key={d.id} className="rows-link">
-                      <span className="row-icon">{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={16} /> : <FileText aria-hidden="true" size={16} />}</span>
-                      <div className="row-main">
-                        <p className="row-title"><Link to={`/library/${d.id}`}>{d.title}</Link></p>
-                        <p className="row-sub">{d.kind === 'sop' ? 'Standard operating procedure' : 'Policy'} · {d.key}</p>
-                      </div>
-                      <span className={`chip ${STATE_CHIP[d.state]?.tone ?? ''}`}>{STATE_CHIP[d.state]?.label ?? d.state}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
-        </div>
-
-        {admin && (
-          <div className="col">
-            <section className="card" aria-labelledby="setup">
-              <div className="card-head">
-                <h2 id="setup">Set up {workspace?.name}</h2>
-                <span className="muted" style={{ fontSize: 12 }}>{doneCount} of {steps.length}</span>
-              </div>
-              <div style={{ padding: '0 16px' }}>
-                <div className="progress" role="progressbar" aria-label="Setup progress" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount}>
-                  <span style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+                <div className="table-wrap">
+                  <table className="table" aria-labelledby="lib">
+                    <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Owner</th></tr></thead>
+                    <tbody>
+                      {docs.slice(0, 6).map((d) => {
+                        const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined;
+                        return (
+                          <tr key={d.id}>
+                            <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
+                            <td><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
+                            <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
+                            <td>{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
+              )}
+            </>
+          )}
+        </section>
+
+        <aside className="home-rail" aria-label="Activity">
+          <div className="section-head"><h2 id="activity">Recent activity</h2></div>
+          {notes === null ? <div className="skeleton-list"><span /><span /></div> : notes.length === 0 ? <p className="muted">Nothing yet.</p> : (
+            <ul className="activity">
+              {notes.map((n) => (
+                <li key={n.id}>
+                  {n.kind === 'member_joined' ? <Avatar name={n.title.replace(/ joined .*$/, '')} size={24} /> : <span className={`activity-icon tag-${n.kind.startsWith('campaign') ? 'purple' : n.kind === 'announcement' ? 'orange' : 'gray'}`}>{n.kind.startsWith('campaign') ? <BookOpenCheck aria-hidden="true" size={13} /> : n.kind === 'announcement' ? <Megaphone aria-hidden="true" size={13} /> : <FileText aria-hidden="true" size={13} />}</span>}
+                  <div>
+                    <p className="activity-text">{n.link ? <Link to={n.link}>{n.title}</Link> : n.title}</p>
+                    <p className="activity-time"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {members && (
+            <>
+              <div className="section-head" style={{ marginTop: 28 }}><h2>People</h2><Link className="section-link" to="/admin/members">{members.filter((m) => m.status === 'active').length} members</Link></div>
+              <div className="avatar-stack" aria-label={`${members.length} members`}>
+                {members.filter((m) => m.status === 'active').slice(0, 8).map((m) => <span key={m.id} title={m.display_name}><Avatar name={m.display_name} size={30} /></span>)}
               </div>
-              <ul className="checklist">
-                {steps.map((s) => (
-                  <li key={s.title} className={s.done ? 'done' : undefined}>
-                    <span className={`check${s.done ? ' check-done' : ''}`}>
-                      {s.done && <Check aria-hidden="true" size={12} strokeWidth={3} />}
-                      <span className="visually-hidden">{s.done ? 'Done:' : 'To do:'}</span>
-                    </span>
-                    <div>
-                      <p><Link to={s.to}>{s.title}</Link></p>
-                      <p className="muted" style={{ fontSize: 12 }}>{s.text}</p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-        )}
+            </>
+          )}
+        </aside>
       </div>
     </>
   );

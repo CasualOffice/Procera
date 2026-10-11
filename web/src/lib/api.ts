@@ -34,15 +34,26 @@ async function parse(res: Response) {
   return body;
 }
 
-/** Renews the access token from the refresh cookie. Returns false when the session is gone. */
-export async function refresh(): Promise<boolean> {
-  const res = await fetch('/api/v1/auth/refresh', { method: 'POST', headers: CSRF, credentials: 'same-origin' });
-  if (!res.ok) {
-    accessToken = null;
-    return false;
-  }
-  accessToken = (await res.json()).access_token;
-  return true;
+/**
+ * Renews the access token from the refresh cookie. Concurrent callers share one request: refresh
+ * tokens rotate and the server revokes the sign-in if an old one is replayed (docs/06 §3.3).
+ */
+let inflight: Promise<boolean> | null = null;
+export function refresh(): Promise<boolean> {
+  inflight ??= (async () => {
+    try {
+      const res = await fetch('/api/v1/auth/refresh', { method: 'POST', headers: CSRF, credentials: 'same-origin' });
+      if (!res.ok) {
+        accessToken = null;
+        return false;
+      }
+      accessToken = (await res.json()).access_token;
+      return true;
+    } finally {
+      inflight = null;
+    }
+  })();
+  return inflight;
 }
 
 export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; raw?: string } = {}, retried = false): Promise<T> {

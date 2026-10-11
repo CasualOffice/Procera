@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Check, ChevronsUpDown, House, LogOut, Monitor, Moon, Sun, Users } from 'lucide-react';
+import { Bell, BookOpen, Check, ChevronsUpDown, House, LogOut, Megaphone, Monitor, Moon, Sun, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -7,7 +7,7 @@ import { useSession } from '../lib/session';
 import { Avatar } from './Avatar';
 import './shell.css';
 
-export type NavKey = 'home' | 'inbox' | 'library' | 'members' | 'none';
+export type NavKey = 'home' | 'inbox' | 'library' | 'announcements' | 'members' | 'none';
 type Theme = 'auto' | 'light' | 'dark';
 
 function applyTheme(t: Theme) {
@@ -59,6 +59,7 @@ export function AppShell({
     { key: 'home' as const, label: 'Home', to: '/', icon: House, show: true },
     { key: 'inbox' as const, label: 'Notifications', to: '/notifications', icon: Bell, show: true, count: unread },
     { key: 'library' as const, label: 'Library', to: '/library', icon: BookOpen, show: can('policy:view') || can('sop:view') },
+    { key: 'announcements' as const, label: 'Announcements', to: '/announcements', icon: Megaphone, show: can('announcement:view') },
   ];
   const admin = [{ key: 'members' as const, label: 'Members', to: '/admin/members', icon: Users, show: can('member:invite') || can('role:view') }];
   const groups = [
@@ -130,7 +131,7 @@ export function AppShell({
 
         <MenuTrigger>
           <AriaButton className="user-btn" aria-label={`Account: ${user.display_name}`}>
-            <Avatar name={user.display_name} size={30} />
+            <Avatar name={user.display_name} size={28} />
             <span className="user-btn-text">
               <span className="user-btn-name">{user.display_name}</span>
               <span className="user-btn-email">{user.email}</span>
