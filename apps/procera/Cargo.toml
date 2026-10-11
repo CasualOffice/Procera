@@ -30,6 +30,7 @@ procera-members.workspace = true
 procera-access.workspace = true
 procera-settings.workspace = true
 procera-notify.workspace = true
+procera-library.workspace = true
 procera-audit.workspace = true
 procera-crypto.workspace = true
 serde.workspace = true

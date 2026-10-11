@@ -74,6 +74,23 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/role-grants", &[&["role.granted"]]),
     emits("DELETE", "/api/v1/role-grants/{id}", &[&["role.revoked"]]),
     emits("PUT", "/api/v1/settings/{key}", &[&["setting.changed"]]),
+    // Library (approval and publication can also append version.approved / version.published).
+    emits("POST", "/api/v1/artifacts", &[&["artifact.created"]]),
+    emits("POST", "/api/v1/artifacts/{id}/versions", &[&["version.created"]]),
+    emits("PATCH", "/api/v1/versions/{id}", &[&["version.edited"]]),
+    emits(
+        "POST",
+        "/api/v1/versions/{id}/submit",
+        &[&["version.submitted"], &["version.approved", "version.submitted"]],
+    ),
+    emits("POST", "/api/v1/versions/{id}/withdraw", &[&["version.withdrawn"]]),
+    emits(
+        "POST",
+        "/api/v1/versions/{id}/reviews",
+        &[&["version.reviewed"], &["version.approved", "version.reviewed"]],
+    ),
+    emits("POST", "/api/v1/versions/{id}/publish", &[&["version.published"], &["version.scheduled"]]),
+    emits("POST", "/api/v1/versions/{id}/retire", &[&["version.retired"]]),
     // Notifications: personal read state only.
     exempt(
         "POST",
@@ -114,6 +131,7 @@ mod tests {
             ("/api/v1", include_str!("settings.rs")),
             ("/api/v1", include_str!("directory.rs")),
             ("/api/v1", include_str!("notifications.rs")),
+            ("/api/v1", include_str!("library.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];

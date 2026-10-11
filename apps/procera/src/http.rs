@@ -12,6 +12,7 @@ pub mod audit_contract;
 pub mod auth;
 pub mod directory;
 pub mod error;
+pub mod library;
 pub mod notifications;
 pub mod settings;
 pub mod system;
@@ -31,6 +32,7 @@ pub struct AppState {
     /// Outbox dispatcher (BPMS-029); runs in the worker role (`serve --all`).
     pub dispatcher: Option<Arc<procera_db::dispatch::Dispatcher<crate::bus::AppBus>>>,
     pub notify: Option<procera_notify::Notify>,
+    pub library: Option<procera_library::Library>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -95,6 +97,11 @@ impl AppState {
             };
             self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));
             self.notify = Some(notify);
+            self.library = Some(procera_library::Library::new(
+                db.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            ));
             self.members = Some(members);
         }
         self
@@ -112,6 +119,7 @@ impl AppState {
             members: None,
             dispatcher: None,
             notify: None,
+            library: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -138,6 +146,7 @@ impl AppState {
             members: None,
             dispatcher: None,
             notify: None,
+            library: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -161,6 +170,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", settings::router())
         .nest("/api/v1", directory::router())
         .nest("/api/v1", notifications::router())
+        .nest("/api/v1", library::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

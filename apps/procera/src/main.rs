@@ -193,9 +193,30 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
+            // Scheduler role: publish scheduled library versions when their effective date arrives.
+            let scheduler = match (&state.library, all) {
+                (Some(l), true) => {
+                    let l = l.clone();
+                    let mut rx = stop_rx.clone();
+                    Some(tokio::spawn(async move {
+                        loop {
+                            match l.publish_due().await {
+                                Ok(0) => {}
+                                Ok(n) => tracing::info!(published = n, "scheduled versions published"),
+                                Err(e) => tracing::error!(error = %e, "scheduled publication pass failed"),
+                            }
+                            tokio::select! {
+                                _ = rx.wait_for(|stop| *stop) => return,
+                                () = tokio::time::sleep(std::time::Duration::from_secs(5)) => {}
+                            }
+                        }
+                    }))
+                }
+                _ => None,
+            };
             axum::serve(listener, http::router(state)).with_graceful_shutdown(shutdown_signal()).await?;
             let _ = stop_tx.send(true);
-            for w in [worker, mail_worker].into_iter().flatten() {
+            for w in [worker, mail_worker, scheduler].into_iter().flatten() {
                 let _ = w.await;
             }
         }

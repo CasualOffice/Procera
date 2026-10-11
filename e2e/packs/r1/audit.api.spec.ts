@@ -112,6 +112,22 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/members/import', () => own.post('/api/v1/members/import?mode=apply', { headers: { ...oh, 'content-type': 'text/csv' }, data: `email,title\n${adamEmail},Reviewer\n` }));
   await step('DELETE', '/api/v1/departments/{id}', () => own.delete(`/api/v1/departments/${dept.id}`, { headers: oh }));
 
+  // Library: Adam reviews as a reviewer (granted outside the contract steps).
+  await own.post('/api/v1/role-grants', { headers: oh, data: { membership_id: joined.membership_id, role_key: 'reviewer' } });
+  const adamWs = await (await adam.post('/api/v1/session/workspace', { headers: bearer(adamLogin.access_token), data: { workspace_id: ws.id } })).json();
+  const ah = bearer(adamWs.access_token);
+  const sop = await (await step('POST', '/api/v1/artifacts', () => own.post('/api/v1/artifacts', { headers: oh, data: { kind: 'sop', key: 'audit.sop', title: 'Audit SOP', content: { blocks: [{ type: 'paragraph', text: 'v1' }] } } }))).json();
+  await step('PATCH', '/api/v1/versions/{id}', () => own.patch(`/api/v1/versions/${sop.version.id}`, { headers: oh, data: { content: { blocks: [{ type: 'paragraph', text: 'v1.1' }] } } }));
+  await step('POST', '/api/v1/versions/{id}/submit', () => own.post(`/api/v1/versions/${sop.version.id}/submit`, { headers: oh }));
+  await step('POST', '/api/v1/versions/{id}/publish', () => own.post(`/api/v1/versions/${sop.version.id}/publish`, { headers: oh, data: {} }));
+  const pol = await (await own.post('/api/v1/artifacts', { headers: oh, data: { kind: 'policy', key: 'audit.policy', title: 'Audit policy', criticality: 'controlled', content: { blocks: [{ type: 'paragraph', text: 'p' }] } } })).json();
+  await own.post(`/api/v1/versions/${pol.version.id}/submit`, { headers: oh });
+  await step('POST', '/api/v1/versions/{id}/withdraw', () => own.post(`/api/v1/versions/${pol.version.id}/withdraw`, { headers: oh }));
+  await own.post(`/api/v1/versions/${pol.version.id}/submit`, { headers: oh });
+  await step('POST', '/api/v1/versions/{id}/reviews', () => adam.post(`/api/v1/versions/${pol.version.id}/reviews`, { headers: ah, data: { decision: 'approve' } }));
+  await step('POST', '/api/v1/versions/{id}/retire', () => own.post(`/api/v1/versions/${sop.version.id}/retire`, { headers: oh, data: { reason: 'drill' } }));
+  await step('POST', '/api/v1/artifacts/{id}/versions', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/versions`, { headers: oh }));
+
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
   // Notifications (exempt: personal read state). Adam's join put a notification in the owner's inbox.
