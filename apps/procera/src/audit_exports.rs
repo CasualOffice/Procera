@@ -110,6 +110,8 @@ impl AuditExports {
         if done.state != "clean" {
             return Err(format!("the export file is {}", done.state));
         }
+        // Held by its job, so the orphan purge (FR-F07) never takes a ready export away.
+        self.files.link(tx, &actor, file.id, "audit_export", *id).await.map_err(|e| e.to_string())?;
         sqlx::query("UPDATE audit_export_jobs SET state = 'done', rows = $2, file_id = $3, finished_at = $4 WHERE id = $1")
             .bind(id).bind(i64::try_from(rows).unwrap_or(i64::MAX)).bind(file.id).bind(self.clock.now()).execute(tx.conn()).await.map_err(|e| e.to_string())?;
         let mut ev = AuditEvent::new(

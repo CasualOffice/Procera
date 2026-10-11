@@ -36,7 +36,7 @@ test.describe('audit query and background exports @r1 @audit', () => {
   });
 
   test('E2E-R1-AUDX-08 a background export runs past the synchronous cap path, stores an encrypted file the requester downloads, notifies and is audited', async ({ request }) => {
-    const { owner } = await workspaceWithOwner(request);
+    const { ws, owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'sop', key: 'x.export', title: 'Exported', content: { blocks: [] } } });
     const queued = await owner.c.post('/api/v1/audit/exports', { headers: h, data: { format: 'csv', filters: { category: 'content' }, background: true } });
@@ -52,6 +52,10 @@ test.describe('audit query and background exports @r1 @audit', () => {
     const csv = await (await request.get(url)).text();
     expect(csv.split('\r\n')[0]).toMatch(/^seq,occurred_at,actor_subject_ref/);
     expect(csv).toContain(',content,');
+    // The job holds its file: weeks later it is still not an orphan, so it is never purged.
+    await request.post('/__test/files/backdate', { data: { workspace: ws.id, file: job.file_id, seconds: 60 * 86_400 } });
+    const orphans = await (await owner.c.get('/api/v1/files/orphans', { headers: h })).json();
+    expect(orphans.items.map((f: { id: string }) => f.id)).not.toContain(job.file_id);
     const list = await (await owner.c.get('/api/v1/audit/exports', { headers: h })).json();
     expect(list.items[0]).toMatchObject({ id, state: 'done' });
     const inbox = await (await owner.c.get('/api/v1/notifications', { headers: h })).json();
