@@ -2,18 +2,20 @@ import { Placeholder } from '@tiptap/extension-placeholder';
 import { TableKit } from '@tiptap/extension-table';
 import { EditorContent, useEditor, useEditorState } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Bold, Heading2, Heading3, Italic, Link2, List, ListOrdered, MessageSquareQuote, Pilcrow, Table2 } from 'lucide-react';
+import { Bold, Heading2, Heading3, ImagePlus, Italic, Link2, List, ListOrdered, MessageSquareQuote, Pilcrow, Table2 } from 'lucide-react';
 import { useState } from 'react';
 import { type Block, fromEditor, toEditor } from '../lib/blocks';
+import { ProcImage } from './DocImageNode';
+import { ImagePicker } from './ImagePicker';
 import './doc-editor.css';
 
 /**
  * Block editor for SOPs and policies (BPMS-042, ADR-0013; TipTap core, MIT). Edits the portable block
- * model: headings, paragraphs, bullet and numbered lists, callouts, tables, bold, italic and links.
+ * model: headings, paragraphs, bullet and numbered lists, callouts, tables, images, bold, italic and links.
  * The toolbar is a single tab stop (arrow keys move between buttons); every button has a name,
  * a pressed state and a keyboard shortcut shown in its tooltip.
  */
-export function DocEditor({ initial, onChange, label = 'Content' }: { initial: Block[]; onChange: (blocks: Block[]) => void; label?: string }) {
+export function DocEditor({ initial, onChange, label = 'Content', versionId }: { initial: Block[]; onChange: (blocks: Block[]) => void; label?: string; /** Enables images (attachments of this draft). */ versionId?: string }) {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -26,6 +28,7 @@ export function DocEditor({ initial, onChange, label = 'Content' }: { initial: B
         link: { openOnClick: false, autolink: true, protocols: ['mailto'], HTMLAttributes: { rel: 'noopener noreferrer', target: null } },
       }),
       TableKit.configure({ table: { resizable: false } }),
+      ProcImage,
       Placeholder.configure({ placeholder: 'Write the purpose, scope and steps. Type # for a heading, - for a list.' }),
     ],
     content: toEditor(initial),
@@ -49,6 +52,7 @@ export function DocEditor({ initial, onChange, label = 'Content' }: { initial: B
     }),
   });
   const [linking, setLinking] = useState(false);
+  const [picking, setPicking] = useState(false);
   const [href, setHref] = useState('');
   if (!editor || !s) return null;
   const c = () => editor.chain().focus();
@@ -64,6 +68,7 @@ export function DocEditor({ initial, onChange, label = 'Content' }: { initial: B
     { name: 'Numbered steps', key: '⇧⌘7', icon: ListOrdered, on: s.ordered, run: () => c().toggleOrderedList().run() },
     { name: 'Callout', key: '⇧⌘B', icon: MessageSquareQuote, on: s.callout, run: () => c().toggleBlockquote().run() },
     { name: 'Table', key: '', icon: Table2, on: s.table, run: () => c().insertTable({ rows: 3, cols: 2, withHeaderRow: true }).run() },
+    ...(versionId ? [{ name: 'Image', key: '', icon: ImagePlus, on: false, run: () => setPicking(true) }] : []),
   ];
 
   const applyLink = () => {
@@ -105,6 +110,7 @@ export function DocEditor({ initial, onChange, label = 'Content' }: { initial: B
         </form>
       )}
       <EditorContent editor={editor} />
+      {versionId && <ImagePicker versionId={versionId} isOpen={picking} onClose={() => setPicking(false)} onInsert={(img) => c().insertContent({ type: 'procImage', attrs: img }).run()} />}
     </div>
   );
 }

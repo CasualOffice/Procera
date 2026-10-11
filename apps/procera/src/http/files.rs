@@ -59,7 +59,7 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(500, "internal", "Internal error")
 }
 
-fn files(s: &AppState) -> Result<&Files, ApiError> {
+pub(super) fn files(s: &AppState) -> Result<&Files, ApiError> {
     s.files.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 

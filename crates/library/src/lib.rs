@@ -546,6 +546,11 @@ impl Library {
             ));
         }
         check_content(content)?;
+        if !blocks::image_ids(content).is_empty() {
+            return Err(LibraryError::Invalid(
+                "attach images to the draft first, then add them to the content".into(),
+            ));
+        }
         let taken: bool =
             sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM artifacts WHERE kind = $1 AND key = $2)")
                 .bind(kind)
@@ -590,6 +595,21 @@ impl Library {
         let vid = self.ids.new_id();
         sqlx::query("INSERT INTO artifact_versions (workspace_id, id, artifact_id, version_no, lifecycle, content, created_by, created_at) VALUES ($1,$2,$3,$4,'draft',$5,$6,$7)")
             .bind(tx.ctx.workspace_id).bind(vid).bind(a.id).bind(no + 1).bind(&content).bind(actor.membership).bind(self.clock.now()).execute(tx.conn()).await?;
+        // The new draft starts from the previous content, so it keeps its attachments (and images).
+        sqlx::query(
+            "INSERT INTO file_links (workspace_id, file_id, object_type, object_id, linked_by, linked_at)
+             SELECT l.workspace_id, l.file_id, 'artifact_version', $1, $3, $4 FROM file_links l
+             JOIN artifact_versions p ON p.workspace_id = l.workspace_id AND p.id = l.object_id
+             WHERE l.object_type = 'artifact_version' AND p.artifact_id = $2 AND p.version_no = $5
+             ON CONFLICT DO NOTHING",
+        )
+        .bind(vid)
+        .bind(a.id)
+        .bind(actor.membership)
+        .bind(self.clock.now())
+        .bind(no)
+        .execute(tx.conn())
+        .await?;
         Self::refresh_state(tx, a.id).await?;
         self.audit(
             tx,
@@ -601,6 +621,34 @@ impl Library {
         )
         .await?;
         Ok(self.version(tx, vid, None).await?.0)
+    }
+
+    /// Every image block must show a clean image attached to this version (BPMS-042, A-28).
+    async fn ensure_images_attached(
+        tx: &mut WsTx<'_>,
+        version: Uuid,
+        content: &Value,
+    ) -> Result<(), LibraryError> {
+        let ids = blocks::image_ids(content);
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let ok: i64 = sqlx::query_scalar(
+            "SELECT count(DISTINCT f.id) FROM files f JOIN file_links l ON l.workspace_id = f.workspace_id AND l.file_id = f.id
+             WHERE l.object_type = 'artifact_version' AND l.object_id = $1 AND f.id = ANY($2)
+               AND f.state = 'clean' AND f.sniffed_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp')",
+        )
+        .bind(version)
+        .bind(&ids)
+        .fetch_one(tx.conn())
+        .await?;
+        let distinct = ids.iter().collect::<std::collections::BTreeSet<_>>().len();
+        if usize::try_from(ok).unwrap_or(0) != distinct {
+            return Err(LibraryError::Invalid(
+                "images must be clean PNG, JPEG, GIF or WebP files attached to this version".into(),
+            ));
+        }
+        Ok(())
     }
 
     /// Replaces a draft's content (optimistic concurrency on `revision`).
@@ -625,6 +673,7 @@ impl Library {
         {
             return Err(LibraryError::StaleRevision { current: r.12 });
         }
+        Self::ensure_images_attached(tx, id, content).await?;
         sqlx::query("UPDATE artifact_versions SET content = $2, last_activity_at = $3, revision = revision + 1 WHERE id = $1")
             .bind(id)
             .bind(content)

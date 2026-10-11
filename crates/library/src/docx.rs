@@ -158,6 +158,14 @@ pub fn blocks_docx(content: &Value, meta: &DocxMeta<'_>) -> Result<Vec<u8>, Stri
                     .collect();
                 doc = doc.add_table(Table::new(rows));
             }
+            // Pictures stay in the app for now; the document says what is there (alt text, caption).
+            "image" => {
+                let cap = b.get("caption").and_then(Value::as_str).filter(|c| !c.is_empty());
+                let line = format!("[Image: {text}]{}", cap.map(|c| format!(" {c}")).unwrap_or_default());
+                doc = doc.add_paragraph(
+                    Paragraph::new().add_run(Run::new().add_text(line).italic().color("5F5F5A")),
+                );
+            }
             _ => doc = doc.add_paragraph(para(text, b.get("runs"))),
         }
     }

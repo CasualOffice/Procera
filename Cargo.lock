@@ -2412,6 +2412,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "base64 0.22.1",
  "clap",
  "http-body-util",
  "procera-access",

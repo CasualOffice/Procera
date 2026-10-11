@@ -17,6 +17,9 @@ export interface Block {
   tone?: 'info' | 'warning';
   header?: boolean;
   rows?: string[][];
+  /** Image blocks: the attached file; `text` is the alt text. */
+  file_id?: string;
+  caption?: string;
 }
 
 interface PMMark { type: string; attrs?: Record<string, unknown> }
@@ -51,6 +54,8 @@ export function toEditor(blocks: Block[] = []): PMNode {
         };
       case 'callout':
         return { type: 'blockquote', content: [para(b.text ?? '', b.runs)] };
+      case 'image':
+        return { type: 'procImage', attrs: { fileId: b.file_id ?? '', alt: b.text ?? '', caption: b.caption ?? '' } };
       case 'table':
         return {
           type: 'table',
@@ -111,6 +116,17 @@ export function fromEditor(doc: PMNode): Block[] {
         if (n.type === 'orderedList') b.ordered = true;
         if (items.some((i) => i.runs)) b.item_runs = items.map((i) => i.runs ?? [{ text: i.text }]);
         out.push(b);
+        break;
+      }
+      case 'procImage': {
+        const fileId = String(n.attrs?.fileId ?? '');
+        const alt = String(n.attrs?.alt ?? '').trim();
+        if (fileId && alt) {
+          const b: Block = { type: 'image', file_id: fileId, text: alt };
+          const caption = String(n.attrs?.caption ?? '').trim();
+          if (caption) b.caption = caption;
+          out.push(b);
+        }
         break;
       }
       case 'blockquote': {

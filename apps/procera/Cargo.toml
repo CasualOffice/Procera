@@ -20,6 +20,7 @@ e2e = ["procera-kernel/test-clock"]
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
+base64 = "0.22"
 clap.workspace = true
 procera-kernel.workspace = true
 procera-cache.workspace = true

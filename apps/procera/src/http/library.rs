@@ -1042,6 +1042,20 @@ async fn export_version(
     let lib = library(&s)?;
     let (v, a) = lib.version(&mut tx, id, None).await?;
     lib.audit_export(&mut tx, &actor(&me, &headers), id, format).await?;
+    // The printable page is self-contained: images go in as data: URIs (metadata stripped, like previews).
+    let mut images = std::collections::HashMap::new();
+    if format == "html" {
+        use base64::Engine as _;
+        let svc = super::files::files(&s)?;
+        for fid in procera_library::blocks::image_ids(&v.content) {
+            if let Ok((_, ct, data)) = svc.preview(&mut tx, fid).await {
+                images.insert(
+                    fid.to_string(),
+                    format!("data:{ct};base64,{}", base64::engine::general_purpose::STANDARD.encode(data)),
+                );
+            }
+        }
+    }
     tx.commit().await.map_err(internal)?;
     let superseded = matches!(v.lifecycle.as_str(), "deprecated" | "retired");
     let slug: String = a
@@ -1141,6 +1155,7 @@ async fn export_version(
   table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }} th, td {{ border: 1px solid #d6d6d0; padding: .375rem .5rem; text-align: left; vertical-align: top; }}
   th {{ background: #f1f1ef; }}
   .callout {{ border-left: 3px solid #5f5f5a; background: #f6f6f4; padding: .5rem .875rem; margin: 1rem 0; }} .callout.warning {{ border-color: #b45309; }}
+  figure {{ margin: 1rem 0; }} figure img {{ max-width: 100%; height: auto; }} figcaption {{ color: #5f5f5a; font-size: .875rem; margin-top: .25rem; }}
   .superseded {{ border: 2px solid #b42318; color: #b42318; padding: .5rem .875rem; margin: 0 0 1.25rem; }}
   footer {{ margin-top: 2.5rem; padding-top: .75rem; border-top: 1px solid #e4e4e0; color: #5f5f5a; font-size: .75rem; }}
   @media print {{ body {{ margin: 0; max-width: none; }} a {{ color: inherit; }} }}
@@ -1160,7 +1175,7 @@ async fn export_version(
         published = published.map(|p| format!(" · published {p}")).unwrap_or_default(),
         status = esc(&v.lifecycle),
         banner = banner,
-        body = procera_library::blocks::blocks_html(&v.content),
+        body = procera_library::blocks::blocks_html_with(&v.content, &|fid| images.get(fid).cloned()),
         hash = v
             .content_hash
             .as_deref()

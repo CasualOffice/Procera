@@ -188,7 +188,7 @@ export function LibraryDoc({ id }: { id: string }) {
 
       {editing ? (
         <div className="stack">
-          <DocEditor initial={blocks} onChange={setEdited} />
+          <DocEditor initial={blocks} onChange={setEdited} versionId={v.id} />
           <div className="actions">
             <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}`, { method: 'PATCH', headers: { 'if-match': `"${v.revision}"` }, body: { content: { blocks: edited ?? blocks } } }), 'Saved.')}>Save draft</Button>
             <Button variant="secondary" onPress={() => setEditing(false)}>Cancel</Button>

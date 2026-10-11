@@ -56,6 +56,13 @@ pub fn block_text(b: &Value) -> String {
             .collect::<Vec<_>>()
             .join("\n");
     }
+    if b.get("type").and_then(Value::as_str) == Some("image") {
+        // Readers see the image by its description; swapping the picture is a change too.
+        let alt = b.get("text").and_then(Value::as_str).unwrap_or("");
+        let caption = b.get("caption").and_then(Value::as_str).map(|c| format!(" — {c}")).unwrap_or_default();
+        let file = b.get("file_id").and_then(Value::as_str).unwrap_or("");
+        return format!("[Image: {alt}{caption}] ({file})");
+    }
     match b.get("text").and_then(Value::as_str) {
         Some(t) => t.to_owned(),
         None => serde_json::to_string(b).unwrap_or_default(),

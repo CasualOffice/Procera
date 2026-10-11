@@ -1,8 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { hasDatabase } from '../../fixtures/accounts';
+import { PNG_1PX, upload } from '../../fixtures/files';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-LIB-14 — the block model is validated and exported (BPMS-042; ADR-0013).
+// E2E-R1-LIB-14, 15 — the block model is validated and exported (BPMS-042; ADR-0013).
 
 test.describe('block content @r1 @library', () => {
   test.beforeEach(async ({ request }) => {
@@ -62,5 +63,33 @@ test.describe('block content @r1 @library', () => {
     expect(await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=html`, { headers: h })).text()).toContain('<strong>Superseded.</strong> This is version 1, not the current version.');
     const audit = await (await owner.c.get('/api/v1/audit/events?action=version.exported', { headers: h })).json();
     expect(audit.items.length).toBeGreaterThanOrEqual(5);
+  });
+
+  test('E2E-R1-LIB-15 image blocks: only clean images attached to the draft, with a description; exports embed or describe them; a new version keeps them', async ({ request }) => {
+    const { owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'sop', key: 'ops.alarm', title: 'Alarm', content: { blocks: [{ type: 'paragraph', text: 'Enter the code.' }] } } })).json();
+    const png = await upload(owner, 'panel.png', PNG_1PX);
+    const txt = await upload(owner, 'notes.txt', Buffer.from('words'));
+    const img = (file_id: string, text = 'The alarm keypad by the front door') => ({ blocks: [{ type: 'paragraph', text: 'Enter the code.' }, { type: 'image', file_id, text, caption: 'Keypad' }] });
+    // Not attached yet → refused; attached text file → refused; no description → refused.
+    expect((await owner.c.patch(`/api/v1/versions/${r.version.id}`, { headers: h, data: { content: img(png.id) } })).status()).toBe(422);
+    for (const f of [png, txt]) await owner.c.post(`/api/v1/files/${f.id}/links`, { headers: h, data: { object_type: 'artifact_version', object_id: r.version.id } });
+    expect((await owner.c.patch(`/api/v1/versions/${r.version.id}`, { headers: h, data: { content: img(txt.id) } })).status()).toBe(422);
+    expect((await owner.c.patch(`/api/v1/versions/${r.version.id}`, { headers: h, data: { content: img(png.id, ' ') } })).status()).toBe(422);
+    const ok = await owner.c.patch(`/api/v1/versions/${r.version.id}`, { headers: h, data: { content: img(png.id) } });
+    expect(ok.status(), await ok.text()).toBe(200);
+
+    const html = await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=html`, { headers: h })).text();
+    expect(html).toMatch(/<figure><img src="data:image\/png;base64,[A-Za-z0-9+/=]+" alt="The alarm keypad by the front door"><figcaption>Keypad<\/figcaption><\/figure>/);
+    const md = await (await owner.c.get(`/api/v1/versions/${r.version.id}/export?format=md`, { headers: h })).text();
+    expect(md).toContain(`![The alarm keypad by the front door](attachment:${png.id})`);
+
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+    const v2 = await (await owner.c.post(`/api/v1/artifacts/${r.artifact.id}/versions`, { headers: h })).json();
+    const att = await (await owner.c.get(`/api/v1/versions/${v2.id}/attachments`, { headers: h })).json();
+    expect(att.items.map((f: { id: string }) => f.id)).toContain(png.id);
+    expect((await owner.c.patch(`/api/v1/versions/${v2.id}`, { headers: h, data: { content: img(png.id, 'The keypad, updated') } })).status()).toBe(200);
   });
 });

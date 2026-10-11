@@ -7,6 +7,8 @@
 //!         | {type:"list", ordered?, items:[string], item_runs?:[[run]]}
 //!         | {type:"callout", tone?:"info"|"warning", text, runs?}
 //!         | {type:"table", header?:bool, rows:[[string]]}
+//!         | {type:"image", file_id, text, caption?}  // `text` is the alt text (required, WCAG 1.1.1);
+//!                                                     // the file is a clean image attached to the version
 //! run     = {text, bold?, italic?, href?}     // inline formatting; `text` is always the plain text
 //! ```
 //! `text` stays the plain-text source of truth (diffs, search, re-ack hashes); `runs` only add
@@ -21,6 +23,7 @@ const MAX_TEXT: usize = 20_000;
 const MAX_ITEMS: usize = 500;
 const MAX_ROWS: usize = 200;
 const MAX_COLS: usize = 20;
+const MAX_ALT: usize = 300;
 
 fn invalid(m: impl Into<String>) -> LibraryError {
     LibraryError::Invalid(m.into())
@@ -144,6 +147,30 @@ pub fn validate(content: &Value) -> Result<(), LibraryError> {
                     }
                 }
             }
+            "image" => {
+                let alt = text_of(b, i)?;
+                if alt.trim().is_empty() || alt.chars().count() > MAX_ALT {
+                    return Err(invalid(format!(
+                        "block {i}: an image needs a description (alt text) of 1 to {MAX_ALT} characters"
+                    )));
+                }
+                let id = b.get("file_id").and_then(Value::as_str).unwrap_or("");
+                if uuid::Uuid::parse_str(id).is_err() {
+                    return Err(invalid(format!("block {i}: file_id must be the id of an attached image")));
+                }
+                if let Some(c) = b.get("caption")
+                    && !c.as_str().is_some_and(|c| c.chars().count() <= MAX_ALT)
+                {
+                    return Err(invalid(format!(
+                        "block {i}: caption must be text up to {MAX_ALT} characters"
+                    )));
+                }
+                for k in b.as_object().map(|o| o.keys().cloned().collect::<Vec<_>>()).unwrap_or_default() {
+                    if !matches!(k.as_str(), "type" | "file_id" | "text" | "caption") {
+                        return Err(invalid(format!("block {i}: unknown image field {k}")));
+                    }
+                }
+            }
             other => return Err(invalid(format!("block {i}: unknown block type {other:?}"))),
         }
     }
@@ -185,7 +212,13 @@ fn runs_html(text: &str, runs: Option<&Value>) -> String {
 }
 
 /// Accessible HTML for the blocks (no wrapper). Headings start at h2 under the document title.
+/// Images show their description in place of the picture; see [`blocks_html_with`].
 pub fn blocks_html(content: &Value) -> String {
+    blocks_html_with(content, &|_| None)
+}
+
+/// As [`blocks_html`], with `image_src(file_id)` giving each image's `src` (e.g. a data: URI).
+pub fn blocks_html_with(content: &Value, image_src: &dyn Fn(&str) -> Option<String>) -> String {
     let empty = vec![];
     let blocks = content.get("blocks").and_then(Value::as_array).unwrap_or(&empty);
     let mut o = String::new();
@@ -244,6 +277,19 @@ pub fn blocks_html(content: &Value) -> String {
                     o.push_str("</tbody>");
                 }
                 o.push_str("</table>\n");
+            }
+            "image" => {
+                let id = b.get("file_id").and_then(Value::as_str).unwrap_or("");
+                let caption = b.get("caption").and_then(Value::as_str).filter(|c| !c.is_empty());
+                o.push_str("<figure>");
+                match image_src(id) {
+                    Some(src) => o.push_str(&format!("<img src=\"{}\" alt=\"{}\">", esc(&src), esc(text))),
+                    None => o.push_str(&format!("<p class=\"image-alt\">[Image: {}]</p>", esc(text))),
+                }
+                if let Some(c) = caption {
+                    o.push_str(&format!("<figcaption>{}</figcaption>", esc(c)));
+                }
+                o.push_str("</figure>\n");
             }
             _ => o.push_str(&format!("<p>{}</p>\n", runs_html(text, b.get("runs")))),
         }
@@ -304,6 +350,15 @@ pub fn blocks_markdown(content: &Value) -> String {
                     .collect::<Vec<_>>()
                     .join("\n")
             }
+            "image" => {
+                let cap = b.get("caption").and_then(Value::as_str).filter(|c| !c.is_empty());
+                format!(
+                    "![{}](attachment:{}){}",
+                    text.replace(['[', ']'], ""),
+                    b.get("file_id").and_then(Value::as_str).unwrap_or(""),
+                    cap.map(|c| format!("\n\n_{c}_")).unwrap_or_default()
+                )
+            }
             "callout" => format!(
                 "> **{}:** {}",
                 if b.get("tone").and_then(Value::as_str) == Some("warning") { "Warning" } else { "Note" },
@@ -349,8 +404,47 @@ pub fn blocks_markdown(content: &Value) -> String {
     s
 }
 
+/// File ids of the image blocks, in order (to check they are attached to the version).
+pub fn image_ids(content: &Value) -> Vec<uuid::Uuid> {
+    content
+        .get("blocks")
+        .and_then(Value::as_array)
+        .map(|bs| {
+            bs.iter()
+                .filter(|b| b.get("type").and_then(Value::as_str) == Some("image"))
+                .filter_map(|b| {
+                    b.get("file_id").and_then(Value::as_str).and_then(|s| uuid::Uuid::parse_str(s).ok())
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn images_need_alt_text_and_render_as_figures() {
+        let id = "01920000-0000-7000-8000-000000000001";
+        let ok = serde_json::json!({"blocks": [{"type": "image", "file_id": id, "text": "Alarm panel <keypad>", "caption": "Front door"}]});
+        assert!(validate(&ok).is_ok());
+        for bad in [
+            serde_json::json!({"type": "image", "file_id": id, "text": " "}),
+            serde_json::json!({"type": "image", "file_id": "nope", "text": "x"}),
+            serde_json::json!({"type": "image", "file_id": id, "text": "x", "src": "https://evil"}),
+        ] {
+            assert!(validate(&serde_json::json!({"blocks": [bad]})).is_err());
+        }
+        assert_eq!(image_ids(&ok).len(), 1);
+        let plain = blocks_html(&ok);
+        assert!(
+            plain.contains("[Image: Alarm panel &lt;keypad&gt;]")
+                && plain.contains("<figcaption>Front door</figcaption>")
+        );
+        let html = blocks_html_with(&ok, &|_| Some("data:image/png;base64,AAAA".into()));
+        assert!(html.contains("<img src=\"data:image/png;base64,AAAA\" alt=\"Alarm panel &lt;keypad&gt;\">"));
+        assert!(blocks_markdown(&ok).starts_with(&format!("![Alarm panel <keypad>](attachment:{id})")));
+    }
+
     use super::*;
     use serde_json::json;
 

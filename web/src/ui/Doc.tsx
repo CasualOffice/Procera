@@ -1,4 +1,5 @@
 import type { Block, Run } from '../lib/blocks';
+import { DocImage } from './DocImage';
 import './doc-editor.css';
 
 function Runs({ text, runs }: { text?: string; runs?: Run[] }) {
@@ -33,6 +34,8 @@ export function DocBody({ blocks }: { blocks: Block[] }) {
           }
           case 'callout':
             return <aside key={i} className={`doc-callout ${b.tone ?? 'info'}`} aria-label={b.tone === 'warning' ? 'Warning' : 'Note'}><p><Runs text={b.text} runs={b.runs} /></p></aside>;
+          case 'image':
+            return b.file_id ? <DocImage key={i} fileId={b.file_id} alt={b.text ?? ''} caption={b.caption} /> : null;
           case 'table': {
             const rows = b.rows ?? [];
             const head = b.header !== false && rows.length > 0;
