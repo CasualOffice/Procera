@@ -8,8 +8,8 @@
 ```text
 Overall   █████████░░░░░░░░░░░░░░░░░░░░░  34/109 epics done  (31%)
 Partial   ███████████░░░░░░░░░░░░░░░░░░░  36% counting in-progress epics as half done
-Tests     167 automated E2E scenarios · 309 Rust tests (incl. property tests)
-Status    done 34 · in review 0 · in progress 10 · blocked 0 · not started 65 · deferred 0
+Tests     167 automated E2E scenarios · 333 Rust tests (incl. property tests)
+Status    done 34 · in review 0 · in progress 11 · blocked 0 · not started 64 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -40,6 +40,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-080 | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | **In progress** | procera-ir crate: IR v1 model, compiler with the docs/11 §11 checks (IR-E001..E034, E100, W001-W002, I001; JSON-pointer diagnostics), JCS canonical form + sha256 checksum, semantic diff with apply; a test per code, property tests, conformance/compiler fixtures, golden checksums for the reference processes (A-21). Expressions type-checked with procera-expr (check 7 complete; IR-E035/E036, A-26); checked forms in Compiled::expressions; reference fixtures in CEL with regenerated checksums. Remaining: type checking with the BPMS-081 engine, environment wiring at publish (BPMS-084), declared perpetual waits. |
 | BPMS-081 | Expression engine integration (typed, budgeted, WASM build) | **In progress** | procera-expr: a typed CEL subset of our own (A-22): static checker with null policy and exact decimal/money, budgeted pure evaluator (10k steps, 1 MiB, 64 KiB strings, 10k lists; exhaustion is IR-R010), stdlib, read sets with the restricted-in-event-facing check; wasm32 build checked; unit + property tests; docs/11 §6.1. Wired end to end: the IR compiler type-checks with it and the runtime CelEvaluator runs stored checked expressions (injected now/tz, budget → IR-R010). Remaining: business-time functions with calendars (BPMS-083). |
 | BPMS-082 | Interpreter: advance loop, tokens, splits/joins, end/terminate | **In progress** | procera-runtime: pure deterministic interpreter (Program, InstanceState, Stimulus) -> (state, commands) with injected Clock/IdGen; advance loop with a step budget (ContinueAdvance) and loop guard (IR-R004); start/end/terminate, set, decision (+rule tables via the Evaluator port), parallel split/join released exactly once, human.* work items, wait.timer/signal, service.call with typed error boundaries, notify, subprocess.call, case.open, timeout boundaries, cancel; commands with deterministic idempotency keys; unit tests per node kind, the five reference processes end to end, 22 conformance/runtime fixtures, property tests (replay, budgets, joins, terminate); docs/11 §15, A-23. Runs real CEL via CelEvaluator; conformance (24 cases) green on CEL and the stand-in; determinism property over compiled CEL. Remaining: persistence and timers (BPMS-083), work items (BPMS-085), incidents (BPMS-088), E2E once wired to the API. |
+| BPMS-083 | Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks | **In progress** | procera-engine + migration 0031: instances persisted (state JSONB, optimistic revision) with an append-only stimulus log and replay; advance = interpreter + state + log + effects (timers, advance jobs, outbox, pending effects) + SLA clocks + audit in one transaction; jobs with SKIP LOCKED claims, 30 s leases, fencing tokens checked on completion, backoff, dead letter, idempotency keys; scheduler run_once fires due timers once, lateness histogram for the 60 s SLO; business calendars (fixed offset, working days/hours, holidays) with property-tested arithmetic; SLA clocks start/pause/resume/stop/breach; unit, property and PostgreSQL integration tests; docs/04 §4.4, A-27..A-29. Remaining: wiring into the serve scheduler loop and /__test/drain, API/UI and E2E (BPMS-084/085+), encryption of restricted instance data, at-risk SLA state, IANA zones. |
 
 ## Done
 
@@ -152,7 +153,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-080** (P0, L) IR v1 model + compiler (§11 checks, diagnostics, semantic diff) **[In progress]**
 - [ ] **BPMS-081** (P0, M) Expression engine integration (typed, budgeted, WASM build) **[In progress]**
 - [ ] **BPMS-082** (P0, L) Interpreter: advance loop, tokens, splits/joins, end/terminate **[In progress]**
-- [ ] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks
+- [ ] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks **[In progress]**
 - [ ] **BPMS-084** (P0, M) Release bundles + publish integration
 - [ ] **BPMS-085** (P0, L) Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group
 - [ ] **BPMS-086** (P0, M) Delegation, OOO substitution, SoD re-check, send-back
@@ -267,4 +268,4 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | E2E scenarios (E2E) | 241 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 15 / 16 / 27 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 15 / 16 / 30 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
