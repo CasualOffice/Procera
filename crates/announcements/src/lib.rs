@@ -123,6 +123,11 @@ pub struct Compose {
     /// Defaults to the publication time plus `announcements.expiry.default`.
     #[serde(default, with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
+    /// Acknowledgement deadline (FR-AN04): only with `require_ack`, after the publication time and
+    /// no later than `expires_at`. When absent, the campaign that runs the acknowledgement uses
+    /// `campaign.default_due` from going live, capped at `expires_at` (A-32).
+    #[serde(default, with = "time::serde::rfc3339::option")]
+    pub ack_by: Option<OffsetDateTime>,
 }
 
 fn hex_opt<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
@@ -144,6 +149,9 @@ pub struct Announcement {
     pub priority: String,
     pub pinned: bool,
     pub require_ack: bool,
+    /// The deadline chosen while composing (the API reports the campaign's due date once live).
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub ack_by: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub publish_at: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339")]
@@ -179,7 +187,7 @@ impl Announcement {
     }
 }
 
-const COLS: &str = "id, title, content, content_hash, audience, priority, pinned, require_ack, publish_at, expires_at, state, approval_required, channels, author_membership_id, submitted_at, decided_by, decided_at, decision_comment, published_by, published_at, recipient_count, archived_at, archive_reason, created_at, revision";
+const COLS: &str = "id, title, content, content_hash, audience, priority, pinned, require_ack, ack_by, publish_at, expires_at, state, approval_required, channels, author_membership_id, submitted_at, decided_by, decided_at, decision_comment, published_by, published_at, recipient_count, archived_at, archive_reason, created_at, revision";
 
 /// One item of a member's feed, with their receipt.
 #[derive(Debug, Clone, PartialEq, Serialize, sqlx::FromRow)]
@@ -397,7 +405,18 @@ impl Announcements {
         if expires_at <= start {
             return Err(AnnouncementError::Invalid("expires_at must be after the publication time".into()));
         }
-        Ok((title, c.require_ack.unwrap_or(d.require_ack), expires_at))
+        let require_ack = c.require_ack.unwrap_or(d.require_ack);
+        if let Some(by) = c.ack_by {
+            if !require_ack {
+                return Err(AnnouncementError::Invalid("ack_by needs require_ack".into()));
+            }
+            if by <= start || by > expires_at {
+                return Err(AnnouncementError::Invalid(
+                    "ack_by must be after the publication time and no later than expires_at".into(),
+                ));
+            }
+        }
+        Ok((title, require_ack, expires_at))
     }
 
     /// Creates a draft.
@@ -410,17 +429,18 @@ impl Announcements {
     ) -> Result<Announcement, AnnouncementError> {
         let (title, require_ack, expires_at) = self.validate(tx, c, d).await?;
         let id = self.ids.new_id();
-        sqlx::query("INSERT INTO announcements (workspace_id, id, title, content, audience, priority, pinned, require_ack, publish_at, expires_at, author_membership_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)")
+        sqlx::query("INSERT INTO announcements (workspace_id, id, title, content, audience, priority, pinned, require_ack, publish_at, expires_at, author_membership_id, created_at, ack_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)")
             .bind(tx.ctx.workspace_id).bind(id).bind(&title).bind(&c.content).bind(json!(c.audience)).bind(&c.priority)
             .bind(c.pinned).bind(require_ack).bind(c.publish_at).bind(expires_at).bind(actor.membership).bind(self.clock.now())
-            .execute(tx.conn()).await?;
+            .bind(c.ack_by).execute(tx.conn()).await?;
         self.audit(
             tx,
             Some(actor),
             "announcement.created",
             id,
             json!({"priority": c.priority, "pinned": c.pinned, "require_ack": require_ack, "audience": c.audience,
-                   "publish_at": c.publish_at.map(|t| t.unix_timestamp()), "expires_at": expires_at.unix_timestamp()}),
+                   "publish_at": c.publish_at.map(|t| t.unix_timestamp()), "expires_at": expires_at.unix_timestamp(),
+                   "ack_by": c.ack_by.map(|t| t.unix_timestamp())}),
             None,
         )
         .await?;
@@ -450,16 +470,17 @@ impl Announcements {
             return Err(AnnouncementError::StaleRevision { current: a.revision });
         }
         let (title, require_ack, expires_at) = self.validate(tx, c, d).await?;
-        sqlx::query("UPDATE announcements SET title = $2, content = $3, audience = $4, priority = $5, pinned = $6, require_ack = $7, publish_at = $8, expires_at = $9, revision = revision + 1 WHERE id = $1")
+        sqlx::query("UPDATE announcements SET title = $2, content = $3, audience = $4, priority = $5, pinned = $6, require_ack = $7, publish_at = $8, expires_at = $9, ack_by = $10, revision = revision + 1 WHERE id = $1")
             .bind(id).bind(&title).bind(&c.content).bind(json!(c.audience)).bind(&c.priority).bind(c.pinned)
-            .bind(require_ack).bind(c.publish_at).bind(expires_at).execute(tx.conn()).await?;
+            .bind(require_ack).bind(c.publish_at).bind(expires_at).bind(c.ack_by).execute(tx.conn()).await?;
         self.audit(
             tx,
             Some(actor),
             "announcement.edited",
             id,
             json!({"priority": c.priority, "pinned": c.pinned, "require_ack": require_ack, "audience": c.audience,
-                   "publish_at": c.publish_at.map(|t| t.unix_timestamp()), "expires_at": expires_at.unix_timestamp()}),
+                   "publish_at": c.publish_at.map(|t| t.unix_timestamp()), "expires_at": expires_at.unix_timestamp(),
+                   "ack_by": c.ack_by.map(|t| t.unix_timestamp())}),
             None,
         )
         .await?;
@@ -825,6 +846,18 @@ impl Announcements {
         actor: &Actor,
         id: Uuid,
     ) -> Result<Receipt, AnnouncementError> {
+        self.acknowledge_with(tx, actor, id, json!({})).await
+    }
+
+    /// [`Self::acknowledge`], adding `extra` (an object) to the audit diff: the campaign
+    /// assignment the acknowledgement also completed, so one audit record covers both.
+    pub async fn acknowledge_with(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        id: Uuid,
+        extra: Value,
+    ) -> Result<Receipt, AnnouncementError> {
         let (read_at, acked_at, require_ack, hash) = self.live_receipt(tx, id, actor.membership).await?;
         if !require_ack {
             return Err(AnnouncementError::Conflict(
@@ -838,9 +871,22 @@ impl Announcements {
         sqlx::query("UPDATE announcement_recipients SET acked_at = $3, read_at = coalesce(read_at, $3), ack_ip = $4, ack_user_agent = $5 WHERE announcement_id = $1 AND membership_id = $2")
             .bind(id).bind(actor.membership).bind(now).bind(&actor.ip).bind(&actor.user_agent).execute(tx.conn()).await?;
         let hex: Option<String> = hash.map(|h| h.iter().map(|b| format!("{b:02x}")).collect());
-        self.audit(tx, Some(actor), "announcement.acknowledged", id, json!({"content_hash": hex}), None)
-            .await?;
+        let mut diff = json!({"content_hash": hex});
+        if let (Some(d), Some(e)) = (diff.as_object_mut(), extra.as_object()) {
+            d.extend(e.clone());
+        }
+        self.audit(tx, Some(actor), "announcement.acknowledged", id, diff, None).await?;
         Ok(Receipt { announcement_id: id, read_at: Some(read_at.unwrap_or(now)), acked_at: Some(now) })
+    }
+
+    /// The recipients recorded when it was published (its audience snapshot), by membership id.
+    pub async fn recipients(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Vec<Uuid>, AnnouncementError> {
+        Ok(sqlx::query_scalar(
+            "SELECT membership_id FROM announcement_recipients WHERE announcement_id = $1 ORDER BY membership_id",
+        )
+        .bind(id)
+        .fetch_all(tx.conn())
+        .await?)
     }
 
     /// Reach and receipts, overall and by department.
