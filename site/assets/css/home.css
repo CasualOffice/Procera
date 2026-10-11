@@ -170,7 +170,7 @@
 .blk.broken { border-color: var(--link); }
 .blk.broken::before { border-left-style: dashed !important; border-color: var(--link) !important; }
 .blk.broken .blk-p code { color: var(--link); text-decoration: line-through; }
-.blk.after { opacity: .6; }
+.blk.after { border-style: dashed; }
 .chain-ctl { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 1.25rem; }
 .chain-status { font-size: .875rem; display: inline-flex; gap: .5rem; align-items: center; color: var(--ok); font-weight: 500; }
 .chain-status .ok { width: .375rem; height: .6875rem; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) translateY(-.125rem); }
