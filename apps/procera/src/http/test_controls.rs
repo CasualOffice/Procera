@@ -165,7 +165,7 @@ struct Drained {
 /// this is immediately idle; BPMS-029 and BPMS-083 wire the real queues in.
 /// Drains the outbox (jobs and timers arrive with the runtime) and reports what is still pending.
 async fn drain(State(s): State<AppState>) -> Response {
-    // Scheduled publications that are due (the scheduler role), then the outbox.
+    // Scheduled publications (library versions, announcements) that are due, then the outbox.
     if let Some(l) = s.library.as_ref()
         && let Err(e) = l.publish_due().await
     {
@@ -174,6 +174,12 @@ async fn drain(State(s): State<AppState>) -> Response {
     // Campaign reminder steps and manager escalations that are due.
     if let Some(c) = s.campaigns.as_ref()
         && let Err(e) = c.run_due().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
+    }
+    // Scheduled announcements that are due.
+    if let Some(a) = s.announcements.as_ref()
+        && let Err(e) = a.publish_due().await
     {
         return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
     }

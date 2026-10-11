@@ -89,6 +89,25 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0">You receive this as their manager. <a href="{{ link }}">Open in Procera</a></p>{% endblock %}
 {% block footer %}Escalation from an acknowledgement campaign.{% endblock %}"#,
     ),
+    // BPMS-047: a published announcement reaches its recipients.
+    ("announcement.title", "{% if critical %}Critical: {% endif %}{{ title }}"),
+    (
+        "announcement.body",
+        "{{ author }} posted an announcement{% if require_ack %} that asks for your acknowledgement{% endif %}.",
+    ),
+    ("announcement.subject", "{% if critical %}[Critical] {% endif %}{{ title }}"),
+    (
+        "announcement.text",
+        "{{ author }} posted an announcement in {{ workspace }}:\n\n{{ title }}\n\n{% if require_ack %}Please read it and acknowledge it:{% else %}Read it:{% endif %}\n{{ link }}\n",
+    ),
+    (
+        "announcement.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 8px;font-size:14px;color:#5f5f5a">{{ author }} posted an announcement in {{ workspace }}{% if critical %} · <strong style="color:#1c1c1a">Critical</strong>{% endif %}</p>
+<p style="margin:0 0 24px;font-size:20px;font-weight:600">{{ title }}</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">{% if require_ack %}Read and acknowledge{% else %}Read announcement{% endif %}</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You received this because you are in the announcement's audience.{% endblock %}"#,
+    ),
 ];
 
 fn env() -> Result<Environment<'static>, NotifyError> {
@@ -150,6 +169,18 @@ mod tests {
             );
             assert!(!in_app(kind, &ctx).expect("renders").title.is_empty());
         }
+    }
+
+    #[test]
+    fn announcement_renders_in_app_and_email() {
+        let ctx = json!({"title": "Office <move>", "author": "Ann", "workspace": "Acme", "critical": true, "require_ack": true, "link": "https://x.test/announcements/1"});
+        let n = in_app("announcement", &ctx).expect("renders");
+        assert_eq!(n.title, "Critical: Office <move>");
+        assert!(n.body.contains("acknowledgement"));
+        let e = email("announcement", &ctx).expect("renders");
+        assert_eq!(e.subject, "[Critical] Office <move>");
+        assert!(e.html.contains("Office &lt;move&gt;") && e.html.contains("Read and acknowledge"));
+        assert!(e.text.contains("https://x.test/announcements/1"));
     }
 
     #[test]

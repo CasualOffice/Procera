@@ -6,6 +6,7 @@ use procera_kernel::Clock;
 use serde::Serialize;
 use std::sync::Arc;
 
+pub mod announcements;
 /// Route → audit contract; consumed by its unit test and the e2e audit pack only.
 #[cfg(any(test, feature = "e2e"))]
 pub mod audit_contract;
@@ -35,6 +36,7 @@ pub struct AppState {
     pub notify: Option<procera_notify::Notify>,
     pub library: Option<procera_library::Library>,
     pub campaigns: Option<procera_campaigns::Campaigns>,
+    pub announcements: Option<procera_announcements::Announcements>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -99,11 +101,17 @@ impl AppState {
                 Arc::new(procera_kernel::UuidV7Gen),
                 &self.public_url,
             );
+            let announcements = procera_announcements::Announcements::new(
+                db.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            );
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
                 notify: notify.clone(),
                 campaigns: campaigns.clone(),
+                announcements: announcements.clone(),
                 public_url: self.public_url.clone(),
             };
             self.campaigns = Some(campaigns);
@@ -114,6 +122,7 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             ));
+            self.announcements = Some(announcements);
             self.members = Some(members);
         }
         self
@@ -133,6 +142,7 @@ impl AppState {
             notify: None,
             library: None,
             campaigns: None,
+            announcements: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -161,6 +171,7 @@ impl AppState {
             notify: None,
             library: None,
             campaigns: None,
+            announcements: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -186,6 +197,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", notifications::router())
         .nest("/api/v1", library::router())
         .nest("/api/v1", campaigns::router())
+        .nest("/api/v1", announcements::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

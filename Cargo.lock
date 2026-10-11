@@ -2288,6 +2288,7 @@ dependencies = [
  "clap",
  "http-body-util",
  "procera-access",
+ "procera-announcements",
  "procera-audit",
  "procera-cache",
  "procera-campaigns",
@@ -2321,6 +2322,26 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "procera-announcements"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-audit",
+ "procera-db",
+ "procera-kernel",
+ "procera-members",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2",
  "sqlx",
  "thiserror",
  "time",
