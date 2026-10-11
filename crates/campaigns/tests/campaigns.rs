@@ -177,7 +177,7 @@ async fn launch_acknowledge_remind_escalate_enrol_and_export() -> anyhow::Result
     let a = &mine[0];
     assert_eq!(
         (a.subject.version_id, a.subject.content_hash.as_str(), a.subject.kind.as_str()),
-        (v1.id, hash.as_str(), "policy")
+        (Some(v1.id), hash.as_str(), "policy")
     );
     assert!(matches!(
         cmp.acknowledge(&mut tx, &ben, a.id, None, json!({})).await,
