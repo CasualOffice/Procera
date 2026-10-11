@@ -3,11 +3,14 @@ title: Security and self-hosting: Procera
 description: How Procera isolates workspaces, encrypts data, chains its audit log and signs people in, and what you need to host it yourself. Claims are limited to what is built and tested.
 nav: security
 -->
-<section class="page-head">
+<section class="page-head has-art">
   <div class="wrap">
-    <span class="eyebrow">Security and self-hosting</span>
-    <h1>Security you can read, run and verify</h1>
-    <p class="lede">Everything here describes the main branch and links to the design it implements. Where something is designed but not built, we say so. Procera supports the controls that security programmes look for; it isn't certified against any standard.</p>
+    <div>
+      <span class="eyebrow">Security and self-hosting</span>
+      <h1>Security you can read, run and verify</h1>
+      <p class="lede">Everything here describes the main branch and links to the design it implements. Where something is designed but not built, we say so. Procera supports the controls that security programmes look for; it isn't certified against any standard.</p>
+    </div>
+    <div class="head-art rv">{{ illus it }}</div>
   </div>
 </section>
 
@@ -18,7 +21,7 @@ nav: security
       <p>A workspace is a tenant. Every workspace table carries a <code>workspace_id</code> and has <strong>forced row-level security</strong> in PostgreSQL. Each transaction sets the workspace for that transaction only, and the server refuses to start if any workspace table lacks its policy. A cross-workspace test sweep (<code>E2E-R1-ISO</code>) checks that another workspace's records come back as not found.</p>
       <p>Workspace admins see and control everything in their workspace, and their reads of content are recorded. System administrators manage workspaces from a separate console and don't read workspace content.</p>
       <h3>Tracker</h3>
-      <p>Forced RLS and the sweep: BPMS-025, done. System console: BPMS-065, done.</p>
+      <p>Forced RLS and the sweep: BPMS-025, done. System console: BPMS-065, in progress.</p>
     </div>
     {{ shot people }}
   </div>
@@ -33,11 +36,13 @@ nav: security
         <li><strong>Built:</strong> local sealed root key, per-workspace KEKs, rotation, rewrap and shredding, the Encryption admin page (BPMS-030, in progress).</li>
         <li><strong>Not built yet:</strong> root keys in an external key service (OpenBao, cloud KMS) and automatic yearly rotation.</li>
       </ul>
+      <figure class="diagram rv">{{ illus envelope }}<figcaption>A file chunk is encrypted with a data key; the data key is wrapped by the workspace KEK.</figcaption></figure>
     </div>
     <div class="prose">
       <h2>Tamper-evident audit</h2>
       <p>Every mutation and every restricted read appends an event to a <strong>per-workspace hash chain</strong> (canonical JSON, SHA-256) in the same transaction as the change. The table is append-only, enforced by grants and a trigger. The audit explorer verifies the chain and shows it; exports need step-up and are themselves audited (BPMS-026 and BPMS-064, done).</p>
       <p>Signed checkpoints, RFC 3161 timestamps, WORM export and a standalone verifier are planned for R5 (BPMS-162).</p>
+      <div class="chain-inline">{{ chain }}</div>
     </div>
   </div>
 </section>

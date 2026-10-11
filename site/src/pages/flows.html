@@ -3,13 +3,16 @@ title: User flows: Procera
 description: Six step-by-step journeys through Procera, from onboarding to policy acknowledgement evidence, each verified end to end by an automated browser test.
 nav: flows
 -->
-<section class="page-head">
+<section class="page-head has-art">
   <div class="wrap">
-    <span class="eyebrow">User flows</span>
-    <h1>Journeys that are tested end to end today</h1>
-    <p class="lede">Each journey below is an automated Playwright test that drives the real web app in a browser against the real server, PostgreSQL and a mail catcher, clicking the links in the emails it receives. The test ids come from the E2E plan in <a href="{{ docs }}/23-E2E-TEST-PLAN.md">docs/23</a>; the build checks that each one exists in the test packs.</p>
-    {{ flows_toc }}
+    <div>
+      <span class="eyebrow">User flows</span>
+      <h1>Journeys that are tested end to end today</h1>
+      <p class="lede">Each journey below is an automated Playwright test that drives the real web app in a browser against the real server, PostgreSQL and a mail catcher, clicking the links in the emails it receives. The test ids come from the E2E plan in <a href="{{ docs }}/23-E2E-TEST-PLAN.md">docs/23</a>; the build checks that each one exists in the test packs.</p>
+    </div>
+    <div class="head-art rv">{{ illus employee }}</div>
   </div>
+  <div class="wrap">{{ flows_toc }}</div>
 </section>
 {{ flows }}
 <section class="section band" aria-labelledby="run-h">
