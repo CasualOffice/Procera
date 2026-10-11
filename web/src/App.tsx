@@ -10,6 +10,8 @@ import { Library } from './pages/Library';
 import { LibraryDoc } from './pages/LibraryDoc';
 import { Announcements } from './pages/Announcements';
 import { Members } from './pages/Members';
+import { AdminOverview } from './pages/AdminOverview';
+import { AdminPeople } from './pages/AdminPeople';
 import { SignIn } from './pages/SignIn';
 
 function Redirect({ to }: { to: string }) {
@@ -37,6 +39,8 @@ export function App() {
   const doc = match('/library/:id', path);
   if (doc) return <AppShell current="library" crumbs={['Library', 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
+  if (path === '/admin/overview') return <AppShell current="overview" crumbs={['Administration', 'Overview']}><AdminOverview /></AppShell>;
+  if (path === '/admin/people') return <AppShell current="people" crumbs={['Administration', 'People & access']}><AdminPeople /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={['Administration', 'Members']}><Members /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>

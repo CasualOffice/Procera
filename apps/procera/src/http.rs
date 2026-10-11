@@ -17,6 +17,7 @@ pub mod directory;
 pub mod error;
 pub mod library;
 pub mod notifications;
+pub mod overview;
 pub mod search;
 pub mod settings;
 pub mod system;
@@ -202,6 +203,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", announcements::router())
         .nest("/api/v1", search::router())
         .nest("/api/v1", audit::router())
+        .nest("/api/v1", overview::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Check, ChevronsUpDown, House, LogOut, Megaphone, Monitor, Moon, Sun, Users } from 'lucide-react';
+import { Bell, BookOpen, Check, ChevronsUpDown, Gauge, House, LogOut, Megaphone, Monitor, Moon, ShieldCheck, Sun, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -7,7 +7,7 @@ import { useSession } from '../lib/session';
 import { Avatar } from './Avatar';
 import './shell.css';
 
-export type NavKey = 'home' | 'inbox' | 'library' | 'announcements' | 'members' | 'none';
+export type NavKey = 'home' | 'inbox' | 'library' | 'announcements' | 'members' | 'overview' | 'people' | 'none';
 type Theme = 'auto' | 'light' | 'dark';
 
 function applyTheme(t: Theme) {
@@ -68,7 +68,11 @@ export function AppShell({
     { key: 'library' as const, label: 'Library', to: '/library', icon: BookOpen, show: can('policy:view') || can('sop:view') },
     { key: 'announcements' as const, label: 'Announcements', to: '/announcements', icon: Megaphone, show: can('announcement:view') },
   ];
-  const admin = [{ key: 'members' as const, label: 'Members', to: '/admin/members', icon: Users, show: can('member:invite') || can('role:view') }];
+  const admin = [
+    { key: 'overview' as const, label: 'Overview', to: '/admin/overview', icon: Gauge, show: can('monitoring:view_dashboards') },
+    { key: 'members' as const, label: 'Members', to: '/admin/members', icon: Users, show: can('member:invite') || can('role:view') },
+    { key: 'people' as const, label: 'People & access', to: '/admin/people', icon: ShieldCheck, show: can('monitoring:view_dashboards') && can('member:view') },
+  ];
   const groups = [
     { label: 'Workspace', items: work.filter((i) => i.show) },
     { label: 'Administration', items: admin.filter((i) => i.show) },
