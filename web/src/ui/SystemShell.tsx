@@ -4,6 +4,7 @@ import { ApiError, api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { type SystemMe, sysCan } from '../lib/system';
+import { MfaSetup } from '../pages/MfaSetup';
 import { Button } from './components/Button';
 import { Notice } from './components/Notice';
 import { Skeleton } from './States';
@@ -44,6 +45,16 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
   }, []);
   useEffect(() => { document.title = `${title} · System · Procera`; }, [title]);
 
+  // A system user without two-step verification enrols right here (docs/06 §3.6), then signs in again.
+  if (gate === 'mfa' && !user?.mfa_enabled) {
+    return (
+      <div className="auth">
+        <main id="main" className="auth-card" tabIndex={-1}>
+          <MfaSetup next="/system" intro="System administration needs two-step verification. Turn it on now with an authenticator app; it takes about a minute. Then sign in again to open the system console." />
+        </main>
+      </div>
+    );
+  }
   if (gate !== 'ok' || !me) {
     return (
       <div className="auth">
@@ -52,9 +63,10 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
             <>
               <h1>{gate === 'hidden' ? 'Page not found' : gate === 'mfa' ? 'Two-step verification required' : 'Couldn’t open the system console'}</h1>
               {gate === 'mfa'
-                ? <Notice tone="warning" title="System administration needs two-step verification">Turn it on for your account, then sign in again.</Notice>
+                ? <Notice tone="warning" title="System administration needs two-step verification">It’s on for your account. Sign in again to use it.</Notice>
                 : <p className="lede">{gate === 'hidden' ? 'This page doesn’t exist, or you don’t have access to it.' : 'Try again in a moment.'}</p>}
               <div className="actions">
+                {gate === 'mfa' && <Button onPress={async () => { await signOut(); navigate('/sign-in?next=/system', { replace: true }); }}>Sign in again</Button>}
                 <Link className="btn btn-secondary btn-md link-btn" to="/">Go to Procera</Link>
               </div>
             </>

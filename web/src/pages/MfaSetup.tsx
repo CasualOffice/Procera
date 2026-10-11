@@ -11,8 +11,11 @@ import { TextField } from '../ui/components/TextField';
 
 type Step = 'intro' | 'scan' | 'codes';
 
-/** Guided TOTP enrolment (docs/06 §3), shown when a workspace requires MFA for the member's role. */
-export function MfaSetup({ workspaceName }: { workspaceName: string }) {
+/**
+ * Guided TOTP enrolment (docs/06 §3), shown when a workspace requires MFA for the member's role, or
+ * when the system console requires it (`intro` explains why; `next` is where sign-in returns after).
+ */
+export function MfaSetup({ workspaceName, intro, next }: { workspaceName?: string; intro?: string; next?: string }) {
   const { signOut } = useSession();
   const [step, setStep] = useState<Step>('intro');
   const [secret, setSecret] = useState('');
@@ -53,7 +56,7 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
       <>
         <span className="mfa-badge"><ShieldCheck aria-hidden="true" size="1.25rem" /></span>
         <h1>Turn on two-step verification</h1>
-        <p className="lede">{workspaceName} asks people in your role to confirm sign-ins with a code from an authenticator app. It takes about a minute.</p>
+        <p className="lede">{intro ?? `${workspaceName ?? 'This workspace'} asks people in your role to confirm sign-ins with a code from an authenticator app. It takes about a minute.`}</p>
         {error && <Notice tone="danger" title={error} />}
         <ol className="mfa-steps">
           <li>Scan a QR code with an app such as 1Password, Google Authenticator or Microsoft Authenticator.</li>
@@ -95,7 +98,7 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
         <Button variant="secondary" onPress={download}><Download aria-hidden="true" size="0.9375rem" /> Download</Button>
         <Button variant="secondary" onPress={() => void navigator.clipboard?.writeText(codes.join('\n'))}><Copy aria-hidden="true" size="0.9375rem" /> Copy</Button>
       </div>
-      <Button className="btn-block" onPress={async () => { await signOut(); navigate('/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>
+      <Button className="btn-block" onPress={async () => { await signOut(); navigate(next ? `/sign-in?mfa=on&next=${encodeURIComponent(next)}` : '/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>
     </>
   );
 }

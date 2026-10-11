@@ -1,4 +1,4 @@
-import { Building2, Lock, PauseCircle, PlayCircle, SearchX, Trash2 } from 'lucide-react';
+import { Building2, Lock, PauseCircle, PlayCircle, Plus, SearchX, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../../lib/api';
@@ -15,6 +15,7 @@ import { useStepUp } from '../../ui/StepUp';
 import { useSystem } from '../../ui/SystemShell';
 import { Tag } from '../../ui/Tag';
 import { actionText, type AuditEvent } from '../Audit';
+import { type Created, NewWorkspaceDialog } from './NewWorkspaceDialog';
 import '../../ui/admin.css';
 
 const CHIPS: [string, string][] = [['', 'All'], ['active', 'Active'], ['provisioning', 'Provisioning'], ['suspended_ro', 'Read-only'], ['suspended_locked', 'Locked'], ['pending_deletion', 'Deletion scheduled']];
@@ -43,6 +44,9 @@ export function SystemWorkspaces() {
   const [profile, setProfile] = useState('');
   const [q, setQ] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<Created | null>(null);
+  const canWrite = sysCan(me.roles, 'workspace.write');
   const counts = useMemo(() => {
     const c: Record<string, number> = { '': items?.length ?? 0 };
     for (const w of items ?? []) c[w.state] = (c[w.state] ?? 0) + 1;
@@ -55,7 +59,15 @@ export function SystemWorkspaces() {
 
   return (
     <>
-      <div className="page-head"><div><h1>Workspaces</h1><p>Every workspace on this platform: lifecycle, size and activity. Content stays inside each workspace.</p></div></div>
+      <div className="page-head">
+        <div><h1>Workspaces</h1><p>Every workspace on this platform: lifecycle, size and activity. Content stays inside each workspace.</p></div>
+        {canWrite && <div className="page-actions"><Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New workspace</Button></div>}
+      </div>
+      {created && (
+        <div className="sys-created">
+          <Notice tone="success" title={`${created.name} was created`}>We emailed {created.ownerEmail} an invitation to own it. The workspace shows as Provisioning until they accept.</Notice>
+        </div>
+      )}
       <div className="sys-toolbar">
         <div className="filter-chips" role="group" aria-label="State">
           {CHIPS.map(([key, label]) => (
@@ -76,7 +88,7 @@ export function SystemWorkspaces() {
 
       {error ? <LoadError error={error} onRetry={reload} what="workspaces" /> : items === null ? <Skeleton variant="table" rows={6} label="Loading workspaces" /> : rows.length === 0 ? (
         filtered ? <Empty icon={SearchX} title="No workspaces match" action={<Button variant="secondary" onPress={() => { setState(''); setProfile(''); setQ(''); }}>Clear filters</Button>} />
-          : <Empty icon={Building2} title="No workspaces yet">Workspaces created through the system API appear here.</Empty>
+          : <Empty icon={Building2} title="No workspaces yet" action={canWrite ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New workspace</Button> : undefined}>Create one for each organisation, entity or department. Its owner is invited by email.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table" aria-label="Workspaces">
@@ -97,7 +109,8 @@ export function SystemWorkspaces() {
           </table>
         </div>
       )}
-      {open && <WorkspaceDrawer w={open} canWrite={sysCan(me.roles, 'workspace.write')} canAudit={sysCan(me.roles, 'audit.read')} onChanged={reload} onClose={() => setOpenId(null)} />}
+      {creating && <NewWorkspaceDialog onClose={() => setCreating(false)} onCreated={(c) => { setCreating(false); setCreated(c); setState(''); setProfile(''); setQ(''); reload(); }} />}
+      {open && <WorkspaceDrawer w={open} canWrite={canWrite} canAudit={sysCan(me.roles, 'audit.read')} onChanged={reload} onClose={() => setOpenId(null)} />}
     </>
   );
 }
