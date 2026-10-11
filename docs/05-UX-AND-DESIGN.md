@@ -276,6 +276,12 @@ DataGrid with columns: name, email, department, roles, MFA, last active, status.
 - **Directory:** department tree with drag-free moves (a "Move to…" menu), groups, positions, a manager chain viewer, CSV import with dry-run, and cycle detection errors.
 - **Settings:** sectioned forms with a sticky save bar showing unsaved changes. Platform-floor-locked fields show "Set by system admin". Branding includes accent colour with a live contrast check, blocking save below 4.5:1.
 - **Calendars:** year view of holidays, working hours per weekday, iCal import, and versions (only edits after publish create a new version).
+- **Settings as built (R1):**
+  - One page at `/admin/settings`: a section index on the left, and areas (Security and sign-in, Access, Documents and reviews, Campaigns, Announcements, Notifications, Directory, Branding, Language and region, Files, Requests) grouped by key prefix. The API does not return the catalogue `group`.
+  - Each setting is one row: a plain label and hint, the effective value, and its source when it isn't the product default.
+  - It is edited in place, one at a time, instead of through a page-wide save bar, because security keys need their own reason and step-up. The control follows the kind: switch, number, number plus unit, segmented choice (≤ 4 values) or select, chip set (with "Everyone" for `*`), one item per line, colour.
+  - "Why this value" opens the explainer (`GET /settings/effective?key=`): every layer, the one in effect, and a clamped note.
+  - Immediate (security) keys ask for a reason up front. Step-up keys open "Confirm it’s you" and retry. Keys without `editable_with` show "Set by the platform".
 
 ### 3.17 Admin · Files
 DataGrid of all workspace files with columns: name, type, size, owner, linked object, scan status, retention class, legal hold, last accessed.
@@ -304,6 +310,13 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
   - `Export signed bundle`
   - "Pin to investigation" is available from any audit row, file or request.
 - **Alerts:** a rule list (condition, threshold, recipients) with a "matches in the last 30 days" preview while editing, an alert inbox with acknowledgement, and anomaly signals (rule-based) linking to their events.
+- **Audit log as built (R1, `/admin/audit`, read-only):**
+  - A chain badge (`/audit/verify`).
+  - A filter bar (category, result, person, action, date range). Selects apply at once; text and dates apply with "Apply".
+  - 50 rows per page, with "Load older events" for keyset paging.
+  - A row expands in place to the full record: action key, reason, object, IP and agent, policies, trace, sequence and hash, and the redacted diff.
+  - The object cell opens that object's timeline in a side drawer.
+  - With only `audit:view_own`, a note says the list is limited to the member's own activity.
 
 ### 3.20 System Admin console
 - **Workspaces:** DataGrid with columns name, status, tier, members, active instances, storage, created, owner contact. Actions: create, suspend (read-only / locked), restore, schedule deletion (typed-confirmation plus grace period), change quotas.
@@ -366,6 +379,12 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
 - **Read receipts:** the sender sees viewed and acknowledged counts. Individual read lists are visible only to `announcement:view_receipts` holders (privacy).
 - **Campaign dashboard:** the shared tracker (§3.24) shows completion % by department and an overdue list.
 - **Scale:** startup mode is "post to everyone". MNC mode adds location and entity targeting, localised versions and approval before publishing for company-wide posts (configurable).
+- **As built (R1):**
+  - The feed shows a two-line preview, an unread dot with heavier weight, and the acknowledgement at the end of the expanded post. `?open=<id>` deep-links from Home.
+  - **Manage announcements** (`/admin/announcements`, Administration) has status tabs and an Attio-style table: title, status, audience, author, reach, updated.
+  - A row opens a side drawer with what happens next, properties, receipts (read and acknowledged %, by department) and the message. Actions depend on state and permission: Edit, Publish now or Schedule, Send for approval, Request changes, Approve and publish, Archive (reason).
+  - When a direct publish needs approval, the drawer explains why and offers "Send for approval".
+  - The composer has a title, a message (the same light markup as documents), the audience picker (Everyone, or departments, groups and roles as toggle chips), and options: acknowledgement, critical, pin, publish at, expires on. It always saves a draft first.
 
 ### 3.24 Acknowledgement & Signature campaigns (shared engine)
 One engine powers SOP and policy re-acknowledgement, announcement acknowledgement, attestations and bulk signing. The UX is therefore identical everywhere.
@@ -386,6 +405,13 @@ One engine powers SOP and policy re-acknowledgement, announcement acknowledgemen
     - Export the evidence (who / when / which version / method), signed (CMP-03).
 - **States:** a draft campaign shows the audience preview. A closed campaign is frozen as evidence.
 - **Scale:** the same screens serve 10 people or 50,000. At volume, the department table becomes a drill-down tree (entity › department › team).
+- **As built (R1):**
+  - **Campaigns** (`/admin/campaigns`) lists campaign, document and version, status, an acknowledged meter ("3 of 7"), overdue, audience and due date.
+  - **New campaign** offers a list of published documents (the current published version is used), a name prefilled from the document, the shared audience picker and an optional due date.
+  - The campaign page:
+    - Draft: shows the audience preview ("N people will be asked to acknowledge") and the statement, then Launch or Cancel.
+    - Active: a progress bar, four figures (acknowledged, pending, overdue, launched), an acknowledged-by-department table computed from recipients, and a people table with All, Pending, Overdue and Done filters.
+    - Actions: Remind pending, Close (reason), and the evidence CSV.
 
 ## 4. Shared DataGrid specification (FR-V01–V09)
 
