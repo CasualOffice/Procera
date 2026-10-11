@@ -4,7 +4,7 @@ import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 import { totp } from '../../fixtures/totp';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
-import { EICAR, PNG_1PX } from '../../fixtures/files';
+import { EICAR, PNG_1PX, upload } from '../../fixtures/files';
 import { uniqueEmail } from '../../fixtures/accounts';
 
 // E2E-R1 release gate (docs/23 §R1, BPMS-032): the scenarios whose features have shipped, run in
@@ -828,5 +828,127 @@ test.describe('R1 gate @r1 @ui', () => {
     expect((await request.get(link.url.replace(/.$/, (c: string) => (c === 'A' ? 'B' : 'A')))).status()).toBe(403);
     expect((await b.owner.c.get(`/api/v1/files/${att.id}/download-url`, { headers: b.owner.headers })).status()).toBe(404);
     expect((await b.owner.c.get(`/api/v1/files/${att.id}`, { headers: b.owner.headers })).status()).toBe(404);
+  });
+
+  test('E2E-R1-12 Files: filter by scan state and type, change the retention class of several files at once, and a held file cannot be deleted', async ({ page, request }) => {
+    const { ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'sop', key: 'ops.keys', title: 'Keys', content: { blocks: [{ type: 'paragraph', text: 'Keys.' }] } } })).json();
+    const held = await upload(owner, 'held.png', PNG_1PX);
+    await owner.c.post(`/api/v1/files/${held.id}/links`, { headers: h, data: { object_type: 'artifact_version', object_id: r.version.id } });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+    const a = await upload(owner, 'notes-a.txt', Buffer.from('a'));
+    const b = await upload(owner, 'notes-b.txt', Buffer.from('b'));
+    await upload(owner, 'eicar.txt', Buffer.from(EICAR));
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Files');
+    const grid = page.getByRole('table', { name: 'Files' });
+    // Scan state.
+    await page.getByRole('button', { name: /^Quarantined/ }).click();
+    await expect(grid.getByRole('row', { name: /eicar\.txt/ })).toBeVisible();
+    await expect(grid.getByRole('row', { name: /notes-a/ })).toHaveCount(0);
+    await page.getByRole('button', { name: /^All/ }).first().click();
+    // Type, through the grid's filter builder.
+    await page.getByRole('button', { name: /^Filter/ }).click();
+    const builder = page.getByRole('form', { name: 'Add a filter' });
+    await builder.getByLabel('Field').selectOption({ label: 'Name' });
+    await builder.getByLabel('Condition').selectOption({ label: 'contains' });
+    await builder.getByLabel('Value').fill('.txt');
+    await builder.getByRole('button', { name: 'Add filter' }).click();
+    await expect(grid.getByRole('row', { name: /held\.png/ })).toHaveCount(0);
+
+    // Bulk retention change with a reason.
+    for (const f of [a, b]) await grid.getByRole('checkbox', { name: `Select row ${f.id}` }).click();
+    await page.getByRole('button', { name: 'Change retention class' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Change retention class of 2 files' });
+    await dlg.getByLabel('Retention class').selectOption({ label: 'Operational' });
+    await dlg.getByLabel(/^Reason/).fill('Working notes');
+    await axe(page);
+    await dlg.getByRole('button', { name: 'Change class' }).click();
+    await expect(page.getByText('Retention class changed.')).toBeVisible();
+    await expect(grid.getByRole('row', { name: /notes-a/ })).toContainText('Operational (set by an admin)');
+    await expect(grid.getByRole('row', { name: /notes-b/ })).toContainText('Operational (set by an admin)');
+
+    // A file held by a published version is refused.
+    await page.getByRole('button', { name: /^Remove filter/ }).first().click();
+    await grid.getByRole('row', { name: /held\.png/ }).getByRole('button', { name: 'Delete held.png' }).click();
+    await expect(page.getByText(/a published or approved version uses this file/)).toBeVisible();
+    await expect(grid.getByRole('row', { name: /held\.png/ })).toBeVisible();
+    const audit = await (await owner.c.get('/api/v1/audit/events?action=file.retention_changed', { headers: h })).json();
+    expect(audit.items).toHaveLength(2);
+  });
+
+  test('E2E-R1-13 DataGrid: multi-sort, typed and grouped (AND/OR) filters, a view shared with a role, deep link restores it, CSV and XLSX export what is shown', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const rev = await member(request, owner, ws.id, 'rita', 'reviewer');
+    const docs: [string, string, string, boolean][] = [['policy', 'pol.alpha', 'Alpha policy', true], ['policy', 'pol.bravo', 'Bravo policy', false], ['sop', 'sop.charlie', 'Charlie SOP', true], ['sop', 'sop.delta', 'Delta SOP', false]];
+    for (const [kind, key, title, publish] of docs) {
+      const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind, key, title, content: { blocks: [{ type: 'paragraph', text: title }] } } })).json();
+      if (publish) { await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h }); await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} }); }
+    }
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Library');
+    const table = page.getByRole('table', { name: 'Documents' });
+    await expect(table.getByRole('row')).toHaveCount(5);
+
+    // Status is Published AND (Name contains "Alpha" OR Name contains "Charlie").
+    await page.getByRole('button', { name: /^Filter/ }).click();
+    let builder = page.getByRole('form', { name: 'Add a filter' });
+    await builder.getByLabel('Field').selectOption({ label: 'Status' });
+    await builder.getByLabel('Published').check();
+    await builder.getByRole('button', { name: 'Add filter' }).click();
+    for (const word of ['Alpha', 'Charlie']) {
+      await page.getByRole('button', { name: /^Filter/ }).click();
+      builder = page.getByRole('form', { name: 'Add a filter' });
+      await builder.getByLabel('Add to').selectOption({ label: word === 'Alpha' ? 'New group: match any (or)' : 'Group 1 (match any)' });
+      await builder.getByLabel('Field').selectOption({ label: 'Name' });
+      await builder.getByLabel('Condition').selectOption({ label: 'contains' });
+      await builder.getByLabel('Value').fill(word);
+      await builder.getByRole('button', { name: 'Add filter' }).click();
+    }
+    await expect(page.getByRole('group', { name: 'Filter group 1: match any' })).toBeVisible();
+    await expect(page.getByText(/and \(Name contains “Alpha” or Name contains “Charlie”\)/)).toBeVisible();
+    await expect(table.getByRole('row')).toHaveCount(3);
+    // Multi-sort: by type, then by name (shift-click adds a second key).
+    await table.getByRole('columnheader', { name: /Type/ }).getByRole('button').click();
+    await table.getByRole('columnheader', { name: /Name/ }).getByRole('button').click({ modifiers: ['Shift'] });
+    await expect(table.getByLabel('sort 2')).toBeVisible();
+    await axe(page);
+
+    // Save the view for Reviewers; the deep link brings it back for them.
+    await page.getByRole('button', { name: 'Save view' }).click();
+    const save = page.getByRole('dialog', { name: 'Save view' });
+    await save.getByLabel('Name').fill('Published A or C');
+    await save.getByText('A role…', { exact: true }).click();
+    await save.getByLabel('Role').selectOption({ label: 'Reviewer' });
+    await save.getByRole('button', { name: 'Save view' }).click();
+    await expect(page).toHaveURL(/[?&]view=/);
+    const deep = page.url();
+    const rp = await (await browser.newContext()).newPage();
+    await signInPassword(rp, rev.email);
+    await rp.goto(deep);
+    await expect(rp.getByRole('table', { name: 'Documents' }).getByRole('row')).toHaveCount(3);
+    await expect(rp.getByRole('group', { name: 'Filter group 1: match any' })).toBeVisible();
+
+    // Exports match the view: same rows, same columns.
+    const csvDl = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export', exact: true }).click();
+    const csv: string = (await import('node:fs')).readFileSync((await (await csvDl).path())!, 'utf8');
+    const lines = csv.trim().split(/\r?\n/);
+    expect(lines).toHaveLength(3);
+    expect(csv).toContain('Alpha policy');
+    expect(csv).toContain('Charlie SOP');
+    expect(csv).not.toContain('Bravo');
+    const xDl = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export XLSX' }).click();
+    const x = await xDl;
+    expect(x.suggestedFilename()).toMatch(/\.xlsx$/);
+    const head = (await import('node:fs')).readFileSync((await x.path())!).subarray(0, 2).toString('latin1');
+    expect(head).toBe('PK');
   });
 });
