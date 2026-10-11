@@ -331,6 +331,8 @@ impl Platform {
         if has_owner {
             return Err(PlatformError::AlreadyBootstrapped);
         }
+        // Refuse a weak password or a used email before the single-use token is spent.
+        self.identity.check_new_account(email, password).await?;
         let n = sqlx::query("UPDATE bootstrap_tokens SET used_at = $2 WHERE token_hash = $1 AND used_at IS NULL AND expires_at > $2")
             .bind(hash_token(token)).bind(self.clock.now()).execute(tx.conn()).await?.rows_affected();
         if n != 1 {

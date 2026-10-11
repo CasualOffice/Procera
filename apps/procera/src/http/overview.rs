@@ -49,6 +49,8 @@ struct RangeQuery {
     from: Option<OffsetDateTime>,
     #[serde(default, with = "time::serde::rfc3339::option")]
     to: Option<OffsetDateTime>,
+    /// Range length ending now on the server's clock (the browser's clock may differ).
+    days: Option<i64>,
     department: Option<Uuid>,
 }
 
@@ -62,7 +64,7 @@ async fn overview(
 ) -> Result<Json<Value>, ApiError> {
     let now = s.clock.now();
     let to = q.to.unwrap_or(now);
-    let from = q.from.unwrap_or(to - Duration::days(7));
+    let from = q.from.unwrap_or(to - Duration::days(q.days.unwrap_or(7).clamp(1, 366)));
     if from >= to || to - from > Duration::days(366) {
         return Err(invalid("from must be before to, at most 366 days apart"));
     }

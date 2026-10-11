@@ -34,9 +34,8 @@ export function AdminOverview() {
 
   useEffect(() => {
     setData(null); setFailed(false);
-    const to = new Date();
-    const from = new Date(to.getTime() - Number(days) * 86_400_000);
-    const qs = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+    // The server computes the range on its own clock.
+    const qs = new URLSearchParams({ days });
     if (department) qs.set('department', department);
     api<Overview>(`/api/v1/admin/overview?${qs}`).then(setData).catch(() => setFailed(true));
   }, [days, department]);

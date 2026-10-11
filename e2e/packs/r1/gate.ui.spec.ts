@@ -433,7 +433,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await rp.getByRole('button', { name: 'Approve' }).click();
     const confirm = rp.getByRole('dialog', { name: 'Confirm it’s you' });
     await expect(confirm).toBeVisible();
-    await confirm.getByRole('textbox').fill(totp(rv.secret, await serverNow(request)));
+    await confirm.getByRole("textbox").fill(totp(rv.secret, await serverNow(request), 1)); // the current step was used when the reviewer enrolled
     await confirm.getByRole('button', { name: /Verify|Confirm/ }).click();
     await expect(rp.getByRole('status').filter({ hasText: 'Approved.' })).toBeVisible();
 
@@ -509,5 +509,46 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.locator('.strip-item').filter({ hasText: 'without two-step verification' }).click();
     await expect(page.getByRole('button', { name: /^No two-step verification/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.getByRole('button', { name: /^No two-step verification/ }).locator('.filter-chip-count')).toHaveText(noMfa);
+  });
+
+  test('E2E-R1-10 announcement approval workflow: draft → approver → published to everyone; at expiry it leaves the feed and shows as expired', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const adm = await member(request, owner, ws.id, 'approver', 'workspace.admin');
+    const approver = await enter(adm.email, ws.id);
+    const reader = await member(request, owner, ws.id, 'reader');
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Manage announcements');
+    await page.getByRole('button', { name: 'New announcement' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New announcement' });
+    await dlg.getByLabel('Title').fill('Holiday calendar 2027');
+    await dlg.getByLabel('Message').fill('The holiday calendar for next year is out.');
+    await dlg.getByRole('button', { name: 'Save draft' }).click();
+    // Everyone-audience posts need someone else's approval: the drawer says so up front.
+    const drawer = page.getByRole('dialog', { name: 'Holiday calendar 2027' });
+    await expect(drawer.getByText('This one needs approval')).toBeVisible();
+    await drawer.getByRole('button', { name: 'Send for approval' }).click();
+    await expect(drawer.getByText('Waiting for approval', { exact: true })).toBeVisible();
+
+    // The approver (a second admin) approves it.
+    const list = await (await approver.c.get('/api/v1/announcements', { headers: approver.headers })).json();
+    const a = list.items.find((x: { title: string }) => x.title === 'Holiday calendar 2027');
+    expect((await approver.c.post(`/api/v1/announcements/${a.id}/approve`, { headers: approver.headers })).status()).toBe(200);
+    await request.post('/__test/drain');
+
+    const rp = await (await browser.newContext()).newPage();
+    await signInPassword(rp, reader.email);
+    await nav(rp, 'Announcements');
+    await expect(rp.getByRole('listitem').filter({ hasText: 'Holiday calendar 2027' })).toBeVisible();
+
+    // At its expiry it leaves the feed; admins see it as expired.
+    expect((await request.post('/__test/announcements/expire', { data: { workspace: ws.id, announcement: a.id } })).status()).toBe(204);
+    await rp.reload();
+    await expect(rp.getByRole('heading', { level: 1, name: 'Announcements' })).toBeVisible();
+    await expect(rp.getByText('Holiday calendar 2027')).toHaveCount(0);
+    await page.reload();
+    await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Holiday calendar 2027' }).click();
+    await expect(page.getByText('Expired: it no longer shows in people’s feeds.')).toBeVisible();
   });
 });

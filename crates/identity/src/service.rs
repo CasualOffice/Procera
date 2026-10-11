@@ -236,6 +236,19 @@ impl Identity {
         }))
     }
 
+    /// Whether `create_user` would accept this email and password, without creating anything (so a
+    /// one-time bootstrap token is not spent on an account that would be refused).
+    pub async fn check_new_account(&self, email: &str, password: &str) -> Result<(), IdentityError> {
+        let email = email.trim().to_lowercase();
+        password::check_policy(password, &email, self.cfg.min_password_len)?;
+        let taken: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM users WHERE email = $1)")
+            .bind(&email)
+            .fetch_one(self.db.pool())
+            .await
+            .map_err(|e| IdentityError::Internal(e.to_string()))?;
+        if taken { Err(IdentityError::EmailTaken) } else { Ok(()) }
+    }
+
     /// Creates a user with a password (bootstrap, invites, admin creation).
     pub async fn create_user(
         &self,

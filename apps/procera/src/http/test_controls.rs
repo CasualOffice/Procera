@@ -32,6 +32,7 @@ pub fn router() -> Router<AppState> {
         .route("/campaigns/backdate", post(backdate_campaign))
         .route("/library/backdate", post(backdate_artifact))
         .route("/library/due", post(make_version_due))
+        .route("/announcements/expire", post(expire_announcement))
         .route("/retention/backdate", post(backdate_retention))
         .route("/retention/run", post(run_retention))
         .route("/keys/rewrap", post(rewrap_keys))
@@ -127,6 +128,39 @@ async fn make_version_due(State(s): State<AppState>, Json(b): Json<VersionDue>) 
         .await
         .map_err(|e| e.to_string())?
         .rows_affected();
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AnnouncementExpire {
+    workspace: uuid::Uuid,
+    announcement: uuid::Uuid,
+}
+
+/// Ends a published announcement's time in the feed now (`expires_at` one second ago).
+async fn expire_announcement(State(s): State<AppState>, Json(b): Json<AnnouncementExpire>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let n = sqlx::query("UPDATE announcements SET expires_at = $2 WHERE id = $1 AND state = 'published' AND ack_by IS NULL")
+            .bind(b.announcement)
+            .bind(s.clock.now() - time::Duration::seconds(1))
+            .execute(tx.conn())
+            .await
+            .map_err(|e| e.to_string())?
+            .rows_affected();
         tx.commit().await.map_err(|e| e.to_string())?;
         Ok(n)
     }
