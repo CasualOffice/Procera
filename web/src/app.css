@@ -227,3 +227,43 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .mfa-secret code { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .04em; padding: 4px 8px; border-radius: 6px; background: var(--fill-hover); }
 .recovery { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 16px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--color-bg); }
 .recovery code { font-family: var(--font-mono); font-size: 13px; letter-spacing: .03em; }
+
+/* Dialogs render outside the app frame: give them the same controls and a neutral focus treatment. */
+.icon-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: var(--color-text-secondary); background: transparent; border: 0; cursor: pointer; transition: background-color 120ms, color 120ms; }
+.icon-btn:hover, .icon-btn[data-hovered] { background: var(--fill-hover); color: var(--color-text); }
+.icon-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-focus); }
+.sheet .field { max-width: none; gap: 6px; }
+.sheet .field-label { font-size: 13px; font-weight: var(--font-weight-medium); }
+.sheet .field-description { font-size: 12.5px; }
+.sheet .field-input { box-shadow: var(--shadow-xs); transition: border-color 120ms, box-shadow 120ms; }
+.sheet .field-input[data-hovered] { border-color: color-mix(in srgb, var(--color-text) 55%, var(--color-border-strong)); }
+.sheet .field-input[data-focused] { outline: none; border-color: var(--color-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 12%, transparent); }
+.sheet .field-input[data-focus-visible] { outline: none; }
+.sheet .btn[data-focus-visible], .radio-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-focus); }
+.sheet .btn-primary { box-shadow: var(--highlight), var(--shadow-sm); }
+.sheet .btn-secondary { background: var(--color-surface); border-color: var(--line); box-shadow: var(--shadow-xs); }
+.sheet .notice { border-radius: 8px; border-left-width: 3px; font-size: 13px; }
+.radio-card { transition: border-color 120ms, box-shadow 120ms, background-color 120ms; }
+.radio-card:hover { background: var(--color-bg); }
+
+/* Inbox rows: the whole row opens the item; "mark read" is a quiet icon that appears on hover/focus. */
+.inbox-row { position: relative; }
+.inbox-row .row-title a { text-decoration: none; }
+.inbox-row .row-title a::after { content: ''; position: absolute; inset: 0; }
+.inbox-row .mark-read { position: relative; z-index: 1; opacity: 0; }
+.inbox-row:hover .mark-read, .inbox-row:focus-within .mark-read { opacity: 1; }
+@media (hover: none) { .inbox-row .mark-read { opacity: 1; } }
+
+/* Small screens */
+.table-wrap { overflow-x: auto; }
+@media (max-width: 760px) {
+  .col-optional { display: none; }
+  .table td, .table th { padding: 0 10px; }
+  .callout { flex-direction: column; align-items: stretch; }
+  .callout .actions { margin-left: 0; }
+  .callout .actions .btn { width: 100%; }
+  .doc-title { font-size: 28px; line-height: 34px; }
+  .props { grid-template-columns: 112px 1fr; }
+  .doc-meta { margin-left: 0; width: 100%; }
+  .toolbar .search-input { min-width: 0; flex: 1; }
+}

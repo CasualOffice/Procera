@@ -12,6 +12,7 @@ import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { DocBody } from '../ui/Doc';
 import { StepUpDialog } from '../ui/StepUp';
+import { setCrumb } from '../ui/AppShell';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 
 interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
@@ -47,6 +48,7 @@ export function LibraryDoc({ id }: { id: string }) {
     }
   }, [id]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (data) { setCrumb(data.artifact.title); document.title = `${data.artifact.title} · Procera`; } return () => setCrumb(null); }, [data]);
 
   /** Runs an action; on `step_up_required` asks to verify and retries once. */
   const act = async (fn: () => Promise<unknown>, done: string) => {

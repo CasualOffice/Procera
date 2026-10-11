@@ -43,6 +43,13 @@ export function AppShell({
     }
   });
   useEffect(() => applyTheme(theme), [theme]);
+  const [crumbOverride, setCrumbOverride] = useState<string | null>(null);
+  useEffect(() => {
+    const on = (e: Event) => setCrumbOverride((e as CustomEvent<string | null>).detail);
+    window.addEventListener('procera:crumb', on);
+    return () => window.removeEventListener('procera:crumb', on);
+  }, []);
+  useEffect(() => setCrumbOverride(null), [current, crumbs.join('/')]);
 
   useEffect(() => {
     if (!workspace) return;
@@ -172,7 +179,7 @@ export function AppShell({
         <header className="topbar">
           <ol className="crumbs" aria-label="Breadcrumb">
             <li>{workspace.name}</li>
-            {crumbs.map((c) => <li key={c}>{c}</li>)}
+            {crumbs.map((c, i) => <li key={c}>{i === crumbs.length - 1 && crumbOverride ? crumbOverride : c}</li>)}
           </ol>
           <div className="topbar-actions">{actions}</div>
         </header>
@@ -197,4 +204,9 @@ export function PlainShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+/** Lets a page name the last breadcrumb (e.g. a document title). */
+export function setCrumb(title: string | null) {
+  window.dispatchEvent(new CustomEvent('procera:crumb', { detail: title }));
 }

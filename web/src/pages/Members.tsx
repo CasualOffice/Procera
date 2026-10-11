@@ -43,24 +43,24 @@ export function Members() {
       {members === null ? <div className="skeleton-list"><span /><span /><span /></div> : (
         <div className="table-wrap">
           <table className="table" aria-label="Members">
-            <thead><tr><th>Name</th><th>Roles</th><th>Title</th><th>Status</th><th>Joined</th></tr></thead>
+            <thead><tr><th>Name</th><th>Roles</th><th className="col-optional">Title</th><th>Status</th><th className="col-optional">Joined</th></tr></thead>
             <tbody>
               {rows.map((m) => (
                 <tr key={m.id}>
                   <td><span className="cell-entity"><Avatar name={m.display_name} size={28} /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{m.display_name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: 12 }}>{m.email}</span></span></span></td>
                   <td><span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{m.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
-                  <td className="cell-muted">{m.title ?? '—'}</td>
+                  <td className="cell-muted col-optional">{m.title ?? '—'}</td>
                   <td>{m.status === 'active' ? <Tag color="green" dot>Active</Tag> : <Tag color="gray" dot>Deactivated</Tag>}</td>
-                  <td className="cell-muted">{shortDate(m.joined_at)}</td>
+                  <td className="cell-muted col-optional">{shortDate(m.joined_at)}</td>
                 </tr>
               ))}
               {(invites ?? []).map((i) => (
                 <tr key={i.id}>
                   <td><span className="cell-entity"><Avatar name={i.email} size={28} tone="neutral" /><span>{i.email}</span></span></td>
                   <td><span style={{ display: 'inline-flex', gap: 4 }}>{i.role_keys.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
-                  <td className="cell-muted">—</td>
+                  <td className="cell-muted col-optional">—</td>
                   <td><Tag color="yellow" dot>Invited</Tag></td>
-                  <td className="cell-muted">expires {shortDate(i.expires_at)}</td>
+                  <td className="cell-muted col-optional">expires {shortDate(i.expires_at)}</td>
                 </tr>
               ))}
             </tbody>

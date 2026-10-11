@@ -1,18 +1,27 @@
-import { Bell, CheckCheck, UserPlus } from 'lucide-react';
+import { Bell, BookOpenCheck, Check, CheckCheck, Megaphone, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
-import { Link } from '../lib/router';
-import { Button } from '../ui/components/Button';
 import { timeAgo } from '../lib/format';
+import { Link, navigate } from '../lib/router';
+import { Button } from '../ui/components/Button';
 
 interface Notification { id: string; kind: string; title: string; body: string; link: string | null; read_at: string | null; created_at: string }
 
-/** The member's inbox (FR-N01). */
+const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
+  member_joined: { icon: UserPlus, tone: 'green' },
+  announcement: { icon: Megaphone, tone: 'orange' },
+  campaign_assigned: { icon: BookOpenCheck, tone: 'purple' },
+  campaign_reminder: { icon: BookOpenCheck, tone: 'purple' },
+  campaign_escalated: { icon: BookOpenCheck, tone: 'red' },
+};
+
+/** The member's inbox (FR-N01): opening an item marks it read. */
 export function Notifications() {
   const [items, setItems] = useState<Notification[] | null>(null);
   const load = useCallback(() => api<{ items: Notification[] }>('/api/v1/notifications').then((r) => setItems(r.items)), []);
   useEffect(() => { void load(); }, [load]);
   const unread = items?.filter((n) => !n.read_at).length ?? 0;
+  const markRead = async (id: string) => { await api(`/api/v1/notifications/${id}/read`, { method: 'POST' }); await load(); };
   return (
     <>
       <div className="page-head">
@@ -29,25 +38,29 @@ export function Notifications() {
       <section className="card" aria-label="Notifications">
         {items === null ? <div className="card-empty">Loading…</div> : items.length === 0 ? <div className="card-empty">No notifications yet.</div> : (
           <ul className="rows">
-            {items.map((n) => (
-              <li key={n.id}>
-                <span className={n.read_at ? 'read-dot' : 'unread-dot'} aria-hidden="true" />
-                <span className="row-icon">{n.kind === 'member_joined' ? <UserPlus aria-hidden="true" size={16} /> : <Bell aria-hidden="true" size={16} />}</span>
-                <div className="row-main">
-                  <p className="row-title" style={{ fontWeight: n.read_at ? 500 : 600 }}>
-                    {!n.read_at && <span className="visually-hidden">Unread: </span>}
-                    {n.link ? <Link to={n.link} style={{ textDecoration: 'none' }}>{n.title}</Link> : n.title}
-                  </p>
-                  <p className="row-sub">{n.body}</p>
-                </div>
-                <span className="row-meta"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></span>
-                {!n.read_at && (
-                  <Button variant="secondary" className="btn-sm" onPress={async () => { await api(`/api/v1/notifications/${n.id}/read`, { method: 'POST' }); await load(); }} aria-label={`Mark “${n.title}” as read`}>
-                    Mark read
-                  </Button>
-                )}
-              </li>
-            ))}
+            {items.map((n) => {
+              const k = KIND[n.kind] ?? { icon: Bell, tone: 'gray' };
+              const target = n.link ?? (n.kind === 'announcement' ? '/announcements' : null);
+              return (
+                <li key={n.id} className="inbox-row rows-link">
+                  <span className={n.read_at ? 'read-dot' : 'unread-dot'} aria-hidden="true" />
+                  <span className={`task-icon tag-${k.tone}`}><k.icon aria-hidden="true" size={16} /></span>
+                  <div className="row-main">
+                    <p className="row-title" style={{ fontWeight: n.read_at ? 500 : 600 }}>
+                      {!n.read_at && <span className="visually-hidden">Unread: </span>}
+                      {target ? <Link to={target} onClick={() => { if (!n.read_at) void markRead(n.id); }}>{n.title}</Link> : n.title}
+                    </p>
+                    <p className="row-sub">{n.body}</p>
+                  </div>
+                  <span className="row-meta"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></span>
+                  {!n.read_at && (
+                    <button type="button" className="icon-btn mark-read" onClick={() => void markRead(n.id)} aria-label={`Mark “${n.title}” as read`} title="Mark as read">
+                      <Check aria-hidden="true" size={16} />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

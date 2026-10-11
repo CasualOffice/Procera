@@ -107,16 +107,16 @@ export function Home() {
               ) : (
                 <div className="table-wrap">
                   <table className="table" aria-labelledby="lib">
-                    <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Owner</th></tr></thead>
+                    <thead><tr><th>Name</th><th className="col-optional">Type</th><th>Status</th><th className="col-optional">Owner</th></tr></thead>
                     <tbody>
                       {docs.slice(0, 6).map((d) => {
                         const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined;
                         return (
                           <tr key={d.id}>
                             <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
-                            <td><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
+                            <td className="col-optional"><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
                             <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
-                            <td>{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
+                            <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
                           </tr>
                         );
                       })}

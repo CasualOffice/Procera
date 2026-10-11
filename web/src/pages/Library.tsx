@@ -65,18 +65,18 @@ export function Library() {
       ) : (
         <div className="table-wrap">
           <table className="table" aria-label="Documents">
-            <thead><tr><th>Name</th><th>Type</th><th>Status</th><th>Owner</th><th>Criticality</th><th>Created</th></tr></thead>
+            <thead><tr><th>Name</th><th className="col-optional">Type</th><th>Status</th><th className="col-optional">Owner</th><th className="col-optional">Criticality</th><th className="col-optional">Created</th></tr></thead>
             <tbody>
               {rows.map((d) => {
                 const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined;
                 return (
                   <tr key={d.id}>
                     <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
-                    <td><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
+                    <td className="col-optional"><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
                     <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
-                    <td>{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
-                    <td>{d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>}</td>
-                    <td className="cell-muted">{shortDate(d.created_at)}</td>
+                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
+                    <td className="col-optional">{d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>}</td>
+                    <td className="cell-muted col-optional">{shortDate(d.created_at)}</td>
                   </tr>
                 );
               })}
