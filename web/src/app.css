@@ -692,3 +692,8 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .attachment-actions .prop-link, .attachment-actions .muted { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; }
 .upload-progress { height: 0.25rem; border-radius: 999px; background: var(--fill-hover); overflow: hidden; margin: 0.5rem 0; }
 .upload-progress span { display: block; height: 100%; background: var(--color-text); transition: width 120ms linear; }
+/* File preview (BPMS-061): the file sits on a quiet canvas, never wider or taller than the viewport allows. */
+.file-preview { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; min-height: 12rem; background: var(--color-bg); border: 1px solid var(--line-subtle); border-radius: 0.5rem; padding: 0.75rem; }
+.file-preview img { display: block; max-width: 100%; max-height: min(70vh, 45rem); object-fit: contain; border-radius: 0.25rem; background: var(--color-surface); }
+.file-preview iframe { display: block; width: 100%; height: min(70vh, 45rem); border: 1px solid var(--line); border-radius: 0.25rem; background: var(--color-surface); }
+.file-preview > .notice { align-self: stretch; }

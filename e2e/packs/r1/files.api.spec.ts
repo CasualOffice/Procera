@@ -1,10 +1,10 @@
 import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
-import { EICAR, upload } from '../../fixtures/files';
+import { EICAR, PNG_1PX, jpegWithExif, tinyPdf, upload } from '../../fixtures/files';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-FILE-01..03 — files pipeline (BPMS-060/062; FR-F01–F03, F05–F07).
+// E2E-R1-FILE-01..04 — files pipeline and previews (BPMS-060/061/062; FR-F01–F07).
 
 type Req = Parameters<typeof seedUser>[0];
 const doc = (text: string) => ({ blocks: [{ type: 'paragraph', text }] });
@@ -101,5 +101,72 @@ test.describe('files @r1 @files', () => {
     expect((await m.c.post('/api/v1/files/orphans/purge', { headers: m.headers })).status()).toBe(403);
     expect((await (await owner.c.post('/api/v1/files/orphans/purge', { headers: h })).json()).purged).toBe(1);
     expect((await owner.c.get(`/api/v1/files/${loose.id}`, { headers: h })).status()).toBe(404);
+  });
+
+  test('E2E-R1-FILE-04 images and PDFs preview inline under a strict sandbox; other types do not; preview links are their own short-lived credential', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const png = await upload(owner, 'diagram.png', PNG_1PX);
+    const pdf = await upload(owner, 'policy.pdf', tinyPdf());
+    const txt = await upload(owner, 'notes.txt', Buffer.from('plain words'));
+    const jpg = await upload(owner, 'site.jpg', jpegWithExif());
+    expect([png.sniffed_type, pdf.sniffed_type, jpg.sniffed_type]).toEqual(['image/png', 'application/pdf', 'image/jpeg']);
+
+    const strict = (got: { headers(): Record<string, string> }, type: string, name: string) => {
+      const hd = got.headers();
+      expect(hd['content-type']).toBe(type);
+      expect(hd['content-disposition']).toBe(`inline; filename="${name}"`);
+      expect(hd['content-security-policy']).toBe("sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'");
+      expect(hd['x-content-type-options']).toBe('nosniff');
+      expect(hd['cross-origin-resource-policy']).toBe('same-origin');
+      expect(hd['cache-control']).toBe('private, no-store');
+    };
+
+    const p = await (await owner.c.get(`/api/v1/files/${png.id}/preview-url`, { headers: h })).json();
+    expect(p.kind).toBe('image');
+    expect(p.url).toMatch(/^\/api\/v1\/files\/preview\//);
+    const left = Date.parse(p.expires_at) - (await serverNow(request));
+    expect(left).toBeGreaterThan(0);
+    expect(left).toBeLessThanOrEqual(2 * 60_000);
+    const gotPng = await request.get(p.url); // no bearer: the link is the credential
+    expect(gotPng.status()).toBe(200);
+    strict(gotPng, 'image/png', 'diagram.png');
+    expect(Buffer.from(await gotPng.body()).equals(PNG_1PX)).toBe(true);
+
+    const d = await (await owner.c.get(`/api/v1/files/${pdf.id}/preview-url`, { headers: h })).json();
+    expect(d.kind).toBe('pdf');
+    const gotPdf = await request.get(d.url);
+    expect(gotPdf.status()).toBe(200);
+    strict(gotPdf, 'application/pdf', 'policy.pdf');
+
+    // JPEG metadata (here a GPS position) is stripped from previews (files.exif_strip, on by default).
+    const j = await (await owner.c.get(`/api/v1/files/${jpg.id}/preview-url`, { headers: h })).json();
+    const gotJpg = await request.get(j.url);
+    expect(gotJpg.status()).toBe(200);
+    strict(gotJpg, 'image/jpeg', 'site.jpg');
+    const jpgBody = Buffer.from(await gotJpg.body());
+    expect(jpgBody.includes(Buffer.from('Exif'))).toBe(false);
+    expect(jpgBody.subarray(-5).equals(Buffer.from([0x12, 0x34, 0x56, 0xff, 0xd9]))).toBe(true);
+
+    // A text file has no preview and gets no link.
+    const t = await owner.c.get(`/api/v1/files/${txt.id}/preview-url`, { headers: h });
+    expect(t.status()).toBe(200);
+    expect(await t.json()).toMatchObject({ kind: 'none', url: null });
+
+    // A tampered token, or a download token used as a preview token, is refused.
+    const tampered = p.url.slice(0, -2) + (p.url.endsWith('A') ? 'BB' : 'AA');
+    expect((await request.get(tampered)).status()).toBe(403);
+    const { url: dl } = await (await owner.c.get(`/api/v1/files/${png.id}/download-url`, { headers: h })).json();
+    expect((await request.get(dl.replace('/files/download/', '/files/preview/'))).status()).toBe(403);
+
+    // Another member cannot preview the uploader's loose file.
+    const m = await member(request, owner, ws.id, 'previewpeer');
+    expect((await m.c.get(`/api/v1/files/${png.id}/preview-url`, { headers: m.headers })).status()).toBe(404);
+
+    // Previews are audited; the link expires after two minutes.
+    const audit = await (await owner.c.get('/api/v1/audit/events?action=file.previewed', { headers: h })).json();
+    expect(audit.items.length).toBeGreaterThanOrEqual(3);
+    await request.post('/__test/clock', { data: { advance: 'PT3M' } });
+    expect((await request.get(d.url)).status()).toBe(403);
   });
 });

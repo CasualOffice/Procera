@@ -9,9 +9,13 @@
 //!   the workspace).
 //! - **Downloads** use short-lived signed tokens bound to the file, workspace and member; the server
 //!   re-authorizes on every request.
+//! - **Previews** (BPMS-061, FR-F04) serve only clean PNG, JPEG, GIF, WebP and PDF files inline,
+//!   through their own token purpose (`file-preview`) with a shorter lifetime; JPEG metadata is
+//!   stripped on the way out when `files.exif_strip` is on.
 //! - **Immutability**: a file linked to a version that is no longer a draft cannot be unlinked or
 //!   deleted (FR-F05).
 
+pub mod exif;
 pub mod scan;
 pub mod sniff;
 pub mod store;
@@ -39,6 +43,45 @@ pub use store::LocalStore;
 pub const MAX_CHUNK: usize = 8 * 1024 * 1024;
 /// Signed download links live this long (FR-F03: ≤ 5 min).
 pub const DOWNLOAD_TTL: Duration = Duration::minutes(5);
+/// Preview links live this long: the dialog loads them at once, so they need not outlast a download link.
+pub const PREVIEW_TTL: Duration = Duration::minutes(2);
+
+/// How a sniffed type previews in the browser: `image` (an `<img>`) or `pdf` (the browser's viewer in
+/// a frame), with the exact content type to serve. A fixed allow-list: SVG, HTML and every other type
+/// are never served inline.
+pub fn preview_kind(sniffed: Option<&str>) -> Option<(&'static str, &'static str)> {
+    match sniffed? {
+        "image/png" => Some(("image", "image/png")),
+        "image/jpeg" => Some(("image", "image/jpeg")),
+        "image/gif" => Some(("image", "image/gif")),
+        "image/webp" => Some(("image", "image/webp")),
+        "application/pdf" => Some(("pdf", "application/pdf")),
+        _ => None,
+    }
+}
+
+/// What a signed file link lets its bearer do. Each purpose has its own MAC context, so a download
+/// token never verifies as a preview token or the other way round.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinkPurpose {
+    Download,
+    Preview,
+}
+
+impl LinkPurpose {
+    fn context(self) -> &'static str {
+        match self {
+            Self::Download => "file-download",
+            Self::Preview => "file-preview",
+        }
+    }
+    fn ttl(self) -> Duration {
+        match self {
+            Self::Download => DOWNLOAD_TTL,
+            Self::Preview => PREVIEW_TTL,
+        }
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum FileError {
@@ -367,34 +410,88 @@ impl Files {
         self.audit(tx, Some(actor), "file.downloaded", id, json!({}), Outcome::Allowed).await
     }
 
+    /// The bytes to preview and the content type to serve: clean files of an allow-listed type only,
+    /// with JPEG metadata removed when `files.exif_strip` is on. `Invalid` means "no preview".
+    pub async fn preview(
+        &self,
+        tx: &mut WsTx<'_>,
+        id: Uuid,
+    ) -> Result<(File, &'static str, Vec<u8>), FileError> {
+        let (f, data) = self.content(tx, id).await?;
+        // The recorded type and a fresh sniff of the stored bytes must agree before anything is inline.
+        let recorded = preview_kind(f.sniffed_type.as_deref());
+        let fresh = preview_kind(Some(sniff::sniff(&data[..data.len().min(4096)])));
+        let Some((_, ct)) = recorded.filter(|r| Some(*r) == fresh) else {
+            return Err(FileError::Invalid("this file type has no preview".into()));
+        };
+        if ct == "image/jpeg" && self.exif_strip(tx).await? {
+            let stripped =
+                exif::strip_jpeg(&data).ok_or_else(|| FileError::Invalid("the JPEG is malformed".into()))?;
+            return Ok((f, ct, stripped));
+        }
+        Ok((f, ct, data))
+    }
+
+    async fn exif_strip(&self, tx: &mut WsTx<'_>) -> Result<bool, FileError> {
+        Ok(self
+            .settings
+            .effective(tx, "files.exif_strip")
+            .await
+            .map_err(internal)?
+            .value
+            .as_bool()
+            .unwrap_or(true))
+    }
+
+    pub async fn record_preview(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<(), FileError> {
+        self.audit(tx, Some(actor), "file.previewed", id, json!({}), Outcome::Allowed).await
+    }
+
     // ---- signed download links ----
 
-    /// A token for `file` in `workspace` for `membership`, valid for [`DOWNLOAD_TTL`].
+    /// A download token for `file` in `workspace` for `membership`, valid for [`DOWNLOAD_TTL`].
     pub fn download_token(
         &self,
         workspace: Uuid,
         file: Uuid,
         membership: Uuid,
     ) -> Result<(String, OffsetDateTime), FileError> {
-        let exp = self.clock.now() + DOWNLOAD_TTL;
+        self.link_token(LinkPurpose::Download, workspace, file, membership)
+    }
+
+    /// Verifies a download token: (workspace, file, membership) when the MAC matches and it has not expired.
+    pub fn verify_token(&self, token: &str) -> Option<(Uuid, Uuid, Uuid)> {
+        self.verify_link(LinkPurpose::Download, token)
+    }
+
+    /// A token for `file` in `workspace` for `membership` and `purpose`, valid for the purpose's TTL.
+    pub fn link_token(
+        &self,
+        purpose: LinkPurpose,
+        workspace: Uuid,
+        file: Uuid,
+        membership: Uuid,
+    ) -> Result<(String, OffsetDateTime), FileError> {
+        let exp = self.clock.now() + purpose.ttl();
         let mut body = Vec::with_capacity(56);
         body.extend_from_slice(workspace.as_bytes());
         body.extend_from_slice(file.as_bytes());
         body.extend_from_slice(membership.as_bytes());
         body.extend_from_slice(&exp.unix_timestamp().to_be_bytes());
-        let m = mac(self.root.as_ref(), "file-download", &body).map_err(internal)?;
+        let m = mac(self.root.as_ref(), purpose.context(), &body).map_err(internal)?;
         body.extend_from_slice(&m);
         Ok((URL_SAFE_NO_PAD.encode(body), exp))
     }
 
-    /// Verifies a token: returns (workspace, file, membership) when the MAC matches and it has not expired.
-    pub fn verify_token(&self, token: &str) -> Option<(Uuid, Uuid, Uuid)> {
+    /// Verifies a token for `purpose`: (workspace, file, membership) when the MAC matches and it has
+    /// not expired.
+    pub fn verify_link(&self, purpose: LinkPurpose, token: &str) -> Option<(Uuid, Uuid, Uuid)> {
         let b = URL_SAFE_NO_PAD.decode(token).ok()?;
         if b.len() != 16 * 3 + 8 + 32 {
             return None;
         }
         let (body, m) = b.split_at(56);
-        let expect = mac(self.root.as_ref(), "file-download", body).ok()?;
+        let expect = mac(self.root.as_ref(), purpose.context(), body).ok()?;
         if !mac_eq(&expect, m) {
             return None;
         }
@@ -622,5 +719,30 @@ impl Files {
             "states": states.into_iter().collect::<std::collections::HashMap<_, _>>(),
             "scanner": self.scanner.name(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn previews_only_allow_listed_types() {
+        assert_eq!(preview_kind(Some("image/png")), Some(("image", "image/png")));
+        assert_eq!(preview_kind(Some("image/webp")), Some(("image", "image/webp")));
+        assert_eq!(preview_kind(Some("application/pdf")), Some(("pdf", "application/pdf")));
+        for t in ["image/svg+xml", "text/html", "text/plain", "application/zip", "application/octet-stream"] {
+            assert_eq!(preview_kind(Some(t)), None, "{t}");
+        }
+        assert_eq!(preview_kind(None), None);
+        // An SVG or HTML payload never sniffs as a previewable type, whatever it is named.
+        assert_eq!(preview_kind(Some(sniff::sniff(b"<svg onload=alert(1)>"))), None);
+        assert_eq!(preview_kind(Some(sniff::sniff(b"<html><script>x</script>"))), None);
+    }
+
+    #[test]
+    fn link_purposes_are_distinct_and_previews_are_shorter() {
+        assert_ne!(LinkPurpose::Download.context(), LinkPurpose::Preview.context());
+        assert!(LinkPurpose::Preview.ttl() < LinkPurpose::Download.ttl());
     }
 }

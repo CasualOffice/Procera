@@ -1,10 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { hasDatabase } from '../../fixtures/accounts';
-import { EICAR } from '../../fixtures/files';
+import { EICAR, PNG_1PX, upload } from '../../fixtures/files';
 import { axe, nav, signIn, WEB } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-UI-32..33 — files in the browser (BPMS-060/062).
+// E2E-R1-UI-32..34 — files in the browser (BPMS-060/061/062).
 
 test.describe('files @r1 @ui', () => {
   test.beforeEach(async ({ request }) => {
@@ -43,5 +43,34 @@ test.describe('files @r1 @ui', () => {
     await expect(row).toContainText('Quarantined');
     await expect(row.getByRole('button', { name: /^Download/ })).toHaveCount(0);
     await axe(page);
+  });
+
+  test('E2E-R1-UI-34 an author previews an image attachment in a dialog', async ({ page, request }) => {
+    const { ownerEmail, owner } = await workspaceWithOwner(request);
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: owner.headers, data: { kind: 'sop', key: 'ops.layout', title: 'Floor layout', content: { blocks: [{ type: 'paragraph', text: 'See the diagram.' }] } } })).json();
+    const png = await upload(owner, 'diagram.png', PNG_1PX);
+    const txt = await upload(owner, 'notes.txt', Buffer.from('plain words'));
+    for (const f of [png, txt]) {
+      expect((await owner.c.post(`/api/v1/files/${f.id}/links`, { headers: owner.headers, data: { object_type: 'artifact_version', object_id: r.version.id } })).status()).toBe(204);
+    }
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    const list = page.getByRole('region', { name: 'Attachments' });
+    await expect(list.getByRole('listitem').filter({ hasText: 'diagram.png' })).toBeVisible();
+    // Only previewable types offer Preview.
+    await expect(list.getByRole('button', { name: 'Preview notes.txt' })).toHaveCount(0);
+    const trigger = list.getByRole('button', { name: 'Preview diagram.png' });
+    await trigger.click();
+    const dialog = page.getByRole('dialog', { name: 'diagram.png' });
+    await expect(dialog).toBeVisible();
+    const img = dialog.getByRole('img', { name: 'Preview of diagram.png' });
+    await expect(img).toBeVisible();
+    await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBe(1);
+    await expect(img).toHaveAttribute('src', /^\/api\/v1\/files\/preview\//);
+    await axe(page);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    await expect(trigger).toBeFocused();
   });
 });

@@ -185,6 +185,8 @@ Root key (KMS / HSM / Vault-OpenBao Transit; self-host fallback: file key sealed
 
 **Files as built (BPMS-060).** Chunks are AES-256-GCM under a per-file DEK (AAD `files:<id>:<chunk>`); the DEK is an envelope under the workspace KEK, so rotation rewraps it and shredding destroys it. Storage keys are `ws/<workspace>/<file>/<chunk>` in the local store (`PROCERA_FILES_DIR`; an S3-compatible backend is next). Malware scanning uses clamd over TCP (`PROCERA_CLAMD_ADDR`, `INSTREAM`); without it, a built-in scanner detects only the EICAR test file and the server logs a warning. Types are sniffed from content; executables, scripts, HTML and SVG are always rejected. Download links are HMAC tokens valid 5 minutes, bound to file, workspace and member, re-authorized per request and served with `nosniff` and `CSP: sandbox`.
 
+**Previews as built (BPMS-061, FR-F04 P0 part).** Preview links are a separate token purpose (`file-preview`, its own HMAC context, so a download token never verifies as a preview token and the other way round), valid 2 minutes, bound to file, workspace and member and re-authorized per request exactly like downloads (active member, `file:download`, can see the file). Only clean files whose recorded type **and** a fresh sniff of the stored bytes are PNG, JPEG, GIF, WebP or PDF are served inline; anything else is 415, and SVG and HTML can never qualify (they are rejected at upload and are not on the allow-list). The `Content-Type` comes from the allow-list, never from stored metadata. Response headers: `Content-Disposition: inline`, `Content-Security-Policy: sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'`, `X-Content-Type-Options: nosniff`, `Cross-Origin-Resource-Policy: same-origin`, `Referrer-Policy: no-referrer`, `Cache-Control: private, no-store`. Every preview is audited `file.previewed`. With `files.exif_strip` on (the default), JPEG APP1 (Exif, XMP), APP13 (IPTC) and comment segments are removed from the preview bytes by a dependency-free segment walker that copies the image data unchanged and refuses malformed files; the EXIF orientation tag goes with them, so sideways phone photos preview unrotated.
+
 ## 5. Application security controls
 
 1. **Input validation**: typed DTOs (serde with `deny_unknown_fields`), JSON Schema for forms,
@@ -216,6 +218,21 @@ Root key (KMS / HSM / Vault-OpenBao Transit; self-host fallback: file key sealed
    sandboxed worker (no network, seccomp, CPU/mem/time limits, ephemeral FS). Previews:
    images re-encoded, PDFs rendered client-side in a sandboxed iframe on a separate origin,
    SVG/HTML never served inline (`Content-Disposition: attachment`).
+   *R1 as built (BPMS-061) is a subset of this design:*
+   - Previews are served from the API origin, not a separate sandbox origin. The response's
+     `CSP: sandbox` puts the document in an opaque origin with no script, forms, popups or
+     navigation, which is the isolation the separate origin was for. A dedicated preview origin
+     stays the target once deployments have a second host name.
+   - Images are served as stored (JPEG metadata stripped), not re-encoded: re-encoding needs an
+     image codec, and none is in the dependency set yet.
+   - PDFs are shown by the browser's own viewer in a frame, not rendered client-side. The frame
+     has **no** `sandbox` attribute: Chromium will not start its PDF viewer in any sandboxed frame
+     (it shows a blocked-page icon even with `sandbox=""`), while the response-level CSP sandbox
+     leaves the viewer working. Images use a plain `<img>`, which never runs script.
+   - *Office preview spike note (P1):* convert DOCX/XLSX/PPTX to PDF in the sandboxed converter
+     (the `convert/` worker in docs/04, no network, seccomp, CPU/memory/time limits) and preview the PDF through
+     the same `file-preview` route; candidates and their licences are evaluated in SP-07 before
+     any code.
 8. **SSRF**: egress proxy for all connector/webhook/URL-fetch traffic (SSRF-01…07); the API
    process itself has no general outbound internet route.
 9. **Multi-tenant query guard**: (a) RLS on every tenant table with `FORCE`; (b) repository

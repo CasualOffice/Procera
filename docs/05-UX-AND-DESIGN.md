@@ -162,6 +162,12 @@ For each screen: **Purpose · User · Components · States · Interactions · Mo
   - The reviewer's primary action is `Approve` or `Request changes`, with a mandatory comment for changes.
 - **Export:** PDF (tagged) and DOCX. Superseded and draft copies are watermarked.
 - **Mobile:** read and acknowledge only. Editing is desktop/tablet.
+- **Attachment preview as built (R1, BPMS-061, FR-F04):**
+  - Clean PNG, JPEG, GIF, WebP and PDF attachments show a **Preview** action next to Download. Other types, and files that are not clean, show none; they download.
+  - Preview opens a dialog titled with the file name and the note "Preview. Links, scripts and forms inside the file are disabled." Images fit the dialog (at most 70 % of the viewport high) on a quiet canvas. PDFs open in the browser's own viewer in a frame of the same height.
+  - Footer: Close and Download. Escape, Close or a click outside dismisses it, and focus returns to the Preview button.
+  - States: "Loading the preview…" while the link is fetched; an error notice if the link can't be issued (for example the file stopped being clean); "This type of file has no preview" if the server reports `kind: none`.
+  - Office documents have no preview yet (P1, see docs/06 §5.7 spike note).
 
 ### 3.5 Designer
 - **Purpose:** build the executable process. It serves both designers (power) and owners (simple edits).
