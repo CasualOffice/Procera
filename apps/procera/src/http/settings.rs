@@ -22,6 +22,7 @@ use super::workspace::{WsMember, members};
 
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/branding", get(branding))
         .route("/settings", get(list))
         .route("/settings/effective", get(effective))
         .route("/settings/{key}", get(effective_by_path).put(update))
@@ -65,6 +66,19 @@ fn with_etag(mut res: Response, tag: &str) -> Response {
 
 fn if_match(headers: &HeaderMap) -> Option<String> {
     headers.get(header::IF_MATCH).and_then(|v| v.to_str().ok()).map(|v| v.trim().trim_matches('"').to_owned())
+}
+
+/// The workspace look for every member (docs/05 §7, docs/20 §2.1): the accent with its contrast-safe
+/// shades and the default theme. Readable without settings permissions: it is what the UI paints.
+async fn branding(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let st = settings(&s)?;
+    let accent = st.effective(&mut tx, "branding.accent").await?.value;
+    let theme = st.effective(&mut tx, "branding.theme_default").await?.value;
+    tx.rollback().await.map_err(internal)?;
+    let derived = procera_settings::branding::derive(accent.as_str().unwrap_or("#EE4136"));
+    Ok(Json(json!({ "accent": derived.accent, "light": derived.light, "dark": derived.dark, "adjusted": derived.adjusted, "theme_default": theme })).into_response())
 }
 
 pub fn settings(s: &AppState) -> Result<&Settings, ApiError> {

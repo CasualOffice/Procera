@@ -91,7 +91,7 @@ Column key:
 | `general.slug` | string, immutable after 7 d | derived | system admin only after creation | – | – | P0 |
 | `branding.logo` | file ref (SVG/PNG ≤ 512 KB, sanitized SVG) | product logo | workspace:branding.manage | – | – | P0 |
 | `branding.favicon` | file ref | product | workspace:branding.manage | – | – | P0 |
-| `branding.accent` | hex colour | `#4F46E5` | workspace:branding.manage | contrast ≥ 4.5:1 enforced (auto-derived text-safe shade) | – | P0 |
+| `branding.accent` | hex colour | `#EE4136` (Procera brand red, docs/05 §7; A-33) | workspace:branding.manage | contrast ≥ 4.5:1 enforced (auto-derived text-safe shade) | – | P0 |
 | `branding.theme_default` | `system \| light \| dark` | system | workspace:branding.manage | – | – | P0 |
 | `branding.email_sender_name` | string | workspace name | workspace:branding.manage | sender address set by platform | – | P0 |
 | `branding.login_message` | markdown(500) | empty | workspace:branding.manage | – | – | P1 |

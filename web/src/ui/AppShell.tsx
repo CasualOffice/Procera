@@ -68,6 +68,20 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
       if (e instanceof ApiError && e.status === 404) void reload();
     });
   }, [workspace, current, reload]);
+  // Workspace accent (docs/05 §7): the server derives contrast-safe shades; paint them over the
+  // product defaults so links, focus and active states carry the workspace's colour.
+  useEffect(() => {
+    if (!workspace) return;
+    let live = true;
+    api<{ light: Record<string, string>; dark: Record<string, string> }>('/api/v1/branding').then((b) => {
+      if (!live) return;
+      const vars = (x: Record<string, string>) => `--color-accent-text:${x.text};--color-accent-strong:${x.strong};--color-accent-strong-hover:${x.strong_hover};--color-focus:${x.focus};`;
+      let el = document.getElementById('ws-brand') as HTMLStyleElement | null;
+      if (!el) { el = document.createElement('style'); el.id = 'ws-brand'; document.head.appendChild(el); }
+      el.textContent = `:root{${vars(b.light)}}@media (prefers-color-scheme: dark){:root:not([data-theme='light']){${vars(b.dark)}}}:root[data-theme='dark']{${vars(b.dark)}}`;
+    }).catch(() => undefined);
+    return () => { live = false; document.getElementById('ws-brand')?.remove(); };
+  }, [workspace]);
   useEffect(() => {
     if (!workspace || !can('member:view')) return;
     api<{ items: { status: string }[] }>('/api/v1/members').then((r) => setMemberCount(r.items.filter((m) => m.status === 'active').length)).catch(() => undefined);

@@ -2,6 +2,7 @@
 //! override, clamped by the platform floor. Collection overrides arrive with collections;
 //! process-level values live in release bundles (ADR-0012).
 
+pub mod branding;
 pub mod cache;
 pub mod catalogue;
 mod scoped;
@@ -134,7 +135,7 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             {
                 Ok(json!(s.to_uppercase()))
             }
-            _ => Err(invalid(d, "expected a colour like #4F46E5")),
+            _ => Err(invalid(d, "expected a colour like #EE4136")),
         },
         Kind::DurationList { min, max, max_items } => {
             let items = v.as_array().ok_or_else(|| invalid(d, "expected a list of seconds"))?;

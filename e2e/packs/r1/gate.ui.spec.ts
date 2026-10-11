@@ -329,4 +329,33 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Bangalore office power cut' }).click();
     await expect(page.getByText(/100%/).first()).toBeVisible();
   });
+
+  test('E2E-R1-03 branding: a too-light accent is adjusted for text with a live explanation, and every member sees the workspace colour', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const m = await member(request, owner, ws.id, 'viewer');
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Settings');
+    const row = page.getByRole('listitem').filter({ has: page.getByText('Accent colour', { exact: true }) });
+    await row.scrollIntoViewIfNeeded();
+    await row.getByRole('button', { name: 'Change Accent colour' }).click();
+    await row.getByLabel('Hex colour').fill('#FFE14D');
+    const note = row.getByRole('status');
+    await expect(note).toContainText('Too light for text on its own');
+    const shade = (await note.locator('code').innerText()).trim();
+    expect(shade).toMatch(/^#[0-9A-F]{6}$/);
+    await axe(page);
+    await row.getByLabel('Reason for the change').fill('Company yellow');
+    await row.getByRole('button', { name: 'Save' }).click();
+    await expect(row.getByText('#FFE14D')).toBeVisible();
+
+    // The server's derived text shade reads at 4.5:1 and is what the app paints, for everyone.
+    const b = await (await owner.c.get('/api/v1/branding', { headers: owner.headers })).json();
+    expect(b).toMatchObject({ accent: '#FFE14D', adjusted: true });
+    expect(b.light.text).toBe(shade);
+    const them = await (await browser.newContext({ colorScheme: 'light' })).newPage();
+    await signInPassword(them, m.email);
+    await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-accent-text').trim().toUpperCase())).toBe(shade);
+    await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim().toUpperCase())).toBe(b.light.focus);
+  });
 });

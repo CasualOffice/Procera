@@ -10,6 +10,7 @@ import { Tabs } from '../ui/components/Tabs';
 import { DepartmentOverrides, ProfileSwitch } from './SettingsScopes';
 import { LoadError, Skeleton } from '../ui/States';
 import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
+import { contrast, textShade } from '../lib/contrast';
 
 export type Kind =
   | { type: 'bool' } | { type: 'int'; min: number; max: number } | { type: 'duration'; min: number; max: number } | { type: 'size'; min: number; max: number }
@@ -240,9 +241,24 @@ export function Control({ kind, value, onChange, labelledBy, describedBy }: { ki
         <span className="setting-inline">
           <input type="color" className="setting-colour" value={String(value)} onChange={(e) => onChange(e.target.value.toUpperCase())} {...a11y} />
           <input className="field-input setting-hex" value={String(value)} onChange={(e) => onChange(e.target.value)} aria-label="Hex colour" maxLength={7} />
+          <ContrastNote colour={String(value)} />
         </span>
       );
     default:
       return <input className="field-input" maxLength={'max_len' in kind ? kind.max_len : undefined} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} {...a11y} />;
   }
+}
+
+/** Live contrast check for the accent (docs/05 §7): what links will actually use, and why. */
+function ContrastNote({ colour }: { colour: string }) {
+  const t = textShade(colour);
+  if (!t.ratio) return null;
+  return (
+    <span className="contrast-note" role="status">
+      <span className="swatch" style={{ background: t.shade }} aria-hidden="true" />
+      {t.adjusted
+        ? <>Too light for text on its own ({contrast(colour, '#FFFFFF').toFixed(1)}:1). Links and labels will use <code>{t.shade}</code> ({t.ratio.toFixed(1)}:1) so they stay readable.</>
+        : <>Readable as text ({t.ratio.toFixed(1)}:1 on white).</>}
+    </span>
+  );
 }

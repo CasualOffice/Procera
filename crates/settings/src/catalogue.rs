@@ -150,7 +150,7 @@ const MB: i64 = 1_048_576;
 
 pub const CATALOGUE: &[Def] = &[
     // 2.1 Branding
-    def("branding.accent", "branding", Kind::Colour, Some(BRANDING), || json!("#4F46E5")),
+    def("branding.accent", "branding", Kind::Colour, Some(BRANDING), || json!("#EE4136")),
     def(
         "branding.theme_default",
         "branding",
