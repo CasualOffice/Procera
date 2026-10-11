@@ -129,6 +129,9 @@ pub struct EventView {
     pub action: String,
     pub object_type: Option<String>,
     pub object_id: Option<Uuid>,
+    /// What the object is, in words ("Expense claims v1", a person's name), when it still exists
+    /// and this reader can see it; display only, never part of the hashed record.
+    pub object_label: Option<String>,
     pub result: String,
     pub reason: Option<String>,
     pub policy_ids: Vec<String>,
@@ -153,6 +156,7 @@ pub(crate) struct Raw {
     action: String,
     object_type: Option<String>,
     object_id: Option<Uuid>,
+    object_label: Option<String>,
     result: String,
     reason: Option<String>,
     policy_ids: Vec<String>,
@@ -177,6 +181,7 @@ impl From<Raw> for EventView {
             action: r.action,
             object_type: r.object_type,
             object_id: r.object_id,
+            object_label: r.object_label,
             result: r.result,
             reason: r.reason,
             policy_ids: r.policy_ids,
@@ -189,7 +194,22 @@ impl From<Raw> for EventView {
 
 pub(crate) const COLS: &str = "SELECT e.seq, e.id, e.occurred_at, e.actor_subject_ref, e.actor_kind,
     (SELECT u.display_name FROM users u JOIN memberships m ON m.user_id = u.id WHERE u.subject_ref = e.actor_subject_ref LIMIT 1) AS actor_name,
-    e.on_behalf_of, host(e.ip) AS ip, e.user_agent, e.category, e.action, e.object_type, e.object_id, e.result,
+    e.on_behalf_of, host(e.ip) AS ip, e.user_agent, e.category, e.action, e.object_type, e.object_id,
+    (CASE e.object_type
+      WHEN 'artifact' THEN (SELECT a.title FROM artifacts a WHERE a.id = e.object_id)
+      WHEN 'artifact_version' THEN (SELECT a.title || ' v' || v.version_no FROM artifact_versions v JOIN artifacts a ON a.id = v.artifact_id AND a.workspace_id = v.workspace_id WHERE v.id = e.object_id)
+      WHEN 'campaign' THEN (SELECT c.title FROM campaigns c WHERE c.id = e.object_id)
+      WHEN 'campaign_recipient' THEN (SELECT c.title || ' · ' || u.display_name FROM campaign_recipients r
+        JOIN campaigns c ON c.id = r.campaign_id AND c.workspace_id = r.workspace_id
+        JOIN memberships m ON m.id = r.membership_id AND m.workspace_id = r.workspace_id JOIN users u ON u.id = m.user_id WHERE r.id = e.object_id)
+      WHEN 'announcement' THEN (SELECT n.title FROM announcements n WHERE n.id = e.object_id)
+      WHEN 'membership' THEN (SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = e.object_id)
+      WHEN 'department' THEN (SELECT d.name FROM departments d WHERE d.id = e.object_id)
+      WHEN 'group' THEN (SELECT g.name FROM groups g WHERE g.id = e.object_id)
+      WHEN 'file' THEN (SELECT f.name FROM files f WHERE f.id = e.object_id)
+      WHEN 'role' THEN (SELECT r.name FROM roles r WHERE r.id = e.object_id)
+    END) AS object_label,
+    e.result,
     e.reason, e.policy_ids, e.diff, e.trace_id, e.hash
   FROM audit_events e WHERE true";
 

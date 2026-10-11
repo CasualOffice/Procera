@@ -13,7 +13,7 @@ import { useRoute } from '../lib/router';
 
 export interface AuditEvent {
   seq: number; id: string; occurred_at: string; actor_subject_ref: string | null; actor_kind: string; actor_name: string | null; on_behalf_of: string | null;
-  ip: string | null; user_agent: string | null; category: string; action: string; object_type: string | null; object_id: string | null;
+  ip: string | null; user_agent: string | null; category: string; action: string; object_type: string | null; object_id: string | null; object_label?: string | null;
   result: string; reason: string | null; policy_ids: string[]; diff: unknown; trace_id: string | null; hash: string;
 }
 interface Page { items: AuditEvent[]; next_cursor: string | null }
@@ -185,7 +185,7 @@ function EventRow({ e, open, onToggle, onTimeline }: { e: AuditEvent; open: bool
         <td className="cell-muted"><button type="button" className="audit-toggle" aria-expanded={open} onClick={onToggle} aria-label={`${actionText(e.action)} at ${time(e.occurred_at)}: details`}><ChevronRight aria-hidden="true" size="0.875rem" /></button><time dateTime={e.occurred_at}>{time(e.occurred_at)}</time></td>
         <td className="col-optional">{e.actor_name ? <span className="person"><Avatar name={e.actor_name} size="1.25rem" />{e.actor_name}</span> : <span className="cell-muted">{who}</span>}</td>
         <td><span className="audit-action">{actionText(e.action)}</span><span className="audit-who-sm">{who}</span></td>
-        <td className="col-optional">{e.object_type && e.object_id ? <button type="button" className="audit-obj" onClick={() => onTimeline(e.object_type!, e.object_id!)} title="Open this object’s timeline">{e.object_type.replace(/_/g, ' ')} <code>{e.object_id.slice(-6)}</code></button> : <span className="cell-muted" />}</td>
+        <td className="col-optional">{e.object_type && e.object_id ? <button type="button" className="audit-obj" onClick={() => onTimeline(e.object_type!, e.object_id!)} title="Open this object’s timeline">{e.object_label ? <><span className="audit-obj-type">{e.object_type.replace(/_/g, ' ')}</span> {e.object_label}</> : <><span className="audit-obj-type">{e.object_type.replace(/_/g, ' ')}</span> <code>{e.object_id.slice(-6)}</code></>}</button> : <span className="cell-muted" />}</td>
         <td>{e.result === 'allowed' ? <span className="cell-muted">Allowed</span> : <Tag color={RESULT[e.result]?.color} dot>{RESULT[e.result]?.label ?? e.result}</Tag>}</td>
       </tr>
       {open && (
