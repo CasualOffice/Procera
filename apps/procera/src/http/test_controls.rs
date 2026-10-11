@@ -26,6 +26,41 @@ pub fn router() -> Router<AppState> {
         .route("/invitations/token", get(invitation_token))
         .route("/session/backdate", post(backdate_session))
         .route("/mail", get(mail))
+        .route("/campaigns/backdate", post(backdate_campaign))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CampaignBackdate {
+    workspace: uuid::Uuid,
+    campaign: uuid::Uuid,
+    seconds: i64,
+}
+
+/// Moves an active campaign and its open assignments `seconds` into the past, so reminder and
+/// escalation timing can be tested without moving the shared clock (a clock jump breaks the step-up
+/// window of every test running in parallel).
+async fn backdate_campaign(State(s): State<AppState>, Json(b): Json<CampaignBackdate>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let by = b.seconds as f64;
+        let n = sqlx::query("UPDATE campaigns SET launched_at = launched_at - make_interval(secs => $2), due_at = due_at - make_interval(secs => $2) WHERE id = $1 AND state = 'active'")
+            .bind(b.campaign).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        sqlx::query("UPDATE campaign_recipients SET assigned_at = assigned_at - make_interval(secs => $2), due_at = due_at - make_interval(secs => $2) WHERE campaign_id = $1 AND state = 'pending'")
+            .bind(b.campaign).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
 }
 
 /// Issues a bootstrap token if the platform is not bootstrapped yet (E2E only; prod prints it to the log).
@@ -133,6 +168,12 @@ async fn drain(State(s): State<AppState>) -> Response {
     // Scheduled publications that are due (the scheduler role), then the outbox.
     if let Some(l) = s.library.as_ref()
         && let Err(e) = l.publish_due().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
+    }
+    // Campaign reminder steps and manager escalations that are due.
+    if let Some(c) = s.campaigns.as_ref()
+        && let Err(e) = c.run_due().await
     {
         return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
     }

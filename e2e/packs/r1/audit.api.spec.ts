@@ -120,6 +120,15 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PATCH', '/api/v1/versions/{id}', () => own.patch(`/api/v1/versions/${sop.version.id}`, { headers: oh, data: { content: { blocks: [{ type: 'paragraph', text: 'v1.1' }] } } }));
   await step('POST', '/api/v1/versions/{id}/submit', () => own.post(`/api/v1/versions/${sop.version.id}/submit`, { headers: oh }));
   await step('POST', '/api/v1/versions/{id}/publish', () => own.post(`/api/v1/versions/${sop.version.id}/publish`, { headers: oh, data: {} }));
+  // Campaigns: everyone acknowledges the published SOP; Adam (member) completes his assignment.
+  const cmp = await (await step('POST', '/api/v1/campaigns', () => own.post('/api/v1/campaigns', { headers: oh, data: { version_id: sop.version.id, audience: { all: true } } }))).json();
+  await step('POST', '/api/v1/campaigns/{id}/activate', () => own.post(`/api/v1/campaigns/${cmp.id}/activate`, { headers: oh }));
+  await step('POST', '/api/v1/campaigns/{id}/remind', () => own.post(`/api/v1/campaigns/${cmp.id}/remind`, { headers: oh }));
+  const adamAcks = await (await adam.get('/api/v1/me/acknowledgements?state=pending', { headers: ah })).json();
+  await step('POST', '/api/v1/acknowledgements/{id}/complete', () => adam.post(`/api/v1/acknowledgements/${adamAcks.items[0].id}/complete`, { headers: ah, data: {} }));
+  await step('POST', '/api/v1/campaigns/{id}/close', () => own.post(`/api/v1/campaigns/${cmp.id}/close`, { headers: oh, data: {} }));
+  const cmp2 = await (await own.post('/api/v1/campaigns', { headers: oh, data: { version_id: sop.version.id, audience: { all: true } } })).json();
+  await step('POST', '/api/v1/campaigns/{id}/cancel', () => own.post(`/api/v1/campaigns/${cmp2.id}/cancel`, { headers: oh, data: { reason: 'drill' } }));
   const pol = await (await own.post('/api/v1/artifacts', { headers: oh, data: { kind: 'policy', key: 'audit.policy', title: 'Audit policy', criticality: 'controlled', content: { blocks: [{ type: 'paragraph', text: 'p' }] } } })).json();
   await own.post(`/api/v1/versions/${pol.version.id}/submit`, { headers: oh });
   await step('POST', '/api/v1/versions/{id}/withdraw', () => own.post(`/api/v1/versions/${pol.version.id}/withdraw`, { headers: oh }));
