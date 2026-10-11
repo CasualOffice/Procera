@@ -208,6 +208,33 @@ pub const CONTRACT: &[Entry] = &[
     // The acknowledgement also completes the campaign assignment; its one record cites it (no second event).
     emits("POST", "/api/v1/announcements/{id}/reads", &[&["announcement.read"], &[]]),
     emits("POST", "/api/v1/announcements/{id}/acks", &[&["announcement.acknowledged"], &[]]),
+    // Template packs (BPMS-106, A-38): one template.installed plus one artifact.created per document
+    // created (0 when every chosen document already exists and is skipped; at most 5 per pack).
+    emits(
+        "POST",
+        "/api/v1/templates/{key}/install",
+        &[
+            &["template.installed"],
+            &["artifact.created", "template.installed"],
+            &["artifact.created", "artifact.created", "template.installed"],
+            &["artifact.created", "artifact.created", "artifact.created", "template.installed"],
+            &[
+                "artifact.created",
+                "artifact.created",
+                "artifact.created",
+                "artifact.created",
+                "template.installed",
+            ],
+            &[
+                "artifact.created",
+                "artifact.created",
+                "artifact.created",
+                "artifact.created",
+                "artifact.created",
+                "template.installed",
+            ],
+        ],
+    ),
     // Notifications: personal read state only.
     exempt(
         "POST",
@@ -255,6 +282,7 @@ mod tests {
             ("/api/v1", include_str!("notifications.rs")),
             ("/api/v1", include_str!("library.rs")),
             ("/api/v1", include_str!("campaigns.rs")),
+            ("/api/v1", include_str!("templates.rs")),
             ("/api/v1", include_str!("announcements.rs")),
             ("/api/v1", include_str!("search.rs")),
             ("/api/v1", include_str!("audit.rs")),

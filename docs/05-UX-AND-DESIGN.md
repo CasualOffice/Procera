@@ -202,6 +202,12 @@ For each screen: **Purpose · User · Components · States · Interactions · Mo
   3. Configure: thresholds, calendars, SLA defaults, optional steps on/off.
   4. Review → creates a **draft**, then offers `Test run now`.
 - **Upgrade offers:** a banner on installed processes ("Template v1.3 available"). It opens a 3-way diff (template old → template new vs your copy) where the user picks changes. Nothing applies automatically.
+- **As built (BPMS-106 P0 subset, A-38): Templates screen** (`/templates`, Workspace nav "Templates" for `template:browse`):
+  - **Purpose:** start from reviewed starter documents instead of a blank page. **User:** everyone may browse; installing needs `template:install` plus `<kind>:create`.
+  - **Components:** one ruled list of packs (not a card grid). Each pack shows its name, description, "Creates N draft documents" with each document's title, summary and type, an "In your library" tag for documents whose key already exists (installers only), and the suggested acknowledgement campaign. The primary button "Install" (accessible name "Install {pack}") shows only to installers; others see "You can look, but not install".
+  - **Wizard** (dialog "Install {pack}", 2 steps + result): *Step 1 of 2* ticks documents (existing ones start unticked; ticking one says a numbered copy will be created). *Step 2 of 2* summarises the drafts and offers "Plan an acknowledgement campaign for {document}" (everyone, due 14 days after launch, started from Campaigns once published). The result ("Template installed") lists each document with a link and "Draft created", "Copy created" or "Already in your library · {state}", then "Set up the acknowledgement campaign" (opens Campaigns' new-campaign dialog with the document and due date filled in) and "Open library".
+  - **States:** list skeleton; empty ("No templates available"); load error with retry; no permission to install (info notice). Role mapping, configure and test-run steps arrive with process templates.
+  - **Home:** an "Install a template" quick action, and while the library is empty a "Start with a template" first-run hint with "Browse templates" (installers only).
 
 ### 3.8 Start request
 - Entry points: Library card, ⌘K, Home, and a deep link (`/start/purchase-request`).

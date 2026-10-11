@@ -26,6 +26,7 @@ pub mod search;
 pub mod settings;
 pub mod system;
 pub mod system_console;
+pub mod templates;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
 pub mod views;
@@ -273,6 +274,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", notifications::router())
         .nest("/api/v1", library::router())
         .nest("/api/v1", campaigns::router())
+        .nest("/api/v1", templates::router())
         .nest("/api/v1", announcements::router())
         .nest("/api/v1", search::router())
         .nest("/api/v1", audit::router())
