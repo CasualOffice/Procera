@@ -79,7 +79,7 @@ const CHANNELS: &[&str] = &["in_app"];
 async fn compose_target_approve_schedule_expire_and_receipts() -> anyhow::Result<()> {
     let Some(t) = test_support::fresh().await else { return Ok(()) };
     let t = t?;
-    let start = OffsetDateTime::now_utc();
+    let start = procera_kernel::clock::to_micros(OffsetDateTime::now_utc()); // Postgres precision
     let clock = Arc::new(ManualClock::new(start));
     let ann = Announcements::new(t.db.clone(), clock.clone(), Arc::new(UuidV7Gen));
     let mut admin = <sqlx::PgConnection as sqlx::Connection>::connect(&t.admin_url).await?;
