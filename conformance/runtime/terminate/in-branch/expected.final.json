@@ -1,0 +1,43 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "check",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "schedule_timer",
+      "due": {
+        "at": "2026-10-14T09:00:00Z",
+        "type": "at"
+      },
+      "node": "slow",
+      "purpose": "wait"
+    },
+    {
+      "command": "cancel_timer"
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.cancelled"
+    },
+    {
+      "command": "complete_instance",
+      "result": "terminated"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 2,
+  "status": "terminated",
+  "tokens": [],
+  "variables": {}
+}

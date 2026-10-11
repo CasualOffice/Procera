@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.dec",
+    "version": 1,
+    "name": {
+      "en": "dec"
+    }
+  },
+  "variables": [
+    {
+      "name": "amount",
+      "type": "integer"
+    },
+    {
+      "name": "vip",
+      "type": "boolean"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "d",
+      "kind": "decision",
+      "branches": [
+        {
+          "name": "big",
+          "when": "expr:cel: amount > 1000"
+        },
+        {
+          "name": "vip",
+          "when": "expr:cel: vip"
+        }
+      ]
+    },
+    {
+      "id": "big_t",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vip_t",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "std_t",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "d"
+    },
+    {
+      "id": "e2",
+      "from": "d",
+      "to": "big_t",
+      "on": "big"
+    },
+    {
+      "id": "e3",
+      "from": "d",
+      "to": "vip_t",
+      "on": "vip"
+    },
+    {
+      "id": "e4",
+      "from": "d",
+      "to": "std_t",
+      "on": "default"
+    },
+    {
+      "id": "e5",
+      "from": "big_t",
+      "to": "done",
+      "on": "submitted"
+    },
+    {
+      "id": "e6",
+      "from": "vip_t",
+      "to": "done",
+      "on": "submitted"
+    },
+    {
+      "id": "e7",
+      "from": "std_t",
+      "to": "done",
+      "on": "submitted"
+    }
+  ]
+}

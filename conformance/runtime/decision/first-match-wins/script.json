@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"amount": 5000, "vip": true}}},
+  {"complete": {"node": "big_t", "outcome": "submitted"}}
+]

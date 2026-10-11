@@ -1,0 +1,45 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "ty",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "tp",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "tq",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 4,
+  "status": "completed",
+  "tokens": [],
+  "variables": {}
+}

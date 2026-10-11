@@ -1,0 +1,5 @@
+[
+  {"start": {"variables": {"order": "PO-2"}}},
+  {"fire_timeout": {"node": "sig"}},
+  {"complete": {"node": "chase", "outcome": "submitted"}}
+]

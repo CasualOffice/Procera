@@ -1,0 +1,49 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "review",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "fix",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "review",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 4,
+  "status": "completed",
+  "tokens": [],
+  "variables": {}
+}

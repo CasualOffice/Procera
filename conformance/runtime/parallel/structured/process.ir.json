@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.par",
+    "version": 1,
+    "name": {
+      "en": "par"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "fork",
+      "kind": "parallel.split",
+      "joinId": "join",
+      "branches": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        }
+      ]
+    },
+    {
+      "id": "ta",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tb",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "join",
+      "kind": "parallel.join"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "fork"
+    },
+    {
+      "id": "e2",
+      "from": "fork",
+      "to": "ta",
+      "on": "a"
+    },
+    {
+      "id": "e3",
+      "from": "fork",
+      "to": "tb",
+      "on": "b"
+    },
+    {
+      "id": "e4",
+      "from": "ta",
+      "to": "join",
+      "on": "submitted"
+    },
+    {
+      "id": "e5",
+      "from": "tb",
+      "to": "join",
+      "on": "submitted"
+    },
+    {
+      "id": "e6",
+      "from": "join",
+      "to": "done"
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.term",
+    "version": 1,
+    "name": {
+      "en": "term"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "fork",
+      "kind": "parallel.split",
+      "joinId": "join",
+      "branches": [
+        {
+          "name": "a"
+        },
+        {
+          "name": "b"
+        }
+      ]
+    },
+    {
+      "id": "check",
+      "kind": "human.approval",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "slow",
+      "kind": "wait.timer",
+      "after": "P3D"
+    },
+    {
+      "id": "join",
+      "kind": "parallel.join"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    },
+    {
+      "id": "kill",
+      "kind": "end",
+      "result": "terminated"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "fork"
+    },
+    {
+      "id": "e2",
+      "from": "fork",
+      "to": "check",
+      "on": "a"
+    },
+    {
+      "id": "e3",
+      "from": "fork",
+      "to": "slow",
+      "on": "b"
+    },
+    {
+      "id": "e4",
+      "from": "check",
+      "to": "join",
+      "on": "approved"
+    },
+    {
+      "id": "e5",
+      "from": "check",
+      "to": "kill",
+      "on": "rejected"
+    },
+    {
+      "id": "e6",
+      "from": "check",
+      "to": "join",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e7",
+      "from": "slow",
+      "to": "join",
+      "on": "fired"
+    },
+    {
+      "id": "e8",
+      "from": "join",
+      "to": "done"
+    }
+  ]
+}

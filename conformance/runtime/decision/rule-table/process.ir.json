@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.rule",
+    "version": 1,
+    "name": {
+      "en": "rule"
+    }
+  },
+  "variables": [
+    {
+      "name": "tier",
+      "type": "string"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "route",
+      "kind": "decision",
+      "rule": "level",
+      "output": "who",
+      "branches": [
+        {
+          "name": "cfo"
+        }
+      ]
+    },
+    {
+      "id": "cfo_t",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "std_t",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "route"
+    },
+    {
+      "id": "e2",
+      "from": "route",
+      "to": "cfo_t",
+      "on": "cfo"
+    },
+    {
+      "id": "e3",
+      "from": "route",
+      "to": "std_t",
+      "on": "default"
+    },
+    {
+      "id": "e4",
+      "from": "cfo_t",
+      "to": "done",
+      "on": "submitted"
+    },
+    {
+      "id": "e5",
+      "from": "std_t",
+      "to": "done",
+      "on": "submitted"
+    }
+  ],
+  "refs": {
+    "rules": {
+      "level": "rule:conf.level@1"
+    }
+  }
+}

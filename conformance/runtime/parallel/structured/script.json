@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"complete": {"node": "tb", "outcome": "submitted"}},
+  {"complete": {"node": "ta", "outcome": "submitted"}}
+]

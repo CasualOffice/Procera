@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.loop",
+    "version": 1,
+    "name": {
+      "en": "loop"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "review",
+      "kind": "human.approval",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "fix",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      },
+      "maxIterations": 2
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "review"
+    },
+    {
+      "id": "e2",
+      "from": "review",
+      "to": "done",
+      "on": "approved"
+    },
+    {
+      "id": "e3",
+      "from": "review",
+      "to": "done",
+      "on": "rejected"
+    },
+    {
+      "id": "e4",
+      "from": "review",
+      "to": "fix",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e5",
+      "from": "fix",
+      "to": "review",
+      "on": "submitted"
+    }
+  ]
+}

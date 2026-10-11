@@ -1,0 +1,48 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "subscribe_signal",
+      "correlation": "PO-2",
+      "node": "sig"
+    },
+    {
+      "command": "schedule_timer",
+      "due": {
+        "at": "2026-10-12T09:00:00Z",
+        "type": "at"
+      },
+      "node": "sig",
+      "purpose": "signal_timeout"
+    },
+    {
+      "command": "cancel_subscription"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "chase",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 3,
+  "status": "completed",
+  "tokens": [],
+  "variables": {
+    "order": "PO-2"
+  }
+}

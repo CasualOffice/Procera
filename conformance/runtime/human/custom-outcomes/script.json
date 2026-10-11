@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"reject": {"complete": {"node": "check", "outcome": "submitted"}}},
+  {"complete": {"node": "check", "outcome": "fail"}}
+]

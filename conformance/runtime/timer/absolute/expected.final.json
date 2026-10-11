@@ -1,0 +1,32 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "schedule_timer",
+      "due": {
+        "at": "2026-12-01T09:00:00Z",
+        "type": "at"
+      },
+      "node": "wait",
+      "purpose": "wait"
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 2,
+  "status": "completed",
+  "tokens": [],
+  "variables": {
+    "go_live": "2026-12-01T09:00:00Z"
+  }
+}

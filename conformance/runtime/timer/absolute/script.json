@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"go_live": "2026-12-01T09:00:00Z"}}},
+  {"fire_timer": {"node": "wait"}}
+]

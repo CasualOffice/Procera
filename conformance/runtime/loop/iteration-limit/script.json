@@ -1,0 +1,8 @@
+[
+  {"start": {}},
+  {"complete": {"node": "review", "outcome": "changes_requested"}},
+  {"complete": {"node": "fix", "outcome": "submitted"}},
+  {"complete": {"node": "review", "outcome": "changes_requested"}},
+  {"complete": {"node": "fix", "outcome": "submitted"}},
+  {"complete": {"node": "review", "outcome": "changes_requested"}}
+]

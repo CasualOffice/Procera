@@ -1,0 +1,11 @@
+{"kind":"instance_started"}
+{"kind":"variables_set","names":["go_live"]}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"wait","token":1}
+{"key":"01920000-0000-7000-8000-000000000001/wait/2","kind":"waiting","node":"wait","token":1,"wait":"timer"}
+{"key":"01920000-0000-7000-8000-000000000001/wait/2","kind":"resumed","node":"wait","token":1}
+{"kind":"node_left","node":"wait","outcome":"fired","token":1}
+{"kind":"node_entered","node":"done","token":1}
+{"kind":"token_consumed","node":"done","token":1}
+{"kind":"instance_completed"}

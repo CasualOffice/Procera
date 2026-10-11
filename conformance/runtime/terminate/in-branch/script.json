@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"complete": {"node": "check", "outcome": "rejected"}},
+  {"reject": {"fire_timer": {"node": "slow"}}}
+]

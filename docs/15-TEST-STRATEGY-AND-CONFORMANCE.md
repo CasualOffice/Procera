@@ -71,6 +71,8 @@ fixtures/<group>/<case>/
 - Groups cover: `sequence`, `decision` (incl. default), `parallel` (structured split/join, nested), `loop` (bounded, iteration limit), `human` (claim, delegate, quorum one/all/n-of-m, SoD exclusion), `escalation`, `timer` (absolute, duration, business calendar, DST boundary), `signal` (correlation, timeout), `service` (ok/error/typed error, retry, idempotency key), `boundary` (interrupting, non-interrupting, cancel), `subprocess` (pinned), `terminate`, `cancel`, `suspend_resume`, `incident` (failure → incident → retry/skip), `version_pinning`, `crash` (crash injected at each transaction boundary).
 - Target at M5 is ≥ 400 fixtures. Every runtime bug adds one.
 
+**As built (BPMS-082):** the first 22 fixtures live in `conformance/runtime/<group>/<case>/` with `script.json` in place of `script.yaml` (A-23). The native interpreter is deterministic, so its traces are compared in total order. See [11 §15](11-WORKFLOW-IR-SPEC.md#15-as-built-bpms-082).
+
 ## 5. Model-based, property and formal testing
 
 **Executable models (proptest state machines).** Simplified reference models of the instance state machine, the token set and the work-item lifecycle (04-LLD §4) are written as pure Rust. `proptest-state-machine` generates random command sequences (start, decide, delegate, cancel, timer fire, crash, retry, duplicate request) and runs them against both the model and the real runtime on Postgres, asserting after every step that:

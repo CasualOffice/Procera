@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.timer",
+    "version": 1,
+    "name": {
+      "en": "timer"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "wait",
+      "kind": "wait.timer",
+      "after": "PT2H"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "wait"
+    },
+    {
+      "id": "e2",
+      "from": "wait",
+      "to": "done",
+      "on": "fired"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{"kind":"instance_started"}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"check","token":1}
+{"key":"01920000-0000-7000-8000-000000000001/check/2","kind":"waiting","node":"check","token":1,"wait":"work_item"}
+{"key":"01920000-0000-7000-8000-000000000001/check/2","kind":"resumed","node":"check","token":1}
+{"kind":"node_left","node":"check","outcome":"fail","token":1}
+{"kind":"node_entered","node":"ko","token":1}
+{"kind":"token_consumed","node":"ko","token":1}
+{"kind":"instance_completed"}

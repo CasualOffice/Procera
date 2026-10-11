@@ -1,0 +1,36 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "fill",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "notify",
+      "node": "tell",
+      "template": "done"
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 2,
+  "status": "completed",
+  "tokens": [],
+  "variables": {
+    "note": "hi"
+  }
+}

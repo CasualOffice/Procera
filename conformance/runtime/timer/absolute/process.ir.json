@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.timer-at",
+    "version": 1,
+    "name": {
+      "en": "timer-at"
+    }
+  },
+  "variables": [
+    {
+      "name": "go_live",
+      "type": "datetime"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "wait",
+      "kind": "wait.timer",
+      "at": "expr:cel: go_live"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "wait"
+    },
+    {
+      "id": "e2",
+      "from": "wait",
+      "to": "done",
+      "on": "fired"
+    }
+  ]
+}

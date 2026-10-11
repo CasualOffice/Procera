@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.service",
+    "version": 1,
+    "name": {
+      "en": "service"
+    }
+  },
+  "variables": [
+    {
+      "name": "user",
+      "type": "string"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "call",
+      "kind": "service.call",
+      "connector": "crm",
+      "action": "grant",
+      "input": {
+        "who": "expr:cel: user"
+      },
+      "idempotencyKey": "expr:cel: instance.id + ':grant'",
+      "boundary": [
+        {
+          "on": "error:LIMIT",
+          "to": "manual"
+        }
+      ]
+    },
+    {
+      "id": "manual",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "retry",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "call"
+    },
+    {
+      "id": "e2",
+      "from": "call",
+      "to": "done",
+      "on": "ok"
+    },
+    {
+      "id": "e3",
+      "from": "call",
+      "to": "retry",
+      "on": "error"
+    },
+    {
+      "id": "e4",
+      "from": "manual",
+      "to": "done",
+      "on": "submitted"
+    },
+    {
+      "id": "e5",
+      "from": "retry",
+      "to": "done",
+      "on": "submitted"
+    }
+  ],
+  "refs": {
+    "connectors": {
+      "crm": "connector:crm"
+    }
+  }
+}

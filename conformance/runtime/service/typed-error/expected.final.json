@@ -1,0 +1,35 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "call_connector",
+      "node": "call"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "manual",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 3,
+  "status": "completed",
+  "tokens": [],
+  "variables": {
+    "user": "u-1"
+  }
+}
