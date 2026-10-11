@@ -1,0 +1,7 @@
+{
+  "checksum": null,
+  "diagnostics": [
+    { "code": "IR-E001", "pointer": "/nodes/1" },
+    { "code": "IR-E009", "pointer": "/nodes/1" }
+  ]
+}

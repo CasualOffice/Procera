@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.start-twice", "version": 1, "name": { "en": "Two starts" } },
+  "variables": [],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "start_b", "kind": "start" },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "done" },
+    { "id": "e2", "from": "start_b", "to": "done" }
+  ]
+}

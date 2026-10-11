@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.decision", "version": 1, "name": { "en": "Decision without default" } },
+  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal" }],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "route", "kind": "decision", "branches": [{ "name": "big", "when": "expr:cel: amount > 1000" }] },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "route" },
+    { "id": "e2", "from": "route", "to": "done", "on": "big" }
+  ]
+}

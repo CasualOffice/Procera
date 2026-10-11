@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.minimal", "version": 1, "name": { "en": "Minimal" } },
+  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal" }],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "review", "kind": "human.task", "assignment": { "candidates": [{ "type": "role", "ref": "process-owner" }] } },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e2", "from": "review", "to": "done", "on": "submitted" },
+    { "id": "e1", "from": "start", "to": "review" }
+  ]
+}

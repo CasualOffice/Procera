@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.loop", "version": 1, "name": { "en": "Unbounded loop" } },
+  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal" }],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "bump", "kind": "set", "assign": { "amount": "expr:cel: amount + 1" } },
+    { "id": "check", "kind": "decision", "branches": [{ "name": "again", "when": "expr:cel: amount < 10" }] },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "bump" },
+    { "id": "e2", "from": "bump", "to": "check" },
+    { "id": "e3", "from": "check", "to": "bump", "on": "again" },
+    { "id": "e4", "from": "check", "to": "done", "on": "default" }
+  ]
+}

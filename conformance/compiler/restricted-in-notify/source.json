@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.restricted", "version": 1, "name": { "en": "Restricted value in a notification" } },
+  "variables": [{ "name": "salary_reviewer", "type": "principal", "classification": "restricted", "readers": ["role:hr"] }],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    {
+      "id": "tell",
+      "kind": "notify",
+      "channels": ["email"],
+      "to": { "candidates": [{ "type": "user", "ref": "expr:cel: salary_reviewer" }] },
+      "template": "salary-ready"
+    },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "tell" },
+    { "id": "e2", "from": "tell", "to": "done" }
+  ]
+}

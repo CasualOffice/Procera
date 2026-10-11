@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.timer", "version": 1, "name": { "en": "Instant without offset" } },
+  "variables": [],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "wait", "kind": "wait.timer", "at": "expr:cel: timestamp(\"2027-01-04T09:00:00\")" },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "wait" },
+    { "id": "e2", "from": "wait", "to": "done", "on": "fired" }
+  ]
+}

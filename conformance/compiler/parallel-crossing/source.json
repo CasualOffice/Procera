@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.parallel", "version": 1, "name": { "en": "Branches cross" } },
+  "variables": [],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "fork", "kind": "parallel.split", "joinId": "join", "branches": [{ "name": "a" }, { "name": "b" }] },
+    { "id": "task_a", "kind": "set", "assign": {} },
+    { "id": "task_b", "kind": "set", "assign": {} },
+    { "id": "join", "kind": "parallel.join" },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "fork" },
+    { "id": "e2", "from": "fork", "to": "task_a", "on": "a" },
+    { "id": "e3", "from": "fork", "to": "task_b", "on": "b" },
+    { "id": "e4", "from": "task_a", "to": "task_b" },
+    { "id": "e5", "from": "task_b", "to": "join" },
+    { "id": "e6", "from": "join", "to": "done" }
+  ]
+}
