@@ -33,8 +33,9 @@ test.describe('administration @r1 @ui', () => {
     // The drawer opens on the new draft. Everyone-posts need approval in a Standard workspace.
     const drawer = page.getByRole('dialog', { name: 'Office closed on Friday' });
     await expect(drawer.getByText('Draft', { exact: true })).toBeVisible();
-    await drawer.getByRole('button', { name: 'Publish now' }).click();
+    // The drawer knows upfront that a workspace-wide post needs someone else's approval.
     await expect(drawer.getByText('This one needs approval')).toBeVisible();
+    await expect(drawer.getByRole('button', { name: 'Publish now' })).toHaveCount(0);
     await drawer.getByRole('button', { name: 'Send for approval' }).click();
     await expect(drawer.getByText('Waiting for approval', { exact: true })).toBeVisible();
     await axe(page);

@@ -72,7 +72,7 @@ export function FilesAdmin() {
             { id: 'uploaded', header: 'Uploaded', type: 'date', optional: true, value: (r) => r.file.created_at, cell: (r) => shortDate(r.file.created_at) },
             { id: 'accessed', header: 'Last accessed', type: 'date', optional: true, value: (r) => r.file.last_accessed_at ?? null, cell: (r) => (r.file.last_accessed_at ? timeAgo(r.file.last_accessed_at) : 'Never') },
             { id: 'actions', header: 'Actions', sortable: false, value: () => '', className: 'cell-actions', cell: (r) => <>
-              {r.file.state === 'clean' && <button type="button" className="icon-btn" aria-label={`Download ${r.file.name}`} onClick={() => void downloadFile(r.file.id).then(load)}><Download aria-hidden="true" size="0.875rem" /></button>}
+              {r.file.state === 'clean' && <button type="button" className="icon-btn" aria-label={`Download ${r.file.name}`} onClick={() => void downloadFile(r.file.id).then(() => setRows((all) => all && all.map((x) => (x.file.id === r.file.id ? { ...x, file: { ...x.file, last_accessed_at: new Date().toISOString() } } : x))))}><Download aria-hidden="true" size="0.875rem" /></button>}
               {can('file:delete') && <button type="button" className="icon-btn" aria-label={`Delete ${r.file.name}`} onClick={() => void act(() => api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }), `${r.file.name} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /></button>}
             </> },
           ]} />
