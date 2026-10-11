@@ -5,6 +5,9 @@
 //! - **High-volume categories** (`data_access`) go through [`enqueue`] + [`seal_pending`] (SP-10).
 //! - **Append-only in the database**: no UPDATE/DELETE grant and an immutability trigger (AUD-07).
 //! - **[`verify`]** recomputes the chain from stored columns and reports the first broken sequence.
+//! - **[`explorer`]** reads the chain for people: filters, timelines, saved queries, exports (BPMS-064).
+
+pub mod explorer;
 
 use procera_db::{Db, DbError, WsCtx, WsTx};
 use procera_kernel::{Clock, IdGen};
