@@ -198,6 +198,7 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-ADM-02 | People & access: counts (members, no MFA, privileged, pending invites), member row (MFA off, last active set, not dormant), no-MFA and admin filters; unknown filter → 422; members get 403 | BPMS-063, FR-A06 |
 | E2E-R1-RET-01 | Retention classes are listed (draft and operational automatic; governance records and audit never). Drafts untouched for 170 of 180 days are due and their author is notified once; editing one resets its clock; 11 days later the untouched drafts are deleted (a never-published artifact with its draft, a v2 draft beside a published v1 that stays); the run is recorded and audited (`retention.purged`) | BPMS-066, PRV-04 |
 | E2E-R1-RET-02 | A read notification older than the operational period is removed by the job; members cannot see retention (403) | BPMS-066, PRV-04 |
+| E2E-R1-KEY-01 | An invitation email is envelope-encrypted under the workspace KEK; rotation needs a reason (422) and is audited; the email stays readable right after rotation and after the background rewrap moves it to v2; the unused v1 is destroyed; members cannot see or rotate keys (403). Crypto-shredding is proven in the `procera-keys` integration test | BPMS-030 |
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
@@ -236,6 +237,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-26 | An admin opens Retention, sees each record class and a draft due for deletion, and shortens the draft period with a reason | BPMS-066 |
 | E2E-R1-UI-27 | An admin creates a collection from the Library rail, files a document in it from the document page, sets the accountable person in RACI, and filters the Library by the collection | BPMS-041 |
 | E2E-R1-UI-28 | An author uses the editor toolbar (bold, numbered steps, callout, table), saves, and the document renders them; the stored blocks match; axe on the editor and the result. UI-07 types markdown shortcuts into the editor | BPMS-042 |
+| E2E-R1-UI-29 | An admin opens Encryption, sees version 1 in use, rotates the key with a reason, and sees version 2 in use | BPMS-030 |
 | E2E-R1-UI-30 | Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022 |
 | E2E-R1-UI-31 | Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022 |
 | E2E-R1-UI-35 | Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027 |

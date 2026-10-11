@@ -739,6 +739,7 @@ Root key (KMS/HSM, or sealed local key for self-host)
 - **KEK rotation** rewraps DEKs in a background job; the data itself is not re-encrypted.
 - **Workspace deletion** destroys the KEK, which crypto-shreds the workspace's data.
 - **Subject erasure** destroys the DEK of the identity row.
+- _As built (BPMS-030, migration 0026)_: `workspace_keys(version, wrapped, state)` per workspace, root-sealed with AAD `workspace_keys:<ws>:<v>`; envelopes `0x02 ‖ kek_version ‖ wrapped DEK ‖ nonce ‖ ciphertext` (`procera_crypto::envelope_*`); the `procera-keys` registry lists envelope columns (email bodies today) for rewrap; a retired version is destroyed once no value references it; `Keys::shred` destroys all versions. Legacy root-sealed values still open. KMS/OpenBao root adapters are not built yet.
 
 ---
 
