@@ -146,6 +146,17 @@ fn gcm_open(key: &[u8], aad: &[u8], sealed: &[u8]) -> Result<Zeroizing<Vec<u8>>,
     Ok(Zeroizing::new(pt))
 }
 
+/// AES-256-GCM with a random nonce under a raw 32-byte key: `nonce(12) ‖ ciphertext+tag`. For bulk
+/// data under a per-object DEK (e.g. file chunks, AAD = object id and chunk number).
+pub fn aead_seal(key: &[u8; 32], aad: &str, plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    gcm_seal(key, aad.as_bytes(), plaintext)
+}
+
+/// Opens a value produced by [`aead_seal`] with the same key and AAD.
+pub fn aead_open(key: &[u8; 32], aad: &str, sealed: &[u8]) -> Result<Zeroizing<Vec<u8>>, CryptoError> {
+    gcm_open(key, aad.as_bytes(), sealed)
+}
+
 /// Whether `sealed` is an envelope (as opposed to a legacy [`seal`] value).
 pub fn is_envelope(sealed: &[u8]) -> bool {
     sealed.len() > HEADER && sealed[0] == ENVELOPE
@@ -204,6 +215,20 @@ pub fn envelope_rewrap(
     out.extend_from_slice(&wrapped);
     out.extend_from_slice(&sealed[HEADER..]);
     Ok(out)
+}
+
+/// HMAC-SHA256 of `data` under the purpose key (e.g. signed download links).
+pub fn mac(keys: &dyn KeyProvider, purpose: &str, data: &[u8]) -> Result<[u8; 32], CryptoError> {
+    let key = keys.key(purpose)?;
+    let mut m =
+        <Hmac<Sha256> as Mac>::new_from_slice(key.as_ref()).map_err(|e| CryptoError::Key(e.to_string()))?;
+    m.update(data);
+    Ok(m.finalize().into_bytes().into())
+}
+
+/// Constant-time comparison of two MACs.
+pub fn mac_eq(a: &[u8], b: &[u8]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 /// A 256-bit random token, base64url (43 chars). Give it to the client; store only [`hash_token`].

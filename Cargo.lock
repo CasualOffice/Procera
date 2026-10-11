@@ -2338,6 +2338,7 @@ dependencies = [
  "procera-campaigns",
  "procera-crypto",
  "procera-db",
+ "procera-files",
  "procera-identity",
  "procera-kernel",
  "procera-keys",
@@ -2486,6 +2487,30 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "procera-files"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64 0.22.1",
+ "procera-audit",
+ "procera-crypto",
+ "procera-db",
+ "procera-kernel",
+ "procera-keys",
+ "procera-settings",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

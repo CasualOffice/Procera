@@ -138,6 +138,26 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/api/v1/artifacts/{id}/owner", &[&["artifact.owner_set"]]),
     emits("PUT", "/api/v1/artifacts/{id}/raci", &[&["artifact.raci_set"]]),
     emits("POST", "/api/v1/security/encryption/rotate", &[&["key.rotated"]]),
+    // Files (BPMS-060/062).
+    exempt(
+        "POST",
+        "/api/v1/files",
+        "reserves an upload; file.uploaded/quarantined/rejected is appended when it completes",
+    ),
+    exempt(
+        "PUT",
+        "/api/v1/files/{id}/content",
+        "chunk transfer of the caller's own upload; audited at completion",
+    ),
+    emits(
+        "POST",
+        "/api/v1/files/{id}/complete",
+        &[&["file.uploaded"], &["file.quarantined"], &["file.rejected"], &["file.scan_failed"]],
+    ),
+    emits("DELETE", "/api/v1/files/{id}", &[&["file.deleted"]]),
+    emits("POST", "/api/v1/files/{id}/links", &[&["file.linked"]]),
+    emits("DELETE", "/api/v1/files/{id}/links/{object_type}/{object_id}", &[&["file.unlinked"]]),
+    emits("POST", "/api/v1/files/orphans/purge", &[&["file.orphans_purged"]]),
     emits("PUT", "/api/v1/artifacts/{id}/applicability", &[&["artifact.applicability_set"]]),
     // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
     // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).
@@ -219,6 +239,7 @@ mod tests {
             ("/api/v1", include_str!("search.rs")),
             ("/api/v1", include_str!("audit.rs")),
             ("/api/v1", include_str!("encryption.rs")),
+            ("/api/v1", include_str!("files.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("", include_str!("../http.rs")),

@@ -16,6 +16,7 @@ pub mod campaigns;
 pub mod directory;
 pub mod encryption;
 pub mod error;
+pub mod files;
 pub mod library;
 pub mod notifications;
 pub mod overview;
@@ -47,6 +48,8 @@ pub struct AppState {
     pub retention: Option<crate::retention::Retention>,
     /// Workspace KEKs (BPMS-030).
     pub keys: Option<procera_keys::Keys>,
+    /// Files pipeline (BPMS-060).
+    pub files: Option<procera_files::Files>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -100,6 +103,29 @@ impl AppState {
             self.keys = Some(procera_keys::Keys::new(
                 db.clone(),
                 keys.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            ));
+            // Files: storage directory (PROCERA_FILES_DIR) and malware scanner (PROCERA_CLAMD_ADDR).
+            let files_dir = std::env::var("PROCERA_FILES_DIR").unwrap_or_else(|_| {
+                let d = std::env::temp_dir().join("procera-files");
+                tracing::warn!(dir = %d.display(), "no PROCERA_FILES_DIR: files are stored in a temporary directory");
+                d.display().to_string()
+            });
+            let scanner = match std::env::var("PROCERA_CLAMD_ADDR") {
+                Ok(addr) if !addr.trim().is_empty() => procera_files::Scanner::Clamd(addr),
+                _ => {
+                    tracing::warn!(
+                        "no PROCERA_CLAMD_ADDR: malware scanning detects only the EICAR test file"
+                    );
+                    procera_files::Scanner::EicarOnly
+                }
+            };
+            self.files = Some(procera_files::Files::new(
+                db.clone(),
+                keys.clone(),
+                procera_files::LocalStore::new(files_dir),
+                scanner,
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             ));
@@ -174,6 +200,7 @@ impl AppState {
             announcements: None,
             retention: None,
             keys: None,
+            files: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -205,6 +232,7 @@ impl AppState {
             announcements: None,
             retention: None,
             keys: None,
+            files: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -236,6 +264,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", overview::router())
         .nest("/api/v1", retention::router())
         .nest("/api/v1", encryption::router())
+        .nest("/api/v1", files::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

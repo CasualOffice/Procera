@@ -680,3 +680,15 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .collection-tree a[aria-current='true'] { background: var(--fill-hover); font-weight: 500; }
 .collection-tree .count { margin-left: auto; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
 .collection-tree .lock { color: var(--color-text-secondary); }
+
+/* Attachments (BPMS-060). */
+.attachments { margin: 1.25rem 0 0.5rem; }
+.attachments-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.5rem; }
+.attachments-head h2 { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 0.875rem; font-weight: 600; margin: 0; color: var(--color-text-secondary); }
+.attachment-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.attachment-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--line); font-size: 0.875rem; }
+.attachment-name { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.attachment-actions { margin-left: auto; display: inline-flex; gap: 0.75rem; align-items: center; }
+.attachment-actions .prop-link, .attachment-actions .muted { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; }
+.upload-progress { height: 0.25rem; border-radius: 999px; background: var(--fill-hover); overflow: hidden; margin: 0.5rem 0; }
+.upload-progress span { display: block; height: 100%; background: var(--color-text); transition: width 120ms linear; }

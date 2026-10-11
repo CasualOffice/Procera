@@ -1,0 +1,33 @@
+[package]
+name = "procera-files"
+description = "Files: resumable upload, hash, type sniffing, malware scan, quarantine, encryption at rest, signed downloads (BPMS-060/062, FR-F01–F07)."
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+base64 = "0.22"
+procera-audit.workspace = true
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-kernel.workspace = true
+procera-keys.workspace = true
+procera-settings.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+tokio = { workspace = true, features = ["fs", "io-util", "net"] }
+tracing.workspace = true
+uuid.workspace = true
+zeroize = "1"
+
+[dev-dependencies]
+anyhow.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

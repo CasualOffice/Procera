@@ -23,6 +23,7 @@ import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
 import { Retention } from './pages/Retention';
 import { Encryption } from './pages/Encryption';
+import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
 import { SystemAudit } from './pages/system/SystemAudit';
 import { SystemHealth } from './pages/system/SystemHealth';
@@ -79,6 +80,7 @@ export function App() {
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
+  if (path === '/admin/files') return <AppShell current="files" crumbs={[ADMIN, 'Files']}><FilesAdmin /></AppShell>;
   if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;

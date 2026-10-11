@@ -56,11 +56,14 @@ export function refresh(): Promise<boolean> {
   return inflight;
 }
 
-export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; raw?: string } = {}, retried = false): Promise<T> {
+export async function api<T = unknown>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string>; raw?: string | Blob } = {}, retried = false): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json', ...init.headers };
   if (accessToken) headers.authorization = `Bearer ${accessToken}`;
   let body: BodyInit | undefined;
-  if (init.raw !== undefined) body = init.raw;
+  if (init.raw !== undefined) {
+    body = init.raw;
+    if (init.raw instanceof Blob) headers['content-type'] ??= 'application/octet-stream';
+  }
   else if (init.body !== undefined) {
     headers['content-type'] = 'application/json';
     body = JSON.stringify(init.body);

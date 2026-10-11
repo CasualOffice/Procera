@@ -4,7 +4,7 @@ resolver = "3"
 # do not add empty placeholder crates.
 members = ["crates/kernel", "crates/crypto", "crates/cache", "crates/db", "crates/audit", "crates/identity", "crates/access", "crates/members",
     "crates/settings",
-    "crates/notify", "crates/keys",
+    "crates/notify", "crates/keys", "crates/files",
     "crates/library", "crates/campaigns", "crates/announcements", "crates/search", "crates/platform", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
@@ -42,6 +42,7 @@ procera-members = { path = "crates/members" }
 procera-settings = { path = "crates/settings" }
 procera-notify = { path = "crates/notify" }
 procera-keys = { path = "crates/keys" }
+procera-files = { path = "crates/files" }
 procera-library = { path = "crates/library" }
 procera-campaigns = { path = "crates/campaigns" }
 procera-announcements = { path = "crates/announcements" }

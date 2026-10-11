@@ -1,0 +1,626 @@
+//! Files (BPMS-060/062; FR-F01–F03, F05–F07).
+//!
+//! - **Upload** is resumable: `create` reserves the file (size and type policy, storage quota), each
+//!   `append` stores one chunk at the expected offset, and `complete` verifies, hashes, sniffs and
+//!   scans it. A file is unusable until `clean`; infected files are `quarantined`, disallowed types
+//!   `rejected` (and their bytes removed).
+//! - **At rest** every chunk is AES-256-GCM under a per-file DEK (AAD `files:<id>:<chunk>`); the DEK
+//!   is an envelope under the workspace KEK (`files.wrapped_dek`, rewrapped on rotation, shredded with
+//!   the workspace).
+//! - **Downloads** use short-lived signed tokens bound to the file, workspace and member; the server
+//!   re-authorizes on every request.
+//! - **Immutability**: a file linked to a version that is no longer a draft cannot be unlinked or
+//!   deleted (FR-F05).
+
+pub mod scan;
+pub mod sniff;
+pub mod store;
+
+use std::sync::Arc;
+
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
+use procera_crypto::{KeyProvider, aead_open, aead_seal, mac, mac_eq, random_bytes};
+use procera_db::{Db, WsTx};
+use procera_kernel::{Clock, IdGen};
+use procera_keys::Keys;
+use serde::Serialize;
+use serde_json::json;
+use sha2::{Digest, Sha256};
+use time::{Duration, OffsetDateTime};
+use uuid::Uuid;
+use zeroize::Zeroizing;
+
+pub use scan::{Scanner, Verdict};
+pub use store::LocalStore;
+
+/// Largest chunk accepted in one request.
+pub const MAX_CHUNK: usize = 8 * 1024 * 1024;
+/// Signed download links live this long (FR-F03: ≤ 5 min).
+pub const DOWNLOAD_TTL: Duration = Duration::minutes(5);
+
+#[derive(Debug, thiserror::Error)]
+pub enum FileError {
+    #[error("not found")]
+    NotFound,
+    #[error("invalid: {0}")]
+    Invalid(String),
+    #[error("conflict: {0}")]
+    Conflict(String),
+    #[error("too large: {0}")]
+    TooLarge(String),
+    #[error("internal error: {0}")]
+    Internal(String),
+}
+fn internal(e: impl std::fmt::Display) -> FileError {
+    FileError::Internal(e.to_string())
+}
+impl From<sqlx::Error> for FileError {
+    fn from(e: sqlx::Error) -> Self {
+        internal(e)
+    }
+}
+impl From<procera_audit::AuditError> for FileError {
+    fn from(e: procera_audit::AuditError) -> Self {
+        internal(e)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct File {
+    pub id: Uuid,
+    pub name: String,
+    pub declared_type: Option<String>,
+    pub sniffed_type: Option<String>,
+    pub size: i64,
+    pub received: i64,
+    pub state: String,
+    pub scan_result: Option<String>,
+    #[serde(serialize_with = "hex_opt")]
+    pub sha256: Option<Vec<u8>>,
+    pub uploaded_by: Uuid,
+    #[serde(with = "time::serde::rfc3339")]
+    pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub completed_at: Option<OffsetDateTime>,
+}
+
+fn hex_opt<S: serde::Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+    match v {
+        Some(b) => s.serialize_str(&b.iter().map(|x| format!("{x:02x}")).collect::<String>()),
+        None => s.serialize_none(),
+    }
+}
+
+const COLS: &str = "id, name, declared_type, sniffed_type, size, received, state, scan_result, sha256, uploaded_by, created_at, completed_at";
+
+/// Who acts, for audit records.
+#[derive(Debug, Clone, Default)]
+pub struct Actor {
+    pub membership: Uuid,
+    pub subject_ref: Uuid,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
+}
+
+#[derive(Clone)]
+pub struct Files {
+    keys: Keys,
+    root: Arc<dyn KeyProvider>,
+    store: LocalStore,
+    scanner: Scanner,
+    settings: procera_settings::Settings,
+    clock: Arc<dyn Clock>,
+    ids: Arc<dyn IdGen>,
+}
+
+impl std::fmt::Debug for Files {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Files").field("scanner", &self.scanner.name()).finish_non_exhaustive()
+    }
+}
+
+impl Files {
+    pub fn new(
+        db: Db,
+        root: Arc<dyn KeyProvider>,
+        store: LocalStore,
+        scanner: Scanner,
+        clock: Arc<dyn Clock>,
+        ids: Arc<dyn IdGen>,
+    ) -> Self {
+        let keys = Keys::new(db.clone(), root.clone(), clock.clone(), ids.clone());
+        let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
+        Self { keys, root, store, scanner, settings, clock, ids }
+    }
+
+    pub fn scanner_name(&self) -> &'static str {
+        self.scanner.name()
+    }
+
+    async fn audit(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<&Actor>,
+        action: &str,
+        file: Uuid,
+        diff: serde_json::Value,
+        outcome: Outcome,
+    ) -> Result<(), FileError> {
+        let mut ev = AuditEvent::new(
+            actor.map(|a| a.subject_ref),
+            if actor.is_some() { ActorKind::User } else { ActorKind::System },
+            Category::File,
+            action,
+            outcome,
+        )
+        .object("file", file);
+        ev.ip = actor.and_then(|a| a.ip.clone());
+        ev.user_agent = actor.and_then(|a| a.user_agent.clone());
+        ev.diff = Some(diff);
+        append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        Ok(())
+    }
+
+    async fn dek(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Zeroizing<[u8; 32]>, FileError> {
+        let wrapped: Vec<u8> = sqlx::query_scalar("SELECT wrapped_dek FROM files WHERE id = $1")
+            .bind(id)
+            .fetch_optional(tx.conn())
+            .await?
+            .ok_or(FileError::NotFound)?;
+        let pt = self.keys.open(tx, &format!("files:{id}"), &wrapped).await.map_err(internal)?;
+        let mut k = Zeroizing::new([0u8; 32]);
+        if pt.len() != 32 {
+            return Err(internal("bad file key"));
+        }
+        k.copy_from_slice(&pt);
+        Ok(k)
+    }
+
+    pub async fn get(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<File, FileError> {
+        sqlx::query_as(&format!("SELECT {COLS} FROM files WHERE id = $1 AND state <> 'deleted'"))
+            .bind(id)
+            .fetch_optional(tx.conn())
+            .await?
+            .ok_or(FileError::NotFound)
+    }
+
+    /// Storage used by the workspace (bytes of files that are not deleted or rejected).
+    pub async fn used_bytes(&self, tx: &mut WsTx<'_>) -> Result<i64, FileError> {
+        Ok(sqlx::query_scalar(
+            "SELECT coalesce(sum(size), 0)::bigint FROM files WHERE state NOT IN ('deleted', 'rejected')",
+        )
+        .fetch_one(tx.conn())
+        .await?)
+    }
+
+    /// Reserves a file: checks the size limit (`files.max_size`) and the workspace storage quota.
+    pub async fn create(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        name: &str,
+        size: i64,
+        declared: Option<&str>,
+    ) -> Result<File, FileError> {
+        let name = name.trim().replace(['/', '\\', '\0'], "_");
+        if name.is_empty() || name.chars().count() > 255 {
+            return Err(FileError::Invalid("a file name is 1–255 characters".into()));
+        }
+        if size < 1 {
+            return Err(FileError::Invalid("the file is empty".into()));
+        }
+        let max = self
+            .settings
+            .effective(tx, "files.max_size")
+            .await
+            .map_err(internal)?
+            .value
+            .as_i64()
+            .unwrap_or(100 << 20);
+        if size > max {
+            return Err(FileError::TooLarge(format!("files may be at most {} MB here", max >> 20)));
+        }
+        let quota: Option<Option<i64>> = sqlx::query_scalar(
+            "SELECT max_storage_bytes FROM workspace_quotas WHERE target_workspace_id = $1",
+        )
+        .bind(tx.ctx.workspace_id)
+        .fetch_optional(tx.conn())
+        .await?;
+        if let Some(Some(q)) = quota
+            && self.used_bytes(tx).await? + size > q
+        {
+            return Err(FileError::TooLarge("the workspace's storage quota is full".into()));
+        }
+        let id = self.ids.new_id();
+        let dek: Zeroizing<[u8; 32]> = Zeroizing::new(random_bytes());
+        let wrapped = self.keys.seal(tx, &format!("files:{id}"), dek.as_ref()).await.map_err(internal)?;
+        let key = format!("ws/{}/{id}", tx.ctx.workspace_id);
+        sqlx::query("INSERT INTO files (workspace_id, id, name, declared_type, size, wrapped_dek, storage_key, uploaded_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)")
+            .bind(tx.ctx.workspace_id).bind(id).bind(&name).bind(declared).bind(size).bind(wrapped).bind(&key).bind(actor.membership).bind(self.clock.now())
+            .execute(tx.conn()).await?;
+        self.get(tx, id).await
+    }
+
+    /// Stores one chunk at `offset` (must equal what was received so far: resumable, never overlapping).
+    pub async fn append(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        id: Uuid,
+        offset: i64,
+        bytes: &[u8],
+    ) -> Result<File, FileError> {
+        let (state, size, received, chunks, key, by): (String, i64, i64, i32, String, Uuid) =
+            sqlx::query_as("SELECT state, size, received, chunks, storage_key, uploaded_by FROM files WHERE id = $1 FOR UPDATE").bind(id).fetch_optional(tx.conn()).await?.ok_or(FileError::NotFound)?;
+        if by != actor.membership {
+            return Err(FileError::NotFound);
+        }
+        if state != "uploading" {
+            return Err(FileError::Conflict(format!("the upload is {state}")));
+        }
+        if offset != received {
+            return Err(FileError::Conflict(format!("expected offset {received}")));
+        }
+        if bytes.is_empty() || bytes.len() > MAX_CHUNK {
+            return Err(FileError::Invalid(format!("a chunk is 1 byte to {} MB", MAX_CHUNK >> 20)));
+        }
+        let len = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
+        if received + len > size {
+            return Err(FileError::Invalid("more bytes than the declared size".into()));
+        }
+        let dek = self.dek(tx, id).await?;
+        let sealed = aead_seal(&dek, &format!("files:{id}:{chunks}"), bytes).map_err(internal)?;
+        self.store.put_chunk(&key, chunks, &sealed).await.map_err(internal)?;
+        sqlx::query("UPDATE files SET received = received + $2, chunks = chunks + 1 WHERE id = $1")
+            .bind(id)
+            .bind(len)
+            .execute(tx.conn())
+            .await?;
+        self.get(tx, id).await
+    }
+
+    /// The plaintext of a file (every chunk, in order).
+    async fn read_all(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Vec<u8>, FileError> {
+        let (chunks, key, size): (i32, String, i64) =
+            sqlx::query_as("SELECT chunks, storage_key, size FROM files WHERE id = $1")
+                .bind(id)
+                .fetch_optional(tx.conn())
+                .await?
+                .ok_or(FileError::NotFound)?;
+        let dek = self.dek(tx, id).await?;
+        let mut out = Vec::with_capacity(usize::try_from(size).unwrap_or(0));
+        for n in 0..chunks {
+            let sealed = self.store.get_chunk(&key, n).await.map_err(internal)?;
+            out.extend_from_slice(&aead_open(&dek, &format!("files:{id}:{n}"), &sealed).map_err(internal)?);
+        }
+        Ok(out)
+    }
+
+    /// Finishes an upload: hash, sniff the type (the platform deny list always applies), scan.
+    pub async fn complete(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<File, FileError> {
+        let f = self.get(tx, id).await?;
+        if f.uploaded_by != actor.membership {
+            return Err(FileError::NotFound);
+        }
+        if f.state != "uploading" {
+            return Err(FileError::Conflict(format!("the upload is {}", f.state)));
+        }
+        if f.received != f.size {
+            return Err(FileError::Conflict(format!("{} of {} bytes received", f.received, f.size)));
+        }
+        let data = self.read_all(tx, id).await?;
+        let sha: Vec<u8> = Sha256::digest(&data).to_vec();
+        let sniffed = sniff::sniff(&data[..data.len().min(4096)]);
+        let now = self.clock.now();
+        let (state, result) = if sniff::denied(sniffed) {
+            ("rejected", format!("type not allowed: {sniffed}"))
+        } else {
+            match self.scanner.scan(&data).await {
+                Ok(Verdict::Clean) => ("clean", format!("clean ({})", self.scanner.name())),
+                Ok(Verdict::Infected(sig)) => ("quarantined", format!("infected: {sig}")),
+                Err(e) => {
+                    tracing::error!(error = %e, "malware scan failed");
+                    ("scanning", format!("scan failed, retry later: {e}"))
+                }
+            }
+        };
+        sqlx::query("UPDATE files SET state = $2, scan_result = $3, sha256 = $4, sniffed_type = $5, completed_at = $6 WHERE id = $1")
+            .bind(id).bind(state).bind(&result).bind(&sha).bind(sniffed).bind(now).execute(tx.conn()).await?;
+        if state == "rejected" {
+            let key: String = sqlx::query_scalar("SELECT storage_key FROM files WHERE id = $1")
+                .bind(id)
+                .fetch_one(tx.conn())
+                .await?;
+            self.store.delete(&key).await.map_err(internal)?;
+        }
+        let (action, outcome) = match state {
+            "clean" => ("file.uploaded", Outcome::Allowed),
+            "quarantined" => ("file.quarantined", Outcome::Denied),
+            "rejected" => ("file.rejected", Outcome::Denied),
+            _ => ("file.scan_failed", Outcome::Error),
+        };
+        self.audit(
+            tx,
+            Some(actor),
+            action,
+            id,
+            json!({"name": f.name, "size": f.size, "type": sniffed, "result": result}),
+            outcome,
+        )
+        .await?;
+        self.get(tx, id).await
+    }
+
+    /// Plaintext of a clean file, for downloads.
+    pub async fn content(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<(File, Vec<u8>), FileError> {
+        let f = self.get(tx, id).await?;
+        if f.state != "clean" {
+            return Err(FileError::Conflict(format!("the file is {}", f.state)));
+        }
+        let data = self.read_all(tx, id).await?;
+        Ok((f, data))
+    }
+
+    pub async fn record_download(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<(), FileError> {
+        self.audit(tx, Some(actor), "file.downloaded", id, json!({}), Outcome::Allowed).await
+    }
+
+    // ---- signed download links ----
+
+    /// A token for `file` in `workspace` for `membership`, valid for [`DOWNLOAD_TTL`].
+    pub fn download_token(
+        &self,
+        workspace: Uuid,
+        file: Uuid,
+        membership: Uuid,
+    ) -> Result<(String, OffsetDateTime), FileError> {
+        let exp = self.clock.now() + DOWNLOAD_TTL;
+        let mut body = Vec::with_capacity(56);
+        body.extend_from_slice(workspace.as_bytes());
+        body.extend_from_slice(file.as_bytes());
+        body.extend_from_slice(membership.as_bytes());
+        body.extend_from_slice(&exp.unix_timestamp().to_be_bytes());
+        let m = mac(self.root.as_ref(), "file-download", &body).map_err(internal)?;
+        body.extend_from_slice(&m);
+        Ok((URL_SAFE_NO_PAD.encode(body), exp))
+    }
+
+    /// Verifies a token: returns (workspace, file, membership) when the MAC matches and it has not expired.
+    pub fn verify_token(&self, token: &str) -> Option<(Uuid, Uuid, Uuid)> {
+        let b = URL_SAFE_NO_PAD.decode(token).ok()?;
+        if b.len() != 16 * 3 + 8 + 32 {
+            return None;
+        }
+        let (body, m) = b.split_at(56);
+        let expect = mac(self.root.as_ref(), "file-download", body).ok()?;
+        if !mac_eq(&expect, m) {
+            return None;
+        }
+        let exp = i64::from_be_bytes(body[48..56].try_into().ok()?);
+        if self.clock.now().unix_timestamp() > exp {
+            return None;
+        }
+        Some((
+            Uuid::from_slice(&body[0..16]).ok()?,
+            Uuid::from_slice(&body[16..32]).ok()?,
+            Uuid::from_slice(&body[32..48]).ok()?,
+        ))
+    }
+
+    // ---- links ----
+
+    /// Links a clean file to an object (a draft version for documents).
+    pub async fn link(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        id: Uuid,
+        object_type: &str,
+        object_id: Uuid,
+    ) -> Result<(), FileError> {
+        let f = self.get(tx, id).await?;
+        if f.state != "clean" {
+            return Err(FileError::Conflict(format!(
+                "only clean files can be attached (this one is {})",
+                f.state
+            )));
+        }
+        sqlx::query("INSERT INTO file_links (workspace_id, file_id, object_type, object_id, linked_by, linked_at) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING")
+            .bind(tx.ctx.workspace_id).bind(id).bind(object_type).bind(object_id).bind(actor.membership).bind(self.clock.now()).execute(tx.conn()).await?;
+        self.audit(
+            tx,
+            Some(actor),
+            "file.linked",
+            id,
+            json!({"object_type": object_type, "object_id": object_id}),
+            Outcome::Allowed,
+        )
+        .await
+    }
+
+    /// Whether the file is held by an object that can no longer change (a version past draft).
+    async fn held(tx: &mut WsTx<'_>, id: Uuid) -> Result<bool, FileError> {
+        Ok(sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM file_links l JOIN artifact_versions v ON v.workspace_id = l.workspace_id AND v.id = l.object_id
+                            WHERE l.file_id = $1 AND l.object_type = 'artifact_version' AND v.lifecycle <> 'draft')",
+        )
+        .bind(id)
+        .fetch_one(tx.conn())
+        .await?)
+    }
+
+    pub async fn unlink(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        id: Uuid,
+        object_type: &str,
+        object_id: Uuid,
+    ) -> Result<(), FileError> {
+        let lifecycle: Option<String> =
+            sqlx::query_scalar("SELECT lifecycle FROM artifact_versions WHERE id = $1")
+                .bind(object_id)
+                .fetch_optional(tx.conn())
+                .await?;
+        if object_type == "artifact_version" && lifecycle.as_deref().is_some_and(|l| l != "draft") {
+            return Err(FileError::Conflict("attachments of a version past draft cannot change".into()));
+        }
+        let n =
+            sqlx::query("DELETE FROM file_links WHERE file_id = $1 AND object_type = $2 AND object_id = $3")
+                .bind(id)
+                .bind(object_type)
+                .bind(object_id)
+                .execute(tx.conn())
+                .await?
+                .rows_affected();
+        if n == 0 {
+            return Err(FileError::NotFound);
+        }
+        self.audit(
+            tx,
+            Some(actor),
+            "file.unlinked",
+            id,
+            json!({"object_type": object_type, "object_id": object_id}),
+            Outcome::Allowed,
+        )
+        .await
+    }
+
+    /// Files linked to an object.
+    pub async fn linked(
+        &self,
+        tx: &mut WsTx<'_>,
+        object_type: &str,
+        object_id: Uuid,
+    ) -> Result<Vec<File>, FileError> {
+        Ok(sqlx::query_as(&format!(
+            "SELECT {} FROM files f JOIN file_links l ON l.workspace_id = f.workspace_id AND l.file_id = f.id
+             WHERE l.object_type = $1 AND l.object_id = $2 AND f.state <> 'deleted' ORDER BY l.linked_at, f.id",
+            COLS.split(", ").map(|c| format!("f.{c}")).collect::<Vec<_>>().join(", ")
+        ))
+        .bind(object_type)
+        .bind(object_id)
+        .fetch_all(tx.conn())
+        .await?)
+    }
+
+    /// Objects a file is linked to.
+    pub async fn links_of(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Vec<(String, Uuid)>, FileError> {
+        Ok(sqlx::query_as(
+            "SELECT object_type, object_id FROM file_links WHERE file_id = $1 ORDER BY linked_at",
+        )
+        .bind(id)
+        .fetch_all(tx.conn())
+        .await?)
+    }
+
+    /// Deletes a file unless a version past draft holds it.
+    pub async fn delete(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<(), FileError> {
+        let f = self.get(tx, id).await?;
+        if Self::held(tx, id).await? {
+            return Err(FileError::Conflict("a published or approved version uses this file".into()));
+        }
+        let key: String = sqlx::query_scalar("SELECT storage_key FROM files WHERE id = $1")
+            .bind(id)
+            .fetch_one(tx.conn())
+            .await?;
+        sqlx::query("DELETE FROM file_links WHERE file_id = $1").bind(id).execute(tx.conn()).await?;
+        sqlx::query("UPDATE files SET state = 'deleted', deleted_at = $2 WHERE id = $1")
+            .bind(id)
+            .bind(self.clock.now())
+            .execute(tx.conn())
+            .await?;
+        self.store.delete(&key).await.map_err(internal)?;
+        self.audit(
+            tx,
+            Some(actor),
+            "file.deleted",
+            id,
+            json!({"name": f.name, "size": f.size}),
+            Outcome::Allowed,
+        )
+        .await
+    }
+
+    /// Every file of the workspace (newest first), optionally by state.
+    pub async fn list(
+        &self,
+        tx: &mut WsTx<'_>,
+        state: Option<&str>,
+        uploaded_by: Option<Uuid>,
+    ) -> Result<Vec<File>, FileError> {
+        Ok(sqlx::query_as(&format!("SELECT {COLS} FROM files WHERE state <> 'deleted' AND ($1::text IS NULL OR state = $1) AND ($2::uuid IS NULL OR uploaded_by = $2) ORDER BY created_at DESC, id DESC LIMIT 1000"))
+            .bind(state)
+            .bind(uploaded_by)
+            .fetch_all(tx.conn())
+            .await?)
+    }
+
+    /// Completed files nothing links to, older than `files.orphan_purge_after` (FR-F07).
+    pub async fn orphans(&self, tx: &mut WsTx<'_>) -> Result<Vec<File>, FileError> {
+        let after = self
+            .settings
+            .effective(tx, "files.orphan_purge_after")
+            .await
+            .map_err(internal)?
+            .value
+            .as_i64()
+            .unwrap_or(7 * 86_400);
+        Ok(sqlx::query_as(&format!(
+            "SELECT {COLS} FROM files f WHERE f.state IN ('clean', 'quarantined', 'rejected', 'scanning') AND f.completed_at < $1
+               AND NOT EXISTS (SELECT 1 FROM file_links l WHERE l.workspace_id = f.workspace_id AND l.file_id = f.id)
+             ORDER BY f.completed_at"
+        ))
+        .bind(self.clock.now() - Duration::seconds(after))
+        .fetch_all(tx.conn())
+        .await?)
+    }
+
+    /// Deletes every orphan. Returns how many.
+    pub async fn purge_orphans(&self, tx: &mut WsTx<'_>, actor: &Actor) -> Result<usize, FileError> {
+        let list = self.orphans(tx).await?;
+        for f in &list {
+            self.delete(tx, actor, f.id).await?;
+        }
+        let mut ev = AuditEvent::new(
+            Some(actor.subject_ref),
+            ActorKind::User,
+            Category::File,
+            "file.orphans_purged",
+            Outcome::Allowed,
+        );
+        ev.ip = actor.ip.clone();
+        ev.user_agent = actor.user_agent.clone();
+        ev.diff = Some(json!({"purged": list.len()}));
+        append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        Ok(list.len())
+    }
+
+    /// Storage usage: total, quota, by type and by uploader (FR-F07).
+    pub async fn usage(&self, tx: &mut WsTx<'_>) -> Result<serde_json::Value, FileError> {
+        let total = self.used_bytes(tx).await?;
+        let quota: Option<Option<i64>> = sqlx::query_scalar(
+            "SELECT max_storage_bytes FROM workspace_quotas WHERE target_workspace_id = $1",
+        )
+        .bind(tx.ctx.workspace_id)
+        .fetch_optional(tx.conn())
+        .await?;
+        let by_type: Vec<(Option<String>, i64, i64)> = sqlx::query_as("SELECT sniffed_type, count(*), coalesce(sum(size), 0)::bigint FROM files WHERE state NOT IN ('deleted', 'rejected') GROUP BY 1 ORDER BY 3 DESC").fetch_all(tx.conn()).await?;
+        let by_owner: Vec<(Uuid, i64, i64)> = sqlx::query_as("SELECT uploaded_by, count(*), coalesce(sum(size), 0)::bigint FROM files WHERE state NOT IN ('deleted', 'rejected') GROUP BY 1 ORDER BY 3 DESC").fetch_all(tx.conn()).await?;
+        let states: Vec<(String, i64)> =
+            sqlx::query_as("SELECT state, count(*) FROM files WHERE state <> 'deleted' GROUP BY 1")
+                .fetch_all(tx.conn())
+                .await?;
+        Ok(json!({
+            "used_bytes": total,
+            "quota_bytes": quota.flatten(),
+            "by_type": by_type.iter().map(|(t, n, b)| json!({"type": t, "files": n, "bytes": b})).collect::<Vec<_>>(),
+            "by_uploader": by_owner.iter().map(|(m, n, b)| json!({"membership_id": m, "files": n, "bytes": b})).collect::<Vec<_>>(),
+            "states": states.into_iter().collect::<std::collections::HashMap<_, _>>(),
+            "scanner": self.scanner.name(),
+        }))
+    }
+}

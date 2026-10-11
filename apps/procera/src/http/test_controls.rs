@@ -34,6 +34,7 @@ pub fn router() -> Router<AppState> {
         .route("/retention/backdate", post(backdate_retention))
         .route("/retention/run", post(run_retention))
         .route("/keys/rewrap", post(rewrap_keys))
+        .route("/files/backdate", post(backdate_file))
 }
 
 #[derive(Debug, Deserialize)]
@@ -157,6 +158,41 @@ async fn rewrap_keys(State(s): State<AppState>) -> Response {
     match k.rewrap_due(10_000).await {
         Ok(n) => Json(serde_json::json!({ "rewrapped": n })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct FileBackdate {
+    workspace: uuid::Uuid,
+    file: uuid::Uuid,
+    seconds: i64,
+}
+
+/// Moves a file's completion `seconds` into the past (orphan report, BPMS-062).
+async fn backdate_file(State(s): State<AppState>, Json(b): Json<FileBackdate>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let n = sqlx::query(
+            "UPDATE files SET completed_at = completed_at - make_interval(secs => $2) WHERE id = $1",
+        )
+        .bind(b.file)
+        .bind(b.seconds as f64)
+        .execute(tx.conn())
+        .await
+        .map_err(|e| e.to_string())?
+        .rows_affected();
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }
 

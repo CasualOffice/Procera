@@ -37,16 +37,25 @@ export async function serverNow(request: APIRequestContext): Promise<number> {
   return Date.parse((await (await request.get('/version')).json()).server_time);
 }
 
-/** Enrols TOTP, then signs in again with MFA. Returns an access token with amr=[pwd,otp]. */
+/** Enrols TOTP, then signs in again with MFA. Returns an access token with amr=[pwd,otp].
+ * Parallel tests may move the shared e2e clock forward, so each code is computed from fresh server
+ * time and retried a few times rather than assumed valid. */
 export async function mfaSession(email: string) {
   const { c, token } = await passwordSession(email);
   const auth = { authorization: `Bearer ${token}` };
   const enr = await (await c.post('/api/v1/me/mfa/totp', { headers: auth })).json();
-  const now = await serverNow(c);
-  const confirmed = await c.post('/api/v1/me/mfa/totp/confirm', { headers: auth, data: { code: totp(enr.secret, now) } });
+  let confirmed = await c.post('/api/v1/me/mfa/totp/confirm', { headers: auth, data: { code: totp(enr.secret, await serverNow(c)) } });
+  for (let i = 0; i < 3 && confirmed.status() === 401; i++) {
+    confirmed = await c.post('/api/v1/me/mfa/totp/confirm', { headers: auth, data: { code: totp(enr.secret, await serverNow(c)) } });
+  }
   expect(confirmed.status()).toBe(200);
   const recovery: string[] = (await confirmed.json()).recovery_codes;
-  const step1 = await (await c.post('/api/v1/auth/login', { data: { email, password: PW } })).json();
-  const done = await (await c.post('/api/v1/auth/mfa', { data: { mfa_token: step1.mfa_token, code: totp(enr.secret, now, 1) } })).json();
+  // The next step's code (the current one was just used; replays are refused).
+  let done: { access_token?: string } = {};
+  for (let i = 0; i < 4 && !done.access_token; i++) {
+    const step1 = await (await c.post('/api/v1/auth/login', { data: { email, password: PW } })).json();
+    done = await (await c.post('/api/v1/auth/mfa', { data: { mfa_token: step1.mfa_token, code: totp(enr.secret, await serverNow(c), 1) } })).json();
+  }
+  expect(done.access_token, 'MFA sign-in').toBeTruthy();
   return { c, token: done.access_token as string, headers: { authorization: `Bearer ${done.access_token}` }, secret: enr.secret as string, recovery };
 }

@@ -30,7 +30,7 @@ const PURPOSE: &str = "workspace-kek";
 /// Envelope-encrypted columns, so rotation can rewrap them: (table, id column, value column, AAD prefix).
 /// The AAD of a value is `<prefix>:<id>`.
 pub const REGISTRY: &[(&str, &str, &str, &str)] =
-    &[("email_messages", "id", "body_sealed", "email_messages")];
+    &[("email_messages", "id", "body_sealed", "email_messages"), ("files", "id", "wrapped_dek", "files")];
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeyError {

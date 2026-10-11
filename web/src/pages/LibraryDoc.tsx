@@ -1,3 +1,4 @@
+import { Attachments } from './docAttachments';
 import { DocEditor } from '../ui/DocEditor';
 import { CollectionRow, OwnerRow, RaciRows } from './docOrganisation';
 import { BookOpenCheck, Check, CircleDot, FileDown, FileText, GitBranch, Hash, Pencil, Printer, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
@@ -166,6 +167,7 @@ export function LibraryDoc({ id }: { id: string }) {
         {!editing && <Button variant="ghost" onPress={() => void download(`/api/v1/versions/${v.id}/export?format=md`, `${a.key}-v${v.version_no}.md`)}><FileDown aria-hidden="true" size="0.9375rem" /> Markdown</Button>}
         <span className="muted doc-meta">{author ? `Edited by ${author.display_name} · ` : ''}{timeAgo(v.created_at)} · {workspace?.name}</span>
       </div>
+      {!editing && <Attachments versionId={v.id} canEdit={p('edit_draft')} />}
       <hr className="doc-rule" />
 
       {editing ? (

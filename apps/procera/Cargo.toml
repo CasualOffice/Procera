@@ -32,6 +32,7 @@ procera-settings.workspace = true
 procera-notify.workspace = true
 procera-library.workspace = true
 procera-keys.workspace = true
+procera-files.workspace = true
 procera-campaigns.workspace = true
 procera-announcements.workspace = true
 procera-search.workspace = true
