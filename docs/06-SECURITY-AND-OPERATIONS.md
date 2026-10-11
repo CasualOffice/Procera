@@ -178,6 +178,40 @@ explicitly resets it, so a mailbox alone never takes over an account.
   system console offers the same actions). Sending a reset link is always allowed (the member still
   needs their mailbox and second factor). Admins never see or set a member's password.
 
+*As built (BPMS-021, OQ-15):*
+- **Data.** Migration 0036: `password_resets` (system scope like `users`; `token_hash` SHA-256 only,
+  `expires_at`, `used_at`, `voided` for links replaced by a newer one, `requested_by` NULL for
+  self-service or the admin's subject, `requester_ip`) and `users.must_change_password`.
+- **Email.** Recovery emails go to the system workspace's queue (`email_messages` under the nil
+  workspace id, which 0011 reserved for platform mail): forced RLS keeps them out of every tenant,
+  bodies are sealed under the system workspace's own KEK, and the worker's `send_due` delivers them
+  like any other. Templates `password_reset`, `password_changed`, `account_security_changed`.
+  Addresses suppressed after a bounce are skipped.
+- **Forgot.** The answer is always 202 with the same body; the email is queued in the background so
+  timing doesn't depend on the account. Limits: the sign-in per-IP budget, and 3 self-service links
+  per account per hour (further requests are audited and send nothing). An admin's link doesn't count
+  against that budget.
+- **Required change.** Sign-in answers `password_change_required` before the MFA step, with a
+  10-minute `pwchange` token bound to the token version; setting the password bumps the version, so
+  the token works once. `POST /auth/password/expired` then revokes every session and continues as a
+  password sign-in (MFA next when enrolled).
+- **Change.** `POST /me/password` revokes the other refresh families, bumps the token version and
+  returns a re-signed access token for the current session. A wrong current password records a
+  sign-in failure for the account and IP keys.
+- **Admin.** `POST /members/{id}/security/{reset-link|require-password-change|sign-out-everywhere|reset-mfa}`
+  with `{reason}`; `member:security.manage` on the member (owner and admin templates; 0036 backfills
+  existing workspaces), step-up, an active membership. "Only active workspace" means no other active
+  membership in a live workspace **and no system role** (a system account is always outside the
+  workspace's reach); the answer is 409 `other_workspaces`. Reset two-step verification removes TOTP,
+  passkeys and recovery codes; it keeps the password and sessions.
+- **Audit.** System chain (actor = the person or the admin, object = the account's subject):
+  `password.reset_requested`, `password.reset`, `password.changed`, `password.change_failed`,
+  `password.change_required`, `login.password_change_required`, `sessions.revoked_all`, `mfa.reset`.
+  Workspace chain (with the reason): `member.password_reset_link_sent`,
+  `member.password_change_required`, `member.signed_out_everywhere`, `member.mfa_reset`.
+- **Not yet built:** the system console's versions of these actions (for accounts with several
+  workspaces) arrive with the system console's user management.
+
 ### 3.7 Magic links (guests) and email-action links
 - 256-bit random token, stored hashed, **single-use**, **15 min** TTL, bound to
   `(user or guest identity, workspace, work_item, action set)`.

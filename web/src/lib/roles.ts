@@ -17,7 +17,7 @@ const AREA: Record<string, string> = {
 };
 const ACTION: Record<string, string> = {
   'settings.view': 'View settings', 'settings.manage': 'Change settings', 'branding.manage': 'Change branding', 'billing.view': 'View billing',
-  'delete.request': 'Request deletion', view_own: 'View own', view_all: 'View all', manage_roles: 'Grant roles', edit_draft: 'Edit drafts',
+  'delete.request': 'Request deletion', view_own: 'View own', view_all: 'View all', manage_roles: 'Grant roles', 'security.manage': 'Manage account security', edit_draft: 'Edit drafts',
   submit_review: 'Submit for review', manage_owners: 'Manage owners', view_analytics: 'View analytics', send_for_signature: 'Send for signature',
   publish_workspace_template: 'Publish workspace templates', suspend_resume: 'Suspend and resume', view_detail: 'View details',
   view_restricted: 'View restricted fields', view_assigned: 'View assigned', view_team: 'View team', add_evidence: 'Add evidence',

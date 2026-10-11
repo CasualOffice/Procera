@@ -36,7 +36,38 @@ const fn exempt(method: &'static str, path: &'static str, reason: &'static str) 
 
 pub const CONTRACT: &[Entry] = &[
     // Authentication (system chain).
-    emits("POST", "/api/v1/auth/login", &[&["login.succeeded"], &["login.password_ok_mfa_required"]]),
+    emits(
+        "POST",
+        "/api/v1/auth/login",
+        &[&["login.succeeded"], &["login.password_ok_mfa_required"], &["login.password_change_required"]],
+    ),
+    // Account recovery (OQ-15, docs/06 §3.6.1). A forgot request is audited whether or not the
+    // account exists (the answer is the same); the reset revokes every session in the same event.
+    emits("POST", "/api/v1/auth/password/forgot", &[&["password.reset_requested"]]),
+    emits("POST", "/api/v1/auth/password/reset", &[&["password.reset"]]),
+    emits(
+        "POST",
+        "/api/v1/auth/password/expired",
+        &[&["login.password_ok_mfa_required", "password.changed"], &["login.succeeded", "password.changed"]],
+    ),
+    emits("POST", "/api/v1/me/password", &[&["password.changed"]]),
+    // Admin account controls: the account change on the system chain, the record on the workspace chain.
+    emits(
+        "POST",
+        "/api/v1/members/{id}/security/reset-link",
+        &[&["member.password_reset_link_sent", "password.reset_requested"]],
+    ),
+    emits(
+        "POST",
+        "/api/v1/members/{id}/security/require-password-change",
+        &[&["member.password_change_required", "password.change_required"]],
+    ),
+    emits(
+        "POST",
+        "/api/v1/members/{id}/security/sign-out-everywhere",
+        &[&["member.signed_out_everywhere", "sessions.revoked_all"]],
+    ),
+    emits("POST", "/api/v1/members/{id}/security/reset-mfa", &[&["member.mfa_reset", "mfa.reset"]]),
     emits("POST", "/api/v1/auth/mfa", &[&["login.succeeded"]]),
     exempt(
         "POST",
@@ -279,6 +310,7 @@ mod tests {
     fn declared_routes() -> BTreeSet<(String, String)> {
         let sources = [
             ("/api/v1", include_str!("auth.rs")),
+            ("/api/v1", include_str!("recovery.rs")),
             ("/api/v1", include_str!("workspace.rs")),
             ("/api/v1", include_str!("settings.rs")),
             ("/api/v1", include_str!("directory.rs")),

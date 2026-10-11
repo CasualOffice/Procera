@@ -14,6 +14,7 @@ import { TextField } from '../ui/components/TextField';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { StepUpDialog } from '../ui/StepUp';
 import { Tag } from '../ui/Tag';
+import { PasswordSection } from './changePassword';
 
 interface Passkey { id: string; name: string; created_at: string; last_used_at: string | null; synced: boolean; user_verified: boolean; transports: string[] }
 
@@ -29,7 +30,7 @@ function deviceName(): string {
 }
 
 /**
- * Account › Security (BPMS-022, docs/12 §3): two-step verification status and the person's
+ * Account › Security (BPMS-022, docs/12 §3, docs/06 §3.6.1): password, two-step verification status and the person’s
  * passkeys. Adding a passkey needs a signed-in session; removing one asks them to confirm it's them.
  */
 export function Security() {
@@ -99,6 +100,8 @@ export function Security() {
         </div>
       </div>
       {notice && <Notice tone="success" title={notice} />}
+
+      <PasswordSection onChanged={setNotice} />
 
       <section className="account-section" aria-labelledby="sec-mfa">
         <div className="section-head"><h2 id="sec-mfa">Two-step verification</h2></div>

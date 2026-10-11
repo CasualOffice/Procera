@@ -724,6 +724,10 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 
 /* Person (/members/{id}) */
 .person { max-width: 42rem; }
+/* The page wrapper shares its class with the inline person chip above: lay it out as a block. */
+.person:has(> .person-head) { display: block; white-space: normal; }
+.person-security { margin-top: var(--space-6); }
+.person-security .rows .btn { flex: none; }
 .person-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
 .person-head h1 { margin: 0; }
 .person-head p { margin: 0.25rem 0 0; }

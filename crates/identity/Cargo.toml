@@ -33,6 +33,7 @@ base64 = "0.22"
 
 [dev-dependencies]
 procera-audit.workspace = true
+procera-kernel = { workspace = true, features = ["test-clock"] }
 anyhow.workspace = true
 tokio.workspace = true
 proptest.workspace = true

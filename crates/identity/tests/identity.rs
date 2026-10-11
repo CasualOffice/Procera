@@ -38,7 +38,7 @@ fn client(ip: &str) -> ClientInfo {
 fn authed(o: LoginOutcome) -> procera_identity::Tokens {
     match o {
         LoginOutcome::Authenticated(t) => *t,
-        LoginOutcome::MfaRequired { .. } => panic!("expected tokens"),
+        _ => panic!("expected tokens"),
     }
 }
 
@@ -125,7 +125,7 @@ async fn totp_enrolment_mfa_login_recovery_codes_and_replay() -> anyhow::Result<
 
     let mfa_token = match id.login("dana@acme.test", PW, &client("10.0.0.1")).await? {
         LoginOutcome::MfaRequired { mfa_token, .. } => mfa_token,
-        LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
+        _ => panic!("MFA must be required"),
     };
     assert!(id.verify_access(&mfa_token).is_none(), "an MFA token is not an access token");
     assert!(matches!(
@@ -202,7 +202,7 @@ async fn step_up_uses_totp_when_enrolled_and_password_otherwise() -> anyhow::Res
     id.totp_confirm(u.id, &totp::code_at(&secret, now / 30 - 1), &c).await?;
     let mfa_token = match id.login("finn@acme.test", PW, &c).await? {
         LoginOutcome::MfaRequired { mfa_token, .. } => mfa_token,
-        LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
+        _ => panic!("MFA must be required"),
     };
     let t = id.complete_mfa(&mfa_token, &totp::code_at(&secret, now / 30), &c).await?;
     let claims = id.verify_access(&t.access_token).expect("access token");
@@ -258,7 +258,7 @@ async fn passkey_registration_mfa_step_up_and_removal() -> anyhow::Result<()> {
     // Sign-in now needs the passkey; the methods say so.
     let (mfa_token, methods) = match id.login("gwen@acme.test", PW, &c).await? {
         LoginOutcome::MfaRequired { mfa_token, methods } => (mfa_token, methods),
-        LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
+        _ => panic!("MFA must be required"),
     };
     assert_eq!(methods, ["webauthn", "recovery_code"]);
     // A response made for another origin (phishing) is rejected, and the failure spends the challenge.

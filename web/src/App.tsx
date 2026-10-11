@@ -29,6 +29,8 @@ import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
 import { Invite } from './pages/Invite';
 import { Setup } from './pages/Setup';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { AckLink } from './pages/AckLink';
 import { Person } from './pages/Person';
 import { SystemAudit } from './pages/system/SystemAudit';
@@ -69,6 +71,9 @@ export function App() {
   if (path === '/invite') return <PlainShell><Invite /></PlainShell>;
   // First-run setup (FR-S01): the one-time bootstrap token creates the first system owner.
   if (path === '/setup') return <PlainShell><Setup /></PlainShell>;
+  // Account recovery (docs/06 §3.6.1): reachable signed out; a reset link also works signed in.
+  if (path === '/forgot-password') return <PlainShell><ForgotPassword /></PlainShell>;
+  if (path === '/reset-password') return <PlainShell><ResetPassword /></PlainShell>;
   if (status === 'signed_out') {
     if (path !== '/sign-in') {
       const here = path + window.location.search;

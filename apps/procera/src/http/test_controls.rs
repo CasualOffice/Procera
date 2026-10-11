@@ -655,16 +655,20 @@ async fn webauthn_rp(State(s): State<AppState>) -> Response {
 
 #[derive(Debug, Deserialize)]
 struct MailQuery {
-    workspace: uuid::Uuid,
+    /// Omit for system emails (account recovery and security notices, docs/06 §3.6.1).
+    #[serde(default)]
+    workspace: Option<uuid::Uuid>,
     to: String,
 }
 
-/// Emails queued or sent to `to` in a workspace, decrypted (the local stand-in for Mailpit).
+/// Emails queued or sent to `to` in a workspace (or, without `workspace`, the system queue),
+/// decrypted (the local stand-in for Mailpit).
 async fn mail(State(s): State<AppState>, Query(q): Query<MailQuery>) -> Response {
     let Some(n) = s.notify.as_ref() else {
         return problem(Problem::new(503, "unavailable", "Service unavailable"));
     };
-    match n.emails_to(procera_db::WsCtx { workspace_id: q.workspace }, &q.to).await {
+    let workspace_id = q.workspace.unwrap_or(procera_db::SYSTEM_WORKSPACE);
+    match n.emails_to(procera_db::WsCtx { workspace_id }, &q.to).await {
         Ok(items) => Json(serde_json::json!({ "items": items })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
     }

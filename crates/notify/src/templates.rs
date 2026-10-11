@@ -49,6 +49,47 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">The link works once and expires on {{ expires }}. If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}If you weren't expecting this, you can ignore this email.{% endblock %}"#,
     ),
+    // Account recovery (docs/06 §3.6.1): system emails, not tied to a workspace. Vars: name, link, minutes.
+    ("password_reset.subject", "Reset your Procera password"),
+    (
+        "password_reset.text",
+        "Hi {{ name }},\n\nSomeone asked to reset the password of your Procera account. To choose a new one, open this link:\n{{ link }}\n\nThe link works once and expires in {{ minutes }} minutes. Two-step verification stays on, so you'll still confirm your next sign-in.\n\nIf you didn't ask for this, ignore this email: your password stays the same.\n",
+    ),
+    (
+        "password_reset.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Hi {{ name }},</p>
+<p style="margin:0 0 16px">Someone asked to reset the password of your Procera account. To choose a new one, use the button below.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Choose a new password</a></p>
+<p style="margin:0 0 16px;font-size:14px;color:#5f5f5a">The link works once and expires in {{ minutes }} minutes. Two-step verification stays on, so you'll still confirm your next sign-in. If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}If you didn't ask for this, ignore this email: your password stays the same.{% endblock %}"#,
+    ),
+    // Vars: name, how ("reset" with a link | "changed" while signed in or at a required change).
+    ("password_changed.subject", "Your Procera password was changed"),
+    (
+        "password_changed.text",
+        "Hi {{ name }},\n\nThe password of your Procera account was {% if how == 'reset' %}reset with an email link{% else %}changed{% endif %}. {% if how == 'reset' %}Every session was signed out.{% else %}Your other sessions were signed out.{% endif %}\n\nIf this wasn't you, reset your password now from the sign-in page and tell your administrator.\n",
+    ),
+    (
+        "password_changed.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Hi {{ name }},</p>
+<p style="margin:0 0 16px">The password of your Procera account was {% if how == 'reset' %}reset with an email link{% else %}changed{% endif %}. {% if how == 'reset' %}Every session was signed out.{% else %}Your other sessions were signed out.{% endif %}</p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If this wasn't you, reset your password now from the sign-in page and tell your administrator.</p>{% endblock %}
+{% block footer %}This is a security notice about your account.{% endblock %}"#,
+    ),
+    // An administrator changed the account's security. Vars: name, workspace, action
+    // (require_password_change | sign_out_everywhere | reset_mfa).
+    ("account_security_changed.subject", "An administrator changed your Procera account security"),
+    (
+        "account_security_changed.text",
+        "Hi {{ name }},\n\nAn administrator of {{ workspace }} {% if action == 'require_password_change' %}asked you to choose a new password the next time you sign in{% elif action == 'sign_out_everywhere' %}signed you out of Procera on every device{% else %}reset your two-step verification; you'll set it up again when you next sign in{% endif %}.\n\nIf you didn't expect this, contact your administrator.\n",
+    ),
+    (
+        "account_security_changed.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Hi {{ name }},</p>
+<p style="margin:0 0 16px">An administrator of <strong>{{ workspace }}</strong> {% if action == 'require_password_change' %}asked you to choose a new password the next time you sign in{% elif action == 'sign_out_everywhere' %}signed you out of Procera on every device{% else %}reset your two-step verification; you'll set it up again when you next sign in{% endif %}.</p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If you didn't expect this, contact your administrator.</p>{% endblock %}
+{% block footer %}This is a security notice about your account.{% endblock %}"#,
+    ),
     ("member_joined.title", "{{ name }} joined {{ workspace }}"),
     ("member_joined.body", "{{ name }} accepted your invitation."),
     // Acknowledgement campaigns (BPMS-046). Vars: title, version, due, link (+ name for escalations).
@@ -449,6 +490,35 @@ mod tests {
         assert_eq!(r.subject, "Your Acme digest: 2 updates");
         assert!(r.text.contains("- Office <move>\n  https://x.test/a") && r.text.contains("- Badge rules"));
         assert!(r.html.contains("Office &lt;move&gt;"));
+    }
+
+    #[test]
+    fn account_recovery_templates_render_and_escape() {
+        let r = email(
+            "password_reset",
+            &json!({"name": "Ann <b>", "link": "https://x.test/reset-password?token=abc", "minutes": 30}),
+        )
+        .expect("renders");
+        assert_eq!(r.subject, "Reset your Procera password");
+        assert!(r.text.contains("https://x.test/reset-password?token=abc") && r.text.contains("30 minutes"));
+        assert!(r.html.contains("Ann &lt;b&gt;") && !r.html.contains("<b>"));
+        for (how, words) in [("reset", "Every session"), ("changed", "other sessions")] {
+            let r = email("password_changed", &json!({"name": "Ann", "how": how})).expect("renders");
+            assert!(r.text.contains(words) && r.html.contains(words), "{how}");
+        }
+        for (action, words) in [
+            ("require_password_change", "choose a new password"),
+            ("sign_out_everywhere", "every device"),
+            ("reset_mfa", "two-step verification"),
+        ] {
+            let r = email(
+                "account_security_changed",
+                &json!({"name": "Ann", "workspace": "Acme & Co", "action": action}),
+            )
+            .expect("renders");
+            assert!(r.text.contains(words) && r.html.contains("Acme &amp; Co"), "{action}");
+        }
+        assert!(email("password_reset", &json!({"name": "Ann"})).is_err(), "the link is required");
     }
 
     #[test]

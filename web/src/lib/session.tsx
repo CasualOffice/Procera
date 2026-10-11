@@ -20,6 +20,10 @@ export interface Workspace {
 
 type Status = 'loading' | 'signed_out' | 'choose_workspace' | 'ready';
 
+/** What a sign-in step asks for next; empty when signed in. */
+export interface SignInStep { mfaToken?: string; methods?: string[]; changeToken?: string }
+type LoginResponse = { status: string; access_token?: string; mfa_token?: string; methods?: string[]; change_token?: string };
+
 interface Session {
   status: Status;
   user: User | null;
@@ -29,8 +33,13 @@ interface Session {
   /** Why entering the workspace failed (e.g. `mfa_required`), shown on the chooser. */
   entryError: string | null;
   can: (permission: string) => boolean;
-  /** Returns the MFA token and the accepted factors when a second factor is needed. */
-  signIn: (email: string, password: string) => Promise<{ mfaToken?: string; methods?: string[] }>;
+  /**
+   * Returns the MFA token and the accepted factors when a second factor is needed, or a change token
+   * when an administrator requires a new password first (docs/06 §3.6.1).
+   */
+  signIn: (email: string, password: string) => Promise<SignInStep>;
+  /** Sets the required new password with the change token; continues like a password sign-in. */
+  completePasswordChange: (changeToken: string, password: string) => Promise<SignInStep>;
   completeMfa: (mfaToken: string, code: string) => Promise<void>;
   /** Second step with a passkey (throws `PasskeyCancelled` if the prompt is dismissed). */
   completeMfaWithPasskey: (mfaToken: string) => Promise<void>;
@@ -118,6 +127,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [load]);
 
+  /** The next step of a sign-in, or the session when it is complete. */
+  const next = useCallback(
+    async (r: LoginResponse): Promise<SignInStep> => {
+      if (r.status === 'mfa_required') return { mfaToken: r.mfa_token, methods: r.methods ?? [] };
+      if (r.status === 'password_change_required') return { changeToken: r.change_token };
+      autoSelected.current = false;
+      setAccessToken(r.access_token ?? null);
+      await load();
+      return {};
+    },
+    [load],
+  );
+
   const value = useMemo<Session>(
     () => ({
       status,
@@ -128,12 +150,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       entryError,
       can: (p) => permissions.has(p),
       async signIn(email, password) {
-        const r = await authPost<{ status: string; access_token?: string; mfa_token?: string; methods?: string[] }>('/api/v1/auth/login', { email, password });
-        if (r.status === 'mfa_required') return { mfaToken: r.mfa_token, methods: r.methods ?? [] };
-        autoSelected.current = false;
-        setAccessToken(r.access_token ?? null);
-        await load();
-        return {};
+        return next(await authPost<LoginResponse>('/api/v1/auth/login', { email, password }));
+      },
+      async completePasswordChange(changeToken, password) {
+        return next(await authPost<LoginResponse>('/api/v1/auth/password/expired', { change_token: changeToken, password }));
       },
       async completeMfa(mfaToken, code) {
         const r = await authPost<{ access_token: string }>('/api/v1/auth/mfa', { mfa_token: mfaToken, code: code.trim() });
@@ -170,7 +190,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       reload: load,
     }),
-    [status, user, workspaces, workspace, permissions, entryError, load, select],
+    [status, user, workspaces, workspace, permissions, entryError, load, select, next],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

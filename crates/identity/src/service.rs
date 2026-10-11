@@ -18,8 +18,11 @@ use crate::password::{self, HashCost, PolicyError};
 use crate::totp;
 use crate::webauthn::{CredentialJson, RelyingParty};
 
+mod account_admin;
 mod passkeys;
+mod recovery;
 pub use passkeys::Passkey;
+pub use recovery::{AccountNotice, CHANGE_TOKEN_TTL, RESET_TTL, RESETS_PER_HOUR, ResetLink};
 
 const SECRETS: &str = "secrets";
 const MAX_FAILURES_BEFORE_BACKOFF: i32 = 5;
@@ -139,6 +142,11 @@ pub enum LoginOutcome {
     MfaRequired {
         mfa_token: String,
         methods: Vec<&'static str>,
+    },
+    /// An admin required a new password (docs/06 §3.6.1): set it with the short-lived, single-use
+    /// `change_token` through [`Identity::complete_expired_change`].
+    PasswordChangeRequired {
+        change_token: String,
     },
 }
 
@@ -378,9 +386,36 @@ impl Identity {
                 .execute(tx.conn())
                 .await?;
         }
+        if self.must_change_password(&mut tx, user.id).await? {
+            // An admin required a new password: no session until it is set (docs/06 §3.6.1).
+            let change_token = self.change_token(&user)?;
+            self.audit(
+                &mut tx,
+                Some(user.subject_ref),
+                "login.password_change_required",
+                Outcome::Allowed,
+                client,
+                None,
+            )
+            .await?;
+            tx.commit().await?;
+            return Ok(LoginOutcome::PasswordChangeRequired { change_token });
+        }
+        let outcome = self.after_password(&mut tx, &user, client).await?;
+        tx.commit().await?;
+        Ok(outcome)
+    }
+
+    /// After a verified password: the MFA step when the account has a second factor, else a session.
+    async fn after_password(
+        &self,
+        tx: &mut WsTx<'_>,
+        user: &User,
+        client: &ClientInfo,
+    ) -> Result<LoginOutcome, IdentityError> {
         if user.mfa_enabled {
             let mfa_token = self.sign(
-                &user,
+                user,
                 Uuid::nil(),
                 "workspace",
                 None,
@@ -390,7 +425,7 @@ impl Identity {
                 self.cfg.mfa_ttl,
             )?;
             self.audit(
-                &mut tx,
+                tx,
                 Some(user.subject_ref),
                 "login.password_ok_mfa_required",
                 Outcome::Allowed,
@@ -398,15 +433,11 @@ impl Identity {
                 None,
             )
             .await?;
-            let methods = self.mfa_methods(&mut tx, &user).await?;
-            tx.commit().await?;
+            let methods = self.mfa_methods(tx, user).await?;
             return Ok(LoginOutcome::MfaRequired { mfa_token, methods });
         }
-        let tokens =
-            self.issue(&mut tx, &user, None, "workspace", None, &["pwd"], self.now(), client).await?;
-        self.audit(&mut tx, Some(user.subject_ref), "login.succeeded", Outcome::Allowed, client, None)
-            .await?;
-        tx.commit().await?;
+        let tokens = self.issue(tx, user, None, "workspace", None, &["pwd"], self.now(), client).await?;
+        self.audit(tx, Some(user.subject_ref), "login.succeeded", Outcome::Allowed, client, None).await?;
         Ok(LoginOutcome::Authenticated(Box::new(tokens)))
     }
 
@@ -672,20 +703,7 @@ impl Identity {
         reason: &str,
         client: &ClientInfo,
     ) -> Result<(), IdentityError> {
-        let mut tx = self.db.begin_system().await?;
-        sqlx::query("UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2) WHERE user_id = $1")
-            .bind(user_id)
-            .bind(self.now())
-            .execute(tx.conn())
-            .await?;
-        sqlx::query("UPDATE users SET token_version = token_version + 1 WHERE id = $1")
-            .bind(user_id)
-            .execute(tx.conn())
-            .await?;
-        let subject = self.load_user(&mut tx, user_id).await?.map(|u| u.subject_ref);
-        self.audit(&mut tx, subject, "sessions.revoked_all", Outcome::Allowed, client, Some(reason)).await?;
-        tx.commit().await?;
-        Ok(())
+        self.revoke_all_sessions(user_id, None, reason, client).await.map(|_| ())
     }
 
     /// Disables an account: no new sign-ins, refresh fails, access tokens die on next check (SEC-04).

@@ -106,7 +106,7 @@ Permissions are `resource:action` strings, and the set is fixed per product vers
 | Resource | Actions |
 |---|---|
 | `workspace` | `settings.view`, `settings.manage`, `branding.manage`, `billing.view`, `export`, `delete.request` |
-| `member` | `view`, `invite`, `deactivate`, `manage_roles` |
+| `member` | `view`, `invite`, `deactivate`, `manage_roles`, `security.manage` (send a reset link, require a password change, sign out everywhere, reset two-step verification; docs/06 §3.6.1) |
 | `role` | `view`, `manage` (create/edit custom roles; cannot exceed own permissions) |
 | `directory` | `view`, `manage` (departments, groups, positions, managers) |
 | `collection` | `view`, `manage` (library folders) |

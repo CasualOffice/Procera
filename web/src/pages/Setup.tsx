@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
+import { passwordProblem } from '../lib/password';
 import { Link, navigate, useRoute } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
@@ -8,16 +9,6 @@ import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 
 const RESTART = 'Restart Procera to print a new one-time token to its log. A new token is issued only until setup is finished.';
-
-/** The server's password policy (docs/06 §3.6) as far as the browser can check it, so the token isn't spent on a rejected password. */
-function passwordProblem(password: string, email: string): string | null {
-  const n = [...password].length;
-  if (n < 12) return 'Use at least 12 characters.';
-  if (n > 128) return 'Use 128 characters or fewer.';
-  const local = email.trim().toLowerCase().split('@')[0] ?? '';
-  if (local.length >= 4 && password.toLowerCase().includes(local)) return 'Don’t include your email name in the password.';
-  return null;
-}
 
 type Outcome = null | 'already' | 'signin';
 
