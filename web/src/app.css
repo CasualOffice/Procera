@@ -495,6 +495,10 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .setting-colour { width: 2.5rem; height: 2.125rem; padding: 2px; border: 1px solid var(--color-border-strong); border-radius: 0.375rem; background: var(--color-surface); cursor: pointer; }
 .setting-reason { width: min(26.25rem, 100%); }
 .setting-note { font-size: 0.7813rem; color: var(--color-text-secondary); }
+.terms-editor { display: flex; flex-direction: column; gap: 0.5rem; width: min(36rem, 100%); }
+.terms-table th[scope='row'] { font-weight: var(--font-weight-medium); color: var(--color-text); background: none; }
+.terms-table td { padding: 0.25rem 0.5rem; }
+.terms-table .field-input { width: 100%; min-width: 0; }
 .setting-edit .notice { margin: 0; }
 .textarea-xs { min-height: 5.5rem; width: min(26.25rem, 100%); font-size: 0.8438rem; padding: 0.5rem 0.625rem; }
 .sheet .textarea-xs { width: 100%; }

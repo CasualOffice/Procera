@@ -12,11 +12,13 @@ import { LoadError, Skeleton } from '../ui/States';
 import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
 import { contrast, textShade } from '../lib/contrast';
 import { uploadFile } from '../lib/upload';
+import { type Label, TERMS, TERM_DEFAULTS, setTerms } from '../lib/terms';
 
 export type Kind =
   | { type: 'bool' } | { type: 'int'; min: number; max: number } | { type: 'duration'; min: number; max: number } | { type: 'size'; min: number; max: number }
   | { type: 'enum'; values: string[] } | { type: 'set'; values: string[]; allow_all: boolean } | { type: 'list'; max_items: number; max_len: number }
-  | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'image' } | { type: 'duration_list'; min: number; max: number; max_items: number };
+  | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'image' } | { type: 'duration_list'; min: number; max: number; max_items: number }
+  | { type: 'terms'; terms: string[]; max_len: number };
 export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number }
 
 /** A value as a short sentence fragment, for read-only display and the explainer. */
@@ -31,6 +33,7 @@ export function show(kind: Kind, v: unknown): string {
     case 'duration_list': { const a = (v as number[]) ?? []; return a.length ? a.map(durationText).join(', ') : 'None'; }
     case 'text': return String(v ?? '') || 'Not set';
     case 'image': return v ? 'Uploaded image' : 'Not set';
+    case 'terms': { const e = Object.entries((v as Record<string, Label>) ?? {}); return e.length ? e.map(([t, l]) => `${TERM_DEFAULTS[t as keyof typeof TERM_DEFAULTS]?.singular ?? t} → ${l.singular}`).join(', ') : 'Product defaults'; }
     default: return String(v ?? '');
   }
 }
@@ -102,6 +105,7 @@ function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onS
     setBusy(true); setError(null);
     try {
       await api(`/api/v1/settings/${s.key}`, { method: 'PUT', headers: { 'if-match': `"${s.revision}"` }, body: { value: draft, ...(reason.trim() ? { reason: reason.trim() } : {}) } });
+      if (s.kind.type === 'terms') setTerms(draft as Record<string, Label>); // every screen picks up the new terms now
       setEditing(false); setReason(''); setNeedReason(false); setSaved(true); onSaved();
     } catch (e) {
       if (e instanceof ApiError && e.code === 'step_up_required') setStepUp(true);
@@ -240,6 +244,8 @@ export function Control({ kind, value, onChange, labelledBy, describedBy }: { ki
       return <input className="field-input" value={((value as number[]) ?? []).map((x) => x / 86_400).join(', ')} onChange={(e) => onChange(e.target.value.split(',').map((x) => Math.round(Number(x.trim()) * 86_400)).filter((x) => x > 0))} {...a11y} />;
     case 'image':
       return <ImageControl value={String(value ?? '')} onChange={onChange} />;
+    case 'terms':
+      return <TermsControl value={(value as Record<string, Label>) ?? {}} maxLen={kind.max_len} onChange={onChange} labelledBy={labelledBy} />;
     case 'colour':
       return (
         <span className="setting-inline">
@@ -290,5 +296,46 @@ function ImageControl({ value, onChange }: { value: string; onChange: (v: unknow
       {name && <span className="muted">{name}</span>}
       {error && <span className="field-error" role="alert">{error}</span>}
     </span>
+  );
+}
+
+/**
+ * Terminology overrides (CFG-008): one row per product term. Empty means the product default; a term
+ * needs both forms. Reset clears one row, Clear all goes back to every default.
+ */
+function TermsControl({ value, maxLen, onChange, labelledBy }: { value: Record<string, Label>; maxLen: number; onChange: (v: unknown) => void; labelledBy: string }) {
+  const set = (t: string, field: keyof Label, text: string) => {
+    const row = { singular: value[t]?.singular ?? '', plural: value[t]?.plural ?? '', [field]: text };
+    const next = { ...value };
+    if (!row.singular.trim() && !row.plural.trim()) delete next[t]; else next[t] = row;
+    onChange(next);
+  };
+  const reset = (t: string) => { const next = { ...value }; delete next[t]; onChange(next); };
+  return (
+    <div className="terms-editor">
+      <table className="table terms-table" aria-labelledby={labelledBy}>
+        <thead><tr><th scope="col">Term</th><th scope="col">Singular</th><th scope="col">Plural</th><th scope="col"><span className="visually-hidden">Actions</span></th></tr></thead>
+        <tbody>
+          {TERMS.map((t) => {
+            const d = TERM_DEFAULTS[t];
+            const row = value[t];
+            const partial = !!row && (!row.singular.trim() || !row.plural.trim());
+            return (
+              <tr key={t}>
+                <th scope="row">{d.singular}</th>
+                <td><input className="field-input" aria-label={`Singular for ${d.singular}`} placeholder={d.singular} maxLength={maxLen} value={row?.singular ?? ''} onChange={(e) => set(t, 'singular', e.target.value)} aria-invalid={partial && !row?.singular.trim() ? true : undefined} /></td>
+                <td><input className="field-input" aria-label={`Plural for ${d.singular}`} placeholder={d.plural} maxLength={maxLen} value={row?.plural ?? ''} onChange={(e) => set(t, 'plural', e.target.value)} aria-invalid={partial && !row?.plural.trim() ? true : undefined} /></td>
+                <td>{row && <Button variant="ghost" className="btn-sm" onPress={() => reset(t)} aria-label={`Reset ${d.singular}`}>Reset</Button>}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="setting-inline">
+        {Object.values(value).some((r) => !r.singular.trim() || !r.plural.trim()) && <span className="field-error" role="alert">Give each renamed term both a singular and a plural.</span>}
+        {Object.keys(value).length > 0 && <Button variant="secondary" className="btn-sm" onPress={() => onChange({})}>Clear all</Button>}
+        <span className="setting-note">Empty fields use the product term. Up to {maxLen} characters.</span>
+      </div>
+    </div>
   );
 }

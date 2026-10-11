@@ -12,6 +12,7 @@ import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
+import { term, useTerms } from '../lib/terms';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
 import { BookOpen, Download } from 'lucide-react';
@@ -22,6 +23,7 @@ type Filter = 'all' | 'policy' | 'sop';
 
 /** Library (docs/05 §3.2, §3.21): policies and SOPs. */
 export function Library() {
+  useTerms(); // the workspace's terms (CFG-008)
   const { can } = useSession();
   const { query } = useRoute();
   const [filter, setFilter] = useState<Filter>('all');
@@ -47,7 +49,7 @@ export function Library() {
       <div className="page-head">
         <div>
           <h1>{here ?? 'Library'}</h1>
-          <p>{here ? 'Documents in this collection and the ones inside it.' : 'Policies say what and why; SOPs say how. Everything here is versioned, reviewed and audited.'}</p>
+          <p>{here ? 'Documents in this collection and the ones inside it.' : `Policies say what and why; ${term('sop', { plural: true })} say how. Everything here is versioned, reviewed and audited.`}</p>
         </div>
         <div className="page-actions">
         <Button variant="secondary" onPress={() => void download(`/api/v1/raci/export${collection ? `?collection=${collection}` : ''}`, 'raci.csv')}><Download aria-hidden="true" size="1rem" /> Export RACI</Button>
@@ -63,14 +65,14 @@ export function Library() {
         <div className="segmented" role="group" aria-label="Filter by type">
           {(['all', 'policy', 'sop'] as const).map((f) => (
             <button key={f} type="button" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {f === 'all' ? 'All' : f === 'policy' ? 'Policies' : 'SOPs'} <span className="seg-count">{counts[f]}</span>
+              {f === 'all' ? 'All' : f === 'policy' ? 'Policies' : term('sop', { plural: true, capitalised: true })} <span className="seg-count">{counts[f]}</span>
             </button>
           ))}
         </div>
       </div>
 
       {loadError ? <LoadError error={loadError} onRetry={reload} what="the library" /> : docs === null ? <Skeleton variant="table" rows={5} label="Loading documents" /> : docs.length === 0 ? (
-        <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
+        <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or one of the {term('sop', { plural: true })} your team already follows.</Empty>
       ) : (
         <DataGrid<Artifact> caption="Documents" showCaption={false} list="library.documents" data={rows} rowHref={(d) => `/library/${d.id}`} initialSort={[{ id: 'title', desc: false }]}
           columns={[
@@ -92,6 +94,7 @@ export function Library() {
 }
 
 function NewDocumentDialog({ kind, onClose, onCreated }: { kind: 'policy' | 'sop' | null; onClose: () => void; onCreated: (id: string) => void }) {
+  useTerms(); // the workspace's terms (CFG-008)
   const { can } = useSession();
   const [type, setType] = useState<'policy' | 'sop'>('policy');
   const [title, setTitle] = useState('');
@@ -117,7 +120,7 @@ function NewDocumentDialog({ kind, onClose, onCreated }: { kind: 'policy' | 'sop
           <span className="doc-icon tag-purple"><FileText aria-hidden="true" size="0.875rem" /></span><span><strong>Policy</strong><small>What the rule is and why</small></span>
         </button>
         <button type="button" className="radio-card" aria-pressed={type === 'sop'} disabled={!can('sop:create')} onClick={() => setType('sop')}>
-          <span className="doc-icon tag-blue"><ScrollText aria-hidden="true" size="0.875rem" /></span><span><strong>SOP</strong><small>How the work is done, step by step</small></span>
+          <span className="doc-icon tag-blue"><ScrollText aria-hidden="true" size="0.875rem" /></span><span><strong>{term('sop', { capitalised: true })}</strong><small>How the work is done, step by step</small></span>
         </button>
       </div>
       <Form onSubmit={(e) => { e.preventDefault(); if (title.trim()) void submit(); }}>

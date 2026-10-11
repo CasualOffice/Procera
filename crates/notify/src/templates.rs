@@ -1,6 +1,9 @@
 //! Notification templates (FR-N02). Templates live in code, render in a sandboxed engine with strict
-//! undefined variables, and HTML bodies are auto-escaped. Localisation and workspace terminology
-//! overrides (CFG-008) plug in here later; `en` is the only locale today.
+//! undefined variables, and HTML bodies are auto-escaped. `en` is the only locale today.
+//!
+//! Workspace terminology (CFG-008): every template sees `terms.<term>.singular`, `.plural`, `.lower`
+//! and `.lower_plural` for `request`, `process`, `step`, `sop`, `case` and `work`. `Notify` passes
+//! the workspace's labels; without them the product defaults apply.
 
 use minijinja::{Environment, UndefinedBehavior};
 use serde_json::Value;
@@ -157,22 +160,25 @@ const TEMPLATES: &[(&str, &str)] = &[
 <ul style="margin:0 0 8px;padding-left:20px">{% for i in items %}<li style="margin:0 0 8px">{% if i.link %}<a href="{{ i.link }}">{{ i.title }}</a>{% else %}{{ i.title }}{% endif %}</li>{% endfor %}</ul>{% endblock %}
 {% block footer %}Change how often you get this in your notification preferences.{% endblock %}"#,
     ),
-    // BPMS-040: a draft waits for review. Vars: title, version, author, link.
+    // BPMS-040: a draft waits for review. Vars: title, version, author, kind (sop | policy), link.
     ("review_requested.title", "Review {{ title }}"),
-    ("review_requested.body", "{{ author }} submitted version {{ version }} for review."),
+    (
+        "review_requested.body",
+        "{{ author }} submitted version {{ version }} of this {{ terms.sop.lower if kind == 'sop' else 'policy' }} for review.",
+    ),
     ("review_requested.subject", "Review requested: {{ title }} v{{ version }}"),
     (
         "review_requested.text",
-        "{{ author }} submitted {{ title }} (version {{ version }}) for review.\n\nOpen it to approve or request changes:\n{{ link }}\n",
+        "{{ author }} submitted the {{ terms.sop.lower if kind == 'sop' else 'policy' }} {{ title }} (version {{ version }}) for review.\n\nOpen it to approve or request changes:\n{{ link }}\n",
     ),
     (
         "review_requested.html",
-        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{{ author }} submitted <strong>{{ title }}</strong> (version {{ version }}) for review.</p>
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{{ author }} submitted the {{ terms.sop.lower if kind == 'sop' else 'policy' }} <strong>{{ title }}</strong> (version {{ version }}) for review.</p>
 <p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Review</a></p>
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
-{% block footer %}You receive this because you can review this kind of document.{% endblock %}"#,
+{% block footer %}You receive this because you can review {{ terms.sop.lower_plural if kind == 'sop' else 'policies' }}.{% endblock %}"#,
     ),
-    // BPMS-040: the review outcome, to the author. Vars: title, version, outcome
+    // BPMS-040: the review outcome, to the author. Vars: title, version, kind (sop | policy), outcome
     // (approved | changes_requested | reject), comment (optional), link.
     (
         "review_decided.title",
@@ -188,13 +194,13 @@ const TEMPLATES: &[(&str, &str)] = &[
     ),
     (
         "review_decided.text",
-        "{% if outcome == 'approved' %}{{ title }} (version {{ version }}) is approved and ready to publish.{% else %}{{ title }} (version {{ version }}) is back in draft.{% if comment %}\n\nReviewer's comment: {{ comment }}{% endif %}{% endif %}\n\nOpen it:\n{{ link }}\n",
+        "{% set noun = terms.sop.singular if kind == 'sop' else 'Policy' %}{% if outcome == 'approved' %}{{ noun }} {{ title }} (version {{ version }}) is approved and ready to publish.{% else %}{{ noun }} {{ title }} (version {{ version }}) is back in draft.{% if comment %}\n\nReviewer's comment: {{ comment }}{% endif %}{% endif %}\n\nOpen it:\n{{ link }}\n",
     ),
     (
         "review_decided.html",
-        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{% if outcome == 'approved' %}<strong>{{ title }}</strong> (version {{ version }}) is approved and ready to publish.{% else %}<strong>{{ title }}</strong> (version {{ version }}) is back in draft.{% endif %}</p>
+        r#"{% extends "layout.html" %}{% block content %}{% set noun = terms.sop.singular if kind == 'sop' else 'Policy' %}<p style="margin:0 0 16px">{% if outcome == 'approved' %}{{ noun }} <strong>{{ title }}</strong> (version {{ version }}) is approved and ready to publish.{% else %}{{ noun }} <strong>{{ title }}</strong> (version {{ version }}) is back in draft.{% endif %}</p>
 {% if comment and outcome != 'approved' %}<p style="margin:0 0 16px;padding:12px 16px;background:#f4f4f2;border-radius:6px">{{ comment }}</p>{% endif %}
-<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the document</a></p>{% endblock %}
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the {{ terms.sop.lower if kind == 'sop' else 'policy' }}</a></p>{% endblock %}
 {% block footer %}You receive this because you wrote this version.{% endblock %}"#,
     ),
     // BPMS-047: an announcement waits for approval. Vars: title, author, link.
@@ -258,8 +264,22 @@ fn render(env: &Environment<'_>, name: &str, ctx: &Value) -> Result<String, Noti
         .map_err(|e| NotifyError::Template(format!("{name}: {e}")))
 }
 
+/// `ctx` with `terms` for `stored` (the workspace's `terminology.overrides` value) unless the
+/// caller already set them. Non-object contexts are returned as they are.
+pub fn with_terms(ctx: &Value, stored: &Value) -> Value {
+    let mut c = ctx.clone();
+    if let Some(o) = c.as_object_mut()
+        && !o.contains_key("terms")
+    {
+        o.insert("terms".into(), procera_settings::terms::template_context(stored));
+    }
+    c
+}
+
+/// Renders an email. Without `terms` in `ctx`, the product's default terminology applies.
 pub fn email(kind: &str, ctx: &Value) -> Result<Rendered, NotifyError> {
     let env = env()?;
+    let ctx = &with_terms(ctx, &Value::Null);
     Ok(Rendered {
         subject: render(&env, &format!("{kind}.subject"), ctx)?.replace(['\r', '\n'], " "),
         text: render(&env, &format!("{kind}.text"), ctx)?,
@@ -267,8 +287,10 @@ pub fn email(kind: &str, ctx: &Value) -> Result<Rendered, NotifyError> {
     })
 }
 
+/// Renders an in-app notification. Without `terms` in `ctx`, the default terminology applies.
 pub fn in_app(kind: &str, ctx: &Value) -> Result<RenderedInApp, NotifyError> {
     let env = env()?;
+    let ctx = &with_terms(ctx, &Value::Null);
     Ok(RenderedInApp {
         title: render(&env, &format!("{kind}.title"), ctx)?,
         body: render(&env, &format!("{kind}.body"), ctx)?,
@@ -292,8 +314,7 @@ mod tests {
 
     #[test]
     fn review_templates_render_every_outcome() {
-        let ctx =
-            json!({"title": "Travel <policy>", "version": 2, "author": "Ann", "link": "https://x.test/l"});
+        let ctx = json!({"title": "Travel <policy>", "version": 2, "author": "Ann", "kind": "policy", "link": "https://x.test/l"});
         let r = email("review_requested", &ctx).expect("renders");
         assert!(r.subject.contains("Travel <policy> v2") && r.html.contains("Travel &lt;policy&gt;"));
         assert!(in_app("review_requested", &ctx).expect("renders").body.contains("Ann submitted version 2"));
@@ -302,12 +323,70 @@ mod tests {
             ("changes_requested", Some("Fix <b>"), "back in draft"),
             ("reject", Some("No"), "back in draft"),
         ] {
-            let ctx = json!({"title": "T", "version": 1, "outcome": outcome, "comment": comment, "link": "https://x.test/l"});
+            let ctx = json!({"title": "T", "version": 1, "kind": "sop", "outcome": outcome, "comment": comment, "link": "https://x.test/l"});
             let r = email("review_decided", &ctx).expect("renders");
+            assert!(r.text.starts_with("SOP T"), "{outcome}: default term");
             assert!(r.text.contains(word), "{outcome}");
             assert!(!r.html.contains("<b>"), "{outcome}: comment is escaped");
             assert!(!in_app("review_decided", &ctx).expect("renders").title.is_empty());
         }
+    }
+
+    #[test]
+    fn workspace_terms_reach_review_emails() {
+        let stored = json!({"sop": {"singular": "Work Instruction", "plural": "Work Instructions"}});
+        let ctx = with_terms(
+            &json!({"title": "Lockout <tagout>", "version": 3, "author": "Ann", "kind": "sop", "link": "https://x.test/l"}),
+            &stored,
+        );
+        let r = email("review_requested", &ctx).expect("renders");
+        assert!(r.text.starts_with("Ann submitted the work instruction Lockout <tagout>"), "{}", r.text);
+        assert!(r.html.contains("the work instruction <strong>Lockout &lt;tagout&gt;</strong>"));
+        assert!(r.html.contains("you can review work instructions."));
+        assert!(!r.text.contains("SOP") && !r.html.contains("SOP"));
+        let n = in_app("review_requested", &ctx).expect("renders");
+        assert_eq!(n.body, "Ann submitted version 3 of this work instruction for review.");
+        let mut decided = ctx.clone();
+        decided["outcome"] = json!("approved");
+        decided["comment"] = json!(null);
+        let r = email("review_decided", &decided).expect("renders");
+        assert!(
+            r.text.starts_with("Work Instruction Lockout <tagout> (version 3) is approved"),
+            "{}",
+            r.text
+        );
+        assert!(r.html.contains("Open the work instruction"));
+        // A policy never takes the SOP term.
+        let mut policy = ctx.clone();
+        policy["kind"] = json!("policy");
+        assert!(email("review_requested", &policy).expect("renders").text.contains("the policy Lockout"));
+    }
+
+    #[test]
+    fn request_terms_are_ready_for_request_templates() {
+        // No request emails exist yet (they arrive with requests); their templates will read
+        // `terms.request.*` from the same context.
+        let mut env = env().expect("env");
+        env.add_template("t", "{{ terms.request.singular }} {{ id }}: your {{ terms.request.lower }} is open ({{ terms.request.lower_plural }})")
+            .expect("template");
+        let ctx = with_terms(
+            &json!({"id": "TCK-1"}),
+            &json!({"request": {"singular": "Ticket", "plural": "Tickets"}}),
+        );
+        assert_eq!(render(&env, "t", &ctx).expect("renders"), "Ticket TCK-1: your ticket is open (tickets)");
+        let ctx = with_terms(&json!({"id": "REQ-1"}), &json!({}));
+        assert_eq!(
+            render(&env, "t", &ctx).expect("renders"),
+            "Request REQ-1: your request is open (requests)"
+        );
+        // A caller's own terms win; a template naming an unknown term still fails (strict).
+        let ctx = with_terms(
+            &json!({"id": "X", "terms": {"request": {"singular": "Job", "lower": "job", "lower_plural": "jobs"}}}),
+            &json!({}),
+        );
+        assert_eq!(render(&env, "t", &ctx).expect("renders"), "Job X: your job is open (jobs)");
+        env.add_template("u", "{{ terms.invoice.singular }}").expect("template");
+        assert!(render(&env, "u", &with_terms(&json!({}), &json!({}))).is_err());
     }
 
     #[test]

@@ -99,3 +99,30 @@ async fn email_queue_inbox_and_retry() -> anyhow::Result<()> {
     assert_eq!(n.send_due(&mailer).await?, (0, 0), "backing off: not retried immediately");
     Ok(())
 }
+
+/// CFG-008: emails and in-app notifications use the workspace's terminology.
+#[tokio::test]
+async fn workspace_terms_reach_notifications() -> anyhow::Result<()> {
+    let Some(t) = test_support::fresh().await else { return Ok(()) };
+    let t = t?;
+    let keys = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64())?);
+    let n = Notify::new(t.db.clone(), keys, Arc::new(SystemClock), Arc::new(UuidV7Gen));
+    let ws = WsCtx { workspace_id: Uuid::now_v7() };
+    let mut admin = <sqlx::PgConnection as sqlx::Connection>::connect(&t.admin_url).await?;
+    let mut tx = t.db.begin_ws(ws).await?;
+    sqlx::query("INSERT INTO workspace_settings (workspace_id, key, value, updated_at) VALUES ($1, 'terminology.overrides', $2, now())")
+        .bind(ws.workspace_id)
+        .bind(json!({"sop": {"singular": "Work Instruction", "plural": "Work Instructions"}}))
+        .execute(tx.conn())
+        .await?;
+    let m = member(&mut tx, &mut admin).await?;
+    let vars = json!({"title": "Lockout", "version": 2, "author": "Ann", "kind": "sop", "link": "https://app.test/library/1"});
+    assert!(n.notify_member(&mut tx, m, "review_requested", &vars, None, None, "t-1").await?);
+    let (items, _) = n.inbox(&mut tx, m, false, 50).await?;
+    assert_eq!(items[0].body, "Ann submitted version 2 of this work instruction for review.");
+    assert!(n.queue_email(&mut tx, "review_requested", "zoe@acme.test", &vars, "t-2").await?);
+    tx.commit().await?;
+    let mail = n.emails_to(ws, "zoe@acme.test").await?;
+    assert!(mail[0].text.contains("submitted the work instruction Lockout") && !mail[0].html.contains("SOP"));
+    Ok(())
+}

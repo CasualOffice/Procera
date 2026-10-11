@@ -252,7 +252,7 @@ impl AppBus {
                         .await
                         .map_err(|e| e.to_string())?;
                     let link = format!("/library/{artifact}");
-                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "author": name.unwrap_or_else(|| "Someone".into()), "link": link});
+                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "author": name.unwrap_or_else(|| "Someone".into()), "kind": kind, "link": link});
                     for (membership, email) in reviewers.iter().filter(|(id, _)| *id != author) {
                         let dedupe = format!("review_requested:{}:{membership}", m.id);
                         vars["link"] = json!(link);
@@ -301,7 +301,7 @@ impl AppBus {
                     .map_err(|e| e.to_string())?;
                     let link = format!("/library/{artifact}");
                     let dedupe = format!("review_decided:{}", m.id);
-                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "outcome": m.payload["outcome"], "comment": m.payload["comment"], "link": link});
+                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "kind": m.payload["kind"].as_str().unwrap_or("policy"), "outcome": m.payload["outcome"], "comment": m.payload["comment"], "link": link});
                     self.notify
                         .notify_member(
                             &mut tx,

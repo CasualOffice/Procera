@@ -7,6 +7,7 @@ pub mod cache;
 pub mod catalogue;
 mod scoped;
 mod switch;
+pub mod terms;
 
 pub use scoped::{DepartmentEffective, Snapshot};
 pub use switch::{PlanItem, ProfilePlan, profile_managed_keys};
@@ -142,6 +143,8 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             Some(s) if uuid::Uuid::parse_str(s).is_ok() => Ok(json!(s.to_lowercase())),
             _ => Err(invalid(d, "expected the id of an uploaded image, or empty for none")),
         },
+        // The catalogue bounds and `terms` agree (asserted in the catalogue test).
+        Kind::Terms { .. } => terms::validate(v).map_err(|m| invalid(d, m)),
         Kind::DurationList { min, max, max_items } => {
             let items = v.as_array().ok_or_else(|| invalid(d, "expected a list of seconds"))?;
             if items.len() > max_items {

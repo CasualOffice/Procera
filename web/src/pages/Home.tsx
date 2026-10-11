@@ -7,6 +7,7 @@ import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag } from '../ui/Tag';
+import { term, useTerms } from '../lib/terms';
 
 interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; acknowledged_at: string | null; subject: { artifact_id?: string; announcement_id?: string; kind: string; title: string; version_no?: number; link?: string } }
 interface FeedItem { id: string; title: string; priority: string; pinned: boolean; require_ack: boolean; published_at: string | null; read_at: string | null; acked_at: string | null }
@@ -28,6 +29,7 @@ function dueTag(iso: string, overdue: boolean) {
  * work ("Read and acknowledge", "Review", "Read"); tags only state facts (due, overdue, critical).
  */
 export function Home() {
+  useTerms(); // the workspace's terms (CFG-008)
   const { user, can } = useSession();
   const canLibrary = can('policy:view') || can('sop:view');
   const [acks, reloadAcks, acksError] = useItems<Ack>('/api/v1/me/acknowledgements?state=pending');
@@ -70,7 +72,7 @@ export function Home() {
 
   const create = [
     can('policy:create') && { to: '/library?new=policy', icon: FilePlus2, tone: 'purple', label: 'New policy' },
-    can('sop:create') && { to: '/library?new=sop', icon: ScrollText, tone: 'blue', label: 'New SOP' },
+    can('sop:create') && { to: '/library?new=sop', icon: ScrollText, tone: 'blue', label: `New ${term('sop')}` },
     (can('announcement:create') || can('announcement:manage')) && { to: '/admin/announcements?new=1', icon: SquarePen, tone: 'orange', label: 'New announcement' },
     can('member:invite') && { to: '/admin/members?invite=1', icon: UserPlus, tone: 'green', label: 'Invite people' },
   ].filter(Boolean) as { to: string; icon: typeof FilePlus2; tone: string; label: string }[];
@@ -133,7 +135,7 @@ export function Home() {
             <section aria-labelledby="published">
               <div className="section-head"><h2 id="published">Published documents</h2><Link className="section-link" to="/library">Library</Link></div>
               {docs === null ? <Skeleton rows={3} label="Loading documents" /> : published.length === 0 ? (
-                <Empty compact title="Nothing published yet">Published policies and SOPs show up here.</Empty>
+                <Empty compact title="Nothing published yet">Published policies and {term('sop', { plural: true })} show up here.</Empty>
               ) : (
                 <ul className="mini-docs">
                   {published.map((d) => (

@@ -45,6 +45,11 @@ pub enum Kind {
     Colour,
     /// A clean image file (its id), or empty for none (e.g. the workspace logo).
     Image,
+    /// Term → `{singular, plural}` labels for the listed terms (CFG-008; see `crate::terms`).
+    Terms {
+        terms: &'static [&'static str],
+        max_len: usize,
+    },
     /// Ascending list of distinct durations in seconds (e.g. a reminder ladder).
     DurationList {
         min: i64,
@@ -172,6 +177,13 @@ pub const CATALOGUE: &[Def] = &[
         Some(SETTINGS),
         || json!("mon"),
     )),
+    def(
+        "terminology.overrides",
+        "locale",
+        Kind::Terms { terms: crate::terms::TERMS, max_len: crate::terms::MAX_LEN },
+        Some(SETTINGS),
+        || json!({}),
+    ),
     // 2.3 Identity and security (⚡)
     sec(
         "auth.mfa.required_roles",
@@ -564,6 +576,21 @@ mod tests {
         assert!(profile("nope").is_none());
         assert!(CATALOGUE.iter().any(|d| d.department), "some keys are department-scopable");
         assert!(!get("governance.review.required_for").is_some_and(|d| d.department), "collection-only Ovr");
+    }
+
+    #[test]
+    fn terminology_overrides_validate_through_terms() {
+        let d = get(crate::terms::KEY).expect("key");
+        assert!(
+            matches!(d.kind, Kind::Terms { terms, max_len } if terms == crate::terms::TERMS && max_len == crate::terms::MAX_LEN)
+        );
+        assert_eq!(d.perm, Some(SETTINGS));
+        assert_eq!(
+            crate::validate(d, &json!({"request": {"singular": "Ticket ", "plural": "Tickets"}})).ok(),
+            Some(json!({"request": {"singular": "Ticket", "plural": "Tickets"}}))
+        );
+        let e = crate::validate(d, &json!({"invoice": {"singular": "Bill", "plural": "Bills"}}));
+        assert!(matches!(e, Err(crate::SettingsError::Invalid { ref key, .. }) if key == crate::terms::KEY));
     }
 
     #[test]

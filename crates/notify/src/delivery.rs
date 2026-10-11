@@ -184,7 +184,7 @@ impl Notify {
         }
         let p = self.preferences(tx, membership).await?;
         if urgency == Urgency::Normal && p.digest != "off" {
-            let r = templates::email(kind, ctx)?;
+            let r = templates::email(kind, &self.with_terms(tx, ctx).await?)?;
             let link = ctx.get("link").and_then(Value::as_str);
             let n = sqlx::query("INSERT INTO digest_items (workspace_id, id, membership_id, kind, title, link, dedupe_key, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (workspace_id, dedupe_key) DO NOTHING")
                 .bind(tx.ctx.workspace_id).bind(self.ids.new_id()).bind(membership).bind(kind).bind(&r.subject).bind(link).bind(dedupe_key).bind(self.clock.now())

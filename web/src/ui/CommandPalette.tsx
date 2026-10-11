@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { type RecentItem, recentItems, rememberRecent } from '../lib/recent';
 import { navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { term, useTerms } from '../lib/terms';
 import { Avatar } from './Avatar';
 import { createActions, navGroups } from './nav';
 
@@ -16,7 +17,7 @@ export const shortcutLabel = () => (isMac() ? '⌘K' : 'Ctrl K');
 
 const KIND: Record<string, { section: string; icon: LucideIcon; to: (h: Hit) => string; label: string }> = {
   policy: { section: 'Documents', icon: FileText, to: (h) => `/library/${h.id}`, label: 'Policy' },
-  sop: { section: 'Documents', icon: ScrollText, to: (h) => `/library/${h.id}`, label: 'SOP' },
+  sop: { section: 'Documents', icon: ScrollText, to: (h) => `/library/${h.id}`, get label() { return term('sop', { capitalised: true }); } },
   member: { section: 'People', icon: User, to: (h) => `/admin/members?q=${encodeURIComponent(h.title)}`, label: 'Person' },
 };
 
@@ -56,6 +57,7 @@ function Snippet({ html }: { html: string }) {
  */
 export function CommandPalette({ isOpen, onOpenChange }: { isOpen: boolean; onOpenChange: (o: boolean) => void }) {
   const { can, workspace } = useSession();
+  useTerms();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<Hit[] | null>(null);
   const [searching, setSearching] = useState(false);

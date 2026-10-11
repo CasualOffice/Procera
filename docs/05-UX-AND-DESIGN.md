@@ -692,6 +692,7 @@ App shell, nav, workspace switcher, command palette, DataGrid, filter builder, c
 - **Voice:** plain, specific, active. "Approve request", not "Submit decision". Errors say what happened and what to do. No blame, no codes up front (codes appear in details).
 - **Glossary-locked terms** in UI copy: Request (instance), Step, Task, Decision, Owner, Process, SOP, Version, Case. "Instance", "token" and "IR" appear only in Advanced and admin ops views.
 - **Terminology overrides** (FR-W04): a workspace may rename Request → Ticket and Case → Matter. Overrides apply to UI, emails and exports through the i18n layer as message parameters, never by string replacement.
+  - *As built (CFG-008):* copy that names a renameable term (request, process, step, SOP, case, work) takes it from `term()` in `web/src/lib/terms.ts`, never a literal. Headings and tags use the capitalised form; mid-sentence copy uses the default lowered form. Avoid an article right before a term (A-36). Emails use `terms.<term>.*` in templates. API values (`kind: 'sop'`) and permission keys never change.
 - **i18n:**
   - ICU MessageFormat with no concatenation.
   - Dates and numbers via `Intl`, shown in the viewer's timezone with the workspace timezone on hover.

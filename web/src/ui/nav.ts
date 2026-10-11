@@ -1,4 +1,5 @@
 import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, Gauge, Archive, History, House, KeyRound, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { term } from '../lib/terms';
 
 export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'overview' | 'members' | 'roles' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
@@ -42,7 +43,7 @@ export interface CreateAction { id: string; label: string; to: string; icon: Luc
 export function createActions(can: (p: string) => boolean): CreateAction[] {
   return [
     can('policy:create') && { id: 'new-policy', label: 'New policy', to: '/library?new=policy', icon: FilePlus2, keywords: 'create document write' },
-    can('sop:create') && { id: 'new-sop', label: 'New SOP', to: '/library?new=sop', icon: ScrollText, keywords: 'create procedure document write' },
+    can('sop:create') && { id: 'new-sop', label: `New ${term('sop')}`, to: '/library?new=sop', icon: ScrollText, keywords: 'create procedure document write' },
     (can('announcement:create') || can('announcement:manage')) && { id: 'new-announcement', label: 'New announcement', to: '/admin/announcements?new=1', icon: SquarePen, keywords: 'compose post write' },
     can('campaign:manage') && { id: 'new-campaign', label: 'New campaign', to: '/admin/campaigns?new=1', icon: ClipboardCheck, keywords: 'acknowledgement attestation' },
     can('member:invite') && { id: 'invite', label: 'Invite people', to: '/admin/members?invite=1', icon: UserPlus, keywords: 'add member user' },

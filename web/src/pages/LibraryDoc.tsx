@@ -21,6 +21,7 @@ import { setCrumb } from '../ui/AppShell';
 import { rememberRecent } from '../lib/recent';
 import { LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
+import { useTerms } from '../lib/terms';
 import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from './docGovernance';
 import { ApplicabilityRow } from './docApplicability';
 
@@ -47,6 +48,7 @@ interface Ack { id: string; due_at: string; ack_text: string; subject: { artifac
 
 /** A governed document (docs/05 §3.21): reading view, properties, lifecycle actions, acknowledgement. */
 export function LibraryDoc({ id }: { id: string }) {
+  useTerms(); // the workspace's terms (CFG-008)
   const { can, workspace } = useSession();
   const [data, setData] = useState<ArtifactResp | null>(null);
   const [version, setVersion] = useState<Version | null>(null);

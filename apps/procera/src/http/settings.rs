@@ -69,8 +69,9 @@ fn if_match(headers: &HeaderMap) -> Option<String> {
     headers.get(header::IF_MATCH).and_then(|v| v.to_str().ok()).map(|v| v.trim().trim_matches('"').to_owned())
 }
 
-/// The workspace look for every member (docs/05 §7, docs/20 §2.1): the accent with its contrast-safe
-/// shades and the default theme. Readable without settings permissions: it is what the UI paints.
+/// The workspace look for every member (docs/05 §7, docs/20 §2.1-2.2): the accent with its
+/// contrast-safe shades, the default theme, the logo and the effective terminology (every term,
+/// workspace label or product default). Readable without settings permissions: it is what the UI paints.
 async fn branding(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -78,10 +79,12 @@ async fn branding(State(s): State<AppState>, me: WsMember) -> Result<Response, A
     let accent = st.effective(&mut tx, "branding.accent").await?.value;
     let theme = st.effective(&mut tx, "branding.theme_default").await?.value;
     let logo = st.effective(&mut tx, "branding.logo").await?.value;
+    let terms =
+        procera_settings::terms::effective(&st.effective(&mut tx, procera_settings::terms::KEY).await?.value);
     tx.rollback().await.map_err(internal)?;
     let derived = procera_settings::branding::derive(accent.as_str().unwrap_or("#EE4136"));
     let has_logo = logo.as_str().is_some_and(|v| !v.is_empty());
-    Ok(Json(json!({ "accent": derived.accent, "light": derived.light, "dark": derived.dark, "adjusted": derived.adjusted, "theme_default": theme, "logo": has_logo.then(|| format!("/api/v1/branding/logo?v={}", logo.as_str().unwrap_or(""))) })).into_response())
+    Ok(Json(json!({ "accent": derived.accent, "light": derived.light, "dark": derived.dark, "adjusted": derived.adjusted, "theme_default": theme, "terms": terms, "logo": has_logo.then(|| format!("/api/v1/branding/logo?v={}", logo.as_str().unwrap_or(""))) })).into_response())
 }
 
 /// The workspace logo for every member: the image bytes (metadata stripped, as previews), served

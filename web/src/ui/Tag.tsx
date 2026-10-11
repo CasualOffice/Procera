@@ -1,3 +1,5 @@
+import { term } from '../lib/terms';
+
 export type TagColor = 'gray' | 'brown' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'red';
 
 /** A soft coloured tag (Notion/Attio style). Meaning is always in the text, never colour alone. */
@@ -17,5 +19,6 @@ export const STATE_TAG: Record<string, { label: string; color: TagColor }> = {
 
 export const KIND_TAG: Record<string, { label: string; color: TagColor }> = {
   policy: { label: 'Policy', color: 'purple' },
-  sop: { label: 'SOP', color: 'blue' },
+  // The workspace's term for SOPs (CFG-008); components that show it call useTerms().
+  sop: { get label() { return term('sop', { capitalised: true }); }, color: 'blue' },
 };
