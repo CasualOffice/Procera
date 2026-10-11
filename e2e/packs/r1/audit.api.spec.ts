@@ -172,6 +172,32 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   expect(ret.status(), await ret.text()).toBe(200);
   await step('PATCH', '/api/v1/workspace', () => own.patch('/api/v1/workspace', { headers: oh, data: { name: 'Audit Company' } }));
   await step('PATCH', '/api/v1/me/profile', () => own.patch('/api/v1/me/profile', { headers: oh, data: { display_name: 'Audit Owner', timezone: 'Asia/Kolkata' } }));
+  // Account recovery and admin controls (docs/06 §3.6.1): Rita belongs to this workspace only.
+  const ritaEmail = await seed('rita');
+  await own.post('/api/v1/members/invitations', { headers: oh, data: { email: ritaEmail, roles: ['member'] } });
+  const rita = await ctx();
+  const ritaPw = await (await rita.post('/api/v1/auth/login', { data: { email: ritaEmail, password: PW } })).json();
+  await rita.post('/api/v1/session/step-up', { headers: bearer(ritaPw.access_token), data: { password: PW } });
+  const rj = await (await rita.post('/api/v1/invitations/accept', { headers: bearer(ritaPw.access_token), data: { token: await tokenFor(ritaEmail) } })).json();
+  const [pw1, pw2, pw3] = ['Audit drill one 2026!', 'Audit drill two 2026!', 'Audit drill three 2026!'];
+  await step('POST', '/api/v1/me/password', () => rita.post('/api/v1/me/password', { headers: bearer(ritaPw.access_token), data: { current_password: PW, new_password: pw1 } }));
+  await step('POST', '/api/v1/auth/password/forgot', () => rita.post('/api/v1/auth/password/forgot', { data: { email: ritaEmail } }));
+  let resetToken = '';
+  await expect.poll(async () => {
+    const mail = JSON.stringify(await (await request.get(`/__test/mail?to=${encodeURIComponent(ritaEmail)}`)).json());
+    resetToken = [...mail.matchAll(/reset-password\?token=([A-Za-z0-9_-]+)/g)].at(-1)?.[1] ?? '';
+    return resetToken;
+  }).not.toBe('');
+  await step('POST', '/api/v1/auth/password/reset', () => rita.post('/api/v1/auth/password/reset', { data: { token: resetToken, password: pw2 } }));
+  const ownUp = await freshAuth({ c: own, headers: oh });
+  const sec = (action: string) => step('POST', `/api/v1/members/{id}/security/${action}`, () => own.post(`/api/v1/members/${rj.membership_id}/security/${action}`, { headers: ownUp, data: { reason: 'audit drill' } }));
+  await sec('require-password-change');
+  const forced = await (await step('POST', '/api/v1/auth/login', () => rita.post('/api/v1/auth/login', { data: { email: ritaEmail, password: pw2 } }))).json();
+  expect(forced.status).toBe('password_change_required');
+  await step('POST', '/api/v1/auth/password/expired', () => rita.post('/api/v1/auth/password/expired', { data: { change_token: forced.change_token, password: pw3 } }));
+  await sec('reset-link');
+  await sec('sign-out-everywhere');
+  await sec('reset-mfa');
   await step('POST', '/api/v1/files/orphans/purge', () => own.post('/api/v1/files/orphans/purge', { headers: oh }));
   await step('DELETE', '/api/v1/files/{id}', () => own.delete(`/api/v1/files/${fc.file.id}`, { headers: oh }));
   await step('PUT', '/api/v1/me/notification-preferences', () => own.put('/api/v1/me/notification-preferences', { headers: oh, data: { digest: 'daily' } }));
