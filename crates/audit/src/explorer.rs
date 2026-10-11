@@ -275,12 +275,31 @@ pub async fn timeline(
     own: Option<Uuid>,
     after_seq: Option<i64>,
 ) -> Result<EventPage, ExplorerError> {
-    if object_ids.is_empty() {
+    timeline_of(tx, &[(object_type, object_ids)], own, after_seq).await
+}
+
+/// Like [`timeline`], across several object types: one logical object may be recorded under more
+/// than one type (an artifact's own events and its versions' events).
+pub async fn timeline_of(
+    tx: &mut WsTx<'_>,
+    objects: &[(&str, &[Uuid])],
+    own: Option<Uuid>,
+    after_seq: Option<i64>,
+) -> Result<EventPage, ExplorerError> {
+    let objects: Vec<_> = objects.iter().filter(|(_, ids)| !ids.is_empty()).collect();
+    if objects.is_empty() {
         return Ok(EventPage { items: vec![], next_cursor: None });
     }
     let mut qb = QueryBuilder::<Postgres>::new(COLS);
-    qb.push(" AND e.object_type = ").push_bind(object_type.to_owned());
-    qb.push(" AND e.object_id = ANY(").push_bind(object_ids.to_vec()).push(")");
+    qb.push(" AND (");
+    for (i, (kind, ids)) in objects.iter().enumerate() {
+        if i > 0 {
+            qb.push(" OR ");
+        }
+        qb.push("(e.object_type = ").push_bind((*kind).to_owned());
+        qb.push(" AND e.object_id = ANY(").push_bind(ids.to_vec()).push("))");
+    }
+    qb.push(")");
     if let Some(v) = own {
         qb.push(" AND e.actor_subject_ref = ").push_bind(v);
     }

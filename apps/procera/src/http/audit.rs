@@ -163,19 +163,22 @@ async fn object_timeline(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let own = read_scope(&s, &me, &mut tx).await?;
-    let (kind, ids) = if object_type == "artifact" {
+    let after = explorer::parse_cursor(q.cursor.as_deref())?;
+    let page = if object_type == "artifact" {
+        // An artifact's history: its own events (governance, change requests are separate objects)
+        // and every event on its versions.
         let versions: Vec<Uuid> =
             sqlx::query_scalar("SELECT id FROM artifact_versions WHERE artifact_id = $1 ORDER BY version_no")
                 .bind(id)
                 .fetch_all(tx.conn())
                 .await
                 .map_err(internal)?;
-        ("artifact_version".to_owned(), versions)
+        let own_id = [id];
+        explorer::timeline_of(&mut tx, &[("artifact", &own_id), ("artifact_version", &versions)], own, after)
+            .await?
     } else {
-        (object_type, vec![id])
+        explorer::timeline(&mut tx, &object_type, &[id], own, after).await?
     };
-    let after = explorer::parse_cursor(q.cursor.as_deref())?;
-    let page = explorer::timeline(&mut tx, &kind, &ids, own, after).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(page).into_response())
 }
