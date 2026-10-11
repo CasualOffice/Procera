@@ -144,7 +144,11 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await own.post(`/api/v1/versions/${pol.version.id}/submit`, { headers: oh });
   await step('POST', '/api/v1/versions/{id}/reviews', () => adam.post(`/api/v1/versions/${pol.version.id}/reviews`, { headers: ah, data: { decision: 'approve' } }));
   await step('POST', '/api/v1/versions/{id}/retire', () => own.post(`/api/v1/versions/${sop.version.id}/retire`, { headers: oh, data: { reason: 'drill' } }));
-  await step('POST', '/api/v1/artifacts/{id}/versions', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/versions`, { headers: oh }));
+  const sop2 = await (await step('POST', '/api/v1/artifacts/{id}/versions', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/versions`, { headers: oh }))).json();
+  // A major v2 asks everyone to re-acknowledge (BPMS-045): the publish call also creates and launches the campaign.
+  await own.post(`/api/v1/versions/${sop2.id}/submit`, { headers: oh });
+  await step('POST', '/api/v1/versions/{id}/publish', () => own.post(`/api/v1/versions/${sop2.id}/publish`, { headers: oh, data: { change: 'major', change_reason: 'drill' } }));
+  expect(observed.get('POST /api/v1/versions/{id}/publish')).toEqual(['campaign.activated', 'campaign.created', 'version.published']);
 
   // Announcements: targeted at members (no approval needed, so the owner may approve their own submission); Adam receives it.
   const annBody = { title: 'Audit notice', audience: { roles: ['member'] }, require_ack: true };

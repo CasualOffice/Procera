@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use procera_db::{WsCtx, WsTx, test_support};
 use procera_kernel::{SystemClock, UuidV7Gen};
-use procera_library::{Actor, Library, ReviewPolicy};
+use procera_library::{Actor, Change, Library, ReviewPolicy};
 use procera_search::{TYPES, search};
 use serde_json::json;
 use uuid::Uuid;
@@ -157,7 +157,7 @@ async fn search_ranks_filters_highlights_and_stays_current() -> anyhow::Result<(
     assert!(search(&mut tx, "laptops", &["sop"], 20).await?.is_empty());
     assert_eq!(search(&mut tx, "yubikey", &["sop"], 20).await?.len(), 1);
     lib.submit(&mut tx, &author, v1.id, &none).await?;
-    lib.publish(&mut tx, &author, v1.id, None, None, &none).await?;
+    lib.publish(&mut tx, &author, v1.id, None, None, Change::Major, &none).await?;
     let v2 = lib.new_version(&mut tx, &author, sop.id).await?;
     lib.edit(&mut tx, &author, v2.id, &doc("Ship a tablet instead."), None).await?;
     assert_eq!(search(&mut tx, "yubikey", &["sop"], 20).await?.len(), 1);

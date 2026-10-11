@@ -89,7 +89,16 @@ pub const CONTRACT: &[Entry] = &[
         "/api/v1/versions/{id}/reviews",
         &[&["version.reviewed"], &["version.approved", "version.reviewed"]],
     ),
-    emits("POST", "/api/v1/versions/{id}/publish", &[&["version.published"], &["version.scheduled"]]),
+    // A version that requires re-acknowledgement starts its campaign in the same call (BPMS-045).
+    emits(
+        "POST",
+        "/api/v1/versions/{id}/publish",
+        &[
+            &["version.published"],
+            &["version.scheduled"],
+            &["campaign.activated", "campaign.created", "version.published"],
+        ],
+    ),
     emits("POST", "/api/v1/versions/{id}/retire", &[&["version.retired"]]),
     // Library governance (BPMS-044).
     emits("PUT", "/api/v1/artifacts/{id}/review-cadence", &[&["artifact.review_cadence_set"]]),

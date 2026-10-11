@@ -109,22 +109,28 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             );
+            let library = procera_library::Library::new(
+                db.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            );
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
                 notify: notify.clone(),
                 campaigns: campaigns.clone(),
                 announcements: announcements.clone(),
+                library: library.clone(),
+                settings: procera_settings::Settings::new(
+                    self.clock.clone(),
+                    Arc::new(procera_kernel::UuidV7Gen),
+                ),
                 public_url: self.public_url.clone(),
             };
             self.campaigns = Some(campaigns);
             self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));
             self.notify = Some(notify);
-            self.library = Some(procera_library::Library::new(
-                db.clone(),
-                self.clock.clone(),
-                Arc::new(procera_kernel::UuidV7Gen),
-            ));
+            self.library = Some(library);
             self.announcements = Some(announcements);
             self.members = Some(members);
         }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use procera_db::{WsCtx, WsTx, test_support};
 use procera_kernel::{SystemClock, UuidV7Gen};
-use procera_library::{Actor, Library, LibraryError, ReviewPolicy, content_hash};
+use procera_library::{Actor, Change, Library, LibraryError, ReviewPolicy, content_hash};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -105,8 +105,9 @@ async fn lifecycle_sod_immutability_supersede_and_schedule() -> anyhow::Result<(
     assert!(err.is_err(), "the trigger rejects changing approved content");
     sp.rollback().await?;
 
-    let published = lib.publish(&mut tx, &author, v1.id, None, None, &two).await?;
+    let published = lib.publish(&mut tx, &author, v1.id, None, None, Change::Major, &two).await?;
     assert_eq!(published.lifecycle, "published");
+    assert_eq!((published.semver.as_deref(), published.reack_required), (Some("1.0"), false));
     assert_eq!(lib.artifact(&mut tx, a.id).await?.current_published_version_id, Some(v1.id));
 
     // Version 2: reject sends it back to draft with a required comment; a reason for change is needed to publish.
@@ -137,14 +138,16 @@ async fn lifecycle_sod_immutability_supersede_and_schedule() -> anyhow::Result<(
     assert_eq!(round2.reviews.len(), 1, "earlier rounds don't count");
     lib.review(&mut tx, &r2, v2.id, "approve", None, &two).await?;
     assert!(matches!(
-        lib.publish(&mut tx, &author, v2.id, None, None, &two).await,
+        lib.publish(&mut tx, &author, v2.id, None, None, Change::Major, &two).await,
         Err(LibraryError::Invalid(_))
     ));
 
     // Scheduled publication; when due, it supersedes v1.
     let later = time::OffsetDateTime::now_utc() + time::Duration::days(3);
     assert_eq!(
-        lib.publish(&mut tx, &author, v2.id, Some(later), Some("Visitors"), &two).await?.lifecycle,
+        lib.publish(&mut tx, &author, v2.id, Some(later), Some("Visitors"), Change::Major, &two)
+            .await?
+            .lifecycle,
         "scheduled"
     );
     assert_eq!(
@@ -161,6 +164,13 @@ async fn lifecycle_sod_immutability_supersede_and_schedule() -> anyhow::Result<(
     let mut tx = t.db.begin_ws(ws).await?;
     assert_eq!(lib.version(&mut tx, v1.id, None).await?.0.lifecycle, "deprecated");
     assert_eq!(lib.artifact(&mut tx, a.id).await?.current_published_version_id, Some(v2.id));
+    // BPMS-045: v2 was scheduled as a major under the default `major_only` policy.
+    let live = lib.version(&mut tx, v2.id, None).await?.0;
+    assert_eq!((live.semver.as_deref(), live.reack_required), (Some("2.0"), true));
+    let plan = lib.publish_plan(&mut tx, v2.id).await?;
+    assert_eq!((plan.next_semver_major.as_str(), plan.next_semver_minor.as_str()), ("2.0", "1.1"));
+    let subject = lib.reack_subject(&mut tx, v2.id).await?.expect("subject");
+    assert_eq!((subject.lifecycle.as_str(), subject.initiator), ("published", Some(author.membership)));
     assert!(matches!(lib.retire(&mut tx, &author, v2.id, " ").await, Err(LibraryError::Invalid(_))));
     assert_eq!(lib.retire(&mut tx, &author, v1.id, "superseded long ago").await?.lifecycle, "retired");
 

@@ -20,7 +20,7 @@ import { KIND_TAG, Tag, type TagColor } from '../ui/Tag';
 interface Progress { assigned: number; acknowledged: number; pending: number; overdue: number }
 export interface Campaign {
   id: string; title: string; state: string; audience: unknown; ack_text: string; due_at: string | null; due_in_secs: number; created_at: string; launched_at: string | null; ended_at: string | null; end_reason: string | null;
-  subject: { artifact_id: string; kind: string; title: string; version_id: string; version_no: number }; progress: Progress; audience_preview?: number;
+  subject: { artifact_id: string; kind: string; title: string; version_id: string; version_no: number; semver?: string | null }; progress: Progress; audience_preview?: number; origin?: string;
 }
 interface Recipient { id: string; name: string; email: string; department: string | null; state: string; due_at: string; overdue: boolean; acknowledged_at: string | null; reminders_sent: number }
 
@@ -188,9 +188,9 @@ export function CampaignDetail({ id }: { id: string }) {
     <div className="camp">
       <div className="page-head">
         <div>
-          <div className="drawer-tags"><Tag color={STATE[c.state]?.color} dot>{STATE[c.state]?.label ?? c.state}</Tag></div>
+          <div className="drawer-tags"><Tag color={STATE[c.state]?.color} dot>{STATE[c.state]?.label ?? c.state}</Tag>{c.origin === 'reack' && <Tag color="purple">Started by publishing</Tag>}</div>
           <h1>{c.title}</h1>
-          <p>Acknowledge <Link to={`/library/${c.subject.artifact_id}`}>{c.subject.title}</Link> v{c.subject.version_no} · {audienceSummary(audienceOf(c.audience), dir)}{c.due_at ? ` · due ${shortDate(c.due_at)}` : ''}</p>
+          <p>Acknowledge <Link to={`/library/${c.subject.artifact_id}`}>{c.subject.title}</Link> v{c.subject.semver ?? c.subject.version_no} · {audienceSummary(audienceOf(c.audience), dir)}{c.due_at ? ` · due ${shortDate(c.due_at)}` : ''}</p>
         </div>
         <div className="actions">
           {live && <Button variant="secondary" onPress={() => void download(`/api/v1/campaigns/${c.id}/evidence`, `campaign-${c.id}-evidence.csv`).then(() => setToast('Evidence downloaded.')).catch((e: unknown) => setActError(e instanceof Error ? e.message : 'Download failed.'))}><Download aria-hidden="true" size="0.9375rem" /> Evidence CSV</Button>}

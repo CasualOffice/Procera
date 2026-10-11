@@ -248,7 +248,7 @@ CREATE TABLE release_bundles (workspace_id uuid NOT NULL, id uuid NOT NULL, proc
 | in_review → draft | reviewer `changes_requested` / author withdraw | — | Comment thread kept. |
 | in_review → approved | `*:approve` × N reviewers per policy | SoD: approver ≠ author (controlled ones always). N distinct approvers. Step-up for controlled. | `content_hash` frozen. Signatures linked (ESIG-02). |
 | approved → scheduled | `*:publish` | `effective_at` > now | Timer created. |
-| approved/scheduled → published | `*:publish` / timer | Bundle refs all published. Prior version exists → it moves to deprecated. | `release_bundle` written (process). `current_published_version_id` swapped. Campaign triggered if the major version changed (FR-PL03). Outbox `artifact.published.v1`. |
+| approved/scheduled → published | `*:publish` / timer | Bundle refs all published. Prior version exists → it moves to deprecated. | `release_bundle` written (process). `current_published_version_id` swapped. Re-ack campaign started if `reack_required` (decided from `governance.reack.policy` and the major/minor change; FR-PL03, see §2.7 "As built (0019)"). Outbox `artifact.published.v1`. |
 | published → deprecated | automatic on supersede, or `*:retire` | — | Running instances keep working (pinned). New starts are blocked if the artifact is retired. |
 | deprecated → retired | `*:retire` | No active instances, or force with reason | Read-only. Superseded watermark on exports. |
 
@@ -410,6 +410,12 @@ Recipient fan-out works as follows:
 - Dynamic campaigns: the bus consumer `campaigns` on `membership.activated.v1` enrols a matching new member (`campaign.recipient_enrolled`, system) with a due date that keeps the campaign's window (`now + (due_at − launched_at)`). Joining a department after activation does not yet enrol (directory changes emit no outbox event yet).
 - Acknowledging: own assignment only (anyone else's → not found), once (409 `already_acknowledged`), only while active (409); an optional `content_hash` from the client must match (409 `content_changed`). Closed and cancelled campaigns keep open assignments as the record of non-acknowledgement.
 - Outbox: `campaign.activated.v1`, `campaign.recipient.completed.v1`, `campaign.closed.v1`, `campaign.cancelled.v1`.
+
+**As built (0019, BPMS-045, FR-PL03/FR-G03): re-acknowledgement on publish.**
+- `artifact_versions.semver` (`major.minor`), `reack_required`, `scheduled_by`. Version 1 publishes as `1.0`; later versions publish as a **major** (`N+1.0`, default) or **minor** (`N.M+1`) change of the latest earlier numbered version. The number and `reack_required` are fixed at publish, or at scheduling for scheduled versions, from `governance.reack.policy`: `every_publish` → any version after the first; `major_only` → majors after the first; `none` → never. Versions published before 0019 are backfilled as `N.0`.
+- `campaigns.origin` `manual | reack`; a partial unique index allows **one re-ack campaign per version**, which makes both start paths idempotent.
+- When a version with `reack_required` goes live, a campaign is created and launched at once: subject = that version (so the evidence binds to its content hash), audience = the artifact's `applicability` (NULL = everyone), `due_at` = go-live + `governance.reack.window` (also the joiner window), title "Re-acknowledge <title> v<semver>", other values from `campaign.*`. Immediate publishes start it in the publish transaction, as the publisher (audit `campaign.created` + `campaign.activated`, same request). Scheduled versions start it from the `artifact.published.v1` consumer (`campaigns` inbox key), audited as the system and recorded as created by the member who scheduled it (else the owner). The consumer skips versions that already have one, are no longer published, or whose audience matches no active member. Earlier campaigns on older versions keep running (A-16).
+- `artifact.published.v1` payload adds `semver` and `reack_required`; the `version.published` / `version.scheduled` audit diffs add both.
 - Overdue = `pending` and `due_at` < now (application clock). Notifications honour no channel preferences yet (`notify.channels.enabled` arrives with FR-N04).
 
 The envelope signing protocol (FR-DS04/05):
