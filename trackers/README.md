@@ -8,7 +8,7 @@
 ```text
 Overall   █████████░░░░░░░░░░░░░░░░░░░░░  34/109 epics done  (31%)
 Partial   ███████████░░░░░░░░░░░░░░░░░░░  37% counting in-progress epics as half done
-Tests     181 automated E2E scenarios · 340 Rust tests (incl. property tests)
+Tests     182 automated E2E scenarios · 348 Rust tests (incl. property tests)
 Status    done 34 · in review 0 · in progress 12 · blocked 0 · not started 63 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
@@ -269,4 +269,4 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | E2E scenarios (E2E) | 241 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 15 / 16 / 34 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 15 / 16 / 35 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

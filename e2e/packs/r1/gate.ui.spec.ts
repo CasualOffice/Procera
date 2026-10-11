@@ -394,6 +394,22 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-accent-text').trim().toUpperCase())).toBe(shade);
     await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim().toUpperCase())).toBe(b.light.focus);
     await expect(them.locator('img.ws-logo')).toBeVisible();
+
+    // Terminology: the workspace calls SOPs "Work Instructions"; labels follow, API values do not.
+    await nav(page, 'Settings');
+    const terms = page.getByRole('listitem').filter({ has: page.getByText('Terminology', { exact: true }) });
+    await terms.getByRole('button', { name: 'Change Terminology' }).click();
+    await terms.getByLabel('Singular for SOP').fill('Work Instruction');
+    await terms.getByLabel('Plural for SOP').fill('Work Instructions');
+    await terms.getByRole('button', { name: 'Save' }).click();
+    await expect(terms.getByText('SOP → Work Instruction')).toBeVisible();
+    await nav(page, 'Home');
+    await expect(page.getByRole('link', { name: 'New Work Instruction' })).toBeVisible();
+    await them.reload();
+    await nav(them, 'Library');
+    await expect(them.getByText('Work Instructions').first()).toBeVisible();
+    const t = await (await owner.c.get('/api/v1/branding', { headers: owner.headers })).json();
+    expect(t.terms.sop).toEqual({ singular: 'Work Instruction', plural: 'Work Instructions' });
     expect((await owner.c.get('/api/v1/branding/logo', { headers: owner.headers })).headers()['content-type']).toBe('image/png');
   });
 
