@@ -1,7 +1,8 @@
 //! The in-process event bus (BPMS-029 consumers): turns outbox events into notifications
-//! (BPMS-048). Each consumer records the message in the inbox in the same transaction as its effect,
-//! so redelivery is harmless.
+//! (BPMS-048) and delivers published announcements (BPMS-047). Each consumer records the message
+//! in the inbox in the same transaction as its effect, so redelivery is harmless.
 
+use procera_announcements::Announcements;
 use procera_db::dispatch::{Bus, Message};
 use procera_db::outbox::mark_consumed;
 use procera_db::{Db, WsCtx};
@@ -17,6 +18,7 @@ pub struct AppBus {
     pub db: Db,
     pub members: Members,
     pub notify: Notify,
+    pub announcements: Announcements,
     /// Public base URL for links in emails, without a trailing slash.
     pub public_url: String,
 }
@@ -81,6 +83,52 @@ impl AppBus {
                         )
                         .await
                         .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
+            "announcement.published.v1" => {
+                let id = uuid_field(m, "announcement_id")?;
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())?
+                    && let Some(d) =
+                        self.announcements.delivery(&mut tx, id).await.map_err(|e| e.to_string())?
+                {
+                    let link = format!("/announcements/{id}");
+                    let vars = json!({
+                        "title": d.title, "author": d.author, "workspace": d.workspace, "critical": d.critical,
+                        "require_ack": d.require_ack, "link": format!("{}{link}", self.public_url),
+                    });
+                    let in_app = d.channels.iter().any(|c| c == "in_app");
+                    let email = d.channels.iter().any(|c| c == "email");
+                    // Dedupe keys are per announcement and recipient, so a redelivery adds nothing.
+                    for (membership, address) in &d.recipients {
+                        if in_app {
+                            self.notify
+                                .notify_member(
+                                    &mut tx,
+                                    *membership,
+                                    "announcement",
+                                    &vars,
+                                    Some(&link),
+                                    Some(("announcement", id)),
+                                    &format!("announcement:{id}:{membership}"),
+                                )
+                                .await
+                                .map_err(|e| e.to_string())?;
+                        }
+                        if email {
+                            self.notify
+                                .queue_email(
+                                    &mut tx,
+                                    "announcement",
+                                    address,
+                                    &vars,
+                                    &format!("announcement:{id}:{membership}:email"),
+                                )
+                                .await
+                                .map_err(|e| e.to_string())?;
+                        }
+                    }
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }

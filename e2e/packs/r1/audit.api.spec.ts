@@ -128,6 +128,20 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/versions/{id}/retire', () => own.post(`/api/v1/versions/${sop.version.id}/retire`, { headers: oh, data: { reason: 'drill' } }));
   await step('POST', '/api/v1/artifacts/{id}/versions', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/versions`, { headers: oh }));
 
+  // Announcements: targeted at members (no approval needed, so the owner may approve their own submission); Adam receives it.
+  const annBody = { title: 'Audit notice', audience: { roles: ['member'] }, require_ack: true };
+  const ann = await (await step('POST', '/api/v1/announcements', () => own.post('/api/v1/announcements', { headers: oh, data: annBody }))).json();
+  await step('PATCH', '/api/v1/announcements/{id}', () => own.patch(`/api/v1/announcements/${ann.id}`, { headers: oh, data: { ...annBody, title: 'Audit notice (edited)' } }));
+  await step('POST', '/api/v1/announcements/{id}/submit', () => own.post(`/api/v1/announcements/${ann.id}/submit`, { headers: oh }));
+  await step('POST', '/api/v1/announcements/{id}/reject', () => own.post(`/api/v1/announcements/${ann.id}/reject`, { headers: oh, data: { comment: 'drill' } }));
+  await own.post(`/api/v1/announcements/${ann.id}/submit`, { headers: oh });
+  await step('POST', '/api/v1/announcements/{id}/approve', () => own.post(`/api/v1/announcements/${ann.id}/approve`, { headers: oh }));
+  await step('POST', '/api/v1/announcements/{id}/reads', () => adam.post(`/api/v1/announcements/${ann.id}/reads`, { headers: ah }));
+  await step('POST', '/api/v1/announcements/{id}/acks', () => adam.post(`/api/v1/announcements/${ann.id}/acks`, { headers: ah }));
+  const ann2 = await (await own.post('/api/v1/announcements', { headers: oh, data: { title: 'Audit notice 2', audience: { roles: ['member'] } } })).json();
+  await step('POST', '/api/v1/announcements/{id}/publish', () => own.post(`/api/v1/announcements/${ann2.id}/publish`, { headers: oh }));
+  await step('POST', '/api/v1/announcements/{id}/archive', () => own.post(`/api/v1/announcements/${ann2.id}/archive`, { headers: oh, data: { reason: 'drill' } }));
+
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
   // Notifications (exempt: personal read state). Adam's join put a notification in the owner's inbox.

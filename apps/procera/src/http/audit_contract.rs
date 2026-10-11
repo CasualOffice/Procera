@@ -91,6 +91,28 @@ pub const CONTRACT: &[Entry] = &[
     ),
     emits("POST", "/api/v1/versions/{id}/publish", &[&["version.published"], &["version.scheduled"]]),
     emits("POST", "/api/v1/versions/{id}/retire", &[&["version.retired"]]),
+    // Announcements (approval and publication can also append announcement.published / .scheduled).
+    emits("POST", "/api/v1/announcements", &[&["announcement.created"]]),
+    emits("PATCH", "/api/v1/announcements/{id}", &[&["announcement.edited"]]),
+    emits("POST", "/api/v1/announcements/{id}/submit", &[&["announcement.submitted"]]),
+    emits(
+        "POST",
+        "/api/v1/announcements/{id}/approve",
+        &[
+            &["announcement.approved", "announcement.published"],
+            &["announcement.approved", "announcement.scheduled"],
+        ],
+    ),
+    emits("POST", "/api/v1/announcements/{id}/reject", &[&["announcement.rejected"]]),
+    emits(
+        "POST",
+        "/api/v1/announcements/{id}/publish",
+        &[&["announcement.published"], &["announcement.scheduled"]],
+    ),
+    emits("POST", "/api/v1/announcements/{id}/archive", &[&["announcement.archived"]]),
+    // Receipts are evidence (FR-AN04): the first read and the acknowledgement are audited; repeats change nothing.
+    emits("POST", "/api/v1/announcements/{id}/reads", &[&["announcement.read"], &[]]),
+    emits("POST", "/api/v1/announcements/{id}/acks", &[&["announcement.acknowledged"], &[]]),
     // Notifications: personal read state only.
     exempt(
         "POST",
@@ -132,6 +154,7 @@ mod tests {
             ("/api/v1", include_str!("directory.rs")),
             ("/api/v1", include_str!("notifications.rs")),
             ("/api/v1", include_str!("library.rs")),
+            ("/api/v1", include_str!("announcements.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];
