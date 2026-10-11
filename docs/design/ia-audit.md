@@ -40,3 +40,17 @@ Announcements · Templates · Account security · Overview · Members · Person 
 People & access · Manage announcements · Campaigns (+ campaign) · Settings (workspace, departments,
 profile) · Files · Retention · Encryption · Audit log · System console (workspaces, quotas, health,
 system audit).
+
+## Settings (owner feedback: "too crowded and confusing")
+
+- One **Workspace** tab lists the whole settings catalogue on a single long page: 50+ keys across
+  16 internal groups (governance, notifications, campaigns, announcements, branding, locale,
+  execution, security, access, directory, files, policies, reviewer, investigator, analyst,
+  monitoring). Some belong to features that don't exist yet (execution, investigator, analyst).
+- Settings for a feature live far from that feature: announcement settings are not reachable from
+  Manage announcements; campaign defaults are not reachable from Campaigns.
+- Rare, expert controls (password floors, MFA roles, retention, encryption) sit next to everyday
+  ones (branding, time zone), with the same visual weight.
+- Two more tabs, **Departments** (per-department overrides) and **Configuration profile**, assume the
+  reader already knows the layered settings model.
+- Most rows need the explainer to make sense; labels are setting names, not outcomes.
