@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/brand/marketing/procera-banner.png" alt="Procera — Turn processes into progress. Design · Execute · Govern · Improve">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/marketing/procera-banner.png">
+    <img src="assets/brand/marketing/procera-banner-light.png" alt="Procera — Turn processes into progress. Design · Execute · Govern · Improve" width="1200">
+  </picture>
 </p>
 
 <p align="center">

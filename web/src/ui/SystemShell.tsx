@@ -71,7 +71,7 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
         <a className="skip-link" href="#main">Skip to main content</a>
         <aside className="sidebar sys-sidebar">
           <div className="sys-brand">
-            <img src="/procera-symbol.png" alt="" width={22} height={22} />
+            <img src="/procera-symbol.svg" alt="" width={22} height={22} />
             <span>Procera</span>
             <span className="sys-label">System</span>
           </div>

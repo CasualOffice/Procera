@@ -1,6 +1,6 @@
 # Procera brand assets
 
-Status: **Concept v1 (2026-10-11)**. These are raster extractions from the generated brand board. Vector masters and trademark clearance are still to do (see [Production caveats](#production-caveats)). How the brand is applied in the product UI is normative in [docs/05 §7.1.1](../../docs/05-UX-AND-DESIGN.md).
+Status: **Geometric identity v2 (2026-10-12)**. The product symbol is a flat, open-counter P with a stepped terminal. SVG masters replace the raster board extractions; trademark clearance remains outstanding (see [Production caveats](#production-caveats)). How the brand is applied in the product UI is normative in [docs/05 §7.1.1](../../docs/05-UX-AND-DESIGN.md).
 
 <p align="center">
   <picture>
@@ -58,27 +58,31 @@ Writing rules:
 | `logo/procera-logo-horizontal-transparent.png` | Same, transparent | Light theme (README, site) |
 | `logo/procera-logo-horizontal-dark.png` | White wordmark, transparent | Dark theme |
 | `logo/procera-logo-stacked*.png` | Stacked lockup (light / transparent / dark) | Square placements, splash, login |
-| `logo/procera-symbol.png` | P-ribbon symbol, transparent 256² | App shell, avatars, small placements |
+| `logo/procera-symbol.png` | Geometric P symbol, SVG master and transparent 256² | App shell, avatars, small placements |
 | `logo/procera-symbol-on-light.png` | Symbol on light background | Where transparency isn't supported |
-| `icons/app-icon-{light,dark,dark-alt,red}.png` | App icon tiles, padded square | PWA/manifest previews, store mock-ups (re-render from vector for production sizes) |
-| `favicon/favicon.ico`, `favicon/favicon-{16,32,48,64,128,256,512}.png` | Favicon set | Web app and docs site (`<link rel="icon">`, PWA manifest 192/512 to be generated from vector) |
+| `icons/app-icon-{light,dark,dark-alt,red}.png` | App icon tiles, padded square | App tiles, PWA 192/512 exports and store mock-ups |
+| `favicon/favicon.ico`, `favicon/favicon-{16,32,48,64,128,256,512}.png` | Favicon set | Web app and docs site (`<link rel="icon">`, PWA icon exports and Apple touch icon are also generated) |
 | `marketing/procera-banner.png` | 1523×175 dark banner with tagline | GitHub README header, social and site hero |
 | `marketing/procera-tagline.png`, `-short-description.png`, `-long-description.png` | Copy cards | Presentations |
-| `marketing/procera-color-palette.png`, `-monochrome-logos.png`, `-favicon-reference.png` | Board reference sheets | Reference only |
+| `marketing/procera-color-palette.png`, `-monochrome-logos.png`, `-favicon-reference.png` | Current palette, monochrome and small-size sheets | Brand review |
 | `source/` | Untouched originals from `Procera_Brand_Assets.zip` (incl. `BRAND_COPY.md`) | Provenance; don't edit |
 
-Cleaned variants were derived from `source/`. Board labels were cropped, icons padded to square, the light background keyed to transparency, and the wordmark recoloured for dark theme. Edges may show a slight halo at large sizes. Use the vector masters once they exist.
+The current logo, lockups, app icons and favicons are generated from the same geometric master by `scripts/build_brand.py` (`python3 -m pip install cairosvg pillow fonttools brotli`, then `python3 scripts/build_brand.py`). The product uses SVG directly, with a multi-resolution ICO fallback. The original `source/` board is historical provenance. All current marketing sheets now use the new identity. Wordmarks and supporting copy use the same Geist font shipped by the web app. Exported SVG lettering is outlined so it stays identical without installed fonts. Run `npm ci` in `web/` before regenerating.
+
+## GitHub and delivery assets
+
+The root README uses a theme-aware light/dark banner. `marketing/procera-social-preview.png` is a 1280×640 GitHub social preview: upload it in repository Settings → Social preview. `marketing/procera-brand-overview.png` shows the logo, dark version, app icons and favicon sizes. Marketing cards, palette and monochrome sheets are available as PNG and outlined SVG. Source boards are retained unchanged in `source/`.
 
 ## Logo usage
 
 - **Clear space:** at least half the symbol's height on all sides.
 - **Minimum size:** symbol 16 px. Horizontal lockup 120 px wide. Drop the supporting line below 240 px.
 - **Backgrounds:** use the colour logo on white, `#F8FAFC` or light neutrals, and the dark variant on `#0F172A` or dark neutrals. Use monochrome where colour isn't possible: print, embossing, a single-colour screen.
-- **Don't** recolour the symbol, stretch it, rotate it, add effects or shadows, place it on busy photos, or rebuild the wordmark in another font.
+- **Don't** recolour the symbol, stretch it, rotate it, add effects or shadows, place it on busy photos, or rebuild the wordmark in another font. Keep wordmarks in Geist, using the outlined master for exported lockups.
 
 ## Production caveats
 
-1. **Vector masters.** SVGs of the symbol, wordmark and lockups, plus an optically corrected symbol for 16–32 px, must be produced before R1. Tracked as **BPMS-034**.
+1. **Vector masters.** Symbol and lockup SVGs now live alongside PNG exports. The favicon uses the same broad, open-counter geometry at 16–32 px; inspect raster exports whenever the master changes.
 2. **Trademark and domain clearance** for "Procera" in target markets has **not** been performed. Tracked as **OQ-01** in [docs/22](../../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md). Other companies and products already use "Procera", so a search is required before public launch.
 3. The palette was transcribed from the board. Verify it against the vector masters.
 4. Licence: brand assets are **not** covered by the Apache-2.0 code licence. They are trademarks of CasualOffice. Use follows [GOVERNANCE.md §7](../../GOVERNANCE.md#7-trademark).

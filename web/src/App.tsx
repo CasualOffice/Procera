@@ -124,7 +124,7 @@ function PlainShellWide({ children }: { children: React.ReactNode }) {
   return (
     <div className="gallery">
       <a className="skip-link" href="#main">Skip to main content</a>
-      <header className="gallery-head"><img src="/procera-symbol.png" alt="" width={24} height={24} /><span>Procera</span></header>
+      <header className="gallery-head"><img src="/procera-symbol.svg" alt="" width={24} height={24} /><span>Procera</span></header>
       <main id="main" className="gallery-main" tabIndex={-1}>{children}</main>
     </div>
   );

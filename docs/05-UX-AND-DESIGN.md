@@ -632,13 +632,13 @@ Source: `assets/brand/` (brand board and copy, 2026-10-11). Contrast ratios belo
 
 1. **Primary buttons are ink (charcoal), not red.** Procera is an approvals product. A red "Approve" button would read as *danger/reject*, and the brand red fails contrast with white labels. Red is the brand signal: logo, focus, active state, selection. It is not the action colour. Workspaces can opt into `accent-strong` buttons, which use Deep Red with white text.
 2. **Danger is visually distinct from the brand.** It uses a deeper crimson (`#B42318`), and every use has an icon, an explicit verb ("Delete policy") and a confirmation dialog for destructive operations. Reject in approvals is an **outlined neutral** button, never filled red.
-3. **No gradients in product UI.** The logo's gradient is part of the mark and is allowed wherever the logo appears. Marketing art (the banner, the social card) may use the brand gradient. Application surfaces stay flat (§7.0.1).
+3. **No gradients in product UI.** The current geometric P logo uses a solid brand-red fill and an open counter, with no shading or gradients. Marketing lockups use the same SVG master. Application surfaces stay flat (§7.0.1).
 4. **Typography:** the wordmark is a geometric sans. The UI font stays on the vetted open-licence list (§7.1). Inter or a similar geometric sans pairs best with the mark.
 5. **Logo usage in the app:**
    - The app shell shows `procera-symbol` at 24 px with the "Procera" wordmark in `text` colour. On narrow screens it shows the symbol only.
    - Minimum symbol size is 16 px, and clear space around it is at least half the symbol's height.
    - When a workspace sets its own logo (white-label), Procera branding appears only as a small "Powered by Procera" mark in the footer and in certificates. Workspaces can hide that mark per the governance trademark rules.
-6. **Production caveat:** the current files are raster extractions from a concept board. Vector (SVG) masters, an optically corrected symbol and a trademark search are tracked as BPMS-034 and OQ-01 before R1 ships.
+6. **Production caveat:** the product symbol, lockups and favicons now derive from the same SVG geometry (`scripts/build_brand.py`). The product uses SVG with an ICO fallback; legacy concept boards remain as provenance. Trademark clearance remains tracked as OQ-01 before launch.
 
 ### 7.1.2 Configurable but safe
 
