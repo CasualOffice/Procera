@@ -25,6 +25,7 @@ pub fn router() -> Router<AppState> {
         .route("/files/usage", get(usage))
         .route("/files/orphans", get(orphans))
         .route("/files/orphans/purge", post(purge_orphans))
+        .route("/files/retention", post(set_retention))
         .route("/files/{id}", get(get_file).delete(delete_file))
         .route("/files/{id}/content", put(append).layer(DefaultBodyLimit::max(MAX_CHUNK + 4096)))
         .route("/files/{id}/complete", post(complete))
@@ -241,10 +242,42 @@ async fn list(
             .map(|(t, o)| json!({"object_type": t, "object_id": o}))
             .collect();
         let class = procera_files::Files::retention_class(&mut tx, f.id).await?;
-        out.push(json!({ "file": f, "links": links, "retention_class": class }));
+        let set = procera_files::Files::retention_overridden(&mut tx, f.id).await?;
+        out.push(json!({ "file": f, "links": links, "retention_class": class, "retention_set": set }));
     }
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": out, "all": all })))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RetentionReq {
+    file_ids: Vec<Uuid>,
+    /// A record class, or null to follow what holds each file again.
+    class: Option<String>,
+    reason: String,
+}
+
+/// Bulk retention change (E2E-R1-12): sets or clears the class of the chosen files, with a reason.
+async fn set_retention(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Json(r): Json<RetentionReq>,
+) -> Result<Json<Value>, ApiError> {
+    if r.file_ids.is_empty() || r.file_ids.len() > 500 {
+        return Err(
+            ApiError::new(422, "validation_failed", "Validation failed").detail("choose 1 to 500 files")
+        );
+    }
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "file:delete", Resource::Workspace).await?;
+    let n = files(&s)?
+        .set_retention(&mut tx, &actor(&me, &headers), &r.file_ids, r.class.as_deref(), &r.reason)
+        .await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "updated": n })))
 }
 
 async fn usage(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {

@@ -139,6 +139,10 @@ fn hex_opt<S: serde::Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::
     }
 }
 
+/// Record classes a file can carry (docs/14 §4).
+pub const RETENTION_CLASSES: &[&str] =
+    &["governance_record", "execution_record", "case_file", "operational", "audit", "draft"];
+
 const COLS: &str = "id, name, declared_type, sniffed_type, size, received, state, scan_result, sha256, uploaded_by, created_at, completed_at, last_accessed_at";
 
 /// Who acts, for audit records.
@@ -465,6 +469,15 @@ impl Files {
     /// `audit`, a document version past draft `governance_record`, a draft `draft`; none when nothing
     /// holds it (orphan rules apply).
     pub async fn retention_class(tx: &mut WsTx<'_>, id: Uuid) -> Result<Option<&'static str>, FileError> {
+        let set: Option<String> =
+            sqlx::query_scalar("SELECT retention_class_override FROM files WHERE id = $1")
+                .bind(id)
+                .fetch_optional(tx.conn())
+                .await?
+                .flatten();
+        if let Some(c) = set.and_then(|c| RETENTION_CLASSES.iter().find(|k| **k == c)) {
+            return Ok(Some(c));
+        }
         let rank: Option<i32> = sqlx::query_scalar(
             "SELECT max(CASE WHEN l.object_type = 'audit_export' THEN 3
                              WHEN v.lifecycle IN ('approved', 'scheduled', 'published', 'deprecated', 'retired') THEN 2
@@ -481,6 +494,65 @@ impl Files {
             Some(1) => Some("draft"),
             _ => None,
         })
+    }
+
+    /// Whether the file's retention class was set explicitly by an admin.
+    pub async fn retention_overridden(tx: &mut WsTx<'_>, id: Uuid) -> Result<bool, FileError> {
+        Ok(sqlx::query_scalar::<_, bool>(
+            "SELECT retention_class_override IS NOT NULL FROM files WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_optional(tx.conn())
+        .await?
+        .unwrap_or(false))
+    }
+
+    /// Sets (or with `None` clears) the retention class of several files, with a reason; one audit
+    /// record per file (E2E-R1-12).
+    pub async fn set_retention(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        ids: &[Uuid],
+        class: Option<&str>,
+        reason: &str,
+    ) -> Result<usize, FileError> {
+        if let Some(c) = class
+            && !RETENTION_CLASSES.contains(&c)
+        {
+            return Err(FileError::Invalid(format!("unknown retention class {c}")));
+        }
+        if reason.trim().is_empty() {
+            return Err(FileError::Invalid("a reason is required to change retention".into()));
+        }
+        let mut n = 0;
+        for id in ids {
+            let before = Self::retention_class(tx, *id).await?;
+            let changed = sqlx::query(
+                "UPDATE files SET retention_class_override = $2 WHERE id = $1 AND state <> 'deleted'",
+            )
+            .bind(id)
+            .bind(class)
+            .execute(tx.conn())
+            .await?
+            .rows_affected();
+            if changed == 0 {
+                return Err(FileError::NotFound);
+            }
+            n += 1;
+            let mut ev = AuditEvent::new(
+                Some(actor.subject_ref),
+                ActorKind::User,
+                Category::File,
+                "file.retention_changed",
+                Outcome::Allowed,
+            )
+            .object("file", *id);
+            ev.reason = Some(reason.trim().to_owned());
+            ev.diff = Some(json!({"retention_class": {"before": before, "after": class}}));
+            append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        }
+        Ok(n)
     }
 
     // ---- signed download links ----

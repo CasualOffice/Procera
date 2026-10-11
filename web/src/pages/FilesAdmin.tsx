@@ -10,10 +10,12 @@ import { DataGrid } from '../ui/components/DataGrid';
 import { Notice } from '../ui/components/Notice';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
+import { FormDialog } from '../ui/components/FormDialog';
+import { TextField } from '../ui/components/TextField';
 
-interface Row { file: FileInfo; links: { object_type: string; object_id: string }[]; retention_class: string | null }
+interface Row { file: FileInfo; links: { object_type: string; object_id: string }[]; retention_class: string | null; retention_set?: boolean }
 type GridRow = Row & { id: string };
-const CLASS: Record<string, string> = { audit: 'Audit', governance_record: 'Governance record', draft: 'Draft' };
+const CLASS: Record<string, string> = { audit: 'Audit', governance_record: 'Governance record', draft: 'Draft', execution_record: 'Execution record', case_file: 'Case file', operational: 'Operational' };
 interface Usage { used_bytes: number; quota_bytes: number | null; states: Record<string, number>; scanner: string; by_type: { type: string | null; files: number; bytes: number }[] }
 const STATE: Record<string, [string, TagColor]> = { clean: ['Clean', 'green'], scanning: ['Scanning', 'yellow'], quarantined: ['Quarantined', 'red'], rejected: ['Rejected', 'red'], uploading: ['Uploading', 'gray'] };
 const FILTERS = [['', 'All'], ['clean', 'Clean'], ['quarantined', 'Quarantined'], ['rejected', 'Rejected'], ['uploading', 'Unfinished']] as const;
@@ -27,6 +29,9 @@ export function FilesAdmin() {
   const [orphans, setOrphans] = useState<FileInfo[]>([]);
   const [failed, setFailed] = useState<LoadFailure | null>(null);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
+  const [retaining, setRetaining] = useState<string[] | null>(null);
+  const [cls, setCls] = useState('');
+  const [why, setWhy] = useState('');
   const [members] = useItems<Member>('/api/v1/members');
   const people = memberMap(members);
   const load = () => {
@@ -61,12 +66,12 @@ export function FilesAdmin() {
       ) : (
         <DataGrid<GridRow> caption="Files" showCaption={false} list="admin.files" data={rows.map((r) => ({ ...r, id: r.file.id }))} initialSort={[{ id: 'uploaded', desc: true }]}
           selectable={can('file:delete')}
-          bulkActions={(sel, clear) => <Button variant="secondary" className="btn-sm" onPress={() => void act(async () => { for (const r of sel) await api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }); clear(); }, `${sel.length} file${sel.length === 1 ? '' : 's'} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /> Delete {sel.length}</Button>}
+          bulkActions={(sel, clear) => <><Button variant="secondary" className="btn-sm" onPress={() => setRetaining(sel.map((r) => r.file.id))}>Change retention class</Button><Button variant="secondary" className="btn-sm" onPress={() => void act(async () => { for (const r of sel) await api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }); clear(); }, `${sel.length} file${sel.length === 1 ? '' : 's'} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /> Delete {sel.length}</Button></>}
           columns={[
             { id: 'name', header: 'Name', value: (r) => r.file.name, cell: (r) => <>{r.file.name}<span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.sniffed_type ?? ''}</span></> },
             { id: 'owner', header: 'Uploaded by', optional: true, value: (r) => people.get(r.file.uploaded_by)?.display_name ?? '' },
             { id: 'used', header: 'Used by', value: (r) => (r.links.length ? `${r.links.length} ${r.links.some((l) => l.object_type === 'audit_export') ? 'audit export' : `document version${r.links.length === 1 ? '' : 's'}`}` : 'Not attached') },
-            { id: 'class', header: 'Retention class', type: 'enum', optional: true, value: (r) => CLASS[r.retention_class ?? ''] ?? 'Orphan rules' },
+            { id: 'class', header: 'Retention class', type: 'enum', optional: true, value: (r) => `${CLASS[r.retention_class ?? ''] ?? 'Orphan rules'}${r.retention_set ? ' (set by an admin)' : ''}` },
             { id: 'size', header: 'Size', type: 'number', value: (r) => r.file.size, cell: (r) => formatBytes(r.file.size), className: 'num' },
             { id: 'scan', header: 'Scan', type: 'enum', value: (r) => STATE[r.file.state]?.[0] ?? r.file.state, cell: (r) => <><Tag color={STATE[r.file.state]?.[1] ?? 'gray'} dot>{STATE[r.file.state]?.[0] ?? r.file.state}</Tag>{r.file.scan_result && r.file.state !== 'clean' && <span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.scan_result}</span>}</> },
             { id: 'uploaded', header: 'Uploaded', type: 'date', optional: true, value: (r) => r.file.created_at, cell: (r) => shortDate(r.file.created_at) },
@@ -77,6 +82,19 @@ export function FilesAdmin() {
             </> },
           ]} />
       )}
+      <FormDialog isOpen={retaining !== null} onOpenChange={(o) => !o && setRetaining(null)} title={`Change retention class of ${retaining?.length ?? 0} file${retaining?.length === 1 ? '' : 's'}`}
+        description="The class decides how long the files are kept (docs/14 §4). Recorded in the audit log with your reason."
+        footer={<><Button variant="secondary" onPress={() => setRetaining(null)}>Cancel</Button><Button isDisabled={!why.trim()} onPress={() => void act(async () => { await api('/api/v1/files/retention', { method: 'POST', body: { file_ids: retaining, class: cls || null, reason: why } }); setRetaining(null); setCls(''); setWhy(''); }, 'Retention class changed.')}>Change class</Button></>}>
+        <div className="stack">
+          <div className="field"><label className="field-label" htmlFor="ret-cls">Retention class</label>
+            <select id="ret-cls" className="field-input" value={cls} onChange={(e) => setCls(e.target.value)}>
+              <option value="">Follow what holds the file</option>
+              {Object.entries(CLASS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+          </div>
+          <TextField label="Reason" value={why} onChange={setWhy} isRequired />
+        </div>
+      </FormDialog>
       <section aria-labelledby="orph-h" style={{ marginTop: '2rem' }}>
         <h2 id="orph-h" style={{ fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>Orphaned files</h2>
         <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem' }}>Files nothing uses any more, past the orphan period. They can be removed to free space.</p>

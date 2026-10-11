@@ -160,6 +160,7 @@ pub const CONTRACT: &[Entry] = &[
         &[&["file.uploaded"], &["file.quarantined"], &["file.rejected"], &["file.scan_failed"]],
     ),
     emits("DELETE", "/api/v1/files/{id}", &[&["file.deleted"]]),
+    emits("POST", "/api/v1/files/retention", &[&["file.retention_changed"]]),
     emits("POST", "/api/v1/files/{id}/links", &[&["file.linked"]]),
     emits("DELETE", "/api/v1/files/{id}/links/{object_type}/{object_id}", &[&["file.unlinked"]]),
     emits("POST", "/api/v1/files/orphans/purge", &[&["file.orphans_purged"]]),
