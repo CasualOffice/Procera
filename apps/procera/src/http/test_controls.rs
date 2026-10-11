@@ -214,6 +214,12 @@ async fn drain(State(s): State<AppState>) -> Response {
     {
         return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
     }
+    // Notification digests that are due (BPMS-048).
+    if let Some(n) = s.notify.as_ref()
+        && let Err(e) = n.send_digests().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
+    }
     // Scheduled announcements that are due.
     if let Some(a) = s.announcements.as_ref()
         && let Err(e) = a.publish_due().await

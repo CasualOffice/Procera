@@ -300,6 +300,23 @@ pub const CATALOGUE: &[Def] = &[
         Some(SETTINGS),
         || json!(["email", "in_app"]),
     ),
+    // FR-N04: workspace defaults; each member may override them (notification preferences).
+    def(
+        "notify.digest.schedule",
+        "notifications",
+        Kind::Enum { values: &["off", "daily", "weekly"] },
+        Some(SETTINGS),
+        || json!("daily"),
+    ),
+    def("notify.digest.hour", "notifications", Kind::Int { min: 0, max: 23 }, Some(SETTINGS), || json!(9)),
+    def("notify.quiet_hours.enabled", "notifications", Kind::Bool, Some(SETTINGS), || json!(true)),
+    def("notify.quiet_hours.start", "notifications", Kind::Int { min: 0, max: 23 }, Some(SETTINGS), || {
+        json!(20)
+    }),
+    def("notify.quiet_hours.end", "notifications", Kind::Int { min: 0, max: 23 }, Some(SETTINGS), || {
+        json!(8)
+    }),
+    def("notify.critical_override_quiet", "notifications", Kind::Bool, Some(SETTINGS), || json!(true)),
     // 2.10 Files
     Def {
         key: "files.max_size",

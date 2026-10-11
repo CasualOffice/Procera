@@ -98,6 +98,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("DELETE", "/api/v1/artifacts/{id}/verification", &[&["artifact.verification_removed"]]),
     emits("POST", "/api/v1/artifacts/{id}/change-requests", &[&["change_request.opened"]]),
     emits("POST", "/api/v1/change-requests/{id}/resolve", &[&["change_request.resolved"]]),
+    emits("PUT", "/api/v1/me/notification-preferences", &[&["notification_preferences.changed"]]),
     emits("PUT", "/api/v1/artifacts/{id}/applicability", &[&["artifact.applicability_set"]]),
     // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
     // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).

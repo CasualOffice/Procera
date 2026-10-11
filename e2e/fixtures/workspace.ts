@@ -37,6 +37,11 @@ export async function workspaceWithOwner(request: APIRequestContext, profile = '
   const anon = await client();
   const reg = await anon.post('/api/v1/invitations/register', { data: { token, display_name: 'Olivia', password: PW } });
   expect(reg.status()).toBe(201);
+  // Emails go out immediately in test workspaces: the product defaults (daily digest, quiet hours
+  // 20:00–08:00) depend on the time of day. Delivery-preference tests turn them back on (BPMS-048).
+  for (const [key, value] of [['notify.digest.schedule', 'off'], ['notify.quiet_hours.enabled', false]] as const) {
+    expect((await request.post('/__test/settings', { data: { workspace: ws.id, key, value } })).ok()).toBe(true);
+  }
   return { sys, ws, ownerEmail, owner: await enter(ownerEmail, ws.id) };
 }
 

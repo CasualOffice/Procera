@@ -108,6 +108,18 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}You received this because you are in the announcement's audience.{% endblock %}"#,
     ),
+    // BPMS-048: one email with everything since the last digest. Vars: workspace, count, items[{title, link}].
+    ("digest.subject", "Your {{ workspace }} digest: {{ count }} update{% if count != 1 %}s{% endif %}"),
+    (
+        "digest.text",
+        "Here is what happened in {{ workspace }} since your last digest.\n\n{% for i in items %}- {{ i.title }}{% if i.link %}\n  {{ i.link }}{% endif %}\n{% endfor %}\nChange how often you get this in your notification preferences.\n",
+    ),
+    (
+        "digest.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Here is what happened in <strong>{{ workspace }}</strong> since your last digest.</p>
+<ul style="margin:0 0 8px;padding-left:20px">{% for i in items %}<li style="margin:0 0 8px">{% if i.link %}<a href="{{ i.link }}">{{ i.title }}</a>{% else %}{{ i.title }}{% endif %}</li>{% endfor %}</ul>{% endblock %}
+{% block footer %}Change how often you get this in your notification preferences.{% endblock %}"#,
+    ),
     // BPMS-044: an artifact's review date passed. Vars: title.
     ("review_overdue.title", "{{ title }} is due for review"),
     (
@@ -187,6 +199,15 @@ mod tests {
         assert_eq!(e.subject, "[Critical] Office <move>");
         assert!(e.html.contains("Office &lt;move&gt;") && e.html.contains("Read and acknowledge"));
         assert!(e.text.contains("https://x.test/announcements/1"));
+    }
+
+    #[test]
+    fn digest_lists_items_and_escapes_titles() {
+        let ctx = json!({"workspace": "Acme", "count": 2, "items": [{"title": "Office <move>", "link": "https://x.test/a"}, {"title": "Badge rules", "link": null}]});
+        let r = email("digest", &ctx).expect("renders");
+        assert_eq!(r.subject, "Your Acme digest: 2 updates");
+        assert!(r.text.contains("- Office <move>\n  https://x.test/a") && r.text.contains("- Badge rules"));
+        assert!(r.html.contains("Office &lt;move&gt;"));
     }
 
     #[test]

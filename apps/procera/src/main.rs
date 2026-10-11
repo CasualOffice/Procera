@@ -199,6 +199,7 @@ async fn main() -> anyhow::Result<()> {
             let scheduler = match (&state.library, &state.campaigns, &state.announcements, all) {
                 (Some(l), Some(c), Some(a), true) => {
                     let (l, c, a) = (l.clone(), c.clone(), a.clone());
+                    let notify = state.notify.clone();
                     let mut rx = stop_rx.clone();
                     Some(tokio::spawn(async move {
                         loop {
@@ -220,6 +221,13 @@ async fn main() -> anyhow::Result<()> {
                                     "campaign reminders sent"
                                 ),
                                 Err(e) => tracing::error!(error = %e, "campaign reminder pass failed"),
+                            }
+                            if let Some(n) = notify.as_ref() {
+                                match n.send_digests().await {
+                                    Ok(0) => {}
+                                    Ok(k) => tracing::info!(digests = k, "notification digests queued"),
+                                    Err(e) => tracing::error!(error = %e, "digest pass failed"),
+                                }
                             }
                             match a.publish_due().await {
                                 Ok(0) => {}

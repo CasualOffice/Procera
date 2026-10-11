@@ -2,6 +2,7 @@
 //! delivered over SMTP by the worker. Email bodies are sealed at rest (they can carry invitation
 //! links); delivery retries with backoff. Without SMTP configured, emails stay queued.
 
+pub mod delivery;
 pub mod templates;
 
 use std::sync::Arc;
@@ -22,6 +23,8 @@ pub enum NotifyError {
     Template(String),
     #[error("not found")]
     NotFound,
+    #[error("invalid: {0}")]
+    Invalid(String),
     #[error("smtp: {0}")]
     Smtp(String),
     #[error("internal error: {0}")]
@@ -70,9 +73,19 @@ pub struct OutboundEmail {
     pub html: String,
     pub state: String,
     pub attempts: i32,
+    /// Held until (quiet hours or retry backoff); `None` = send as soon as possible.
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub not_before: Option<OffsetDateTime>,
 }
 
 /// SMTP delivery. `from` is the platform sender address (docs/20 §3 Email).
+/// A failed delivery; `permanent` = the server rejected it for good (a bounce).
+#[derive(Debug)]
+struct SendError {
+    error: NotifyError,
+    permanent: bool,
+}
+
 #[derive(Clone)]
 pub struct SmtpMailer {
     transport: AsyncSmtpTransport<Tokio1Executor>,
@@ -97,21 +110,25 @@ impl SmtpMailer {
         Ok(Self { transport, from })
     }
 
-    async fn send(&self, e: &OutboundEmail, sender_name: Option<&str>) -> Result<(), NotifyError> {
+    async fn send(&self, e: &OutboundEmail, sender_name: Option<&str>) -> Result<(), SendError> {
         let from = match sender_name.filter(|n| !n.trim().is_empty()) {
             Some(n) => Mailbox::new(Some(n.trim().to_owned()), self.from.email.clone()),
             None => self.from.clone(),
         };
         let msg = Message::builder()
             .from(from)
-            .to(e.to.parse().map_err(|err: lettre::address::AddressError| {
-                NotifyError::Smtp(format!("to address: {err}"))
+            .to(e.to.parse().map_err(|err: lettre::address::AddressError| SendError {
+                error: NotifyError::Smtp(format!("to address: {err}")),
+                permanent: true,
             })?)
             .subject(e.subject.clone())
             .message_id(Some(format!("<{}@procera>", e.id)))
             .multipart(MultiPart::alternative_plain_html(e.text.clone(), e.html.clone()))
-            .map_err(|err| NotifyError::Smtp(err.to_string()))?;
-        self.transport.send(msg).await.map(|_| ()).map_err(|err| NotifyError::Smtp(err.to_string()))
+            .map_err(|err| SendError { error: NotifyError::Smtp(err.to_string()), permanent: false })?;
+        self.transport.send(msg).await.map(|_| ()).map_err(|err| SendError {
+            permanent: err.is_permanent(),
+            error: NotifyError::Smtp(err.to_string()),
+        })
     }
 }
 
@@ -121,6 +138,7 @@ pub struct Notify {
     keys: Arc<dyn KeyProvider>,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
+    settings: procera_settings::Settings,
 }
 
 impl std::fmt::Debug for Notify {
@@ -133,7 +151,8 @@ const PURPOSE: &str = "secrets";
 
 impl Notify {
     pub fn new(db: Db, keys: Arc<dyn KeyProvider>, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>) -> Self {
-        Self { db, keys, clock, ids }
+        let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
+        Self { db, keys, clock, ids, settings }
     }
 
     /// Renders and queues an email in the caller's transaction. `dedupe_key` makes it idempotent
@@ -259,14 +278,14 @@ impl Notify {
     /// Queued and sent emails to `to` in a workspace, newest first (E2E controls and support).
     pub async fn emails_to(&self, ctx: WsCtx, to: &str) -> Result<Vec<OutboundEmail>, NotifyError> {
         let mut tx = self.db.begin_ws(ctx).await?;
-        let rows: Vec<(Uuid, String, String, String, Vec<u8>, String, i32)> = sqlx::query_as(
-            "SELECT id, kind, to_email::text, subject, body_sealed, state, attempts FROM email_messages WHERE to_email = $1 ORDER BY created_at DESC",
+        let rows: Vec<(Uuid, String, String, String, Vec<u8>, String, i32, Option<OffsetDateTime>)> = sqlx::query_as(
+            "SELECT id, kind, to_email::text, subject, body_sealed, state, attempts, next_attempt_at FROM email_messages WHERE to_email = $1 ORDER BY created_at DESC",
         ).bind(to.trim().to_lowercase()).fetch_all(tx.conn()).await?;
         tx.rollback().await?;
         rows.into_iter()
-            .map(|(id, kind, to, subject, sealed, state, attempts)| {
+            .map(|(id, kind, to, subject, sealed, state, attempts, not_before)| {
                 let (text, html) = self.decode(id, &sealed)?;
-                Ok(OutboundEmail { id, kind, to, subject, text, html, state, attempts })
+                Ok(OutboundEmail { id, kind, to, subject, text, html, state, attempts, not_before })
             })
             .collect()
     }
@@ -291,17 +310,32 @@ impl Notify {
             ).fetch_all(tx.conn()).await?;
             for (id, kind, to, subject, sealed, attempts) in rows {
                 let (text, html) = self.decode(id, &sealed)?;
-                let email =
-                    OutboundEmail { id, kind, to, subject, text, html, state: "queued".into(), attempts };
+                let email = OutboundEmail {
+                    id,
+                    kind,
+                    to,
+                    subject,
+                    text,
+                    html,
+                    state: "queued".into(),
+                    attempts,
+                    not_before: None,
+                };
                 match mailer.send(&email, sender.as_deref()).await {
                     Ok(()) => {
                         sent += 1;
                         sqlx::query("UPDATE email_messages SET state = 'sent', sent_at = $2, attempts = attempts + 1, last_error = NULL WHERE id = $1").bind(id).bind(self.clock.now()).execute(tx.conn()).await?;
                     }
-                    Err(e) => {
+                    Err(SendError { error: e, permanent }) => {
                         failed += 1;
+                        // A permanent rejection (5xx: unknown mailbox, rejected domain) is a bounce: fail now
+                        // and suppress the address for every workspace (BPMS-048).
+                        if permanent {
+                            sqlx::query("INSERT INTO email_suppressions (email, reason, created_at) VALUES ($1, left($2, 500), $3) ON CONFLICT (email) DO NOTHING")
+                                .bind(&email.to).bind(e.to_string()).bind(self.clock.now()).execute(tx.conn()).await?;
+                        }
                         // Retry with backoff for a day (2^n s, max 1 h), then give up and keep the error.
-                        let give_up = attempts + 1 >= 12;
+                        let give_up = permanent || attempts + 1 >= 12;
                         let backoff = 2_i64
                             .saturating_pow(u32::try_from(attempts.clamp(0, 12)).unwrap_or(12))
                             .min(3600);

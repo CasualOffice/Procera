@@ -10,6 +10,7 @@ use procera_db::outbox::mark_consumed;
 use procera_db::{Db, WsCtx};
 use procera_members::Members;
 use procera_notify::Notify;
+use procera_notify::delivery::Urgency;
 use serde_json::json;
 use uuid::Uuid;
 
@@ -127,13 +128,24 @@ impl AppBus {
                                 .map_err(|e| e.to_string())?;
                         }
                         if email {
+                            // Critical announcements may break quiet hours; ones that need an acknowledgement
+                            // are never digested; the rest follow the member's digest.
+                            let urgency = if d.critical {
+                                Urgency::Critical
+                            } else if d.require_ack {
+                                Urgency::Urgent
+                            } else {
+                                Urgency::Normal
+                            };
                             self.notify
-                                .queue_email(
+                                .email_member(
                                     &mut tx,
+                                    *membership,
                                     "announcement",
                                     address,
                                     &vars,
                                     &format!("announcement:{id}:{membership}:email"),
+                                    urgency,
                                 )
                                 .await
                                 .map_err(|e| e.to_string())?;

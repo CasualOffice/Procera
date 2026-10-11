@@ -14,6 +14,7 @@ minijinja = { version = "2", default-features = false, features = ["builtins", "
 procera-crypto.workspace = true
 procera-db.workspace = true
 procera-kernel.workspace = true
+procera-settings.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }

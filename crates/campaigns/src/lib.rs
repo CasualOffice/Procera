@@ -710,7 +710,11 @@ impl Campaigns {
         self.notify.notify_member(tx, to, kind, &vars, Some(link), Some(reference), dedupe).await?;
         if let Some(email) = email {
             vars["link"] = json!(format!("{}{link}", self.public_url));
-            self.notify.queue_email(tx, kind, email, &vars, dedupe).await?;
+            // Honours the member's quiet hours (BPMS-048). Assignments, reminders and escalations ask
+            // for action by a date, so they are urgent: never held for a digest.
+            self.notify
+                .email_member(tx, to, kind, email, &vars, dedupe, procera_notify::delivery::Urgency::Urgent)
+                .await?;
         }
         Ok(())
     }

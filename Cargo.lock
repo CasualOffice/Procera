@@ -2532,6 +2532,7 @@ dependencies = [
  "procera-crypto",
  "procera-db",
  "procera-kernel",
+ "procera-settings",
  "serde",
  "serde_json",
  "sqlx",

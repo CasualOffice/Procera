@@ -189,9 +189,12 @@ Users may override locale/timezone in their profile. Terminology overrides apply
 | Key | Type | Default | Perm | Ph |
 |---|---|---|---|---|
 | `notify.channels.enabled` | subset of `in_app, email, push, webhook, chat` | in_app, email | workspace:settings.manage | P0 |
-| `notify.digest.schedule` | `off \| daily@hh:mm \| weekly` | daily 09:00 | workspace:settings.manage (user may override) | P0 |
-| `notify.quiet_hours` | time range + days | 20:00–08:00 | workspace:settings.manage (user may override) | P0 |
-| `notify.critical_override_quiet` | bool | true for SLA breach | workspace:settings.manage | P0 |
+| `notify.digest.schedule` | `off \| daily \| weekly` (weekly = Mondays) | daily | workspace:settings.manage (user may override) | P0 |
+| `notify.digest.hour` | int 0–23 (member's time zone) | 9 | workspace:settings.manage (user may override) | P0 |
+| `notify.quiet_hours.enabled` | bool | true | workspace:settings.manage (user may override) | P0 |
+| `notify.quiet_hours.start` / `.end` | int 0–23 (member's time zone; wraps past midnight) | 20 / 8 | workspace:settings.manage (user may override) | P0 |
+| `notify.critical_override_quiet` | bool: critical emails break quiet hours | true | workspace:settings.manage | P0 |
+| _As built (BPMS-048)_ | Only **normal** emails (plain announcements) go into digests; urgent ones (campaign assignments, reminders and escalations, announcements that need an acknowledgement) and invitations are never digested. Quiet hours hold any member email until the window ends unless it is critical and the override is on. In-app notifications are never held. A permanent SMTP rejection suppresses the address for every workspace. Days of the week for quiet hours are not configurable yet (A-15). | | | |
 | `notify.templates` | per event × locale overrides (sandboxed templating, allowlisted variables) | product templates | workspace:settings.manage | P1 |
 | `notify.email_actionable` | bool | false | workspace:settings.manage | P1 |
 
