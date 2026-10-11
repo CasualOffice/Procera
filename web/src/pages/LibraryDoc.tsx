@@ -1,4 +1,4 @@
-import { BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
+import { CalendarClock, BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type Member, memberMap, useItems } from '../lib/data';
@@ -17,7 +17,11 @@ import { rememberRecent } from '../lib/recent';
 import { LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 
-interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
+/** Library governance (BPMS-043/044), shown when the server provides it. */
+interface Governance { review_status: 'none' | 'current' | 'due_soon' | 'overdue'; next_review_at: string | null; verified: boolean; verification_expires_at: string | null }
+const REVIEW: Record<string, { label: string; color: 'green' | 'orange' | 'red' }> = { current: { label: 'Up to date', color: 'green' }, due_soon: { label: 'Review due soon', color: 'orange' }, overdue: { label: 'Review overdue', color: 'red' } };
+
+interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
 interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null }
 interface Ack { id: string; due_at: string; ack_text: string; subject: { artifact_id: string; version_id: string; content_hash: string; version_no: number } }
 
@@ -97,6 +101,7 @@ export function LibraryDoc({ id }: { id: string }) {
         <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
         {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
+        {a.governance && a.governance.review_status !== 'none' && <><dt><CalendarClock aria-hidden="true" size={15} /> Next review</dt><dd><Tag color={REVIEW[a.governance.review_status]?.color}>{REVIEW[a.governance.review_status]?.label}</Tag>{a.governance.next_review_at && <span className="muted">{shortDate(a.governance.next_review_at)}</span>}{a.governance.verified && <Tag color="green"><ShieldCheck aria-hidden="true" size={11} /> Verified{a.governance.verification_expires_at ? ` until ${shortDate(a.governance.verification_expires_at)}` : ''}</Tag>}</dd></>}
         {v.content_hash && <><dt><Hash aria-hidden="true" size={15} /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
       </dl>
 

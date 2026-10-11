@@ -62,7 +62,7 @@ export function Library() {
         docs.length ? (
           <Empty icon={SearchX} title="No documents match" action={<Button variant="secondary" onPress={() => { setQ(''); setFilter('all'); }}>Clear filters</Button>}>Nothing matches {q ? `“${q}”` : 'this filter'}.</Empty>
         ) : (
-          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size={16} /> New document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
+          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size={16} /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
         )
       ) : (
         <div className="table-wrap">
