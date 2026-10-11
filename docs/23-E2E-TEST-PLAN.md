@@ -155,6 +155,9 @@ Implemented in `e2e/packs/r1/directory.api.spec.ts`.
 |---|---|---|
 | E2E-R1-NOT-01 | An invitation queues an email (subject, HTML button, link); the link's token registers the invitee; the inviter gets an in-app "joined" notification; read / unread / read-all work | FR-N01, FR-N02, FR-W01 |
 | E2E-R1-NOT-02 | A member cannot mark another member's notification (404) | FR-N01, SEC-01 |
+| E2E-R1-NOT-03 | Preferences fall back to the workspace defaults; a member's overrides apply to them only; invalid digest/hour → 422; null resets | BPMS-048, FR-N04 |
+| E2E-R1-NOT-04 | With a daily digest due now, two plain announcements produce no individual emails and exactly one digest listing both (a second drain sends nothing more); in-app notifications still arrive | BPMS-048, FR-N04 |
+| E2E-R1-NOT-05 | During quiet hours a plain announcement email is held until the window ends; a critical one is not held | BPMS-048, FR-N04 |
 
 Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/__test/mail`, the local stand-in for Mailpit).
 
@@ -208,6 +211,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-21 | A member opens Policies, filters by category and follows "what changed" to the comparison | BPMS-045 |
 | E2E-R1-UI-22 | A publisher restricts a policy to a role; a member outside it can't find it in Policies or open it | BPMS-045, A-14 |
 | E2E-R1-UI-23 | An admin opens Overview: the summary and "Needs attention" show overdue acknowledgements, and the security strip shows one member without two-step verification; drilling in opens People & access filtered to them; the Admins filter shows the owner | BPMS-063 |
+| E2E-R1-UI-25 | A member opens Notifications → Preferences, picks a daily digest and quiet hours, saves, sees them after a reload, and resets to the workspace defaults | BPMS-048 |
 | E2E-R1-CMP-01 | Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05 |
 | E2E-R1-CMP-02 | Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04 |
 | E2E-R1-CMP-03 | Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5 |

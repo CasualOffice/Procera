@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   ███████░░░░░░░░░░░░░░░░░░░░░░░  25/109 epics done  (23%)
+Overall   ███████░░░░░░░░░░░░░░░░░░░░░░░  26/109 epics done  (24%)
 Partial   ████████░░░░░░░░░░░░░░░░░░░░░░  27% counting in-progress epics as half done
-Tests     107 automated E2E scenarios · 91 Rust tests (incl. property tests)
-Status    done 25 · in review 0 · in progress 8 · blocked 0 · not started 76 · deferred 0
+Tests     111 automated E2E scenarios · 93 Rust tests (incl. property tests)
+Status    done 26 · in review 0 · in progress 7 · blocked 0 · not started 76 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `██████░░░░░░` | 15/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `██████░░░░░░` | 16/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -36,7 +36,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app on the Notion/Attio direction (owner choice): warm paper palette in tokens (contrast-checked), full-bleed pages with a warm icon sidebar, workspace + account menus (persisted theme), action-first Home (acknowledgements, reviews, announcements with inline actions, library table, activity, people), Library (filters, Attio-style table, New document dialog), document reading view with properties, lifecycle actions (edit, submit, approve, request changes, publish with step-up, new version), acknowledgement callout, Announcements feed with read/ack, Members with invite dialog; split sign-in with product preview; single-flight token refresh. E2E-R1-UI-01..10 with axe. Remaining: ⌘K command palette (search API is ready), system console shell, mobile bottom bar Second UI pass: Geist type, state kit (skeletons, empty states, load errors with retry), ⌘K palette over search + commands (E2E-R1-UI-12..13), admin screens: Manage announcements, Campaigns, Settings, Audit log, Overview, People & access (E2E-R1-UI-14..17, 23); Policies portal and document governance (E2E-R1-UI-18..22). Remaining: system console shell, keyboard nav audit |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-045 | Policy library + employee policy portal + applicability | **In progress** | UI: Policies portal (search, category chips, what changed → compare) and applicability control on the document page, E2E-R1-UI-21..22. Migration 0017: policy category, applicability (audience; NULL = everyone) and restricted flag; procera_audience_contains SQL twin of the audience resolver; reader visibility (A-14): view-only readers see published history only, restricted policies hidden outside their applicability in lists, reads, diff, change requests and search; PUT /artifacts/{id}/applicability (audited); GET /me/policies portal with what-changed summaries vs the previous published version, text + category filters; E2E-R1-POL-01..03. Remaining: re-acknowledgement on major publish (FR-PL03), superseded watermark in exports. |
-| BPMS-048 | In-app notification centre + SMTP email + templates + digests | **In progress** | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
 
 ## Done
@@ -64,6 +63,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-044** Reviews, change requests, effective-date scheduling, renewal date, verification badge — UI: document governance panel (review status, recertify, schedule, verify with step-up, suggested changes with accept/decline/implemented), E2E-R1-UI-18..19. Migration 0016: review cadence (per-artifact override or governance.review_cadence.default/.controlled), next_review_at set on every publish, recertification, worker flag of passed review dates (once; artifact.review_overdue.v1 → owner in-app notification), verification badge with governance.verification.validity expiry, change requests (open → accepted/declined/implemented, linked to the implementing version); all audited and in the audit contract; E2E-R1-LIB-07..10. Effective-date scheduling shipped with BPMS-040.
 - [x] **BPMS-046** Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export — procera-campaigns (migration 0013): acknowledgement campaigns for a published SOP/policy version; audience via the shared resolver (snapshot or dynamic), assignments with in-app + email notices, acknowledgement bound to version id + content hash + statement + auth method, reminder ladder and one-time manager escalation by the scheduler, dynamic new joiners, close/cancel, progress, audited evidence CSV; settings campaign.*; E2E-R1-CMP-01..07. Later: quiz-lite, exemptions, signed PDF evidence, auto re-ack on major publish
 - [x] **BPMS-047** Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics — procera-announcements (migration 0014): drafts with block content, audience snapshot, approval per announcements.approval_required with SoD, scheduling + derived expiry, pinned/critical, channels from settings, in-app + email delivery via the outbox, read and acknowledgement receipts, analytics, archive; settings announcements.*; E2E-R1-ANN-01..06. Later: poster scoping, reminders/escalation for unacked, comments/reactions, reach preview
+- [x] **BPMS-048** In-app notification centre + SMTP email + templates + digests — procera-notify (migrations 0011, 0023): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox, sealed email queue with dedupe, SMTP delivery via lettre with backoff; digests (daily/weekly at the member's hour and time zone; only normal emails are digested), quiet hours (emails held until the window ends; critical override), bounce suppression on permanent SMTP rejection (global email_suppressions); member preferences with workspace defaults (notify.digest.*, notify.quiet_hours.*); Notification preferences page. E2E-R1-NOT-01..05, E2E-R1-UI-25. Later: localisation + terminology (CFG-008), per-day quiet hours (A-15), more event kinds as features land
 - [x] **BPMS-049** Postgres FTS + trgm, permission-filtered search — procera-search (migration 0015): Postgres FTS (english + simple) + pg_trgm fuzzy/prefix over SOPs, policies (artifact tsv kept current by triggers), members, departments, groups; one ranked list with escaped <mark> snippets; permission-filtered per type with Cedar before querying; RLS isolation; E2E-R1-SRCH-01..03
 - [x] **BPMS-063** Workspace overview dashboard + people & access monitor — API: GET /admin/overview (needs-attention ranking: overdue acknowledgements, admins without MFA, documents past review, drafts in review, announcements to approve; acknowledgement metrics, published-versions series, security strip from the audit chain, departments; requests/storage reported as null with guidance until those modules ship) and GET /admin/people (MFA, last active, roles, dormant, privileged, expiring grants, pending invites, filters); migration 0018 discovery.member_login_failures. UI: Overview (typographic summary, ranked list, metric rows, security strip; time range + department in the URL) and People & access (filter chips). E2E-R1-ADM-01..02, E2E-R1-UI-23.
 
@@ -94,7 +94,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 15/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 16/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -121,7 +121,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability **[In progress]**
 - [x] **BPMS-046** (P0, L) Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export
 - [x] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
-- [ ] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests **[In progress]**
+- [x] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests
 - [x] **BPMS-049** (P0, M) Postgres FTS + trgm, permission-filtered search
 - [ ] **BPMS-060** (P0, L) Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs
 - [ ] **BPMS-061** (P0, M) Previews (image/PDF) in sandbox; Office preview spike
@@ -253,7 +253,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 182 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 186 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 14 / 16 / 14 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 14 / 16 / 15 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
