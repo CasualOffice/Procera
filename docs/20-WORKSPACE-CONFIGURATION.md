@@ -154,7 +154,9 @@ Users may override locale/timezone in their profile. Terminology overrides apply
 | `governance.review.reviewer_roles` | role set | Reviewer, Compliance Officer | workspace:settings.manage | ✓ | P0 |
 | `governance.reack.policy` | `major_only \| every_publish \| none` | major_only | workspace:settings.manage | ✓ | P0 |
 | `governance.reack.window` | duration | 14 d | workspace:settings.manage | ✓ | P0 |
-| `governance.review_cadence.default` | duration | 365 d (controlled 180 d) | workspace:settings.manage | ✓ | P0 |
+| `governance.review_cadence.default` | duration (7 d – 3 y) | 365 d | workspace:settings.manage | ✓ | P0 |
+| `governance.review_cadence.controlled` | duration (7 d – 3 y) | 180 d | workspace:settings.manage | ✓ | P0 |
+| `governance.verification.validity` | duration (1 d – 365 d) | 90 d | workspace:settings.manage | ✓ | P0 |
 | `governance.effective_date.min_lead` | duration | 0 (controlled 24 h) | workspace:settings.manage | ✓ | P0 |
 | `governance.signature.mode` | `none \| simple \| part11` | simple | Owner + step-up | ✓ (collection) | P1 |
 | `governance.signature.meanings` | localised list | authored/reviewed/approved/responsible | workspace:settings.manage | – | P1 |

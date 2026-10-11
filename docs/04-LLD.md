@@ -200,9 +200,16 @@ CREATE TABLE artifacts (workspace_id uuid NOT NULL, id uuid NOT NULL,
   key text NOT NULL, title text NOT NULL, collection_id uuid, owner_membership_id uuid,
   criticality text NOT NULL DEFAULT 'standard' CHECK (criticality IN ('standard','controlled')),
   visibility jsonb NOT NULL DEFAULT '{"mode":"workspace"}', applicability jsonb,   -- policies: who it applies to
-  review_cadence interval, next_review_at timestamptz, template_ref text,          -- 'tpl:fin.purchase-requisition@1.2.0'
+  review_cadence_days int, next_review_at timestamptz, last_reviewed_at timestamptz, -- BPMS-044 (0016): NULL cadence = workspace default
+  review_overdue_at timestamptz, verified_at timestamptz, verified_by uuid, verification_expires_at timestamptz,
+  template_ref text,                                                               -- 'tpl:fin.purchase-requisition@1.2.0'
   current_published_version_id uuid, state text NOT NULL,                          -- denormalised for lists
   tsv tsvector, PRIMARY KEY (workspace_id, id), UNIQUE (workspace_id, kind, key));
+
+CREATE TABLE change_requests (workspace_id uuid NOT NULL, id uuid NOT NULL, artifact_id uuid NOT NULL,  -- BPMS-044
+  title text NOT NULL, body text NOT NULL, state text NOT NULL CHECK (state IN ('open','accepted','declined','implemented')),
+  requested_by uuid NOT NULL, requested_at timestamptz NOT NULL, resolved_by uuid, resolved_at timestamptz,
+  resolution text, version_id uuid, revision bigint NOT NULL, PRIMARY KEY (workspace_id, id));
 
 CREATE TABLE artifact_versions (workspace_id uuid NOT NULL, id uuid NOT NULL, artifact_id uuid NOT NULL,
   version_no int NOT NULL, semver text,                -- major.minor for re-ack decisions

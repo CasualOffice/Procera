@@ -31,8 +31,8 @@ BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size sy
 BPMS-040,LIB,"Artifacts, versions, lifecycle state machine, immutability trigger, SoD",P0,R1,Backend,"FR-G04, T07",T07 passes,L,"BPMS-024,026",Done
 BPMS-041,LIB,"Landscape, collections, owners, RACI, visibility",P0,R1,Fullstack,FR-G01/G02,Search authorized-only,M,BPMS-040,Not started
 BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,Not started
-BPMS-043,LIB,Semantic diff across artifact kinds,P0,R1,Fullstack,FR-G05,Diff covers bundle artifacts,M,BPMS-040,Not started
-BPMS-044,LIB,"Reviews, change requests, effective-date scheduling, renewal date, verification badge",P0,R1,Fullstack,"FR-G05/G07, FX-G01/G02",Expired flagged,M,BPMS-040,Not started
+BPMS-043,LIB,Semantic diff across artifact kinds,P0,R1,Fullstack,FR-G05,Diff covers bundle artifacts,M,BPMS-040,Done
+BPMS-044,LIB,"Reviews, change requests, effective-date scheduling, renewal date, verification badge",P0,R1,Fullstack,"FR-G05/G07, FX-G01/G02",Expired flagged,M,BPMS-040,Done
 BPMS-045,LIB,Policy library + employee policy portal + applicability,P0,R1,Fullstack,FR-PL01–PL03,Applicability enforced,M,BPMS-042,Not started
 BPMS-046,CAMP,"Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export",P0,R1,Backend,"FR-AK01–04, ADR-0017",5k recipients/min,L,BPMS-029,Done
 BPMS-047,COMMS,"Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics",P0,R1,Fullstack,"FR-AN01–06, FX-C01",J14 passes,L,BPMS-046,Done

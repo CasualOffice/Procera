@@ -165,6 +165,11 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-LIB-03 | Changes requested needs a comment and returns the draft; withdraw; later versions need a reason for change; publishing supersedes (previous → deprecated) | FR-G04, docs/20 §2.6 |
 | E2E-R1-LIB-04 | A scheduled version goes live when its effective time passes (test clock + drain) and supersedes the live one; retire | FR-G05, FR-PL01 |
 | E2E-R1-LIB-05 | Members read published policies but cannot author; lists contain only kinds the member may view | docs/12 §5 |
+| E2E-R1-LIB-06 | Semantic diff between two versions: one changed block with word-level detail, one added list, unchanged blocks kept; the reverse direction mirrors it; versions of different artifacts → 422; members may compare; another workspace gets 404 | BPMS-043, FR-G05 |
+| E2E-R1-LIB-07 | Publishing sets `next_review_at = published + 365 d` (standard); a per-artifact cadence of 20 days moves it and makes it `due_soon`; 0 → 422; `null` restores the default; an unpublished artifact cannot be recertified (409) | BPMS-044, FR-G07, FX-G01 |
+| E2E-R1-LIB-08 | A passed review date reads `overdue` immediately; the worker flags it once (two drains) and the owner receives one `review_overdue` notification linking the document; recertifying clears the flag and starts a new period; both are audited | BPMS-044, FR-G07, FX-G01 |
+| E2E-R1-LIB-09 | Verification lasts `governance.verification.validity` (90 d) and expires on its own; members cannot verify (403); removing it twice → 409 | BPMS-044, FX-G02 |
+| E2E-R1-LIB-10 | Change requests: a member proposes (blank title 422) but cannot resolve (403); declining needs a reason; accepted → implemented by a version of the same artifact (another artifact's version 422); resolved requests are final (409); list filters by state | BPMS-044, FR-G05 |
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
