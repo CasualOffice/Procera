@@ -28,11 +28,25 @@ pub mod search;
 pub mod settings;
 pub mod system;
 pub mod system_console;
+pub mod system_email;
 pub mod templates;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
 pub mod views;
 pub mod workspace;
+
+/// Deployment facts the system console shows read-only (docs/20 §3): where each comes from.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct PlatformInfo {
+    /// `environment` (PROCERA_PUBLIC_URL), `command_line` (--public-url) or `default`.
+    pub public_url_source: &'static str,
+    /// Local directory holding stored files.
+    pub files_dir: String,
+    /// `environment` (PROCERA_FILES_DIR) or `temporary` (a temporary directory: lost on reboot).
+    pub files_dir_source: &'static str,
+    /// The clamd address (PROCERA_CLAMD_ADDR), or `None` for the built-in EICAR-only check.
+    pub clamd_addr: Option<String>,
+}
 
 /// Shared application state. Grows as adapters (Postgres, object store, cache) arrive.
 #[derive(Debug, Clone)]
@@ -57,6 +71,10 @@ pub struct AppState {
     pub files: Option<procera_files::Files>,
     /// Background audit exports (BPMS-064).
     pub audit_exports: Option<crate::audit_exports::AuditExports>,
+    /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
+    pub mailers: Option<procera_notify::Mailers>,
+    /// What the system console reports about storage, scanning and the public URL (read-only).
+    pub platform_info: PlatformInfo,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -81,6 +99,14 @@ impl AppState {
         self.identity = identity;
         self.secure_cookies = secure_cookies;
         self
+    }
+
+    /// Uses `PROCERA_SMTP_URL` (with `PROCERA_MAIL_FROM`) as the transport: it wins over stored settings.
+    pub fn with_smtp_env(mut self, url: &str, from: &str) -> Result<Self, procera_notify::NotifyError> {
+        if let Some(n) = &self.notify {
+            self.mailers = Some(procera_notify::Mailers::new(n.clone(), Some((url, from)))?);
+        }
+        Ok(self)
     }
 
     /// Wires members (and through it access) and the platform once the database, identity and keys exist.
@@ -114,13 +140,18 @@ impl AppState {
                 Arc::new(procera_kernel::UuidV7Gen),
             ));
             // Files: storage directory (PROCERA_FILES_DIR) and malware scanner (PROCERA_CLAMD_ADDR).
+            self.platform_info.files_dir_source =
+                if std::env::var("PROCERA_FILES_DIR").is_ok() { "environment" } else { "temporary" };
             let files_dir = std::env::var("PROCERA_FILES_DIR").unwrap_or_else(|_| {
                 let d = std::env::temp_dir().join("procera-files");
                 tracing::warn!(dir = %d.display(), "no PROCERA_FILES_DIR: files are stored in a temporary directory");
                 d.display().to_string()
             });
             let scanner = match std::env::var("PROCERA_CLAMD_ADDR") {
-                Ok(addr) if !addr.trim().is_empty() => procera_files::Scanner::Clamd(addr),
+                Ok(addr) if !addr.trim().is_empty() => {
+                    self.platform_info.clamd_addr = Some(addr.clone());
+                    procera_files::Scanner::Clamd(addr)
+                }
                 _ => {
                     tracing::warn!(
                         "no PROCERA_CLAMD_ADDR: malware scanning detects only the EICAR test file"
@@ -128,6 +159,7 @@ impl AppState {
                     procera_files::Scanner::EicarOnly
                 }
             };
+            self.platform_info.files_dir = files_dir.clone();
             self.files = Some(procera_files::Files::new(
                 db.clone(),
                 keys.clone(),
@@ -191,6 +223,8 @@ impl AppState {
                     ids: Arc::new(procera_kernel::UuidV7Gen),
                 });
             }
+            // The environment transport, if any, is attached by `with_smtp_env` (main).
+            self.mailers = procera_notify::Mailers::new(notify.clone(), None).ok();
             self.notify = Some(notify);
             self.library = Some(library);
             self.announcements = Some(announcements);
@@ -218,6 +252,8 @@ impl AppState {
             keys: None,
             files: None,
             audit_exports: None,
+            mailers: None,
+            platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -251,6 +287,8 @@ impl AppState {
             keys: None,
             files: None,
             audit_exports: None,
+            mailers: None,
+            platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,

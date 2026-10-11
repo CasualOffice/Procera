@@ -33,6 +33,7 @@ pub fn router() -> Router<AppState> {
         .route("/settings", get(platform_settings))
         .route("/settings/{key}", put(set_floor))
         .merge(super::system_console::router())
+        .merge(super::system_email::router())
 }
 
 pub(super) fn platform(s: &AppState) -> Result<&Platform, ApiError> {

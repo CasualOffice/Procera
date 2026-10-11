@@ -118,6 +118,11 @@ impl std::fmt::Debug for TransportConfig {
     }
 }
 
+/// Whether `s` is a single email address.
+pub fn is_address(s: &str) -> bool {
+    s.trim().parse::<Address>().is_ok()
+}
+
 /// Hosts on which an unencrypted connection is accepted.
 pub fn is_local_host(host: &str) -> bool {
     matches!(host.trim().to_ascii_lowercase().as_str(), "localhost" | "127.0.0.1" | "::1" | "[::1]")

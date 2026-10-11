@@ -100,6 +100,9 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/sysapi/v1/workspaces/{id}/quotas", &[&["workspace.quotas_changed"]]),
     emits("PUT", "/sysapi/v1/settings/{key}", &[&["platform.floor_changed"]]),
     emits("PUT", "/sysapi/v1/quota-defaults/{profile}", &[&["platform.quota_defaults_changed"]]),
+    emits("PUT", "/sysapi/v1/email", &[&["platform.email_changed"]]),
+    // Audited whether the message went out or not; the outcome is in the diff.
+    emits("POST", "/sysapi/v1/email/test", &[&["platform.email_tested"]]),
     // Workspace plane.
     emits("POST", "/api/v1/session/workspace", &[&["session.workspace_selected"]]),
     emits("POST", "/api/v1/session/step-up", &[&["session.stepped_up"]]),
@@ -327,6 +330,7 @@ mod tests {
             ("/api/v1", include_str!("profile.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
+            ("/sysapi/v1", include_str!("system_email.rs")),
             ("", include_str!("../http.rs")),
         ];
         let mut out = BTreeSet::new();
