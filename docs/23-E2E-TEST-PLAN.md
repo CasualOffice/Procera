@@ -230,7 +230,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-13 | A new workspace shows composed empty states; an unknown page offers a way back; a failed load shows the error with a retry | BPMS-031 (UX-005) |
 | E2E-R1-UI-14 | Manage announcements: compose a draft; a workspace-wide post is sent for approval; a targeted draft is published and shows receipts | BPMS-031, BPMS-047 |
 | E2E-R1-UI-15 | Campaigns: create from a published document with an audience, check the reach, launch, follow progress, download the evidence CSV | BPMS-031, BPMS-046 |
-| E2E-R1-UI-16 | Settings: change a value in place with a reason and see why it applies; a step-up key asks to confirm identity | BPMS-031, BPMS-027 |
+| E2E-R1-UI-16 | Settings (Sign-in & security page): change a value in place with a reason and see why it applies; a step-up key asks to confirm identity | BPMS-031, BPMS-027 |
 | E2E-R1-UI-17 | Audit log: chain verified; filter by category; expand a record; open an object timeline; no-match state | BPMS-031, BPMS-064 |
 | E2E-R1-UI-18 | The owner sets a review schedule, recertifies when it falls due, verifies and removes verification | BPMS-044 |
 | E2E-R1-UI-19 | A member suggests a change; the owner accepts it and marks it implemented in v2 | BPMS-044 |
@@ -251,8 +251,8 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-39 | An admin filters the Audit log to content events, starts a background export (dialog says it uses the current filters), sees it become Ready in Your exports, and downloads the CSV | BPMS-064 |
 | E2E-R1-UI-30 | Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022 |
 | E2E-R1-UI-31 | Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022 |
-| E2E-R1-UI-35 | Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027 |
-| E2E-R1-UI-36 | Configuration profile: preview a switch with every change, then switch with a reason | BPMS-027, CFG-017 |
+| E2E-R1-UI-35 | Departments: from a setting's "Same for all departments" chip, override it for a parent department, see a child inherit it, then use the workspace value again | BPMS-027 |
+| E2E-R1-UI-36 | Starting point: from the Settings index banner, preview a switch with every change, then switch with a reason | BPMS-027, CFG-017 |
 | E2E-R1-UI-40 | A system admin finds a workspace, makes it read-only with a reason, and reactivates it | BPMS-065 |
 | E2E-R1-UI-41 | Quotas, platform health and the system audit; non-system users never see the console | BPMS-065 |
 | E2E-R1-UI-42 | With the API slowed down, every main page (Home, Library, Members, Campaigns, Manage announcements, Overview, People & access, Settings, Audit log, Notifications) shows a content-shaped skeleton, then its content; a reload shows the app frame, never a blank page | UX-005 |
@@ -260,10 +260,11 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-44 | A reader opens Export on a published SOP (Print or PDF, Word, Markdown) and downloads a .docx | BPMS-042 |
 | E2E-R1-UI-45 | An author inserts an image from the editor (upload, required description, caption), saves, and readers see it with its alt text after a reload | BPMS-042 |
 | E2E-R1-UI-46 | A person opens Account › Profile from the account menu, changes their name and time zone, saves, and the shell and a reload show the new values | BPMS-021 |
-| E2E-R1-UI-47 | An owner renames the workspace from Settings; the switcher shows the new name and it survives a reload (audited on both chains, AUD-01) | BPMS-020 |
+| E2E-R1-UI-47 | An owner renames the workspace from Settings › General & branding; the switcher shows the new name and it survives a reload (audited on both chains, AUD-01) | BPMS-020 |
 | E2E-R1-UI-48 | A member who forgot their password asks for a link, opens it from the email, sets a new password, and signs in with it (the old one fails) | BPMS-021 |
 | E2E-R1-UI-49 | A member changes their password from Account › Security; a wrong current password is refused on the field; the session stays signed in | BPMS-021 |
 | E2E-R1-UI-50 | An owner requires a member to change their password (reason recorded); at the member's next sign-in they choose a new one and land on Home | BPMS-021 |
+| E2E-R1-UI-61 | Settings index: seven categories with descriptions and the starting point; search (synonyms) opens a setting on its category page; Advanced is collapsed; keys and choices for unshipped features are absent; a department override shows on the setting; a change in place counts on the index; old anchors redirect; axe on index and category | BPMS-027 |
 | E2E-R1-UI-62 | Persona navigation: an employee's sidebar is Home, Library, Announcements (+ bell); an owner reaches grouped admin pages through Admin and comes back; Library and Announcements views are tabs with their own URLs | BPMS-031 |
 | E2E-R1-UI-63 | Workspace onboarding: the owner's setup checklist on Home leads through /welcome (name and accent, starter packs, departments, invitations) and ticks steps from real data | BPMS-031 |
 | E2E-R1-FLOW-01 | Onboarding start to finish: the owner invites from Members; the invitee opens the link from the email, creates an account (password confirmation checked) and lands on Home in the workspace; the link then no longer works; the owner sees them Active and opens their person page | BPMS-023 |

@@ -1,16 +1,17 @@
-import { Check, ChevronDown, Lock, ShieldCheck } from 'lucide-react';
+import { Archive, Bell, Check, ChevronDown, ChevronRight, FileText, Lock, Megaphone, Palette, Search, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Input, SearchField } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
-import { type LoadFailure, useItems } from '../lib/data';
+import { useItems } from '../lib/data';
+import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
 import { StepUpDialog } from '../ui/StepUp';
-import { Tabs } from '../ui/components/Tabs';
 import { TextField } from '../ui/components/TextField';
-import { DepartmentOverrides, ProfileSwitch } from './SettingsScopes';
+import { StartingPoint } from './SettingsScopes';
 import { LoadError, Skeleton } from '../ui/States';
-import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
+import { CATEGORIES, type CategoryId, LAYER, SYNONYMS, anchorOf, categoryById, durationText, isHidden, labelOf, placeOf, redirectFor, sizeText, valueName } from './settingsMeta';
 import { contrast, textShade } from '../lib/contrast';
 import { uploadFile } from '../lib/upload';
 import { type Label, TERMS, TERM_DEFAULTS, setTerms } from '../lib/terms';
@@ -20,7 +21,7 @@ export type Kind =
   | { type: 'enum'; values: string[] } | { type: 'set'; values: string[]; allow_all: boolean } | { type: 'list'; max_items: number; max_len: number }
   | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'image' } | { type: 'duration_list'; min: number; max: number; max_items: number }
   | { type: 'terms'; terms: string[]; max_len: number };
-export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number }
+export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number; department_scopable?: boolean }
 
 /** A value as a short sentence fragment, for read-only display and the explainer. */
 export function show(kind: Kind, v: unknown): string {
@@ -39,31 +40,103 @@ export function show(kind: Kind, v: unknown): string {
   }
 }
 
-/** Admin · Settings (docs/05 §3.16, docs/20): grouped by area, edited one setting at a time. */
+/** Changed by an admin since the workspace was created (a workspace layer replaced the starting value). */
+export const isChanged = (s: Setting) => s.layers.some((l) => l.layer === 'workspace');
+
+export const CATEGORY_ICON: Record<CategoryId, LucideIcon> = {
+  general: Palette, security: ShieldCheck, people: Users, documents: FileText, acknowledgements: Megaphone, notifications: Bell, data: Archive,
+};
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** Search over label, help, key and synonyms (docs/design/ia-competitive-analysis.md §6.3 rule 5). */
+function searchSettings(items: Setting[], q: string): Setting[] {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return [];
+  return items.filter((s) => {
+    const [label, hint] = labelOf(s.key);
+    const hay = `${label} ${hint ?? ''} ${s.key} ${SYNONYMS[s.key] ?? ''} ${categoryById(placeOf(s.key).cat)?.label ?? ''}`.toLowerCase();
+    return words.every((w) => hay.includes(w));
+  });
+}
+const resultLink = (s: Setting) => `/admin/settings/${placeOf(s.key).cat}#${anchorOf(s.key)}`;
+
+/**
+ * Admin · Settings (docs/05 §3.16): the category index. Each category is its own page; search finds
+ * any setting across them. The starting point (configuration profile) shows once, as a banner.
+ */
 export function Settings() {
-  const { can } = useSession();
   const [items, reload, error] = useItems<Setting>('/api/v1/settings');
-  const groups = useMemo(() => AREAS.map((a) => ({ ...a, items: (items ?? []).filter((s) => areaOf(s.key) === a.id) })).filter((g) => g.items.length), [items]);
-  const editable = (s: Setting) => !!s.editable_with && can(s.editable_with);
-  const workspaceTab = <WorkspaceSettings items={items} reload={reload} error={error} groups={groups} editable={editable} />;
+  const [q, setQ] = useState('');
+  // Links to the old one-page layout (`#set-<area>` or `#set-<key>`) open the category page now holding it.
+  useEffect(() => { const to = redirectFor(window.location.hash); if (to) navigate(to, { replace: true }); }, []);
+  const visible = useMemo(() => (items ?? []).filter((s) => !isHidden(s.key)), [items]);
+  const results = useMemo(() => searchSettings(visible, q), [visible, q]);
+  const searching = q.trim().length > 0;
 
   return (
     <>
       <div className="page-head">
         <div><h1>Settings</h1><p>How this workspace works. Changes apply to everyone and are recorded in the audit log.</p></div>
       </div>
-      <WorkspaceName />
-      <Tabs label="Settings scope" tabs={[
-        { id: 'workspace', label: 'Workspace', content: workspaceTab },
-        { id: 'departments', label: 'Departments', content: <DepartmentOverrides /> },
-        { id: 'profile', label: 'Configuration profile', content: <ProfileSwitch onApplied={reload} /> },
-      ]} />
+      {error ? <LoadError error={error} onRetry={reload} what="settings" /> : items === null ? <Skeleton variant="table" rows={7} label="Loading settings" /> : (
+        <div className="settings-home">
+          <StartingPoint onApplied={reload} />
+          <SearchField className="search-input settings-search" aria-label="Search settings" value={q} onChange={setQ}
+            onSubmit={() => { const first = results[0]; if (first) navigate(resultLink(first)); }}>
+            <Search aria-hidden="true" size="0.9375rem" /><Input placeholder="Search settings, for example password or reminders" />
+          </SearchField>
+          {searching ? (
+            <section aria-label="Search results" className="settings-results">
+              <p className="settings-results-count" role="status">{results.length ? `${plural(results.length, 'setting')} match` : 'No settings match. Try another word, such as password, reminders or retention.'}</p>
+              {results.length > 0 && (
+                <ul className="settings-cats">
+                  {results.map((s) => {
+                    const [label, hint] = labelOf(s.key);
+                    const cat = categoryById(placeOf(s.key).cat)!;
+                    return (
+                      <li key={s.key} className="settings-cat">
+                        <span className="settings-cat-text">
+                          <Link to={resultLink(s)} className="settings-cat-link">{label}</Link>
+                          <span className="settings-cat-about">{cat.label}{placeOf(s.key).advanced ? ' › Advanced' : ''}{hint ? ` · ${hint}` : ''}</span>
+                        </span>
+                        <span className="settings-cat-meta">{show(s.kind, s.value)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : (
+            <nav aria-label="Settings categories">
+              <ul className="settings-cats">
+                {CATEGORIES.map((c) => {
+                  const mine = visible.filter((s) => placeOf(s.key).cat === c.id);
+                  const changed = mine.filter(isChanged).length;
+                  const Icon = CATEGORY_ICON[c.id];
+                  return (
+                    <li key={c.id} className="settings-cat">
+                      <span className="settings-cat-icon" aria-hidden="true"><Icon size="1rem" /></span>
+                      <span className="settings-cat-text">
+                        <Link to={`/admin/settings/${c.id}`} className="settings-cat-link">{c.label}</Link>
+                        <span className="settings-cat-about">{c.about}</span>
+                      </span>
+                      <span className="settings-cat-meta">{changed ? `${changed} changed` : 'Starting values'}</span>
+                      <ChevronRight aria-hidden="true" size="1rem" className="settings-cat-chev" />
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
+        </div>
+      )}
     </>
   );
 }
 
 /** The workspace's name, shown in the switcher, emails and the browser tab. Owners and admins rename it. */
-function WorkspaceName() {
+export function WorkspaceName() {
   const { workspace, can, reload } = useSession();
   const [name, setName] = useState(workspace?.name ?? '');
   const [busy, setBusy] = useState(false);
@@ -98,32 +171,12 @@ function WorkspaceName() {
   );
 }
 
-function WorkspaceSettings({ items, reload, error, groups, editable }: { items: Setting[] | null; reload: () => void; error: LoadFailure | null; groups: { id: string; label: string; items: Setting[] }[]; editable: (s: Setting) => boolean }) {
-  return (
-    <>
-      {error ? <LoadError error={error} onRetry={reload} what="settings" /> : items === null ? <Skeleton variant="table" rows={8} label="Loading settings" /> : (
-        <div className="settings">
-          <nav className="settings-index" aria-label="Settings sections">
-            <ul>{groups.map((g) => <li key={g.id}><a href={`#set-${g.id}`}>{g.label}</a></li>)}</ul>
-          </nav>
-          <div className="settings-main">
-            {groups.map((g) => (
-              <section key={g.id} id={`set-${g.id}`} className="settings-group" aria-labelledby={`set-${g.id}-h`}>
-                <h2 id={`set-${g.id}-h`}>{g.label}</h2>
-                <ul className="settings-list">
-                  {g.items.map((s) => <SettingRow key={s.key} s={s} canEdit={editable(s)} onSaved={reload} />)}
-                </ul>
-              </section>
-            ))}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onSaved: () => void }) {
-  const [label, hint] = LABELS[s.key] ?? [humanise(s.key)];
+/**
+ * One setting: label, help, value and source; edited in place. `hide` drops choices that don't exist yet
+ * (they stay in the stored value), `extra` adds context such as the department chip.
+ */
+export function SettingRow({ s, canEdit, onSaved, hide, extra }: { s: Setting; canEdit: boolean; onSaved: () => void; hide?: (choice: string) => boolean; extra?: React.ReactNode }) {
+  const [label, hint] = labelOf(s.key);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<unknown>(s.value);
   const [reason, setReason] = useState('');
@@ -136,7 +189,8 @@ function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onS
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (!editing) setDraft(s.value); }, [s.value, editing]);
   useEffect(() => { if (!saved) return; const t = setTimeout(() => setSaved(false), 2500); return () => clearTimeout(t); }, [saved]);
-  const id = `set-${s.key.replace(/\./g, '-')}`;
+  const id = anchorOf(s.key);
+  const shown = hide && s.kind.type === 'set' ? ((s.value as string[]) ?? []).filter((v) => !hide(v)) : s.value;
   const changed = JSON.stringify(draft) !== JSON.stringify(s.value);
 
   const save = async () => {
@@ -165,11 +219,12 @@ function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onS
             {s.step_up && <span className="setting-flag"><ShieldCheck aria-hidden="true" size="0.75rem" /> Asks you to confirm it’s you</span>}
             {!s.editable_with && <span className="setting-flag"><Lock aria-hidden="true" size="0.75rem" /> Set by the platform</span>}
             <button type="button" className="setting-why" aria-expanded={why} aria-controls={`${id}-why`} onClick={() => setWhy(!why)}>Why this value<ChevronDown aria-hidden="true" size="0.75rem" /></button>
+            {extra}
           </p>
         </div>
         {!editing && (
           <div className="setting-value">
-            <span className="setting-current">{s.kind.type === 'colour' && <span className="swatch" style={{ background: String(s.value) }} aria-hidden="true" />}{show(s.kind, s.value)}</span>
+            <span className="setting-current">{s.kind.type === 'colour' && <span className="swatch" style={{ background: String(s.value) }} aria-hidden="true" />}{show(s.kind, shown)}</span>
             {saved && <span className="setting-saved" role="status"><Check aria-hidden="true" size="0.8125rem" /> Saved</span>}
             {canEdit && <Button variant="secondary" className="btn-sm" onPress={() => { setEditing(true); setError(null); }} aria-label={`Change ${label}`}>Change</Button>}
           </div>
@@ -179,7 +234,7 @@ function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onS
       {editing && (
         <div className="setting-edit">
           {error && <Notice tone="danger" title={error} />}
-          <Control kind={s.kind} value={draft} onChange={setDraft} labelledBy={`${id}-l`} describedBy={hint ? `${id}-h` : undefined} />
+          <Control kind={s.kind} value={draft} onChange={setDraft} labelledBy={`${id}-l`} describedBy={hint ? `${id}-h` : undefined} hide={hide} />
           {needReason && (
             <div className="field setting-reason">
               <label className="field-label" htmlFor={`${id}-r`}>Reason for the change</label>
@@ -228,7 +283,7 @@ function Why({ s, id }: { s: Setting; id: string }) {
 
 const DUR_UNITS = [[86_400, 'days'], [3_600, 'hours'], [60, 'minutes']] as const;
 
-export function Control({ kind, value, onChange, labelledBy, describedBy }: { kind: Kind; value: unknown; onChange: (v: unknown) => void; labelledBy: string; describedBy?: string }) {
+export function Control({ kind, value, onChange, labelledBy, describedBy, hide }: { kind: Kind; value: unknown; onChange: (v: unknown) => void; labelledBy: string; describedBy?: string; hide?: (choice: string) => boolean }) {
   const a11y = { 'aria-labelledby': labelledBy, 'aria-describedby': describedBy };
   switch (kind.type) {
     case 'bool':
@@ -272,7 +327,7 @@ export function Control({ kind, value, onChange, labelledBy, describedBy }: { ki
       return (
         <div className="aud-chips" role="group" {...a11y}>
           {kind.allow_all && <button type="button" className="aud-chip" aria-pressed={all} onClick={() => onChange(all ? [] : ['*'])}>{all && <Check aria-hidden="true" size="0.75rem" />}Everyone</button>}
-          {kind.values.map((v) => { const on = !all && cur.includes(v); return <button key={v} type="button" className="aud-chip" aria-pressed={on} disabled={all} onClick={() => toggle(v)}>{on && <Check aria-hidden="true" size="0.75rem" />}{valueName(v)}</button>; })}
+          {kind.values.filter((v) => !hide?.(v)).map((v) => { const on = !all && cur.includes(v); return <button key={v} type="button" className="aud-chip" aria-pressed={on} disabled={all} onClick={() => toggle(v)}>{on && <Check aria-hidden="true" size="0.75rem" />}{valueName(v)}</button>; })}
         </div>
       );
     }

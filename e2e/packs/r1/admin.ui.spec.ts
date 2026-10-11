@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { hasDatabase } from '../../fixtures/accounts';
-import { axe, nav, signIn } from '../../fixtures/ui';
+import { axe, nav, openSettings, signIn } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-UI-14..17 — Administration screens in the browser: manage announcements, campaigns,
@@ -83,11 +83,11 @@ test.describe('administration @r1 @ui', () => {
     await expect(page.getByRole('row', { name: /Acknowledge Code of Conduct/ }).getByText('0 of 1')).toBeVisible();
   });
 
-  test('E2E-R1-UI-16 settings: grouped by area; change a value in place, see why it applies, and step-up keys ask to confirm identity', async ({ page, request }) => {
+  test('E2E-R1-UI-16 settings: grouped by category; change a value in place, see why it applies, and step-up keys ask to confirm identity', async ({ page, request }) => {
     const { ownerEmail, owner } = await workspaceWithOwner(request);
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await nav(page, 'Settings');
-    await expect(page.getByRole('heading', { level: 2, name: 'Security and sign-in' })).toBeVisible();
+    await openSettings(page, 'Sign-in & security');
+    await expect(page.getByRole('heading', { level: 2, name: 'Sign-in' })).toBeVisible();
     await axe(page);
 
     const row = page.getByRole('listitem').filter({ has: page.getByText('Sign out after inactivity', { exact: true }) });
@@ -105,7 +105,7 @@ test.describe('administration @r1 @ui', () => {
     // Age this person's sign-in (not the shared clock), then reload so the browser refreshes its token.
     expect((await request.post('/__test/session/age', { data: { email: ownerEmail, seconds: 3600 } })).status()).toBe(204);
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign-in & security' })).toBeVisible();
     const mfa = page.getByRole('listitem').filter({ has: page.getByText('Two-step verification required for', { exact: true }) });
     await mfa.getByRole('button', { name: /^Change/ }).click();
     await mfa.getByRole('button', { name: 'Reviewer' }).click();
