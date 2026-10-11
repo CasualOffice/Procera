@@ -27,6 +27,7 @@ allow = [
     "ISC",
     "MIT",
     "MIT-0",
+    "0BSD", # public-domain-equivalent; on the SP-07 allow list (e.g. quoted_printable via lettre)
     "Unicode-3.0",
     "Zlib",
     "CC0-1.0",

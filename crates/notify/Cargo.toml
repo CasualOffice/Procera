@@ -1,0 +1,31 @@
+[package]
+name = "procera-notify"
+description = "Notifications: templates, in-app inbox, encrypted email queue and SMTP delivery (BPMS-048, FR-N01/N02)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots", "hostname"] }
+minijinja = { version = "2", default-features = false, features = ["builtins", "serde", "debug", "multi_template"] }
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-kernel.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

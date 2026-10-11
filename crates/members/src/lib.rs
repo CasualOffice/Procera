@@ -286,6 +286,45 @@ impl Members {
         .await
     }
 
+    /// What the invitation email needs: (email, token, expires_at, inviter display name, workspace name).
+    /// `None` once the invitation is accepted or revoked (nothing to send).
+    pub async fn invitation_for_mail(
+        &self,
+        ctx: WsCtx,
+        id: Uuid,
+    ) -> Result<Option<(String, String, OffsetDateTime, Option<String>, String)>, MembersError> {
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let row: Option<(String, Vec<u8>, OffsetDateTime, Option<String>, String)> = sqlx::query_as(
+            "SELECT i.email::text, i.token_sealed, i.expires_at, u.display_name, w.name FROM invitations i
+             JOIN workspaces w ON w.id = i.workspace_id LEFT JOIN users u ON u.id = i.invited_by
+             WHERE i.id = $1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL",
+        )
+        .bind(id)
+        .fetch_optional(tx.conn())
+        .await?;
+        tx.rollback().await?;
+        let Some((email, sealed, expires, inviter, workspace)) = row else { return Ok(None) };
+        let pt = open(self.keys.as_ref(), "secrets", &format!("invitations:{id}"), &sealed)?;
+        let token = String::from_utf8(pt.to_vec()).map_err(|e| MembersError::Internal(e.to_string()))?;
+        Ok(Some((email, token, expires, inviter, workspace)))
+    }
+
+    /// For a newly activated membership: (inviter's membership, new member's name, workspace name).
+    pub async fn joined_context(
+        &self,
+        tx: &mut WsTx<'_>,
+        membership: Uuid,
+    ) -> Result<Option<(Uuid, String, String)>, MembersError> {
+        Ok(sqlx::query_as(
+            "SELECT im.id, u.display_name, w.name FROM memberships m
+             JOIN users u ON u.id = m.user_id
+             JOIN workspaces w ON w.id = m.workspace_id
+             JOIN LATERAL (SELECT invited_by FROM invitations i WHERE i.accepted_by = m.user_id ORDER BY i.accepted_at DESC LIMIT 1) inv ON true
+             JOIN memberships im ON im.user_id = inv.invited_by AND im.status = 'active'
+             WHERE m.id = $1",
+        ).bind(membership).fetch_optional(tx.conn()).await?)
+    }
+
     /// Decrypts the token of the latest pending invitation for `email` (mailer and E2E only).
     pub async fn pending_invitation_token(
         &self,
