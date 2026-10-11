@@ -1,8 +1,8 @@
-import { ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronRight, ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { ApiError } from '../lib/api';
-import { navigate } from '../lib/router';
+import { ApiError, api } from '../lib/api';
+import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
@@ -13,6 +13,9 @@ import { MfaSetup } from './MfaSetup';
 export function ChooseWorkspace() {
   const { workspaces, selectWorkspace, signOut, user, entryError } = useSession();
   const [error, setError] = useState<string | null>(null);
+  // System administrators also get a way into the system console (it answers 404 to everyone else).
+  const [system, setSystem] = useState(false);
+  useEffect(() => { api('/sysapi/v1/me').then(() => setSystem(true)).catch(() => undefined); }, []);
   const [needsMfa, setNeedsMfa] = useState<string | null>(entryError === 'mfa_required' && workspaces.length === 1 ? workspaces[0]!.name : null);
   if (needsMfa && !user?.mfa_enabled) return <MfaSetup workspaceName={needsMfa} />;
   return (
@@ -20,7 +23,15 @@ export function ChooseWorkspace() {
       <h1>Choose a workspace</h1>
       <p className="lede">Signed in as {user?.email}</p>
       {error && <Notice tone="danger" title={error} />}
+      {system && (
+        <Link className="choice choice-system" to="/system">
+          <span className="choice-icon"><ShieldCheck aria-hidden="true" size="1rem" /></span>
+          <span className="choice-main"><strong>System console</strong><span>Workspaces, quotas, health and system audit</span></span>
+          <ChevronRight aria-hidden="true" size="1rem" className="muted" />
+        </Link>
+      )}
       {workspaces.length === 0 ? (
+        system ? null : 
         <Notice tone="info" title="You’re not in a workspace yet">Ask a workspace admin to invite you. The invitation email has a link that adds you.</Notice>
       ) : (
         <ul className="choices">

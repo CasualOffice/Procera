@@ -621,3 +621,8 @@ h1, h2, .task-title, .post-title { text-wrap: balance; }
   .tasks li .task-title, .tasks li .task-meta { white-space: normal; }
   .tasks li .btn { margin-left: 2.75rem; }
 }
+
+/* System console entry on the chooser (BPMS-065). */
+a.choice-system { margin: var(--space-4) 0; border: 1px solid var(--line); border-radius: var(--radius-container); text-decoration: none; }
+a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.choice-icon { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-control); color: #EDECE9; background: #1C1B19; flex: none; }
