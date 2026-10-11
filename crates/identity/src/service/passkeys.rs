@@ -94,7 +94,7 @@ impl Identity {
         user_id: Uuid,
     ) -> Result<Vec<Value>, IdentityError> {
         let rows: Vec<(Vec<u8>, Option<Vec<String>>)> = sqlx::query_as(
-            "SELECT credential_id, transports FROM user_credentials WHERE user_id = $1 AND kind = 'webauthn' ORDER BY created_at",
+            "SELECT credential_id, transports FROM user_credentials WHERE user_id = $1 AND kind = 'webauthn' ORDER BY created_at, id",
         )
         .bind(user_id)
         .fetch_all(tx.conn())
@@ -210,7 +210,7 @@ impl Identity {
 
     pub async fn passkeys(&self, user_id: Uuid) -> Result<Vec<Passkey>, IdentityError> {
         let rows: Vec<PasskeyRow> = sqlx::query_as(&format!(
-            "SELECT {PASSKEY_COLS} FROM user_credentials WHERE user_id = $1 AND kind = 'webauthn' ORDER BY created_at"
+            "SELECT {PASSKEY_COLS} FROM user_credentials WHERE user_id = $1 AND kind = 'webauthn' ORDER BY created_at, id"
         ))
         .bind(user_id)
         .fetch_all(self.db.pool())

@@ -32,7 +32,9 @@ export async function enter(email: string, workspace: string): Promise<Session &
 export async function workspaceWithOwner(request: APIRequestContext, profile = 'standard') {
   const sys = await sysAdmin(request);
   const ownerEmail = uniqueEmail('owner');
-  const ws = await (await sys.c.post('/sysapi/v1/workspaces', { headers: sys.headers, data: { name: 'Acme', slug: `acme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, profile, owner_email: ownerEmail } })).json();
+  const created = await sys.c.post('/sysapi/v1/workspaces', { headers: sys.headers, data: { name: 'Acme', slug: `acme-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, profile, owner_email: ownerEmail } });
+  expect(created.ok(), `create workspace: ${created.status()} ${await created.text()}`).toBe(true);
+  const ws = await created.json();
   const token = await inviteToken(request, ws.id, ownerEmail);
   const anon = await client();
   const reg = await anon.post('/api/v1/invitations/register', { data: { token, display_name: 'Olivia', password: PW } });

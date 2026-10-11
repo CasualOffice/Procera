@@ -1,9 +1,10 @@
+import { DocEditor } from '../ui/DocEditor';
 import { CollectionRow, OwnerRow, RaciRows } from './docOrganisation';
-import { BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
+import { BookOpenCheck, Check, CircleDot, FileDown, FileText, GitBranch, Hash, Pencil, Printer, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, api } from '../lib/api';
+import { api, ApiError, download, openHtml } from '../lib/api';
 import { type Member, memberMap, useItems, useResource } from '../lib/data';
-import { type Block, blocksToText, shortDate, textToBlocks, timeAgo } from '../lib/format';
+import { type Block, shortDate, timeAgo } from '../lib/format';
 import { Link } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from '../ui/Avatar';
@@ -49,7 +50,7 @@ export function LibraryDoc({ id }: { id: string }) {
   const [version, setVersion] = useState<Version | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
+  const [edited, setEdited] = useState<Block[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [dialog, setDialog] = useState<null | 'changes' | 'publish'>(null);
@@ -154,24 +155,24 @@ export function LibraryDoc({ id }: { id: string }) {
       {/* Lifecycle actions for this version */}
       {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} />}
       <div className="doc-actions">
-        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setDraft(blocksToText(blocks)); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
+        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setEdited(null); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/submit`, { method: 'POST' }), 'Submitted.')} isDisabled={!blocks.length}><Send aria-hidden="true" size="0.9375rem" /> Submit for review</Button>}
         {v.lifecycle === 'in_review' && p('approve') && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/reviews`, { method: 'POST', body: { decision: 'approve' } }), 'Approved.')}><Check aria-hidden="true" size="0.9375rem" /> Approve</Button>}
         {v.lifecycle === 'in_review' && (p('review') || p('approve')) && <Button variant="secondary" onPress={() => { setComment(''); setDialog('changes'); }}>Request changes</Button>}
         {v.lifecycle === 'in_review' && p('edit_draft') && <Button variant="ghost" onPress={() => void act(() => api(`/api/v1/versions/${v.id}/withdraw`, { method: 'POST' }), 'Withdrawn to draft.')}>Withdraw</Button>}
         {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setChange('major'); setDialog('publish'); }}><Send aria-hidden="true" size="0.9375rem" /> Publish</Button>}
         {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size="0.9375rem" /> New version</Button>}
+        {!editing && <Button variant="ghost" onPress={() => void openHtml(`/api/v1/versions/${v.id}/export?format=html`)}><Printer aria-hidden="true" size="0.9375rem" /> Print or PDF</Button>}
+        {!editing && <Button variant="ghost" onPress={() => void download(`/api/v1/versions/${v.id}/export?format=md`, `${a.key}-v${v.version_no}.md`)}><FileDown aria-hidden="true" size="0.9375rem" /> Markdown</Button>}
         <span className="muted doc-meta">{author ? `Edited by ${author.display_name} · ` : ''}{timeAgo(v.created_at)} · {workspace?.name}</span>
       </div>
       <hr className="doc-rule" />
 
       {editing ? (
         <div className="stack">
-          <label className="field-label" htmlFor="doc-editor">Content</label>
-          <p className="muted" style={{ margin: 0, fontSize: '0.8125rem' }}>Use a blank line between paragraphs, “# ” for a heading and “- ” for a list item.</p>
-          <textarea id="doc-editor" className="textarea" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
+          <DocEditor initial={blocks} onChange={setEdited} />
           <div className="actions">
-            <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}`, { method: 'PATCH', headers: { 'if-match': `"${v.revision}"` }, body: { content: { blocks: textToBlocks(draft) } } }), 'Saved.')}>Save draft</Button>
+            <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}`, { method: 'PATCH', headers: { 'if-match': `"${v.revision}"` }, body: { content: { blocks: edited ?? blocks } } }), 'Saved.')}>Save draft</Button>
             <Button variant="secondary" onPress={() => setEditing(false)}>Cancel</Button>
           </div>
         </div>

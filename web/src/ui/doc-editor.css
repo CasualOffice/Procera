@@ -1,0 +1,23 @@
+/* Block editor (BPMS-042). The editing surface uses the same .doc-body typography as the reading view. */
+.doc-editor { border: 1px solid var(--color-border-strong); border-radius: var(--radius-container); background: var(--color-surface); }
+.doc-editor:focus-within { border-color: var(--color-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 10%, transparent); }
+.doc-toolbar { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 0.125rem; align-items: center; padding: 0.375rem; border-bottom: 1px solid var(--line); background: var(--color-surface); border-radius: var(--radius-container) var(--radius-container) 0 0; }
+.doc-tool { display: inline-grid; place-items: center; min-width: var(--target-min); min-height: var(--target-min); width: 2rem; height: 2rem; border: 0; border-radius: 0.375rem; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.doc-tool:hover { background: var(--fill-hover); color: var(--color-text); }
+.doc-tool[aria-pressed='true'] { background: color-mix(in srgb, var(--color-text) 10%, transparent); color: var(--color-text); }
+.doc-tool:focus-visible, .doc-tool-text:focus-visible { outline: var(--focus-width) solid var(--color-focus); outline-offset: 1px; }
+.doc-tool-group { display: inline-flex; gap: 0.25rem; margin-left: 0.5rem; padding-left: 0.5rem; border-left: 1px solid var(--line); }
+.doc-tool-text { min-height: var(--target-min); padding: 0 0.5rem; border: 0; border-radius: 0.375rem; background: transparent; color: var(--color-text-secondary); font: inherit; font-size: 0.75rem; cursor: pointer; }
+.doc-tool-text:hover { background: var(--fill-hover); color: var(--color-text); }
+.doc-link-bar { display: flex; gap: 0.5rem; padding: 0.5rem; border-bottom: 1px solid var(--line); }
+.doc-link-bar .field-input { flex: 1; min-height: 2rem; }
+.doc-editor-surface { min-height: 18rem; padding: 1rem 1.25rem 1.5rem; outline: none; }
+.doc-editor-surface p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--color-text-secondary); float: left; height: 0; pointer-events: none; }
+.doc-editor-surface table, .doc-body table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.875rem; }
+.doc-editor-surface th, .doc-editor-surface td, .doc-body th, .doc-body td { border: 1px solid var(--line); padding: 0.375rem 0.5rem; text-align: left; vertical-align: top; }
+.doc-editor-surface th, .doc-body th { background: var(--color-bg); font-weight: 600; }
+.doc-editor-surface .selectedCell { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
+.doc-editor-surface blockquote, .doc-body .doc-callout { margin: 1rem 0; padding: 0.5rem 0.875rem; border-left: 0.1875rem solid var(--color-border-strong); background: var(--color-bg); border-radius: 0 0.375rem 0.375rem 0; }
+.doc-body .doc-callout.warning { border-left-color: var(--color-warning); }
+.doc-editor-surface blockquote p, .doc-body .doc-callout p { margin: 0; }
+.doc-body a, .doc-editor-surface a { color: inherit; text-decoration: underline; text-underline-offset: 0.1875rem; }

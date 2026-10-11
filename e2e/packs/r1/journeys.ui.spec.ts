@@ -29,8 +29,16 @@ test.describe('journeys @r1 @ui', () => {
     await axe(page);
     await dialog.getByRole('button', { name: 'Create draft' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Remote work' })).toBeVisible();
-    await page.getByRole('button', { name: 'Edit' }).click();
-    await page.getByLabel('Content').fill('# Eligibility\n\nEveryone may work remotely two days a week.\n\n- Agree days with your manager\n- Keep core hours 10–15');
+    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    // The block editor (BPMS-042): markdown shortcuts as you type ("## " heading, "- " list).
+    await page.getByRole('textbox', { name: 'Content' }).click();
+    await page.keyboard.type('## Eligibility');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Everyone may work remotely two days a week.');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('- Agree days with your manager');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('Keep core hours 10–15');
     await page.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByRole('heading', { name: 'Eligibility' })).toBeVisible();
     await expect(page.getByRole('listitem').filter({ hasText: 'Keep core hours' })).toBeVisible();

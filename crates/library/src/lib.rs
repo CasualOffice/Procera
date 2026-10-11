@@ -11,6 +11,7 @@
 //!
 //! Permissions and step-up are checked by the caller (HTTP layer); this crate enforces the lifecycle.
 
+pub mod blocks;
 pub mod collections;
 pub mod diff;
 pub mod governance;
@@ -240,7 +241,8 @@ fn check_content(content: &Value) -> Result<(), LibraryError> {
     if serde_json::to_vec(content).map(|v| v.len()).unwrap_or(usize::MAX) > 1_048_576 {
         return Err(LibraryError::Invalid("content is larger than 1 MB".into()));
     }
-    Ok(())
+    // The block model (ADR-0013): known block types and safe links only.
+    blocks::validate(content)
 }
 
 type VersionRow = (

@@ -4,7 +4,7 @@
 
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
@@ -41,6 +41,7 @@ pub fn router() -> Router<AppState> {
         .route("/artifacts/{id}/owner", put(set_owner))
         .route("/artifacts/{id}/raci", get(get_raci).put(set_raci))
         .route("/raci/export", get(export_raci))
+        .route("/versions/{id}/export", get(export_version))
         .route("/versions/{id}/submit", post(submit))
         .route("/versions/{id}/withdraw", post(withdraw))
         .route("/versions/{id}/reviews", post(review))
@@ -1010,5 +1011,117 @@ async fn export_raci(
     res.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/csv; charset=utf-8"));
     res.headers_mut()
         .insert(header::CONTENT_DISPOSITION, HeaderValue::from_static("attachment; filename=\"raci.csv\""));
+    Ok(res)
+}
+
+// ---- BPMS-042: export a version as print-ready HTML or Markdown ----
+
+#[derive(Debug, Deserialize)]
+struct VersionExportQuery {
+    #[serde(default)]
+    format: Option<String>,
+}
+
+/// A self-contained, print-ready HTML document (browsers print it as a tagged PDF) or Markdown.
+/// Superseded and retired versions carry a "not the current version" banner (FR-PL01). Audited.
+async fn export_version(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Query(q): Query<VersionExportQuery>,
+) -> Result<Response, ApiError> {
+    let format = q.format.as_deref().unwrap_or("html");
+    if !matches!(format, "html" | "md") {
+        return Err(
+            ApiError::new(422, "validation_failed", "Validation failed").detail("format must be html or md")
+        );
+    }
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_version(&s, &me, &mut tx, id, "view").await?;
+    let lib = library(&s)?;
+    let (v, a) = lib.version(&mut tx, id, None).await?;
+    lib.audit_export(&mut tx, &actor(&me, &headers), id, format).await?;
+    tx.commit().await.map_err(internal)?;
+    let superseded = matches!(v.lifecycle.as_str(), "deprecated" | "retired");
+    let slug: String = a
+        .key
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '.' { c } else { '-' })
+        .collect();
+    if format == "md" {
+        let mut md = format!("# {}\n\n", a.title);
+        if superseded {
+            md.push_str(&format!(
+                "> **Superseded:** this is version {}, not the current version.\n\n",
+                v.version_no
+            ));
+        }
+        md.push_str(&procera_library::blocks::blocks_markdown(&v.content));
+        let mut res = md.into_response();
+        res.headers_mut()
+            .insert(header::CONTENT_TYPE, HeaderValue::from_static("text/markdown; charset=utf-8"));
+        if let Ok(h) = HeaderValue::from_str(&format!("attachment; filename=\"{slug}-v{}.md\"", v.version_no))
+        {
+            res.headers_mut().insert(header::CONTENT_DISPOSITION, h);
+        }
+        return Ok(res);
+    }
+    let esc =
+        |t: &str| t.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    let published = v
+        .published_at
+        .and_then(|t| t.format(&time::format_description::well_known::Rfc3339).ok())
+        .map(|t| t[..10].to_owned());
+    let banner = if superseded {
+        format!(
+            "<p class=\"superseded\" role=\"note\"><strong>Superseded.</strong> This is version {}, not the current version.</p>",
+            v.version_no
+        )
+    } else {
+        String::new()
+    };
+    let html = format!(
+        r#"<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{title} · v{no}</title>
+<style>
+  body {{ font: 11pt/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: #1c1c1a; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; }}
+  h1 {{ font-size: 1.75rem; line-height: 1.2; margin: 0 0 .25rem; }}
+  .meta {{ color: #5f5f5a; font-size: .875rem; margin: 0 0 1.5rem; }}
+  h2 {{ font-size: 1.25rem; margin: 1.75rem 0 .5rem; }} h3 {{ font-size: 1.0625rem; margin: 1.25rem 0 .5rem; }} h4 {{ font-size: 1rem; }}
+  table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; }} th, td {{ border: 1px solid #d6d6d0; padding: .375rem .5rem; text-align: left; vertical-align: top; }}
+  th {{ background: #f1f1ef; }}
+  .callout {{ border-left: 3px solid #5f5f5a; background: #f6f6f4; padding: .5rem .875rem; margin: 1rem 0; }} .callout.warning {{ border-color: #b45309; }}
+  .superseded {{ border: 2px solid #b42318; color: #b42318; padding: .5rem .875rem; margin: 0 0 1.25rem; }}
+  footer {{ margin-top: 2.5rem; padding-top: .75rem; border-top: 1px solid #e4e4e0; color: #5f5f5a; font-size: .75rem; }}
+  @media print {{ body {{ margin: 0; max-width: none; }} a {{ color: inherit; }} }}
+</style></head>
+<body><main>
+<h1>{title}</h1>
+<p class="meta">{kind} · version {no}{semver}{published} · status {status}</p>
+{banner}
+{body}
+</main>
+<footer>Exported from Procera.{hash}</footer>
+</body></html>"#,
+        title = esc(&a.title),
+        no = v.version_no,
+        kind = if a.kind == "sop" { "SOP" } else { "Policy" },
+        semver = v.semver.as_deref().map(|s| format!(" ({s})")).unwrap_or_default(),
+        published = published.map(|p| format!(" · published {p}")).unwrap_or_default(),
+        status = esc(&v.lifecycle),
+        banner = banner,
+        body = procera_library::blocks::blocks_html(&v.content),
+        hash = v
+            .content_hash
+            .as_deref()
+            .map(|h| format!(" Content fingerprint (SHA-256): {h}"))
+            .unwrap_or_default(),
+    );
+    let mut res = Html(html).into_response();
+    if let Ok(h) = HeaderValue::from_str(&format!("inline; filename=\"{slug}-v{}.html\"", v.version_no)) {
+        res.headers_mut().insert(header::CONTENT_DISPOSITION, h);
+    }
     Ok(res)
 }

@@ -101,7 +101,10 @@ test.describe('administration @r1 @ui', () => {
     await expect(row.getByText('In effect')).toBeVisible();
 
     // A step-up key asks the person to confirm it's them before it saves (once the recent sign-in is older than the window).
-    expect((await request.post('/__test/clock', { data: { advance: 'PT6M' } })).ok()).toBeTruthy();
+    // Age this person's sign-in (not the shared clock), then reload so the browser refreshes its token.
+    expect((await request.post('/__test/session/age', { data: { email: ownerEmail, seconds: 3600 } })).status()).toBe(204);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
     const mfa = page.getByRole('listitem').filter({ has: page.getByText('Two-step verification required for', { exact: true }) });
     await mfa.getByRole('button', { name: /^Change/ }).click();
     await mfa.getByRole('button', { name: 'Reviewer' }).click();

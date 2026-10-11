@@ -45,6 +45,17 @@ pub fn block_text(b: &Value) -> String {
     if let Some(items) = b.get("items").and_then(Value::as_array) {
         return items.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("\n");
     }
+    if let Some(rows) = b.get("rows").and_then(Value::as_array) {
+        return rows
+            .iter()
+            .map(|r| {
+                r.as_array()
+                    .map(|c| c.iter().filter_map(Value::as_str).collect::<Vec<_>>().join("\t"))
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
     match b.get("text").and_then(Value::as_str) {
         Some(t) => t.to_owned(),
         None => serde_json::to_string(b).unwrap_or_default(),

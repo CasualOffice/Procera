@@ -55,9 +55,18 @@ test.describe('notification delivery @r1 @notify', () => {
     const { ws, owner } = await workspaceWithOwner(request);
     const m = await member(request, owner, ws.id, 'digest');
     const hour = new Date(await serverNow(request)).getUTCHours(); // members default to UTC
-    await m.c.put('/api/v1/me/notification-preferences', { headers: m.headers, data: { digest: 'daily', digest_hour: hour } });
+    // Not due yet while both announcements are delivered (drain is global: another test could
+    // otherwise send a digest between them). At 23:00 UTC fall back to a weekly digest at 23.
+    const notDue = hour < 23 ? { digest: 'daily', digest_hour: 23 } : { digest: 'weekly', digest_hour: 23 };
+    await m.c.put('/api/v1/me/notification-preferences', { headers: m.headers, data: notDue });
     await announce(owner, 'Kitchen is closed on Friday');
     await announce(owner, 'New parking rules');
+    // Both are in the digest queue once both in-app notifications exist (same transaction).
+    await expect.poll(async () => {
+      await request.post('/__test/drain');
+      return ((await (await m.c.get('/api/v1/notifications', { headers: m.headers })).json()).items as { kind: string }[]).filter((n) => n.kind === 'announcement').length;
+    }).toBe(2);
+    await m.c.put('/api/v1/me/notification-preferences', { headers: m.headers, data: { digest: 'daily', digest_hour: hour } });
     await expect.poll(async () => {
       await request.post('/__test/drain');
       return (await mail(request, ws.id, m.email)).filter((e) => e.kind === 'digest').length;

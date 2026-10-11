@@ -33,7 +33,8 @@ export function slugify(s: string): string {
   return s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
 }
 
-export interface Block { type: string; text?: string; level?: number; items?: string[] }
+import type { Block } from './blocks';
+export type { Block } from './blocks';
 
 /** Plain-text editing format for blocks: "# " / "## " headings, "- " bullets, blank line between paragraphs. */
 export function blocksToText(blocks: Block[] = []): string {

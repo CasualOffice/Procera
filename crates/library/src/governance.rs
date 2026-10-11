@@ -66,6 +66,25 @@ impl Library {
         Ok(())
     }
 
+    /// Records an export of a version (BPMS-042; exports are audited, docs/06).
+    pub async fn audit_export(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        version: Uuid,
+        format: &str,
+    ) -> Result<(), LibraryError> {
+        self.audit_artifact(
+            tx,
+            Some(actor),
+            "version.exported",
+            ("artifact_version", version),
+            json!({"format": format}),
+            None,
+        )
+        .await
+    }
+
     /// The review cadence that applies to an artifact.
     pub async fn cadence(&self, tx: &mut WsTx<'_>, artifact_id: Uuid) -> Result<Duration, LibraryError> {
         let (days, criticality): (Option<i32>, String) =

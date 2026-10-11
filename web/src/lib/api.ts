@@ -86,6 +86,16 @@ export async function download(path: string, filename: string, retried = false):
   URL.revokeObjectURL(url);
 }
 
+/** Opens an authenticated HTML response (e.g. a print-ready export) in a new tab. */
+export async function openHtml(path: string, retried = false): Promise<void> {
+  const tab = window.open('', '_blank');
+  const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
+  if (res.status === 401 && !retried && (await refresh())) { tab?.close(); return openHtml(path, true); }
+  if (!res.ok) { tab?.close(); await parse(res); }
+  const url = URL.createObjectURL(new Blob([await res.text()], { type: 'text/html' }));
+  if (tab) tab.location.href = url; else window.location.href = url;
+}
+
 /** Same as `api` but for the cookie-bearing auth endpoints. */
 export async function authPost<T = unknown>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(path, {
