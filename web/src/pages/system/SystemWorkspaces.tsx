@@ -1,4 +1,4 @@
-import { Building2, Lock, PauseCircle, PlayCircle, Plus, SearchX, Trash2 } from 'lucide-react';
+import { Lock, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../../lib/api';
@@ -87,8 +87,8 @@ export function SystemWorkspaces() {
       </div>
 
       {error ? <LoadError error={error} onRetry={reload} what="workspaces" /> : items === null ? <Skeleton variant="table" rows={6} label="Loading workspaces" /> : rows.length === 0 ? (
-        filtered ? <Empty icon={SearchX} title="No workspaces match" action={<Button variant="secondary" onPress={() => { setState(''); setProfile(''); setQ(''); }}>Clear filters</Button>} />
-          : <Empty icon={Building2} title="No workspaces yet" action={canWrite ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New workspace</Button> : undefined}>Create one for each organisation, entity or department. Its owner is invited by email.</Empty>
+        filtered ? <Empty art="no-match" title="No workspaces match" action={<Button variant="secondary" onPress={() => { setState(''); setProfile(''); setQ(''); }}>Clear filters</Button>} />
+          : <Empty art="generic" title="No workspaces yet" action={canWrite ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New workspace</Button> : undefined}>Create one for each organisation, entity or department. Its owner is invited by email.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table" aria-label="Workspaces">

@@ -1,4 +1,3 @@
-import { CircleCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
@@ -23,7 +22,7 @@ export function AckLink({ id }: { id: string }) {
   }, [id]);
   if (!missing) return <div className="doc"><Skeleton variant="doc" label="Opening the document" /></div>;
   return (
-    <Empty icon={CircleCheck} title="This request isn’t open for you" action={<Link className="btn btn-secondary btn-md" to="/">Go to Home</Link>}>
+    <Empty art="generic" title="This request isn’t open for you" action={<Link className="btn btn-secondary btn-md" to="/">Go to Home</Link>}>
       It may have been withdrawn, or it was sent to someone else.
     </Empty>
   );

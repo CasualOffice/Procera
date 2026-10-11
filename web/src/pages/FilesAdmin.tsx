@@ -1,4 +1,4 @@
-import { Download, FileX2, HardDrive, Trash2 } from 'lucide-react';
+import { Download, HardDrive, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type LoadFailure, type Member, memberMap, toFailure, useItems } from '../lib/data';
@@ -62,7 +62,7 @@ export function FilesAdmin() {
         {FILTERS.map(([k, label]) => <button key={k} type="button" className="filter-chip" aria-pressed={state === k} onClick={() => setState(k)}>{label}{usage && k && <span className="filter-chip-count">{usage.states[k] ?? 0}</span>}</button>)}
       </div>
       {rows === null ? <Skeleton variant="table" rows={4} label="Loading files" /> : rows.length === 0 ? (
-        <Empty icon={FileX2} title="No files here">Files attached to documents show up here with their scan result.</Empty>
+        <Empty art="files" title="No files here">Files attached to documents show up here with their scan result.</Empty>
       ) : (
         <DataGrid<GridRow> caption="Files" showCaption={false} list="admin.files" data={rows.map((r) => ({ ...r, id: r.file.id }))} initialSort={[{ id: 'uploaded', desc: true }]}
           selectable={can('file:delete')}

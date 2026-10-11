@@ -68,7 +68,7 @@ export function Roles() {
   );
   const grantsTab = (
     <DataGrid<GrantRow> caption="Grants" showCaption={false} data={grantRows} initialSort={[{ id: 'role', desc: false }]}
-      empty={<Empty icon={UserPlus} title="No grants yet" action={canGrant ? <Button onPress={() => setGranting({})}><UserPlus aria-hidden="true" size="1rem" /> Grant a role</Button> : undefined}>Grant a role to a person or a group, for the whole workspace, one collection or one department.</Empty>}
+      empty={<Empty art="roles" title="No grants yet" action={canGrant ? <Button onPress={() => setGranting({})}><UserPlus aria-hidden="true" size="1rem" /> Grant a role</Button> : undefined}>Grant a role to a person or a group, for the whole workspace, one collection or one department.</Empty>}
       columns={[
         { id: 'role', header: 'Role', type: 'enum', value: (g) => g.role },
         { id: 'who', header: 'Granted to', value: (g) => g.who },

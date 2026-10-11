@@ -37,7 +37,7 @@ export function Groups() {
         {!!groups?.length && <div className="actions">{newGroup}</div>}
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="groups" /> : groups === null ? <Skeleton variant="table" rows={4} label="Loading groups" /> : !groups.length ? (
-        <Empty icon={UsersRound} title="No groups yet" action={newGroup}>
+        <Empty art="groups" title="No groups yet" action={newGroup}>
           Groups are flexible sets of people across departments, for example Fire wardens or Auditors. Use them for access and audiences. Each person has one department but can be in any number of groups.
         </Empty>
       ) : (
@@ -112,7 +112,7 @@ export function GroupDetail({ id, created = false }: { id: string; created?: boo
 
   if (error) return <LoadError error={error} onRetry={reload} what="this group" />;
   if (groups === null || ids === null || members === null) return <Skeleton variant="list" rows={4} label="Loading group" />;
-  if (!g) return <Empty icon={UsersRound} title="This group doesn’t exist" action={<Link className="btn btn-secondary btn-md" to="/admin/groups">All groups</Link>}>It may have been deleted, or the link is wrong.</Empty>;
+  if (!g) return <Empty art="generic" title="This group doesn’t exist" action={<Link className="btn btn-secondary btn-md" to="/admin/groups">All groups</Link>}>It may have been deleted, or the link is wrong.</Empty>;
   return (
     <div className="group-members">
       <PeopleTabs current="groups" />
@@ -140,7 +140,7 @@ export function GroupDetail({ id, created = false }: { id: string; created?: boo
           ))}
         </ul>
       ) : (
-        <Empty compact icon={UsersRound} title="Nobody is in this group yet" action={manage && <Button onPress={() => setAdding(true)}><UserRoundPlus aria-hidden="true" size="1rem" /> Add members</Button>}>
+        <Empty compact art="groups" title="Nobody is in this group yet" action={manage && <Button onPress={() => setAdding(true)}><UserRoundPlus aria-hidden="true" size="1rem" /> Add members</Button>}>
           Add people from any department.
         </Empty>
       )}

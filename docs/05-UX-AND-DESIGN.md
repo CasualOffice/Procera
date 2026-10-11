@@ -570,7 +570,7 @@ Design review rejects any of these:
 | Emoji as icons or status ("🚀 Published!") | Line icons + text status chips. (The 🔒 in this doc is shorthand for the lock icon.) |
 | "✨ AI" sparkles, magic-wand branding, rainbow AI accents | AI features labelled in words ("Draft with assistant"), styled like any other secondary action, with provenance shown (16-AI) |
 | Rounded-everything (pill buttons, 16–24px radii) with heavy drop shadows | Small radii (§7.1); borders, not shadows |
-| Decorative illustrations in every empty state | A short sentence + one action; illustration only in first-run onboarding, monochrome |
+| Stock or generic AI-style illustration in empty states | A short sentence + one action, with one small drawing from the state kit's set (`web/src/ui/illustrations`, owner direction 2026-10-12): ink outlines, tag pastels, a ≤ 900 ms one-shot entrance, still under reduced motion |
 | Centred, narrow "app in a card" layouts on wide screens | Full-width working surfaces with readable measures inside |
 | Colour-only status, low-contrast grey-on-grey text | Colour + icon + text; contrast tokens (§7.1) |
 | Skeuomorphic gauges, 3D charts, donut charts for > 3 categories | Bars, lines, tables with numbers |

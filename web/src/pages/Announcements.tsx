@@ -45,7 +45,7 @@ export function Announcements() {
       </div>
       <AnnouncementTabs current="feed" />
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton rows={3} label="Loading announcements" /> : items.length === 0 ? (
-        <Empty icon={Megaphone} title="No announcements">When something is posted for you, it shows up here.</Empty>
+        <Empty art="announcements" title="No announcements">When something is posted for you, it shows up here.</Empty>
       ) : (
         <ul className="posts">
           {items.map((f) => {

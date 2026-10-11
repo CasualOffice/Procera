@@ -1,4 +1,4 @@
-import { BadgeCheck, FileText, Search, SearchX } from 'lucide-react';
+import { BadgeCheck, FileText, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Input, SearchField } from 'react-aria-components';
 import { useItems } from '../lib/data';
@@ -51,8 +51,8 @@ export function Policies() {
         )}
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="policies" /> : items === null ? <Skeleton rows={4} label="Loading policies" /> : items.length === 0 ? (
-        term || category ? <Empty icon={SearchX} title="No policies match" action={<button type="button" className="btn btn-secondary btn-md" onClick={() => { setQ(''); setCategory(''); }}>Clear search</button>}>Try another word or category.</Empty>
-          : <Empty icon={FileText} title="No policies yet">When a policy that applies to you is published, it shows up here.</Empty>
+        term || category ? <Empty art="no-match" title="No policies match" action={<button type="button" className="btn btn-secondary btn-md" onClick={() => { setQ(''); setCategory(''); }}>Clear search</button>}>Try another word or category.</Empty>
+          : <Empty art="library" title="No policies yet">When a policy that applies to you is published, it shows up here.</Empty>
       ) : (
         <ul className="portal">
           {items.map((p) => (

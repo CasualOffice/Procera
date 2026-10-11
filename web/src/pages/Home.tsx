@@ -120,7 +120,7 @@ export function Home() {
             {todo.length > 0 && <span className="count-pill">{todo.length}</span>}
           </div>
           {acksError ? <LoadError error={acksError} onRetry={reloadAcks} what="your tasks" /> : loading ? <Skeleton rows={3} label="Loading your tasks" /> : todo.length === 0 ? (
-            <Empty icon={CircleCheck} title="You’re all caught up">Documents to acknowledge, drafts to review and new announcements will appear here.</Empty>
+            <Empty art="caught-up" title="You’re all caught up">Documents to acknowledge, drafts to review and new announcements will appear here.</Empty>
           ) : (
             groups.map((g) => (
               <div key={g.label} className="task-group">
@@ -163,7 +163,7 @@ export function Home() {
             <section aria-labelledby="published">
               <div className="section-head"><h2 id="published">Published documents</h2><Link className="section-link" to="/library">Library</Link></div>
               {docs === null ? <Skeleton rows={3} label="Loading documents" /> : published.length === 0 ? (
-                <Empty compact title="Nothing published yet">Published policies and {term('sop', { plural: true })} show up here.</Empty>
+                <Empty compact art="library" title="Nothing published yet">Published policies and {term('sop', { plural: true })} show up here.</Empty>
               ) : (
                 <ul className="mini-docs">
                   {published.map((d) => (

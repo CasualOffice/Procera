@@ -48,7 +48,7 @@ export function Notifications() {
         </div>
       </div>
       {error ? <LoadError error={error} onRetry={() => void load()} what="notifications" /> : items === null ? <Skeleton rows={5} label="Loading notifications" /> : items.length === 0 ? (
-        <Empty icon={Bell} title="No notifications yet">You’ll hear here when something needs you: a document to acknowledge, a review, or a new announcement.</Empty>
+        <Empty art="notifications" title="No notifications yet">You’ll hear here when something needs you: a document to acknowledge, a review, or a new announcement.</Empty>
       ) : (
       <section className="card" aria-label="Notifications">
         {(

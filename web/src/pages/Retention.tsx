@@ -1,4 +1,4 @@
-import { Archive, ShieldCheck } from 'lucide-react';
+import { Archive } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type LoadFailure, toFailure } from '../lib/data';
@@ -70,7 +70,7 @@ export function Retention() {
       <section aria-labelledby="due-h" style={{ marginTop: '2rem' }}>
         <h2 id="due-h" style={{ fontSize: '0.9375rem', margin: '0 0 0.75rem' }}>Drafts due for deletion in the next 30 days</h2>
         {data.due_drafts.length === 0 ? (
-          <Empty icon={ShieldCheck} title="No drafts are due">Drafts nobody has edited for the retention period appear here before they are deleted. Editing a draft resets its clock.</Empty>
+          <Empty art="caught-up" title="No drafts are due">Drafts nobody has edited for the retention period appear here before they are deleted. Editing a draft resets its clock.</Empty>
         ) : (
           <div className="table-wrap">
             <table className="table" aria-label="Drafts due for deletion">

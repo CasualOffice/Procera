@@ -15,7 +15,7 @@ import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { term, useTerms } from '../lib/terms';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
-import { BookOpen, Download } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { type CollectionItem, collectionPath } from './docOrganisation';
 import { CollectionTree } from './libraryCollections';
 import { LibraryTabs } from './areaTabs';
@@ -76,7 +76,7 @@ export function Library() {
       </div>
 
       {loadError ? <LoadError error={loadError} onRetry={reload} what="the library" /> : docs === null ? <Skeleton variant="table" rows={5} label="Loading documents" /> : docs.length === 0 ? (
-        <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or one of the {term('sop', { plural: true })} your team already follows.</Empty>
+        <Empty art="library" title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or one of the {term('sop', { plural: true })} your team already follows.</Empty>
       ) : (
         <DataGrid<Artifact> caption="Documents" showCaption={false} list="library.documents" data={rows} rowHref={(d) => `/library/${d.id}`} initialSort={[{ id: 'title', desc: false }]}
           columns={[

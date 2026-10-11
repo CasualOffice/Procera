@@ -1,4 +1,4 @@
-import { Mail, Pencil, Plus, UserRoundCheck, UserRoundMinus, UserRoundX, X } from 'lucide-react';
+import { Mail, Pencil, Plus, UserRoundCheck, UserRoundMinus, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { useSession } from '../lib/session';
@@ -68,7 +68,7 @@ export function Person({ id }: { id: string }) {
   if (error) return <LoadError error={error} onRetry={reload} what="this person" />;
   if (members === null) return <div className="doc"><Skeleton variant="doc" label="Loading person" /></div>;
   if (!m) {
-    return <Empty icon={UserRoundX} title="This person isn’t in the workspace" action={<Link className="btn btn-secondary btn-md" to="/">Go to Home</Link>}>They may have left, or the link is wrong.</Empty>;
+    return <Empty art="people" title="This person isn’t in the workspace" action={<Link className="btn btn-secondary btn-md" to="/">Go to Home</Link>}>They may have left, or the link is wrong.</Empty>;
   }
   const active = m.status === 'active';
   const roleOf = (k: string) => roles?.find((r) => r.key === k);

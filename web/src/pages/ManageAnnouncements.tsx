@@ -76,8 +76,8 @@ export function ManageAnnouncements() {
         </div>
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton variant="table" rows={4} label="Loading announcements" /> : rows.length === 0 ? (
-        items.length ? <Empty compact title={`No ${TABS.find(([k]) => k === tab)?.[1].toLowerCase()} announcements`} action={<Button variant="secondary" onPress={() => setTab('all')}>Show all</Button>} /> : (
-          <Empty icon={Megaphone} title="No announcements yet" action={canCreate ? <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size="1rem" /> New announcement</Button> : undefined}>
+        items.length ? <Empty compact art="no-match" title={`No ${TABS.find(([k]) => k === tab)?.[1].toLowerCase()} announcements`} action={<Button variant="secondary" onPress={() => setTab('all')}>Show all</Button>} /> : (
+          <Empty art="announcements" title="No announcements yet" action={canCreate ? <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size="1rem" /> New announcement</Button> : undefined}>
             Post news, notices and policy changes to everyone or to chosen departments, groups and roles. You can ask people to confirm they’ve read it.
           </Empty>
         )

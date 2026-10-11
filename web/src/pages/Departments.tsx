@@ -1,4 +1,4 @@
-import { CornerDownRight, FileUp, FolderTree, Move, Network, Pencil, Plus, Trash2, UserRoundCog } from 'lucide-react';
+import { CornerDownRight, FileUp, FolderTree, Move, Pencil, Plus, Trash2, UserRoundCog } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -59,7 +59,7 @@ export function Departments() {
   else if (items === null) body = <Skeleton variant="list" rows={5} label="Loading departments" />;
   else if (!items.length) {
     body = (
-      <Empty icon={Network} title="No departments yet"
+      <Empty art="departments" title="No departments yet"
         action={manage && <><Button onPress={() => setDialog('add')}><Plus aria-hidden="true" size="1rem" /> Add department</Button><Button variant="secondary" onPress={() => setImporting(true)}><FileUp aria-hidden="true" size="1rem" /> Import from CSV</Button></>}>
         Departments mirror your org chart. Each person belongs to one. Use them to scope roles and target campaigns.
       </Empty>

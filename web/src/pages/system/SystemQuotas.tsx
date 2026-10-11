@@ -1,4 +1,3 @@
-import { Gauge } from 'lucide-react';
 import { useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../../lib/api';
@@ -35,7 +34,7 @@ export function SystemQuotas() {
       <div className="page-head"><div><h1>Quotas &amp; usage</h1><p>Member limits are enforced when someone is invited. Seats count members and open invitations.</p></div></div>
       {saved && <Notice tone="success" title={saved} />}
       {error ? <LoadError error={error} onRetry={reload} what="usage" /> : items === null ? <Skeleton variant="table" rows={5} label="Loading usage" /> : ranked.length === 0 ? (
-        <Empty icon={Gauge} title="No workspaces yet">Usage appears once a workspace exists.</Empty>
+        <Empty art="generic" title="No workspaces yet">Usage appears once a workspace exists.</Empty>
       ) : (
         <div className="table-wrap">
           <table className="table" aria-label="Usage by workspace">

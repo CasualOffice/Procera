@@ -1,5 +1,5 @@
 import { AuditExports } from './auditExports';
-import { ChevronRight, History, SearchX, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { ChevronRight, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type LoadFailure, type Member, toFailure, useItems, useResource } from '../lib/data';
@@ -151,8 +151,8 @@ export function AuditExplorer({ source }: { source: AuditSource }) {
       </form>
 
       {error && items?.length === 0 ? <LoadError error={error} onRetry={() => void load(filters)} what="the audit log" /> : items === null ? <Skeleton variant="table" rows={8} label="Loading events" /> : items.length === 0 ? (
-        active ? <Empty icon={SearchX} title="No events match these filters" action={<Button variant="secondary" onPress={() => { setDraft(EMPTY); setFilters(EMPTY); }}>Clear filters</Button>} />
-          : <Empty icon={History} title="No events yet">Sign-ins, changes and exports will be recorded here as they happen.</Empty>
+        active ? <Empty art="no-match" title="No events match these filters" action={<Button variant="secondary" onPress={() => { setDraft(EMPTY); setFilters(EMPTY); }}>Clear filters</Button>} />
+          : <Empty art="audit" title="No events yet">Sign-ins, changes and exports will be recorded here as they happen.</Empty>
       ) : (
         <>
           <p className="muted audit-count" role="status">{items.length}{cursor ? '+' : ''} {items.length === 1 && !cursor ? 'event' : 'events'}</p>
@@ -213,7 +213,7 @@ export function Timeline({ type, id, url, newestFirst = false, onClose }: { type
   return (
     <Drawer title={`${actionText(type)} history`} onClose={onClose}>
       <p className="drawer-next"><code className="mono">{type}/{id}</code></p>
-      {error ? <LoadError error={error} what="this timeline" /> : page === null ? <Skeleton rows={4} label="Loading timeline" /> : page.items.length === 0 ? <Empty compact title="No events for this object" /> : (
+      {error ? <LoadError error={error} what="this timeline" /> : page === null ? <Skeleton rows={4} label="Loading timeline" /> : page.items.length === 0 ? <Empty compact art="audit" title="No events for this object" /> : (
         <ol className="tl">
           {page.items.map((e) => (
             <li key={e.seq} className={e.result !== 'allowed' ? 'tl-bad' : ''}>

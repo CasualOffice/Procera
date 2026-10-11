@@ -1,4 +1,4 @@
-import { BellRing, ClipboardCheck, Download, FileText, Lock, Plus, Rocket, ScrollText, SearchX, XCircle } from 'lucide-react';
+import { BellRing, Download, FileText, Lock, Plus, Rocket, ScrollText, XCircle } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { ApiError, api, download } from '../lib/api';
@@ -70,7 +70,7 @@ export function Campaigns() {
         </div>
       )}
       {error ? <LoadError error={error} onRetry={reload} what="campaigns" /> : items === null ? <Skeleton variant="table" rows={4} label="Loading campaigns" /> : rows.length === 0 ? (
-        <Empty icon={ClipboardCheck} title="No campaigns yet" action={canManage ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New campaign</Button> : undefined}>
+        <Empty art="campaigns" title="No campaigns yet" action={canManage ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New campaign</Button> : undefined}>
           A campaign asks a group of people to read a published document and confirm it, with reminders and an evidence export.
         </Empty>
       ) : (
@@ -237,7 +237,7 @@ export function CampaignDetail({ id }: { id: string }) {
                 {([['all', 'All'], ['pending', 'Pending'], ['overdue', 'Overdue'], ['completed', 'Done']] as const).map(([k, label]) => <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}>{label}</button>)}
               </div>
             </div>
-            {recipients === null ? <Skeleton variant="table" rows={4} label="Loading people" /> : rows.length === 0 ? <Empty compact icon={SearchX} title="Nobody in this list" /> : (
+            {recipients === null ? <Skeleton variant="table" rows={4} label="Loading people" /> : rows.length === 0 ? <Empty compact art="no-match" title="Nobody in this list" /> : (
               <div className="table-wrap">
                 <table className="table" aria-label="People in this campaign">
                   <thead><tr><th>Name</th><th>Status</th><th className="col-optional">Department</th><th className="col-optional">Acknowledged</th><th className="col-optional">Reminders</th></tr></thead>

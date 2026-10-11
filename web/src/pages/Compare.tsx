@@ -60,7 +60,7 @@ export function Compare({ id }: { id: string }) {
     return () => { live = false; setCrumb(null); };
   }, [id, toNo, fromNo]);
 
-  if (error) return <div className="doc">{error.status === 404 ? <Empty title="Nothing to compare" action={<Link className="btn btn-secondary link-btn" to={`/library/${id}`}>Back to the document</Link>}>{error.message === 'Not found' ? 'One of these versions isn’t available to you.' : error.message}</Empty> : <LoadError error={error} what="this comparison" />}</div>;
+  if (error) return <div className="doc">{error.status === 404 ? <Empty art="generic" title="Nothing to compare" action={<Link className="btn btn-secondary link-btn" to={`/library/${id}`}>Back to the document</Link>}>{error.message === 'Not found' ? 'One of these versions isn’t available to you.' : error.message}</Empty> : <LoadError error={error} what="this comparison" />}</div>;
   if (!art || !diff) return <div className="doc"><Skeleton variant="doc" label="Loading comparison" /></div>;
 
   const vs = [...art.versions].sort((x, y) => x.version_no - y.version_no);

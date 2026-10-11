@@ -33,7 +33,7 @@ export function Templates() {
         <div><h1>Templates</h1><p>Start from reviewed starter documents instead of a blank page. Everything installs as a draft for you to adapt, review and publish.</p></div>
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="templates" /> : packs === null ? <Skeleton rows={2} label="Loading templates" /> : packs.length === 0 ? (
-        <Empty icon={LayoutTemplate} title="No templates available">Templates appear here when your Procera version includes them.</Empty>
+        <Empty art="templates" title="No templates available">Templates appear here when your Procera version includes them.</Empty>
       ) : (
         <>
           {!anyInstallable && <Notice tone="info" title="You can look, but not install">Ask a workspace admin to install a template for your workspace.</Notice>}
