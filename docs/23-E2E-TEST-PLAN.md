@@ -173,6 +173,8 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-POL-01 | Readers never see drafts: absent from lists, reads and search until published; a later draft stays hidden (version 404, diff 404, versions list shows v1 only); authors see drafts in search | BPMS-045, A-14 |
 | E2E-R1-POL-02 | Applicability: empty audience or restricted without one → 422; members cannot set it (403); a restricted policy is hidden from members outside its group in lists, reads, search, the portal and change requests (404), and shown to those inside; an unrestricted one is listed for everyone but only "applicable" to its audience | BPMS-045, FR-PL01/PL02 |
 | E2E-R1-POL-03 | The portal lists published policies that apply to the member (no drafts), ordered by category, with what changed since the previous version (added/changed counts, reason) and text/category filters | BPMS-045, FR-PL02 |
+| E2E-R1-ADM-01 | Overview: overdue acknowledgements rank first in "needs attention", followed by an admin without two-step verification; acknowledgement metrics and a daily published series; the security strip counts a failed sign-in, members without MFA and the new admin grant; requests/storage are null; members get 403; an inverted range → 422 | BPMS-063, FR-A01 |
+| E2E-R1-ADM-02 | People & access: counts (members, no MFA, privileged, pending invites), member row (MFA off, last active set, not dormant), no-MFA and admin filters; unknown filter → 422; members get 403 | BPMS-063, FR-A06 |
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
@@ -194,6 +196,18 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-09 | Invite a colleague from Members with a role; the invitation appears in the table as Invited | FR-W01, docs/05 §3.14 |
 | E2E-R1-UI-10 | Read and acknowledge a critical, pinned announcement in the feed | FR-AN04, docs/05 §3.23 |
 | E2E-R1-UI-11 | An admin without two-step verification is guided through setup (QR + key, confirm a code, recovery codes) and then signs in with MFA and lands on Home | docs/06 §3, docs/20 §2.3 |
+| E2E-R1-UI-12 | ⌘K finds a document by its content and opens it; commands navigate; recent items are offered; keyboard only | BPMS-031, BPMS-049 |
+| E2E-R1-UI-13 | A new workspace shows composed empty states; an unknown page offers a way back; a failed load shows the error with a retry | BPMS-031 (UX-005) |
+| E2E-R1-UI-14 | Manage announcements: compose a draft; a workspace-wide post is sent for approval; a targeted draft is published and shows receipts | BPMS-031, BPMS-047 |
+| E2E-R1-UI-15 | Campaigns: create from a published document with an audience, check the reach, launch, follow progress, download the evidence CSV | BPMS-031, BPMS-046 |
+| E2E-R1-UI-16 | Settings: change a value in place with a reason and see why it applies; a step-up key asks to confirm identity | BPMS-031, BPMS-027 |
+| E2E-R1-UI-17 | Audit log: chain verified; filter by category; expand a record; open an object timeline; no-match state | BPMS-031, BPMS-064 |
+| E2E-R1-UI-18 | The owner sets a review schedule, recertifies when it falls due, verifies and removes verification | BPMS-044 |
+| E2E-R1-UI-19 | A member suggests a change; the owner accepts it and marks it implemented in v2 | BPMS-044 |
+| E2E-R1-UI-20 | Compare v1 and v2 from the version history: word-level changes and the summary | BPMS-043 |
+| E2E-R1-UI-21 | A member opens Policies, filters by category and follows "what changed" to the comparison | BPMS-045 |
+| E2E-R1-UI-22 | A publisher restricts a policy to a role; a member outside it can't find it in Policies or open it | BPMS-045, A-14 |
+| E2E-R1-UI-23 | An admin opens Overview: the summary and "Needs attention" show overdue acknowledgements, and the security strip shows one member without two-step verification; drilling in opens People & access filtered to them; the Admins filter shows the owner | BPMS-063 |
 | E2E-R1-CMP-01 | Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05 |
 | E2E-R1-CMP-02 | Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04 |
 | E2E-R1-CMP-03 | Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5 |
