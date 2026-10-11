@@ -89,6 +89,34 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0">You receive this as their manager. <a href="{{ link }}">Open in Procera</a></p>{% endblock %}
 {% block footer %}Escalation from an acknowledgement campaign.{% endblock %}"#,
     ),
+    // BPMS-047 (FR-AN04): announcement acknowledgements run on the campaign engine. Vars: title, due,
+    // link (+ name for escalations); `version` is null.
+    ("announcement_ack_reminder.title", "Please confirm you read {{ title }}"),
+    ("announcement_ack_reminder.body", "This announcement asks for your acknowledgement by {{ due }}."),
+    ("announcement_ack_reminder.subject", "Reminder: please confirm you read {{ title }} (due {{ due }})"),
+    (
+        "announcement_ack_reminder.text",
+        "Please confirm you read the announcement {{ title }}. It asks for your acknowledgement by {{ due }}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "announcement_ack_reminder.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Please confirm you read the announcement <strong>{{ title }}</strong>. It asks for your acknowledgement by <strong>{{ due }}</strong>.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Read and acknowledge</a></p>{% endblock %}
+{% block footer %}You receive this because an announcement you received asks for acknowledgement.{% endblock %}"#,
+    ),
+    ("announcement_ack_escalated.title", "{{ name }} has not acknowledged {{ title }}"),
+    ("announcement_ack_escalated.body", "The announcement was due {{ due }}. You are their manager."),
+    ("announcement_ack_escalated.subject", "{{ name }} has not acknowledged {{ title }}"),
+    (
+        "announcement_ack_escalated.text",
+        "{{ name }} has not yet acknowledged the announcement {{ title }}, due {{ due }}. You receive this as their manager.\n\n{{ link }}\n",
+    ),
+    (
+        "announcement_ack_escalated.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ name }}</strong> has not yet acknowledged the announcement <strong>{{ title }}</strong>, due {{ due }}.</p>
+<p style="margin:0">You receive this as their manager. <a href="{{ link }}">Open in Procera</a></p>{% endblock %}
+{% block footer %}Escalation from an announcement that asks for acknowledgement.{% endblock %}"#,
+    ),
     // BPMS-047: a published announcement reaches its recipients.
     ("announcement.title", "{% if critical %}Critical: {% endif %}{{ title }}"),
     (
@@ -306,6 +334,21 @@ mod tests {
             );
             assert!(!in_app(kind, &ctx).expect("renders").title.is_empty());
         }
+    }
+
+    #[test]
+    fn announcement_ack_templates_render_without_a_version() {
+        let ctx = json!({"title": "Office <move>", "version": null, "due": "25 Oct 2026", "link": "https://x.test/announcements/1", "name": "Ben"});
+        for kind in ["announcement_ack_reminder", "announcement_ack_escalated"] {
+            let r = email(kind, &ctx).expect("renders");
+            assert!(r.subject.contains("Office <move>") && !r.text.contains("version"), "{kind}");
+            assert!(r.html.contains("Office &lt;move&gt;") && r.text.contains("/announcements/1"), "{kind}");
+            assert!(!in_app(kind, &ctx).expect("renders").title.is_empty());
+        }
+        assert_eq!(
+            in_app("announcement_ack_reminder", &ctx).expect("renders").title,
+            "Please confirm you read Office <move>"
+        );
     }
 
     #[test]

@@ -1,7 +1,10 @@
 //! Campaigns API (BPMS-046, docs/08 "Campaigns"): acknowledgement campaigns over published SOP and
 //! policy versions. Managing and tracking need `campaign:manage` / `campaign:view`. Members list and
 //! complete their own acknowledgements with `sop:acknowledge` (SOPs) or `policy:view` (policies; the
-//! catalogue has no separate policy acknowledge permission, docs/12 §5).
+//! catalogue has no separate policy acknowledge permission, docs/12 §5). Announcement campaigns
+//! (BPMS-047) are listed and tracked here too; their assignments show in `/me/acknowledgements`
+//! with `announcement:view` and are acknowledged on the announcement (`POST
+//! /announcements/{id}/acks`); `/acknowledgements/{id}/complete` answers 409 for them.
 
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
@@ -78,9 +81,14 @@ fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
     }
 }
 
-/// The permission a member needs to acknowledge a version of `kind`.
+/// The permission a member needs to acknowledge a subject of `kind`. Announcement assignments are
+/// listed with `announcement:view` and acknowledged on the announcement (BPMS-047).
 fn ack_permission(kind: &str) -> &'static str {
-    if kind == "sop" { "sop:acknowledge" } else { "policy:view" }
+    match kind {
+        "sop" => "sop:acknowledge",
+        "announcement" => "announcement:view",
+        _ => "policy:view",
+    }
 }
 
 /// Workspace defaults (docs/20 §2.14), copied onto a new campaign.
@@ -320,7 +328,7 @@ async fn my_acknowledgements(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let mut allowed = vec![];
-    for kind in ["sop", "policy"] {
+    for kind in ["sop", "policy", "announcement"] {
         if m.access()
             .check(&mut tx, me.actor.membership, ack_permission(kind), &Resource::Workspace)
             .await?

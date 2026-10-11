@@ -318,6 +318,8 @@ Sign arbitrary documents (contracts, offer letters, NDAs, approvals) with signer
 | `announcements.reactions` | bool | true | workspace:settings.manage | – | P1 |
 | `announcements.channels` | subset of enabled notify channels; `pinned_banner` for critical | in_app, email | workspace:settings.manage | – | P1 |
 
+As built (BPMS-047, 0033): an announcement's required acknowledgement runs on the campaign engine (§2.14). Its deadline defaults to `campaign.default_due` and is capped at the expiry. Reminders use `campaign.reminders.cadence`. Escalation uses `campaign.escalation.to_manager_after` and never fires before the deadline. `announcements.escalate_unacked_to_manager` is not in the catalogue yet (A-32).
+
 ### 2.18 AI
 
 | Key | Type | Default | Perm | Floor | Ph |

@@ -70,6 +70,7 @@ fn compose(title: &str, audience: Audience) -> Compose {
         require_ack: None,
         publish_at: None,
         expires_at: None,
+        ack_by: None,
     }
 }
 
@@ -242,5 +243,71 @@ async fn compose_target_approve_schedule_expire_and_receipts() -> anyhow::Result
     let report = procera_audit::verify(&t.db, ws).await?;
     assert_eq!(report.first_broken, None);
     assert!(report.checked >= 18, "every transition is audited ({})", report.checked);
+    Ok(())
+}
+
+/// BPMS-047 (FR-AN04): an acknowledgement deadline needs `require_ack`, falls between publication
+/// and expiry, freezes with the rest at publication; the snapshot is readable for the campaign;
+/// the acknowledgement's single audit record carries what the caller adds (the campaign link).
+#[tokio::test]
+async fn ack_deadline_snapshot_and_single_audit_record() -> anyhow::Result<()> {
+    let Some(t) = test_support::fresh().await else { return Ok(()) };
+    let t = t?;
+    let start = procera_kernel::clock::to_micros(OffsetDateTime::now_utc());
+    let clock = Arc::new(ManualClock::new(start));
+    let ann = Announcements::new(t.db.clone(), clock.clone(), Arc::new(UuidV7Gen));
+    let mut admin = <sqlx::PgConnection as sqlx::Connection>::connect(&t.admin_url).await?;
+    let ws = WsCtx { workspace_id: Uuid::now_v7() };
+    let defaults = Defaults { require_ack: false, expiry: Duration::days(30) };
+    let mut tx = t.db.begin_ws(ws).await?;
+    let ops = department(&mut tx, "Ops", None).await?;
+    let author = member(&mut tx, &mut admin, None).await?;
+    let ann_m = member(&mut tx, &mut admin, Some(ops.0)).await?;
+    let ben = member(&mut tx, &mut admin, Some(ops.0)).await?;
+    let to_ops = Audience { departments: vec![ops.0], ..Audience::default() };
+
+    let mut c = compose("Office move", to_ops);
+    c.ack_by = Some(start + Duration::days(3));
+    assert!(
+        matches!(ann.create(&mut tx, &author, &c, &defaults).await, Err(AnnouncementError::Invalid(_))),
+        "a deadline needs require_ack"
+    );
+    c.require_ack = Some(true);
+    c.ack_by = Some(start + Duration::days(31));
+    assert!(
+        matches!(ann.create(&mut tx, &author, &c, &defaults).await, Err(AnnouncementError::Invalid(_))),
+        "not after the expiry"
+    );
+    c.ack_by = Some(start - Duration::minutes(1));
+    assert!(matches!(ann.create(&mut tx, &author, &c, &defaults).await, Err(AnnouncementError::Invalid(_))));
+    c.ack_by = Some(start + Duration::days(3));
+    let a = ann.create(&mut tx, &author, &c, &defaults).await?;
+    assert_eq!((a.require_ack, a.ack_by), (true, Some(start + Duration::days(3))));
+    let a = ann.publish(&mut tx, &author, a.id, "off", &["in_app".to_owned()]).await?;
+    let mut sp = <sqlx::PgConnection as sqlx::Connection>::begin(tx.conn()).await?;
+    let err = sqlx::query("UPDATE announcements SET ack_by = ack_by + interval '1 day' WHERE id = $1")
+        .bind(a.id)
+        .execute(&mut *sp)
+        .await;
+    assert!(err.is_err(), "the deadline is frozen at publication");
+    sp.rollback().await?;
+
+    let mut snapshot = vec![ann_m.membership, ben.membership];
+    snapshot.sort();
+    assert_eq!(ann.recipients(&mut tx, a.id).await?, snapshot);
+
+    let campaign = Uuid::now_v7();
+    ann.acknowledge_with(&mut tx, &ann_m, a.id, json!({"campaign_id": campaign})).await?;
+    ann.acknowledge_with(&mut tx, &ann_m, a.id, json!({"campaign_id": campaign})).await?;
+    let diffs: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT diff FROM audit_events WHERE action = 'announcement.acknowledged' AND object_id = $1",
+    )
+    .bind(a.id)
+    .fetch_all(tx.conn())
+    .await?;
+    assert_eq!(diffs.len(), 1, "one record; repeating changes nothing");
+    assert_eq!(diffs[0]["campaign_id"], json!(campaign));
+    assert!(diffs[0]["content_hash"].is_string());
+    tx.commit().await?;
     Ok(())
 }

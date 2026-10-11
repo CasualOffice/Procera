@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use std::net::SocketAddr;
 use tracing_subscriber::EnvFilter;
 
+mod announcement_ack;
 mod audit_exports;
 mod bus;
 mod http;

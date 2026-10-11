@@ -173,6 +173,8 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/campaigns/{id}/remind", &[&["campaign.reminded"]]),
     emits("POST", "/api/v1/acknowledgements/{id}/complete", &[&["acknowledgement.completed"]]),
     // Announcements (approval and publication can also append announcement.published / .scheduled).
+    // FR-AN04: one that requires acknowledgement and goes live now also starts its campaign in the
+    // same call (campaign.created + campaign.activated); archiving closes it (campaign.closed).
     emits("POST", "/api/v1/announcements", &[&["announcement.created"]]),
     emits("PATCH", "/api/v1/announcements/{id}", &[&["announcement.edited"]]),
     emits("POST", "/api/v1/announcements/{id}/submit", &[&["announcement.submitted"]]),
@@ -182,16 +184,26 @@ pub const CONTRACT: &[Entry] = &[
         &[
             &["announcement.approved", "announcement.published"],
             &["announcement.approved", "announcement.scheduled"],
+            &["announcement.approved", "announcement.published", "campaign.activated", "campaign.created"],
         ],
     ),
     emits("POST", "/api/v1/announcements/{id}/reject", &[&["announcement.rejected"]]),
     emits(
         "POST",
         "/api/v1/announcements/{id}/publish",
-        &[&["announcement.published"], &["announcement.scheduled"]],
+        &[
+            &["announcement.published"],
+            &["announcement.scheduled"],
+            &["announcement.published", "campaign.activated", "campaign.created"],
+        ],
     ),
-    emits("POST", "/api/v1/announcements/{id}/archive", &[&["announcement.archived"]]),
+    emits(
+        "POST",
+        "/api/v1/announcements/{id}/archive",
+        &[&["announcement.archived"], &["announcement.archived", "campaign.closed"]],
+    ),
     // Receipts are evidence (FR-AN04): the first read and the acknowledgement are audited; repeats change nothing.
+    // The acknowledgement also completes the campaign assignment; its one record cites it (no second event).
     emits("POST", "/api/v1/announcements/{id}/reads", &[&["announcement.read"], &[]]),
     emits("POST", "/api/v1/announcements/{id}/acks", &[&["announcement.acknowledged"], &[]]),
     // Notifications: personal read state only.

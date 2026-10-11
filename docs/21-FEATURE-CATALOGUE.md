@@ -181,6 +181,8 @@ Key:
 | Translations of announcements (manual variants; machine translation optional with a "source prevails" note) | P1 | M10 | FX-C05 |
 | Multi-channel publish (Teams/Slack/other chat platforms), newsletters, signage | P2 | M12 | FX-C06 |
 
+As built (0033, BPMS-046/047): required acknowledgement runs on the shared campaign engine (one engine, FR-AK01). An announcement with `require_ack` gets an optional deadline (`ack_by`, default go-live + `campaign.default_due`, never after expiry). When it goes live, a campaign with `subject_kind = announcement` starts with its recipients as a fixed snapshot (no new-joiner enrolment). Reminders follow `campaign.reminders.cadence`, and the manager is escalated to once (`campaign.escalation.to_manager_after`, never before the deadline). Acknowledging the announcement completes the assignment (one record). The evidence CSV covers it, and archiving closes the campaign. Quiz and `announcements.escalate_unacked_to_manager` are not built yet. See docs/04 §2.7 and A-32.
+
 ## 9. Document signing (e-signature)
 
 | Feature | Pri | M | Ref |

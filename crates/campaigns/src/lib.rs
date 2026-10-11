@@ -1,6 +1,7 @@
 //! Acknowledgement campaigns (BPMS-046, FR-AK01–04, docs/04 §2.7, docs/20 §2.14).
 //!
-//! A campaign asks an audience to acknowledge one **published** SOP or policy version.
+//! A campaign asks an audience to acknowledge one **published** SOP or policy version, or one
+//! published announcement that requires acknowledgement (BPMS-047, FR-AN04: "one engine").
 //! - `draft → active → closed | cancelled`. Launching snapshots the audience into one assignment per
 //!   active member and notifies each (in-app + email). `dynamic` campaigns also enrol members who join
 //!   later and match the audience (`membership.activated.v1`).
@@ -11,6 +12,10 @@
 //! - Reminders follow the ladder (offsets from each member's assignment time); an open assignment is
 //!   escalated once to the resolved manager after `escalation_after`. The scheduler runs them with the
 //!   application clock; a missed ladder sends one reminder, not a burst.
+//! - Announcement campaigns start when the announcement goes live: its recipients are the
+//!   assignments (a fixed snapshot, never joiners), the announcement's own delivery is the
+//!   assignment notice, and members acknowledge through the announcement, which completes the
+//!   assignment (one record).
 //!
 //! Permissions are checked by the caller (HTTP layer); this crate enforces the lifecycle and the
 //! "only your own assignment" rule.
@@ -106,18 +111,70 @@ pub struct NewCampaign {
     pub ack_text: Option<String>,
 }
 
+/// What a campaign asks people to acknowledge. Library subjects carry the artifact and version;
+/// announcement subjects carry `announcement_id` instead (absent fields are omitted).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Subject {
-    pub artifact_id: Uuid,
-    /// `sop` or `policy`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub artifact_id: Option<Uuid>,
+    /// `sop`, `policy` or `announcement`.
     pub kind: String,
     pub title: String,
-    pub version_id: Uuid,
-    pub version_no: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version_no: Option<i32>,
     /// `major.minor` (BPMS-045).
     pub semver: Option<String>,
     /// Hex SHA-256 of the canonical content.
     pub content_hash: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub announcement_id: Option<Uuid>,
+    /// Where the subject opens in the web app.
+    pub link: String,
+}
+
+impl Subject {
+    fn new(
+        artifact_id: Option<Uuid>,
+        kind: String,
+        title: String,
+        version: (Option<Uuid>, Option<i32>, Option<String>),
+        content_hash: String,
+        announcement_id: Option<Uuid>,
+    ) -> Self {
+        let link = match (artifact_id, announcement_id) {
+            (Some(a), _) => format!("/library/{a}"),
+            (None, Some(a)) => announcement_path(a),
+            (None, None) => String::new(),
+        };
+        let (version_id, version_no, semver) = version;
+        Subject {
+            artifact_id,
+            kind,
+            title,
+            version_id,
+            version_no,
+            semver,
+            content_hash,
+            announcement_id,
+            link,
+        }
+    }
+}
+
+/// The announcement an announcement campaign is started for (BPMS-047, FR-AN04).
+#[derive(Debug, Clone)]
+pub struct AnnouncementSubject {
+    pub announcement_id: Uuid,
+    pub title: String,
+    /// The announcement's frozen content hash (what recipients acknowledge).
+    pub content_hash: Vec<u8>,
+    /// The announcement's audience rule, kept for display.
+    pub audience: Value,
+    /// The audience snapshot taken at publication: these become the assignments.
+    pub recipients: Vec<Uuid>,
+    pub due_at: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -211,13 +268,14 @@ pub struct DuePass {
 struct CampaignRow {
     id: Uuid,
     title: String,
-    subject_version_id: Uuid,
+    subject_version_id: Option<Uuid>,
     subject_hash: String,
-    artifact_id: Uuid,
+    artifact_id: Option<Uuid>,
     kind: String,
-    artifact_title: String,
-    version_no: i32,
+    subject_title: String,
+    version_no: Option<i32>,
     semver: Option<String>,
+    subject_announcement_id: Option<Uuid>,
     origin: String,
     audience_rule: Value,
     audience_snapshot: String,
@@ -240,13 +298,15 @@ struct CampaignRow {
 
 /// `$1` = now (for overdue counts).
 const CAMPAIGN_SELECT: &str = "SELECT c.id, c.title, c.subject_version_id, encode(c.subject_hash, 'hex') AS subject_hash,
-       a.id AS artifact_id, a.kind, a.title AS artifact_title, v.version_no, v.semver, c.origin,
+       a.id AS artifact_id, coalesce(a.kind, 'announcement') AS kind, coalesce(a.title, an.title) AS subject_title,
+       v.version_no, v.semver, c.subject_announcement_id, c.origin,
        c.audience_rule, c.audience_snapshot, c.ack_text, c.due_at, c.due_in_secs, c.reminder_schedule,
        c.escalation_after_secs, c.state, c.created_by, c.created_at, c.launched_at, c.ended_at, c.end_reason, c.revision,
        coalesce(p.assigned, 0) AS assigned, coalesce(p.acknowledged, 0) AS acknowledged, coalesce(p.overdue, 0) AS overdue
 FROM campaigns c
-JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
-JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+LEFT JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
+LEFT JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+LEFT JOIN announcements an ON an.workspace_id = c.workspace_id AND an.id = c.subject_announcement_id
 LEFT JOIN LATERAL (
   SELECT count(*) AS assigned, count(*) FILTER (WHERE r.state = 'completed') AS acknowledged,
          count(*) FILTER (WHERE r.state = 'pending' AND r.due_at < $1) AS overdue
@@ -257,15 +317,14 @@ impl From<CampaignRow> for Campaign {
         Campaign {
             id: r.id,
             title: r.title,
-            subject: Subject {
-                artifact_id: r.artifact_id,
-                kind: r.kind,
-                title: r.artifact_title,
-                version_id: r.subject_version_id,
-                version_no: r.version_no,
-                semver: r.semver,
-                content_hash: r.subject_hash,
-            },
+            subject: Subject::new(
+                r.artifact_id,
+                r.kind,
+                r.subject_title,
+                (r.subject_version_id, r.version_no, r.semver),
+                r.subject_hash,
+                r.subject_announcement_id,
+            ),
             origin: r.origin,
             audience: r.audience_rule,
             audience_snapshot: r.audience_snapshot,
@@ -298,13 +357,14 @@ struct AssignmentRow {
     campaign_title: String,
     campaign_state: String,
     ack_text: String,
-    subject_version_id: Uuid,
+    subject_version_id: Option<Uuid>,
     subject_hash: String,
-    artifact_id: Uuid,
+    artifact_id: Option<Uuid>,
     kind: String,
-    artifact_title: String,
-    version_no: i32,
+    subject_title: String,
+    version_no: Option<i32>,
     semver: Option<String>,
+    subject_announcement_id: Option<Uuid>,
     state: String,
     assigned_at: OffsetDateTime,
     due_at: OffsetDateTime,
@@ -315,13 +375,15 @@ struct AssignmentRow {
 
 /// `$1` = now, `$2` = membership.
 const ASSIGNMENT_SELECT: &str = "SELECT r.id, r.campaign_id, c.title AS campaign_title, c.state AS campaign_state, c.ack_text,
-       c.subject_version_id, encode(c.subject_hash, 'hex') AS subject_hash, a.id AS artifact_id, a.kind,
-       a.title AS artifact_title, v.version_no, v.semver, r.state, r.assigned_at, r.due_at, r.completed_at, r.ack_version_id,
+       c.subject_version_id, encode(c.subject_hash, 'hex') AS subject_hash, a.id AS artifact_id,
+       coalesce(a.kind, 'announcement') AS kind, coalesce(a.title, an.title) AS subject_title, v.version_no, v.semver,
+       c.subject_announcement_id, r.state, r.assigned_at, r.due_at, r.completed_at, r.ack_version_id,
        encode(r.ack_content_hash, 'hex') AS ack_content_hash
 FROM campaign_recipients r
 JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
-JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
-JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+LEFT JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
+LEFT JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+LEFT JOIN announcements an ON an.workspace_id = c.workspace_id AND an.id = c.subject_announcement_id
 WHERE r.membership_id = $2";
 
 fn assignment(r: AssignmentRow, now: OffsetDateTime) -> Assignment {
@@ -330,15 +392,14 @@ fn assignment(r: AssignmentRow, now: OffsetDateTime) -> Assignment {
         campaign_id: r.campaign_id,
         campaign_title: r.campaign_title,
         campaign_state: r.campaign_state,
-        subject: Subject {
-            artifact_id: r.artifact_id,
-            kind: r.kind,
-            title: r.artifact_title,
-            version_id: r.subject_version_id,
-            version_no: r.version_no,
-            semver: r.semver,
-            content_hash: r.subject_hash,
-        },
+        subject: Subject::new(
+            r.artifact_id,
+            r.kind,
+            r.subject_title,
+            (r.subject_version_id, r.version_no, r.semver),
+            r.subject_hash,
+            r.subject_announcement_id,
+        ),
         ack_text: r.ack_text,
         overdue: r.state == "pending" && r.due_at < now,
         state: r.state,
@@ -369,6 +430,13 @@ fn assignment_path(id: Uuid) -> String {
     format!("/acknowledgements/{id}")
 }
 
+/// Where an announcement opens in the web app (it is acknowledged there).
+fn announcement_path(id: Uuid) -> String {
+    format!("/announcements/{id}")
+}
+
+type Locked = (String, Value, String, Option<OffsetDateTime>, i64, Option<Uuid>);
+
 #[derive(Clone)]
 pub struct Campaigns {
     db: Db,
@@ -388,7 +456,25 @@ impl std::fmt::Debug for Campaigns {
 /// Template variables shared by a campaign's notifications.
 struct Mail {
     title: String,
-    version_no: i32,
+    version_no: Option<i32>,
+    /// Set for announcement campaigns: their notices use the `announcement_ack_*` templates and
+    /// open the announcement.
+    announcement: Option<Uuid>,
+}
+
+impl Mail {
+    /// The notification kind for `base` (`reminder` or `escalated`).
+    fn kind(&self, base: &str) -> String {
+        match self.announcement {
+            Some(_) => format!("announcement_ack_{base}"),
+            None => format!("campaign_{base}"),
+        }
+    }
+
+    /// Where a member's open assignment is acted on.
+    fn link(&self, assignment: Uuid) -> String {
+        self.announcement.map_or_else(|| assignment_path(assignment), announcement_path)
+    }
 }
 
 impl Campaigns {
@@ -557,8 +643,8 @@ impl Campaigns {
         Ok(rows.into_iter().map(|r| assignment(r, now)).collect())
     }
 
-    /// The artifact kind (`sop`/`policy`) behind the member's own assignment, for the permission check.
-    /// Someone else's assignment is reported as not found.
+    /// The subject kind (`sop`/`policy`/`announcement`) behind the member's own assignment, for the
+    /// permission check. Someone else's assignment is reported as not found.
     pub async fn assignment_kind(
         &self,
         tx: &mut WsTx<'_>,
@@ -566,10 +652,10 @@ impl Campaigns {
         membership: Uuid,
     ) -> Result<String, CampaignError> {
         let kind: Option<String> = sqlx::query_scalar(
-            "SELECT a.kind FROM campaign_recipients r
+            "SELECT coalesce(a.kind, 'announcement') FROM campaign_recipients r
              JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
-             JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
-             JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+             LEFT JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
+             LEFT JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
              WHERE r.id = $1 AND r.membership_id = $2",
         )
         .bind(id)
@@ -619,7 +705,164 @@ impl Campaigns {
             return Ok(None);
         }
         let c = self.create_as(tx, actor, by, new, defaults, "reack").await?;
-        self.launch_as(tx, actor, by, c.id).await.map(Some)
+        self.launch_as(tx, actor, by, c.id, None).await.map(Some)
+    }
+
+    /// Starts the acknowledgement campaign of a just-published announcement (BPMS-047, FR-AN04):
+    /// created and launched at once, at most one per announcement, with the announcement's
+    /// recipients as the assignments (`at_launch`: no joiners). Reminders follow
+    /// `defaults.cadence`; the manager escalation, when on, never fires before the deadline
+    /// (`max(escalation_after, window)`, A-32). The assignees are not notified here: the
+    /// announcement's own delivery asks them. Returns `None` when the announcement already has a
+    /// campaign or no recipients. `actor` is the publisher; `None` = the scheduler (audited as
+    /// the system, recorded as created by `by`). A deadline already past also starts nothing.
+    pub async fn start_announcement(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<&Actor>,
+        by: Uuid,
+        s: &AnnouncementSubject,
+        defaults: &Defaults,
+    ) -> Result<Option<Campaign>, CampaignError> {
+        let exists: bool =
+            sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM campaigns WHERE subject_announcement_id = $1)")
+                .bind(s.announcement_id)
+                .fetch_one(tx.conn())
+                .await?;
+        if exists || s.recipients.is_empty() {
+            return Ok(None);
+        }
+        let now = self.clock.now();
+        if s.due_at <= now {
+            return Ok(None); // went live after its deadline (a scheduler far behind): nothing to ask
+        }
+        let ack_text = defaults.ack_text.trim();
+        if ack_text.is_empty() || ack_text.chars().count() > 500 {
+            return Err(CampaignError::Invalid("ack_text must be 1-500 characters".into()));
+        }
+        let title: String = s.title.trim().chars().take(200).collect();
+        let window = (s.due_at - now).whole_seconds().max(1);
+        let mut cadence = defaults.cadence.clone();
+        cadence.sort_unstable();
+        cadence.dedup();
+        let escalation = defaults.escalation_after.filter(|e| *e > 0).map(|e| e.max(window));
+        let id = self.ids.new_id();
+        sqlx::query(
+            "INSERT INTO campaigns (workspace_id, id, title, subject_kind, subject_announcement_id, subject_hash, audience_rule,
+                                    audience_snapshot, ack_text, due_at, due_in_secs, reminder_schedule, escalation_after_secs,
+                                    created_by, created_at, origin)
+             VALUES ($1,$2,$3,'announcement',$4,$5,$6,'at_launch',$7,$8,$9,$10,$11,$12,$13,'announcement')",
+        )
+        .bind(tx.ctx.workspace_id)
+        .bind(id)
+        .bind(&title)
+        .bind(s.announcement_id)
+        .bind(&s.content_hash)
+        .bind(&s.audience)
+        .bind(ack_text)
+        .bind(s.due_at)
+        .bind(window)
+        .bind(json!(cadence))
+        .bind(escalation)
+        .bind(by)
+        .bind(now)
+        .execute(tx.conn())
+        .await?;
+        self.audit(
+            tx,
+            actor,
+            Category::Content,
+            "campaign.created",
+            ("campaign", id),
+            json!({"announcement_id": s.announcement_id, "audience": s.audience, "audience_snapshot": "at_launch", "origin": "announcement"}),
+            None,
+        )
+        .await?;
+        self.launch_as(tx, actor, by, id, Some(&s.recipients)).await.map(Some)
+    }
+
+    /// The campaign of each announcement that has one: announcement → (campaign id, due date).
+    pub async fn announcement_campaigns(
+        &self,
+        tx: &mut WsTx<'_>,
+        announcements: &[Uuid],
+    ) -> Result<HashMap<Uuid, (Uuid, Option<OffsetDateTime>)>, CampaignError> {
+        let rows: Vec<(Uuid, Uuid, Option<OffsetDateTime>)> = sqlx::query_as(
+            "SELECT subject_announcement_id, id, due_at FROM campaigns WHERE subject_announcement_id = ANY($1)",
+        )
+        .bind(announcements)
+        .fetch_all(tx.conn())
+        .await?;
+        Ok(rows.into_iter().map(|(a, c, d)| (a, (c, d))).collect())
+    }
+
+    /// Completes the member's open assignment in the active campaign of `announcement`, as part of
+    /// acknowledging the announcement (FR-AN04). The evidence binds to the announcement and its
+    /// content hash. It appends no audit event of its own: the caller's `announcement.acknowledged`
+    /// is the one record. Returns (campaign, assignment), or `None` when there is nothing open.
+    pub async fn complete_for_announcement(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        announcement: Uuid,
+        evidence: Value,
+    ) -> Result<Option<(Uuid, Uuid)>, CampaignError> {
+        let row: Option<(Uuid, Uuid)> = sqlx::query_as(
+            "SELECT c.id, r.id FROM campaigns c
+             JOIN campaign_recipients r ON r.workspace_id = c.workspace_id AND r.campaign_id = c.id
+             WHERE c.subject_announcement_id = $1 AND c.state = 'active' AND r.membership_id = $2 AND r.state = 'pending'
+             FOR UPDATE OF r",
+        )
+        .bind(announcement)
+        .bind(actor.membership)
+        .fetch_optional(tx.conn())
+        .await?;
+        let Some((campaign, rid)) = row else { return Ok(None) };
+        let now = self.clock.now();
+        sqlx::query(
+            "UPDATE campaign_recipients r SET state = 'completed', completed_at = $2, ack_announcement_id = $3,
+                    ack_content_hash = c.subject_hash, ack_text = c.ack_text, ack_ip = $4::inet, ack_user_agent = $5, evidence = $6
+             FROM campaigns c WHERE c.workspace_id = r.workspace_id AND c.id = r.campaign_id AND r.id = $1",
+        )
+        .bind(rid)
+        .bind(now)
+        .bind(announcement)
+        .bind(&actor.ip)
+        .bind(&actor.user_agent)
+        .bind(&evidence)
+        .execute(tx.conn())
+        .await?;
+        Self::event(
+            tx,
+            "campaign.recipient.completed.v1",
+            campaign,
+            now.unix_timestamp(),
+            json!({"campaign_id": campaign, "recipient_id": rid, "membership_id": actor.membership, "announcement_id": announcement}),
+        )
+        .await?;
+        Ok(Some((campaign, rid)))
+    }
+
+    /// Closes the active campaign of an archived announcement (open assignments stay open as the
+    /// record of non-acknowledgement). Returns it, or `None` when there is none to close.
+    pub async fn close_for_announcement(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        announcement: Uuid,
+    ) -> Result<Option<Campaign>, CampaignError> {
+        let id: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM campaigns WHERE subject_announcement_id = $1 AND state = 'active'",
+        )
+        .bind(announcement)
+        .fetch_optional(tx.conn())
+        .await?;
+        match id {
+            Some(id) => {
+                self.end(tx, actor, id, "closed", Some("the announcement was archived")).await.map(Some)
+            }
+            None => Ok(None),
+        }
     }
 
     async fn create_as(
@@ -729,15 +972,17 @@ impl Campaigns {
     }
 
     async fn mail_vars(tx: &mut WsTx<'_>, campaign: Uuid) -> Result<Mail, CampaignError> {
-        let (title, version_no): (String, i32) = sqlx::query_as(
-            "SELECT a.title, v.version_no FROM campaigns c
-             JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
-             JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id WHERE c.id = $1",
+        let (title, version_no, announcement): (String, Option<i32>, Option<Uuid>) = sqlx::query_as(
+            "SELECT coalesce(a.title, an.title), v.version_no, c.subject_announcement_id FROM campaigns c
+             LEFT JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
+             LEFT JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+             LEFT JOIN announcements an ON an.workspace_id = c.workspace_id AND an.id = c.subject_announcement_id
+             WHERE c.id = $1",
         )
         .bind(campaign)
         .fetch_one(tx.conn())
         .await?;
-        Ok(Mail { title, version_no })
+        Ok(Mail { title, version_no, announcement })
     }
 
     /// In-app notification and email to one member about their assignment (idempotent on `dedupe`).
@@ -772,7 +1017,8 @@ impl Campaigns {
         Ok(())
     }
 
-    /// Inserts assignments for `members` (skipping existing ones) and notifies each new assignee.
+    /// Inserts assignments for `members` (skipping existing ones) and notifies each new assignee
+    /// (except for announcement campaigns, whose announcement delivery is the notice).
     async fn assign(
         &self,
         tx: &mut WsTx<'_>,
@@ -798,8 +1044,11 @@ impl Campaigns {
         .fetch_all(tx.conn())
         .await?;
         let who: Vec<Uuid> = created.iter().map(|c| c.1).collect();
-        let contacts = Self::contacts(tx, &who).await?;
         let mail = Self::mail_vars(tx, campaign).await?;
+        if mail.announcement.is_some() {
+            return Ok(who);
+        }
+        let contacts = Self::contacts(tx, &who).await?;
         for (rid, m) in &created {
             let email = contacts.get(m).map(|c| c.0.as_str());
             self.tell(
@@ -819,11 +1068,10 @@ impl Campaigns {
         Ok(who)
     }
 
-    async fn lock(
-        tx: &mut WsTx<'_>,
-        id: Uuid,
-    ) -> Result<(String, Value, String, Option<OffsetDateTime>, i64, Uuid), CampaignError> {
-        let r: Option<(String, Value, String, Option<OffsetDateTime>, i64, Uuid)> = sqlx::query_as(
+    /// (state, audience rule, snapshot, due_at, due_in_secs, subject version), locked. The version
+    /// is `None` for announcement campaigns.
+    async fn lock(tx: &mut WsTx<'_>, id: Uuid) -> Result<Locked, CampaignError> {
+        let r: Option<Locked> = sqlx::query_as(
             "SELECT state, audience_rule, audience_snapshot, due_at, due_in_secs, subject_version_id FROM campaigns WHERE id = $1 FOR UPDATE",
         )
         .bind(id)
@@ -839,15 +1087,18 @@ impl Campaigns {
         actor: &Actor,
         id: Uuid,
     ) -> Result<Campaign, CampaignError> {
-        self.launch_as(tx, Some(actor), actor.membership, id).await
+        self.launch_as(tx, Some(actor), actor.membership, id, None).await
     }
 
+    /// Launches a draft. `snapshot_of` gives the assignees of an announcement campaign (the
+    /// announcement's recipients); library campaigns resolve their audience rule instead.
     async fn launch_as(
         &self,
         tx: &mut WsTx<'_>,
         actor: Option<&Actor>,
         by: Uuid,
         id: Uuid,
+        snapshot_of: Option<&[Uuid]>,
     ) -> Result<Campaign, CampaignError> {
         let (state, rule, snapshot, due_at, due_in, version) = Self::lock(tx, id).await?;
         if state != "draft" {
@@ -855,23 +1106,34 @@ impl Campaigns {
                 "only draft campaigns can be launched (this one is {state})"
             )));
         }
-        let lifecycle: String = sqlx::query_scalar("SELECT lifecycle FROM artifact_versions WHERE id = $1")
-            .bind(version)
-            .fetch_one(tx.conn())
-            .await?;
-        if lifecycle != "published" {
-            return Err(CampaignError::Conflict(format!(
-                "the version is {lifecycle}; only a published version can be launched"
-            )));
-        }
         let now = self.clock.now();
         let due = due_at.unwrap_or(now + time::Duration::seconds(due_in));
         if due <= now {
             return Err(CampaignError::Invalid("the due date has passed; create a new campaign".into()));
         }
-        let aud: Audience =
-            serde_json::from_value(rule).map_err(|e| CampaignError::Internal(e.to_string()))?;
-        let members = audience::resolve(tx, &aud).await?;
+        let members = match (version, snapshot_of) {
+            (Some(version), _) => {
+                let lifecycle: String =
+                    sqlx::query_scalar("SELECT lifecycle FROM artifact_versions WHERE id = $1")
+                        .bind(version)
+                        .fetch_one(tx.conn())
+                        .await?;
+                if lifecycle != "published" {
+                    return Err(CampaignError::Conflict(format!(
+                        "the version is {lifecycle}; only a published version can be launched"
+                    )));
+                }
+                let aud: Audience =
+                    serde_json::from_value(rule).map_err(|e| CampaignError::Internal(e.to_string()))?;
+                audience::resolve(tx, &aud).await?
+            }
+            (None, Some(members)) => members.to_vec(),
+            (None, None) => {
+                return Err(CampaignError::Conflict(
+                    "an announcement campaign starts when its announcement is published".into(),
+                ));
+            }
+        };
         if members.is_empty() && snapshot == "at_launch" {
             return Err(CampaignError::Invalid("the audience matches no active members".into()));
         }
@@ -976,15 +1238,16 @@ impl Campaigns {
         let who: Vec<Uuid> = open.iter().map(|o| o.1).collect();
         let contacts = Self::contacts(tx, &who).await?;
         let mail = Self::mail_vars(tx, id).await?;
+        let kind = mail.kind("reminder");
         for (rid, m, due) in &open {
             self.tell(
                 tx,
-                "campaign_reminder",
+                &kind,
                 *m,
                 contacts.get(m).map(|c| c.0.as_str()),
                 &mail,
                 *due,
-                &assignment_path(*rid),
+                &mail.link(*rid),
                 ("campaign_recipient", *rid),
                 None,
                 &format!("campaign:{rid}:remind:{}", now.unix_timestamp()),
@@ -1020,7 +1283,7 @@ impl Campaigns {
         expected_hash: Option<&str>,
         evidence: Value,
     ) -> Result<Assignment, CampaignError> {
-        let row: Option<(Uuid, String, String, Uuid, String, String)> = sqlx::query_as(
+        let row: Option<(Uuid, String, String, Option<Uuid>, String, String)> = sqlx::query_as(
             "SELECT r.campaign_id, r.state, c.state, c.subject_version_id, encode(c.subject_hash, 'hex'), c.ack_text
              FROM campaign_recipients r JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
              WHERE r.id = $1 AND r.membership_id = $2 FOR UPDATE OF r",
@@ -1034,6 +1297,13 @@ impl Campaigns {
         if state == "completed" {
             return Err(CampaignError::AlreadyAcknowledged);
         }
+        // One record per acknowledgement: an announcement is acknowledged on the announcement,
+        // which also records the receipt there.
+        let Some(version) = version else {
+            return Err(CampaignError::Conflict(
+                "acknowledge this announcement from the announcement itself".into(),
+            ));
+        };
         if campaign_state != "active" {
             return Err(CampaignError::Conflict(format!("this campaign is {campaign_state}")));
         }
@@ -1175,7 +1445,9 @@ impl Campaigns {
     /// (FR-AK03). Their due date keeps the campaign's original window. Returns how many.
     pub async fn enroll_joiner(&self, tx: &mut WsTx<'_>, membership: Uuid) -> Result<usize, CampaignError> {
         let open: Vec<(Uuid, Value, OffsetDateTime, OffsetDateTime)> = sqlx::query_as(
-            "SELECT id, audience_rule, launched_at, due_at FROM campaigns WHERE state = 'active' AND audience_snapshot = 'dynamic' ORDER BY id",
+            // Announcement campaigns are always `at_launch` (their recipients are a snapshot).
+            "SELECT id, audience_rule, launched_at, due_at FROM campaigns
+             WHERE state = 'active' AND audience_snapshot = 'dynamic' AND subject_kind = 'artifact_version' ORDER BY id",
         )
         .fetch_all(tx.conn())
         .await?;
@@ -1226,15 +1498,16 @@ impl Campaigns {
     }
 
     async fn run_due_in(&self, tx: &mut WsTx<'_>, now: OffsetDateTime) -> Result<DuePass, CampaignError> {
-        type Row = (Uuid, Uuid, Uuid, i32, i32, bool, OffsetDateTime);
+        type Row = (Uuid, Uuid, Uuid, i32, i32, bool, OffsetDateTime, bool);
         let due: Vec<Row> = sqlx::query_as(
             "SELECT r.id, r.campaign_id, r.membership_id, r.reminders_sent, s.steps_due::int,
                     (c.escalation_after_secs IS NOT NULL AND r.escalated_at IS NULL
                      AND r.assigned_at + make_interval(secs => c.escalation_after_secs::double precision) <= $1) AS escalate,
-                    r.due_at
+                    r.due_at, coalesce(an.expires_at <= $1, false) AS lapsed
              FROM campaign_recipients r
              JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
              JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.membership_id AND m.status = 'active'
+             LEFT JOIN announcements an ON an.workspace_id = c.workspace_id AND an.id = c.subject_announcement_id
              CROSS JOIN LATERAL (SELECT count(*) AS steps_due FROM jsonb_array_elements_text(c.reminder_schedule) x
                                  WHERE r.assigned_at + make_interval(secs => x::double precision) <= $1) s
              WHERE c.state = 'active' AND r.state = 'pending'
@@ -1254,17 +1527,25 @@ impl Campaigns {
         let mut mails: HashMap<Uuid, Mail> = HashMap::new();
         let mut reminded: BTreeMap<Uuid, usize> = BTreeMap::new();
         let mut pass = DuePass::default();
-        for (rid, campaign, m, sent, steps, escalate, due_at) in due {
+        for (rid, campaign, m, sent, steps, escalate, due_at, lapsed) in due {
             if let std::collections::hash_map::Entry::Vacant(e) = mails.entry(campaign) {
                 e.insert(Self::mail_vars(tx, campaign).await?);
             }
             let Some(mail) = mails.get(&campaign) else { continue };
-            let link = assignment_path(rid);
-            if steps > sent {
+            let link = mail.link(rid);
+            if steps > sent && lapsed {
+                // An expired announcement can no longer be acknowledged: the step is used up
+                // without a reminder (A-32). The escalation below still records the miss.
+                sqlx::query("UPDATE campaign_recipients SET reminders_sent = $2 WHERE id = $1")
+                    .bind(rid)
+                    .bind(steps)
+                    .execute(tx.conn())
+                    .await?;
+            } else if steps > sent {
                 // One reminder for the latest due step, even if the scheduler missed earlier ones.
                 self.tell(
                     tx,
-                    "campaign_reminder",
+                    &mail.kind("reminder"),
                     m,
                     contacts.get(&m).map(|c| c.0.as_str()),
                     mail,
@@ -1295,7 +1576,7 @@ impl Campaigns {
                     let name = contacts.get(&m).map(|c| c.1.clone()).unwrap_or_default();
                     self.tell(
                         tx,
-                        "campaign_escalated",
+                        &mail.kind("escalated"),
                         to,
                         contacts.get(&to).map(|c| c.0.as_str()),
                         mail,

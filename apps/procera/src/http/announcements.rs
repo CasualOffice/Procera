@@ -3,6 +3,11 @@
 //! analytics. Permissions (docs/12 §5): `announcement:create` composes (own drafts),
 //! `announcement:publish` approves, publishes and archives, `announcement:view` reads the feed, and
 //! `announcement:manage` can do all of it, including analytics of anyone's announcement.
+//!
+//! FR-AN04 (one engine): an announcement that requires acknowledgement runs on the campaign engine.
+//! Publishing or approving it starts its campaign in the same transaction (scheduled ones start
+//! from the `announcement.published.v1` consumer), acknowledging it completes the assignment, and
+//! archiving it closes the campaign. Responses carry `campaign_id` and the effective `ack_by`.
 
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
@@ -20,6 +25,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use super::AppState;
+use super::auth::AuthUser;
 use super::error::ApiError;
 use super::settings::settings;
 use super::workspace::{WsMember, members};
@@ -85,6 +91,74 @@ fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
         ip: c.ip,
         user_agent: c.user_agent,
     }
+}
+
+fn campaign_actor(me: &WsMember, headers: &HeaderMap) -> procera_campaigns::Actor {
+    let a = actor(me, headers);
+    procera_campaigns::Actor {
+        membership: a.membership,
+        subject_ref: a.subject_ref,
+        ip: a.ip,
+        user_agent: a.user_agent,
+    }
+}
+
+fn campaigns(s: &AppState) -> Result<&procera_campaigns::Campaigns, ApiError> {
+    s.campaigns.as_ref().ok_or_else(|| ApiError::unavailable("database"))
+}
+
+/// Announcements as the API returns them: plus `campaign_id` (the acknowledgement campaign, once
+/// live) and `ack_by` (the campaign's due date once it runs, else the deadline chosen in the draft).
+async fn bodies(
+    s: &AppState,
+    tx: &mut WsTx<'_>,
+    items: &[Announcement],
+) -> Result<Vec<serde_json::Value>, ApiError> {
+    let ids: Vec<Uuid> = items.iter().filter(|a| a.require_ack).map(|a| a.id).collect();
+    let found = if ids.is_empty() {
+        Default::default()
+    } else {
+        campaigns(s)?.announcement_campaigns(tx, &ids).await?
+    };
+    let mut out = Vec::with_capacity(items.len());
+    for a in items {
+        let mut v = serde_json::to_value(a).map_err(internal)?;
+        let c = found.get(&a.id);
+        v["campaign_id"] = json!(c.map(|c| c.0));
+        if let Some(due) = c.and_then(|c| c.1) {
+            v["ack_by"] =
+                json!(due.format(&time::format_description::well_known::Rfc3339).map_err(internal)?);
+        }
+        out.push(v);
+    }
+    Ok(out)
+}
+
+async fn body(s: &AppState, tx: &mut WsTx<'_>, a: Announcement) -> Result<serde_json::Value, ApiError> {
+    bodies(s, tx, std::slice::from_ref(&a)).await?.pop().ok_or_else(|| internal("empty"))
+}
+
+/// Starts the acknowledgement campaign of an announcement that just went live (FR-AN04).
+async fn start_campaign(
+    s: &AppState,
+    tx: &mut WsTx<'_>,
+    me: &WsMember,
+    headers: &HeaderMap,
+    a: &Announcement,
+) -> Result<(), ApiError> {
+    if a.require_ack && a.state == "published" {
+        crate::announcement_ack::start(
+            service(s)?,
+            campaigns(s)?,
+            settings(s)?,
+            tx,
+            a.id,
+            Some(&campaign_actor(me, headers)),
+        )
+        .await
+        .map_err(internal)?;
+    }
+    Ok(())
 }
 
 fn etag(mut res: Response, revision: i64) -> Response {
@@ -199,14 +273,12 @@ async fn list(
     let items = service(&s)?.list(&mut tx, scope, q.state.as_deref()).await?;
     // Whether publishing needs someone else's approval, so the page offers the right action upfront.
     let mode = approval_mode(&s, &mut tx).await?;
+    let mut out = bodies(&s, &mut tx, &items).await?;
     tx.rollback().await.map_err(internal)?;
-    let mut out = Vec::with_capacity(items.len());
-    for a in items {
+    for (a, v) in items.iter().zip(out.iter_mut()) {
         let needs =
             a.audience().map(|aud| procera_announcements::approval_applies(&mode, &aud)).unwrap_or(true);
-        let mut v = serde_json::to_value(&a).map_err(internal)?;
         v["needs_approval"] = json!(needs);
-        out.push(v);
     }
     Ok(Json(json!({ "items": out })).into_response())
 }
@@ -226,8 +298,9 @@ async fn create(
     ensure_enabled(&s, &mut tx).await?;
     let d = defaults(&s, &mut tx).await?;
     let a = service(&s)?.create(&mut tx, &actor(&me, &headers), &c, &d).await?;
-    tx.commit().await.map_err(internal)?;
     let rev = a.revision;
+    let a = body(&s, &mut tx, a).await?;
+    tx.commit().await.map_err(internal)?;
     Ok(etag((StatusCode::CREATED, Json(a)).into_response(), rev))
 }
 
@@ -276,8 +349,9 @@ async fn get_one(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let (a, _) = visible(&s, m, &mut tx, &me, id).await?;
-    tx.rollback().await.map_err(internal)?;
     let rev = a.revision;
+    let a = body(&s, &mut tx, a).await?;
+    tx.rollback().await.map_err(internal)?;
     Ok(etag(Json(a).into_response(), rev))
 }
 
@@ -296,8 +370,9 @@ async fn edit(
     }
     let d = defaults(&s, &mut tx).await?;
     let a = service(&s)?.edit(&mut tx, &actor(&me, &headers), id, &c, &d, if_match(&headers)).await?;
-    tx.commit().await.map_err(internal)?;
     let rev = a.revision;
+    let a = body(&s, &mut tx, a).await?;
+    tx.commit().await.map_err(internal)?;
     Ok(etag(Json(a).into_response(), rev))
 }
 
@@ -316,6 +391,7 @@ async fn submit(
     ensure_enabled(&s, &mut tx).await?;
     let mode = approval_mode(&s, &mut tx).await?;
     let a = service(&s)?.submit(&mut tx, &actor(&me, &headers), id, &mode).await?;
+    let a = body(&s, &mut tx, a).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(a).into_response())
 }
@@ -335,6 +411,8 @@ async fn approve(
     ensure_enabled(&s, &mut tx).await?;
     let ch = channels(&s, &mut tx, a.priority == "critical").await?;
     let a = service(&s)?.approve(&mut tx, &actor(&me, &headers), id, &ch).await?;
+    start_campaign(&s, &mut tx, &me, &headers, &a).await?;
+    let a = body(&s, &mut tx, a).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(a).into_response())
 }
@@ -359,6 +437,7 @@ async fn reject(
         return Err(forbidden("announcement:publish"));
     }
     let a = service(&s)?.reject(&mut tx, &actor(&me, &headers), id, &r.comment).await?;
+    let a = body(&s, &mut tx, a).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(a).into_response())
 }
@@ -380,6 +459,8 @@ async fn publish(
     let mode = approval_mode(&s, &mut tx).await?;
     let ch = channels(&s, &mut tx, a.priority == "critical").await?;
     let a = service(&s)?.publish(&mut tx, &actor(&me, &headers), id, &mode, &ch).await?;
+    start_campaign(&s, &mut tx, &me, &headers, &a).await?;
+    let a = body(&s, &mut tx, a).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(a).into_response())
 }
@@ -404,6 +485,9 @@ async fn archive(
         return Err(forbidden("announcement:publish"));
     }
     let a = service(&s)?.archive(&mut tx, &actor(&me, &headers), id, &r.reason).await?;
+    // Archiving withdraws it: its acknowledgement campaign closes (open assignments stay as the record).
+    campaigns(&s)?.close_for_announcement(&mut tx, &campaign_actor(&me, &headers), id).await?;
+    let a = body(&s, &mut tx, a).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(a).into_response())
 }
@@ -422,16 +506,28 @@ async fn read(
     Ok(Json(r).into_response())
 }
 
+/// Acknowledges the announcement and completes the caller's campaign assignment with it: one
+/// acknowledgement, one audit record (`announcement.acknowledged`, citing the assignment).
 async fn acknowledge(
     State(s): State<AppState>,
     headers: HeaderMap,
+    AuthUser(claims): AuthUser,
     me: WsMember,
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "announcement:view", Resource::Workspace).await?;
-    let r = service(&s)?.acknowledge(&mut tx, &actor(&me, &headers), id).await?;
+    // How the member authenticated for this session (FR-AK04 "how authenticated").
+    let evidence = json!({"amr": claims.amr, "auth_time": claims.auth_time});
+    let done = campaigns(&s)?
+        .complete_for_announcement(&mut tx, &campaign_actor(&me, &headers), id, evidence)
+        .await?;
+    let extra = match done {
+        Some((campaign, assignment)) => json!({"campaign_id": campaign, "campaign_recipient_id": assignment}),
+        None => json!({}),
+    };
+    let r = service(&s)?.acknowledge_with(&mut tx, &actor(&me, &headers), id, extra).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(r).into_response())
 }
