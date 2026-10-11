@@ -121,12 +121,19 @@ async fn login(
         e.retry_after = Some(i64::try_from(d.reset_after.as_secs()).unwrap_or(60).max(1));
         return Err(e);
     }
-    match identity(&s)?.login(&req.email, &req.password, &client).await? {
-        LoginOutcome::Authenticated(t) => Ok(token_response(&s, *t)),
-        LoginOutcome::MfaRequired { mfa_token, methods } => {
-            Ok(Json(json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": methods}))
-                .into_response())
-        }
+    Ok(login_response(&s, identity(&s)?.login(&req.email, &req.password, &client).await?))
+}
+
+pub(super) fn login_response(s: &AppState, outcome: LoginOutcome) -> Response {
+    match outcome {
+        LoginOutcome::Authenticated(t) => token_response(s, *t),
+        LoginOutcome::MfaRequired { mfa_token, methods } => no_store(
+            Json(json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": methods}))
+                .into_response(),
+        ),
+        LoginOutcome::PasswordChangeRequired { change_token } => no_store(
+            Json(json!({"status": "password_change_required", "change_token": change_token})).into_response(),
+        ),
     }
 }
 

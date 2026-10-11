@@ -21,6 +21,7 @@ pub mod library;
 pub mod notifications;
 pub mod overview;
 pub mod probe;
+pub mod recovery;
 pub mod retention;
 pub mod search;
 pub mod settings;
@@ -268,6 +269,7 @@ pub fn router(state: AppState) -> Router {
         .route("/readyz", get(readyz))
         .route("/version", get(version))
         .nest("/api/v1", auth::router())
+        .nest("/api/v1", recovery::router())
         .nest("/api/v1", workspace::router())
         .nest("/api/v1", settings::router())
         .nest("/api/v1", directory::router())
