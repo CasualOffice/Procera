@@ -236,6 +236,7 @@ test.describe('R1 gate @r1 @ui', () => {
     // The version's own history, oldest first: three edits, then submitted, then published.
     await table.getByRole('row').filter({ hasText: 'Version submitted' }).first().getByRole('button', { name: /artifact version/ }).click();
     const tl = page.getByRole('dialog', { name: /history/ });
+    await expect(tl.locator('.tl-title').filter({ hasText: 'Version published' })).toBeVisible();
     const titles = await tl.locator('.tl-title').allInnerTexts();
     const at = (t: string) => titles.findIndex((x) => x.startsWith(t));
     expect(titles.filter((t) => t.startsWith('Version edited'))).toHaveLength(3);
