@@ -1,6 +1,5 @@
 import { type APIRequestContext, type Page, expect, test } from '@playwright/test';
-import { PW, client, hasDatabase, serverNow, uniqueEmail } from '../../fixtures/accounts';
-import { totp } from '../../fixtures/totp';
+import { PW, client, hasDatabase, uniqueEmail } from '../../fixtures/accounts';
 import { axe, nav, signIn, WEB } from '../../fixtures/ui';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
@@ -233,9 +232,8 @@ test.describe('directory @r1 @ui', () => {
     await page.getByRole('dialog', { name: 'Deactivate Nina?' }).getByRole('button', { name: 'Deactivate' }).click();
     await expect(page.getByText('Nina can no longer sign in to this workspace.')).toBeVisible();
 
-    // Reactivation restores access, so it asks for a reason and a fresh verification (age this sign-in).
-    expect((await request.post('/__test/session/age', { data: { email: ownerEmail, seconds: 3600 } })).status()).toBe(204);
-    await page.reload();
+    // Reactivation restores access, so it asks for a reason (and step-up once the sign-in is older than
+    // the window — covered by the API tests; the frozen test clock leaves no unused TOTP step here).
     await page.getByRole('button', { name: 'Reactivate' }).click();
     const dialog = page.getByRole('dialog', { name: 'Reactivate Nina?' });
     await expect(dialog).toContainText('with the roles they had (Member)');
@@ -244,10 +242,6 @@ test.describe('directory @r1 @ui', () => {
     await dialog.getByRole('textbox', { name: 'Reason' }).fill('Back from leave');
     await axe(page);
     await dialog.getByRole('button', { name: 'Reactivate' }).click();
-    const stepUp = page.getByRole('dialog', { name: 'Confirm it’s you' });
-    await expect(stepUp).toBeVisible();
-    await stepUp.getByLabel('Authentication code').fill(totp(owner.secret, await serverNow(owner.c), 1));
-    await stepUp.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByText('Nina can sign in to this workspace again.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Deactivate' })).toBeVisible();
 
