@@ -4,11 +4,19 @@
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* Fluid root size: every rem in the app scales with the screen. 16px up to 1280px wide, then
+   growing to about 17px at 1920px and 18px on large high-resolution screens (2560px+). Never below
+   16px, so minimum target sizes (WCAG 2.5.8) and body text never shrink. In % so the user's own
+   browser font size still applies (WCAG 1.4.4 resize text). */
+html {
+  font-size: clamp(100%, 87.5% + 0.15625vw, 112.5%);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 body {
   margin: 0;
   font-family: var(--font-family);
-  font-size: var(--font-size-md);       /* 16px body (docs/05 §7.1) */
+  font-size: var(--font-size-md);       /* 1rem body (docs/05 §7.1) */
   line-height: var(--line-height-body); /* 1.5 (WCAG 1.4.12 tolerant) */
   color: var(--color-text);
   background: var(--color-bg);
@@ -17,14 +25,14 @@ h1, h2, h3 { line-height: var(--line-height-tight); font-weight: var(--font-weig
 h1 { font-size: var(--font-size-3xl); }
 h2 { font-size: var(--font-size-2xl); }
 h3 { font-size: var(--font-size-lg); }
-/* Inside the app, interface type is compact (14px controls, 20px page titles); reading views keep 16px. */
-.app h1 { font-size: 22px; line-height: 28px; letter-spacing: -0.02em; }
-.app h2 { font-size: 14px; line-height: 20px; letter-spacing: -0.006em; }
-.app h3 { font-size: 13px; }
+/* Inside the app, interface type is compact (0.875rem controls, 1.25rem page titles); reading views keep 1rem. */
+.app h1 { font-size: 1.375rem; line-height: 1.75rem; letter-spacing: -0.02em; }
+.app h2 { font-size: 0.875rem; line-height: 1.25rem; letter-spacing: -0.006em; }
+.app h3 { font-size: 0.8125rem; }
 body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 p { margin: 0 0 var(--space-4); max-width: var(--measure); }
 /* Links are ink with a quiet underline; brand red is reserved for the logo, focus and active states (docs/05 §7.1.1). */
-a { color: var(--color-text); text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+a { color: var(--color-text); text-decoration-color: var(--color-border-strong); text-underline-offset: 0.1875rem; text-decoration-thickness: 1px; }
 a:hover { text-decoration-color: currentColor; }
 
 /* Visible focus everywhere: 2px ring, 2px offset, never removed (WCAG 2.4.7 / 2.4.11). */
@@ -33,7 +41,7 @@ a:hover { text-decoration-color: currentColor; }
   outline-offset: var(--focus-offset);
 }
 
-.skip-link { position: absolute; left: var(--space-2); top: -100px; padding: var(--space-2) var(--space-3);
+.skip-link { position: absolute; left: var(--space-2); top: -6.25rem; padding: var(--space-2) var(--space-3);
   background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-strong); z-index: 10; }
 .skip-link:focus { top: var(--space-2); }
 

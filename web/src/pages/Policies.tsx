@@ -39,7 +39,7 @@ export function Policies() {
       </div>
       <div className="toolbar portal-toolbar">
         <SearchField className="search-input" aria-label="Search policies" value={q} onChange={setQ}>
-          <Search aria-hidden="true" size={15} /><Input placeholder="Search policies" />
+          <Search aria-hidden="true" size="0.9375rem" /><Input placeholder="Search policies" />
         </SearchField>
         {categories.length > 0 && (
           <div className="aud-chips" role="group" aria-label="Category">
@@ -55,11 +55,11 @@ export function Policies() {
         <ul className="portal">
           {items.map((p) => (
             <li key={p.id} className="portal-item">
-              <span className="doc-icon tag-purple"><FileText aria-hidden="true" size={15} /></span>
+              <span className="doc-icon tag-purple"><FileText aria-hidden="true" size="0.9375rem" /></span>
               <div className="portal-main">
                 <p className="portal-title">
                   <Link to={`/library/${p.id}`}>{p.title}</Link>
-                  {p.verified && <Tag color="green"><BadgeCheck aria-hidden="true" size={12} /> Verified</Tag>}
+                  {p.verified && <Tag color="green"><BadgeCheck aria-hidden="true" size="0.75rem" /> Verified</Tag>}
                   {recent(p) && <Tag color="blue">Updated</Tag>}
                   {p.review_status === 'overdue' && <Tag color="red">Review overdue</Tag>}
                 </p>

@@ -10,7 +10,7 @@ export function Notice({ tone = 'info', title, children }: { tone?: Tone; title:
   const Icon = ICON[tone];
   return (
     <div className={`notice notice-${tone}`} role={tone === 'danger' ? 'alert' : 'status'}>
-      <Icon aria-hidden="true" size={20} className="notice-icon" />
+      <Icon aria-hidden="true" size="1.25rem" className="notice-icon" />
       <div>
         <p className="notice-title"><span className="visually-hidden">{LABEL[tone]}: </span>{title}</p>
         {children && <div className="notice-body">{children}</div>}

@@ -22,7 +22,7 @@ export function FormDialog({ isOpen, onOpenChange, title, description, children,
                   <Heading slot="title" className="sheet-title">{title}</Heading>
                   {description && <p className="sheet-desc">{description}</p>}
                 </div>
-                <button type="button" className="icon-btn" onClick={close} aria-label="Close"><X aria-hidden="true" size={16} /></button>
+                <button type="button" className="icon-btn" onClick={close} aria-label="Close"><X aria-hidden="true" size="1rem" /></button>
               </div>
               <div className="sheet-body">{children}</div>
               <div className="sheet-foot">{footer}</div>

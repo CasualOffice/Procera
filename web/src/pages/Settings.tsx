@@ -102,15 +102,15 @@ function SettingRow({ s, canEdit, onSaved }: { s: Setting; canEdit: boolean; onS
           {hint && <p className="setting-hint" id={`${id}-h`}>{hint}</p>}
           <p className="setting-meta">
             {s.source !== 'default' && <span className="setting-source">{LAYER[s.source] ?? s.source}</span>}
-            {s.step_up && <span className="setting-flag"><ShieldCheck aria-hidden="true" size={12} /> Asks you to confirm it’s you</span>}
-            {!s.editable_with && <span className="setting-flag"><Lock aria-hidden="true" size={12} /> Set by the platform</span>}
-            <button type="button" className="setting-why" aria-expanded={why} aria-controls={`${id}-why`} onClick={() => setWhy(!why)}>Why this value<ChevronDown aria-hidden="true" size={12} /></button>
+            {s.step_up && <span className="setting-flag"><ShieldCheck aria-hidden="true" size="0.75rem" /> Asks you to confirm it’s you</span>}
+            {!s.editable_with && <span className="setting-flag"><Lock aria-hidden="true" size="0.75rem" /> Set by the platform</span>}
+            <button type="button" className="setting-why" aria-expanded={why} aria-controls={`${id}-why`} onClick={() => setWhy(!why)}>Why this value<ChevronDown aria-hidden="true" size="0.75rem" /></button>
           </p>
         </div>
         {!editing && (
           <div className="setting-value">
             <span className="setting-current">{s.kind.type === 'colour' && <span className="swatch" style={{ background: String(s.value) }} aria-hidden="true" />}{show(s.kind, s.value)}</span>
-            {saved && <span className="setting-saved" role="status"><Check aria-hidden="true" size={13} /> Saved</span>}
+            {saved && <span className="setting-saved" role="status"><Check aria-hidden="true" size="0.8125rem" /> Saved</span>}
             {canEdit && <Button variant="secondary" className="btn-sm" onPress={() => { setEditing(true); setError(null); }} aria-label={`Change ${label}`}>Change</Button>}
           </div>
         )}
@@ -211,8 +211,8 @@ function Control({ kind, value, onChange, labelledBy, describedBy }: { kind: Kin
       const toggle = (v: string) => onChange(cur.includes(v) ? cur.filter((x) => x !== v) : [...cur.filter((x) => x !== '*'), v]);
       return (
         <div className="aud-chips" role="group" {...a11y}>
-          {kind.allow_all && <button type="button" className="aud-chip" aria-pressed={all} onClick={() => onChange(all ? [] : ['*'])}>{all && <Check aria-hidden="true" size={12} />}Everyone</button>}
-          {kind.values.map((v) => { const on = !all && cur.includes(v); return <button key={v} type="button" className="aud-chip" aria-pressed={on} disabled={all} onClick={() => toggle(v)}>{on && <Check aria-hidden="true" size={12} />}{valueName(v)}</button>; })}
+          {kind.allow_all && <button type="button" className="aud-chip" aria-pressed={all} onClick={() => onChange(all ? [] : ['*'])}>{all && <Check aria-hidden="true" size="0.75rem" />}Everyone</button>}
+          {kind.values.map((v) => { const on = !all && cur.includes(v); return <button key={v} type="button" className="aud-chip" aria-pressed={on} disabled={all} onClick={() => toggle(v)}>{on && <Check aria-hidden="true" size="0.75rem" />}{valueName(v)}</button>; })}
         </div>
       );
     }

@@ -82,7 +82,7 @@ export function Home() {
         <p className="home-summary">{summary}</p>
         {create.length > 0 && (
           <div className="quick-actions" role="group" aria-label="Quick actions">
-            {create.map((c) => <Link key={c.to} className="quick" to={c.to}><span className={`quick-icon tag-${c.tone}`}><c.icon aria-hidden="true" size={16} /></span>{c.label}</Link>)}
+            {create.map((c) => <Link key={c.to} className="quick" to={c.to}><span className={`quick-icon tag-${c.tone}`}><c.icon aria-hidden="true" size="1rem" /></span>{c.label}</Link>)}
           </div>
         )}
       </div>
@@ -99,7 +99,7 @@ export function Home() {
             <ul className="tasks">
               {todo.map((t) => (
                 <li key={t.key}>
-                  <span className={`task-icon tag-${t.tone}`}><t.icon aria-hidden="true" size={16} /></span>
+                  <span className={`task-icon tag-${t.tone}`}><t.icon aria-hidden="true" size="1rem" /></span>
                   <div className="task-main">
                     <p className="task-title">{t.title}</p>
                     <p className="task-meta">{t.meta}</p>
@@ -117,7 +117,7 @@ export function Home() {
               <ul className="receipts" aria-labelledby="receipts">
                 {receipts.map((r) => (
                   <li key={r.id}>
-                    <CircleCheck aria-hidden="true" size={15} className="receipt-icon" />
+                    <CircleCheck aria-hidden="true" size="0.9375rem" className="receipt-icon" />
                     <span>You acknowledged <Link to={`/library/${r.subject.artifact_id}`}>{r.subject.title}</Link> v{r.subject.version_no}</span>
                     <time className="receipt-time" dateTime={r.acknowledged_at!}>{shortDate(r.acknowledged_at)}</time>
                   </li>
@@ -137,7 +137,7 @@ export function Home() {
                 <ul className="mini-docs">
                   {published.map((d) => (
                     <li key={d.id}>
-                      <span className={`doc-icon doc-icon-sm tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={13} /> : <FileText aria-hidden="true" size={13} />}</span>
+                      <span className={`doc-icon doc-icon-sm tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.8125rem" /> : <FileText aria-hidden="true" size="0.8125rem" />}</span>
                       <Link to={`/library/${d.id}`}>{d.title}</Link>
                       <span className="mini-docs-kind">{KIND_TAG[d.kind]?.label}</span>
                     </li>
@@ -150,7 +150,7 @@ export function Home() {
             <section aria-labelledby="people" className="section-gap">
               <div className="section-head"><h2 id="people">People</h2>{can('member:invite') && <Link className="section-link" to="/admin/members">Manage</Link>}</div>
               <div className="avatar-stack" role="img" aria-label={`${members.filter((m) => m.status === 'active').length} active members`}>
-                {members.filter((m) => m.status === 'active').slice(0, 9).map((m) => <span key={m.id} title={m.display_name}><Avatar name={m.display_name} size={30} /></span>)}
+                {members.filter((m) => m.status === 'active').slice(0, 9).map((m) => <span key={m.id} title={m.display_name}><Avatar name={m.display_name} size="1.875rem" /></span>)}
               </div>
               <p className="rail-note">{members.filter((m) => m.status === 'active').length} people in this workspace</p>
             </section>

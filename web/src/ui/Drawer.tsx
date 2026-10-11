@@ -12,7 +12,7 @@ export function Drawer({ title, onClose, children, footer }: { title: string; on
         <Dialog className="drawer-dialog">
           <div className="drawer-head">
             <Heading slot="title" className="drawer-title">{title}</Heading>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X aria-hidden="true" size={16} /></button>
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X aria-hidden="true" size="1rem" /></button>
           </div>
           <div className="drawer-body">{children}</div>
           {footer && <div className="drawer-foot">{footer}</div>}

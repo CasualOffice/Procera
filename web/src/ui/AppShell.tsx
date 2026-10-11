@@ -77,12 +77,12 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
       <aside className="sidebar">
         <MenuTrigger>
           <AriaButton className="ws-switcher" aria-label={`Workspace: ${workspace.name}. Switch workspace`}>
-            <Avatar name={workspace.name} tone="brand" square size={30} />
+            <Avatar name={workspace.name} tone="brand" square size="1.875rem" />
             <span className="ws-switcher-text">
               <span className="ws-switcher-name">{workspace.name}</span>
               <span className="ws-switcher-meta">{memberCount === null ? 'Workspace' : `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}</span>
             </span>
-            <ChevronsUpDown aria-hidden="true" size={16} className="ws-switcher-chev" />
+            <ChevronsUpDown aria-hidden="true" size="1rem" className="ws-switcher-chev" />
           </AriaButton>
           <Popover className="menu-popover" placement="bottom start">
             <Menu
@@ -99,11 +99,11 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                 <Header className="menu-header">Workspaces</Header>
                 {workspaces.map((w) => (
                   <MenuItem key={w.workspace_id} id={w.workspace_id} className="menu-item" textValue={w.name}>
-                    <Avatar name={w.name} tone="brand" square size={22} />
+                    <Avatar name={w.name} tone="brand" square size="1.375rem" />
                     <span>{w.name}</span>
                     {w.workspace_id === workspace.workspace_id && (
                       <span className="menu-item-meta">
-                        <Check aria-hidden="true" size={16} />
+                        <Check aria-hidden="true" size="1rem" />
                         <span className="visually-hidden">Current</span>
                       </span>
                     )}
@@ -115,7 +115,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
         </MenuTrigger>
 
         <AriaButton className="search-btn" onPress={() => setPalette(true)} aria-keyshortcuts={shortcutLabel() === '⌘K' ? 'Meta+K' : 'Control+K'}>
-          <Search aria-hidden="true" size={15} />
+          <Search aria-hidden="true" size="0.9375rem" />
           <span>Search</span>
           <kbd aria-hidden="true">{shortcutLabel()}</kbd>
         </AriaButton>
@@ -130,7 +130,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                   return (
                     <li key={i.key}>
                       <Link to={i.to} aria-current={i.key === current ? 'page' : undefined} aria-label={count ? `${i.label}, ${count} unread` : undefined}>
-                        <i.icon aria-hidden="true" size={16} />
+                        <i.icon aria-hidden="true" size="1rem" />
                         <span>{i.label}</span>
                         {count ? <span className="nav-count" aria-hidden="true">{count > 99 ? '99+' : count}</span> : null}
                       </Link>
@@ -144,7 +144,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
 
         <MenuTrigger>
           <AriaButton className="user-btn" aria-label={`Account: ${user.display_name}`}>
-            <Avatar name={user.display_name} size={28} />
+            <Avatar name={user.display_name} size="1.75rem" />
             <span className="user-btn-text">
               <span className="user-btn-name">{user.display_name}</span>
               <span className="user-btn-email">{user.email}</span>
@@ -165,16 +165,16 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                 <Header className="menu-header">Appearance</Header>
                 {([['auto', 'System', Monitor], ['light', 'Light', Sun], ['dark', 'Dark', Moon]] as const).map(([k, label, Icon]) => (
                   <MenuItem key={k} id={`theme-${k}`} className="menu-item" textValue={`${label} theme`}>
-                    <Icon aria-hidden="true" size={16} /> {label}
+                    <Icon aria-hidden="true" size="1rem" /> {label}
                     {theme === k && (
-                      <span className="menu-item-meta"><Check aria-hidden="true" size={16} /><span className="visually-hidden">Selected</span></span>
+                      <span className="menu-item-meta"><Check aria-hidden="true" size="1rem" /><span className="visually-hidden">Selected</span></span>
                     )}
                   </MenuItem>
                 ))}
               </MenuSection>
               <Separator className="menu-separator" />
               <MenuItem id="signout" className="menu-item" textValue="Sign out">
-                <LogOut aria-hidden="true" size={16} /> Sign out
+                <LogOut aria-hidden="true" size="1rem" /> Sign out
               </MenuItem>
             </Menu>
           </Popover>

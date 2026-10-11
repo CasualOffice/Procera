@@ -36,11 +36,11 @@ export function Members() {
     <>
       <div className="page-head">
         <div><h1>Members</h1><p>{members ? `${active} active ${active === 1 ? 'member' : 'members'}${invites?.length ? ` · ${invites.length} pending invitation${invites.length === 1 ? '' : 's'}` : ''}` : 'People in this workspace'}</p></div>
-        {can('member:invite') && <Button onPress={() => setInviting(true)}><MailPlus aria-hidden="true" size={16} /> Invite people</Button>}
+        {can('member:invite') && <Button onPress={() => setInviting(true)}><MailPlus aria-hidden="true" size="1rem" /> Invite people</Button>}
       </div>
       <div className="toolbar">
         <SearchField className="search-input" aria-label="Filter members" value={q} onChange={setQ}>
-          <Search aria-hidden="true" size={15} /><Input placeholder="Search by name or email…" />
+          <Search aria-hidden="true" size="0.9375rem" /><Input placeholder="Search by name or email…" />
         </SearchField>
       </div>
       {loadError ? <LoadError error={loadError} onRetry={reload} what="members" /> : members === null ? <Skeleton variant="table" rows={6} label="Loading members" /> : rows.length === 0 && q ? (
@@ -52,8 +52,8 @@ export function Members() {
             <tbody>
               {rows.map((m) => (
                 <tr key={m.id}>
-                  <td><span className="cell-entity"><Avatar name={m.display_name} size={28} /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{m.display_name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: 12 }}>{m.email}</span></span></span></td>
-                  <td><span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{m.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
+                  <td><span className="cell-entity"><Avatar name={m.display_name} size="1.75rem" /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{m.display_name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{m.email}</span></span></span></td>
+                  <td><span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}>{m.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
                   <td className="cell-muted col-optional">{m.title ?? ''}</td>
                   <td>{m.status === 'active' ? <Tag color="green" dot>Active</Tag> : <Tag color="gray" dot>Deactivated</Tag>}</td>
                   <td className="cell-muted col-optional">{shortDate(m.joined_at)}</td>
@@ -61,8 +61,8 @@ export function Members() {
               ))}
               {(invites ?? []).map((i) => (
                 <tr key={i.id}>
-                  <td><span className="cell-entity"><Avatar name={i.email} size={28} tone="neutral" /><span>{i.email}</span></span></td>
-                  <td><span style={{ display: 'inline-flex', gap: 4 }}>{i.role_keys.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
+                  <td><span className="cell-entity"><Avatar name={i.email} size="1.75rem" tone="neutral" /><span>{i.email}</span></span></td>
+                  <td><span style={{ display: 'inline-flex', gap: '0.25rem' }}>{i.role_keys.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
                   <td className="cell-muted col-optional" />
                   <td><Tag color="yellow" dot>Invited</Tag></td>
                   <td className="cell-muted col-optional">expires {shortDate(i.expires_at)}</td>

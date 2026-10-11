@@ -584,6 +584,13 @@ These values are **normative**: components consume tokens only, and CI lint bloc
 - **`forced-colors: active`** (Windows High Contrast): system colours, borders kept visible, focus via `Highlight`, icons via `currentColor`, no information in background images.
 - Print stylesheet for SOPs, policies and certificates.
 
+#### 7.1.0 Units and fluid scale (normative, owner direction 2026-10-11)
+
+- **rem everywhere.** Type, spacing, radii, control and layout sizes are in rem (token values in `web/src/ui/tokens.json`). px is allowed only for hairlines (≤ 2px borders, outlines, focus rings), shadow offsets and blurs, the 999px pill radius, and absolute floors written as `max(Npx, …rem)`.
+- **Fluid root.** `html { font-size: clamp(100%, 87.5% + 0.15625vw, 112.5%) }`: 16px up to 1280px wide, about 17px at 1920px and 18px at 2560px and above. The whole UI scales with the screen. It never goes below 16px, and because it is in %, the user's browser font size still applies (WCAG 1.4.4).
+- **Accessibility floors stay absolute.** `--target-min: max(24px, 1.5rem)` and `--target-comfortable: max(44px, 2.75rem)` (WCAG 2.5.8 and the touch target guideline) never depend on the root size.
+- **Enforced.** `npm run check` runs `scripts/px-to-rem.mjs --check`; `npm run units` converts px left by new code (idempotent). Inline React styles use rem strings; lucide icons take `size="1rem"`.
+
 ### 7.1.1 Procera brand applied to the product UI (normative)
 
 Source: `assets/brand/` (brand board and copy, 2026-10-11). Contrast ratios below were computed with the WCAG 2.x formula.

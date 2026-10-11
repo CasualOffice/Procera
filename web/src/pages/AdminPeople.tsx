@@ -46,17 +46,17 @@ export function AdminPeople() {
       {data && (
         <>
           {data.items.length === 0 ? (
-            <div className="overview-empty"><ShieldCheck aria-hidden="true" size={16} /><span>{filter === 'all' ? 'No members yet.' : 'Nobody matches this view. That’s good news.'}</span></div>
+            <div className="overview-empty"><ShieldCheck aria-hidden="true" size="1rem" /><span>{filter === 'all' ? 'No members yet.' : 'Nobody matches this view. That’s good news.'}</span></div>
           ) : (
             <div className="table-wrap">
               <table className="table" aria-label="People">
                 <thead><tr><th>Name</th><th>Roles</th><th>Two-step</th><th>Last active</th><th className="col-optional">Department</th></tr></thead>
                 <tbody>{data.items.map((p) => (
                   <tr key={p.membership_id} id={p.membership_id}>
-                    <td><span className="cell-entity"><Avatar name={p.name} size={28} /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{p.name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: 12 }}>{p.email}</span></span></span></td>
-                    <td><span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>{p.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}{p.grant_expiring && <Tag color="yellow">Expiring</Tag>}</span></td>
+                    <td><span className="cell-entity"><Avatar name={p.name} size="1.75rem" /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{p.name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{p.email}</span></span></span></td>
+                    <td><span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}>{p.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}{p.grant_expiring && <Tag color="yellow">Expiring</Tag>}</span></td>
                     <td>{p.mfa ? <Tag color="green" dot>On</Tag> : <Tag color={p.privileged ? 'red' : 'gray'} dot>{p.privileged ? 'Off (admin)' : 'Off'}</Tag>}</td>
-                    <td className="cell-muted">{p.last_active_at ? timeAgo(p.last_active_at) : 'Never'}{p.dormant && <> · <Tag color="yellow">Dormant</Tag></>}{p.failed_logins_30d > 0 && <span className="failed-hint"><ShieldAlert aria-hidden="true" size={13} /> {p.failed_logins_30d} failed</span>}</td>
+                    <td className="cell-muted">{p.last_active_at ? timeAgo(p.last_active_at) : 'Never'}{p.dormant && <> · <Tag color="yellow">Dormant</Tag></>}{p.failed_logins_30d > 0 && <span className="failed-hint"><ShieldAlert aria-hidden="true" size="0.8125rem" /> {p.failed_logins_30d} failed</span>}</td>
                     <td className="cell-muted col-optional">{p.department ?? '—'}</td>
                   </tr>
                 ))}</tbody>

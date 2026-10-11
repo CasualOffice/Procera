@@ -36,7 +36,7 @@ export function GovernanceRows({ artifactId, g, canRecertify, canVerify, act }: 
   const r = REVIEW[g.review_status] ?? REVIEW.none!;
   return (
     <>
-      <dt><CalendarClock aria-hidden="true" size={15} /> Review</dt>
+      <dt><CalendarClock aria-hidden="true" size="0.9375rem" /> Review</dt>
       <dd>
         <Tag color={r.color} dot={g.review_status !== 'none'}>{r.label}</Tag>
         {g.next_review_at && <span className="muted">{g.review_status === 'overdue' ? 'was due' : 'next'} {shortDate(g.next_review_at)}</span>}
@@ -46,9 +46,9 @@ export function GovernanceRows({ artifactId, g, canRecertify, canVerify, act }: 
           <button type="button" className="prop-link" onClick={() => setDialog('cadence')}>Change schedule</button>
         </span>}
       </dd>
-      <dt><BadgeCheck aria-hidden="true" size={15} /> Verified</dt>
+      <dt><BadgeCheck aria-hidden="true" size="0.9375rem" /> Verified</dt>
       <dd>
-        {g.verified ? <Tag color="green"><BadgeCheck aria-hidden="true" size={12} /> Verified{g.verification_expires_at ? ` until ${shortDate(g.verification_expires_at)}` : ''}</Tag> : <span className="muted">Not verified</span>}
+        {g.verified ? <Tag color="green"><BadgeCheck aria-hidden="true" size="0.75rem" /> Verified{g.verification_expires_at ? ` until ${shortDate(g.verification_expires_at)}` : ''}</Tag> : <span className="muted">Not verified</span>}
         {canVerify && <span className="prop-actions">
           {g.verified
             ? <button type="button" className="prop-link" onClick={() => setDialog('unverify')}>Remove verification</button>
@@ -57,7 +57,7 @@ export function GovernanceRows({ artifactId, g, canRecertify, canVerify, act }: 
       </dd>
 
       <FormDialog isOpen={dialog === 'recertify'} onOpenChange={(o) => !o && setDialog(null)} title="Recertify this document" description="Confirm it is still accurate. The next review date moves forward by its schedule."
-        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/recertify`, { method: 'POST', body: comment.trim() ? { comment: comment.trim() } : {} }), 'Recertified.').then((ok) => ok && setDialog(null))}><RefreshCw aria-hidden="true" size={15} /> Recertify</Button></>}>
+        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Cancel</Button><Button onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/recertify`, { method: 'POST', body: comment.trim() ? { comment: comment.trim() } : {} }), 'Recertified.').then((ok) => ok && setDialog(null))}><RefreshCw aria-hidden="true" size="0.9375rem" /> Recertify</Button></>}>
         <TextField label="Note (optional)" description="For example what you checked. Kept in the audit log." value={comment} onChange={setComment} autoFocus />
       </FormDialog>
       <FormDialog isOpen={dialog === 'cadence'} onOpenChange={(o) => !o && setDialog(null)} title="Review schedule" description="How often this document must be confirmed as still accurate. Leave empty to use the workspace default."
@@ -65,7 +65,7 @@ export function GovernanceRows({ artifactId, g, canRecertify, canVerify, act }: 
         <TextField label="Review every (days)" inputMode="numeric" value={days} onChange={setDays} autoFocus description="For example 365 for once a year." />
       </FormDialog>
       <FormDialog isOpen={dialog === 'unverify'} onOpenChange={(o) => !o && setDialog(null)} title="Remove verification?" description="Readers will no longer see this document marked as verified."
-        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Keep it</Button><Button variant="danger" onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/verification`, { method: 'DELETE' }), 'Verification removed.').then((ok) => ok && setDialog(null))}><CircleSlash aria-hidden="true" size={15} /> Remove</Button></>}>
+        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Keep it</Button><Button variant="danger" onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/verification`, { method: 'DELETE' }), 'Verification removed.').then((ok) => ok && setDialog(null))}><CircleSlash aria-hidden="true" size="0.9375rem" /> Remove</Button></>}>
         <p className="muted" style={{ margin: 0 }}>You can verify it again at any time.</p>
       </FormDialog>
     </>
@@ -78,9 +78,9 @@ export function ReviewCallout({ artifactId, g, act }: { artifactId: string; g: G
   const overdue = g.review_status === 'overdue';
   return (
     <div className={`callout ${overdue ? 'callout-danger' : 'callout-warn'}`} role="region" aria-label="Review due">
-      <CalendarClock aria-hidden="true" size={18} />
-      <div><p><strong>{overdue ? `This review was due on ${shortDate(g.next_review_at)}.` : `Review due on ${shortDate(g.next_review_at)}.`}</strong></p><p className="muted" style={{ fontSize: 13 }}>Confirm it is still accurate, or start a new version if it needs changes.</p></div>
-      <div className="actions"><Button onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/recertify`, { method: 'POST', body: {} }), 'Recertified.')}><RefreshCw aria-hidden="true" size={15} /> Recertify now</Button></div>
+      <CalendarClock aria-hidden="true" size="1.125rem" />
+      <div><p><strong>{overdue ? `This review was due on ${shortDate(g.next_review_at)}.` : `Review due on ${shortDate(g.next_review_at)}.`}</strong></p><p className="muted" style={{ fontSize: '0.8125rem' }}>Confirm it is still accurate, or start a new version if it needs changes.</p></div>
+      <div className="actions"><Button onPress={() => void act(() => api(`/api/v1/artifacts/${artifactId}/recertify`, { method: 'POST', body: {} }), 'Recertified.')}><RefreshCw aria-hidden="true" size="0.9375rem" /> Recertify now</Button></div>
     </div>
   );
 }
@@ -109,7 +109,7 @@ export function ChangeRequests({ artifactId, people, versions, canSuggest, canRe
       <div className="section-head">
         <h2 id="cr-h">Suggested changes</h2>
         {open > 0 && <span className="count-pill">{open}</span>}
-        {canSuggest && <Button variant="secondary" className="btn-sm section-action" onPress={() => { setTitle(''); setBody(''); setSuggesting(true); }}><MessageSquarePlus aria-hidden="true" size={14} /> Suggest a change</Button>}
+        {canSuggest && <Button variant="secondary" className="btn-sm section-action" onPress={() => { setTitle(''); setBody(''); setSuggesting(true); }}><MessageSquarePlus aria-hidden="true" size="0.875rem" /> Suggest a change</Button>}
       </div>
       {items === null ? null : items.length === 0 ? (
         <Empty compact icon={GitPullRequestArrow} title="No suggestions yet">Spotted something out of date or unclear? Suggest a change and the owner will see it.</Empty>
@@ -125,7 +125,7 @@ export function ChangeRequests({ artifactId, people, versions, canSuggest, canRe
                   <p className="cr-title">{c.title} <Tag color={st.color}>{st.label}</Tag></p>
                   {c.body && <p className="cr-body">{c.body}</p>}
                   <p className="cr-meta">
-                    {who && <span className="person"><Avatar name={who.display_name} size={16} />{who.display_name}</span>}
+                    {who && <span className="person"><Avatar name={who.display_name} size="1rem" />{who.display_name}</span>}
                     <span>{timeAgo(c.requested_at)}</span>
                     {c.resolution && <span>· {c.state === 'declined' ? 'Reason' : 'Note'}: {c.resolution}</span>}
                     {impl && <span>· in v{impl.version_no}</span>}
@@ -133,9 +133,9 @@ export function ChangeRequests({ artifactId, people, versions, canSuggest, canRe
                 </div>
                 {canResolve && (c.state === 'open' || c.state === 'accepted') && (
                   <div className="cr-actions">
-                    {c.state === 'open' && <Button variant="secondary" className="btn-sm" onPress={() => void run(() => api(`/api/v1/change-requests/${c.id}/resolve`, { method: 'POST', body: { decision: 'accepted' } }), 'Accepted.')}><Check aria-hidden="true" size={14} /> Accept</Button>}
+                    {c.state === 'open' && <Button variant="secondary" className="btn-sm" onPress={() => void run(() => api(`/api/v1/change-requests/${c.id}/resolve`, { method: 'POST', body: { decision: 'accepted' } }), 'Accepted.')}><Check aria-hidden="true" size="0.875rem" /> Accept</Button>}
                     <Button variant="secondary" className="btn-sm" onPress={() => setResolving({ cr: c, decision: 'implemented' })}>Mark implemented</Button>
-                    {c.state === 'open' && <Button variant="ghost" className="btn-sm" onPress={() => setResolving({ cr: c, decision: 'declined' })}><X aria-hidden="true" size={14} /> Decline</Button>}
+                    {c.state === 'open' && <Button variant="ghost" className="btn-sm" onPress={() => setResolving({ cr: c, decision: 'declined' })}><X aria-hidden="true" size="0.875rem" /> Decline</Button>}
                   </div>
                 )}
               </li>

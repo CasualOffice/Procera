@@ -8,6 +8,7 @@ import { ChooseWorkspace } from './pages/ChooseWorkspace';
 import { DesignGallery } from './pages/DesignGallery';
 import { Home } from './pages/Home';
 import { Notifications } from './pages/Notifications';
+import { NotificationPreferences } from './pages/NotificationPreferences';
 import { Library } from './pages/Library';
 import { LibraryDoc } from './pages/LibraryDoc';
 import { Compare } from './pages/Compare';
@@ -44,6 +45,7 @@ export function App() {
   if (path === '/sign-in') return <Redirect to="/" />;
 
   if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
+  if (path === '/notifications/preferences') return <AppShell current="inbox" crumbs={[['Notifications', '/notifications'], 'Preferences']}><NotificationPreferences /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
   if (path === '/policies') return <AppShell current="policies" crumbs={['Policies']}><Policies /></AppShell>;

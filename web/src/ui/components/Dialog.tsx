@@ -21,7 +21,7 @@ export function ConfirmDialog({
             {({ close }) => (
               <>
                 <Heading slot="title" className="dialog-title">
-                  {destructive && <TriangleAlert aria-hidden="true" size={20} className="dialog-icon" />}
+                  {destructive && <TriangleAlert aria-hidden="true" size="1.25rem" className="dialog-icon" />}
                   {title}
                 </Heading>
                 <div className="dialog-body">{children}</div>

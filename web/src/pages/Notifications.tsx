@@ -1,4 +1,4 @@
-import { Bell, BookOpenCheck, Check, CheckCheck, Megaphone, UserPlus } from 'lucide-react';
+import { Bell, BookOpenCheck, Check, CheckCheck, Megaphone, Settings2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type LoadFailure, toFailure } from '../lib/data';
@@ -32,11 +32,14 @@ export function Notifications() {
           <h1>Notifications</h1>
           <p>{unread ? `${unread} unread` : 'All caught up'}</p>
         </div>
-        {unread > 0 && (
-          <Button variant="secondary" onPress={async () => { await api('/api/v1/notifications/read-all', { method: 'POST' }); await load(); }}>
-            <CheckCheck aria-hidden="true" size={16} /> Mark all as read
-          </Button>
-        )}
+        <div className="page-actions">
+          <Link to="/notifications/preferences" className="btn btn-secondary btn-md"><Settings2 aria-hidden="true" size="1rem" /> Preferences</Link>
+          {unread > 0 && (
+            <Button variant="secondary" onPress={async () => { await api('/api/v1/notifications/read-all', { method: 'POST' }); await load(); }}>
+              <CheckCheck aria-hidden="true" size="1rem" /> Mark all as read
+            </Button>
+          )}
+        </div>
       </div>
       {error ? <LoadError error={error} onRetry={() => void load()} what="notifications" /> : items === null ? <Skeleton rows={5} label="Loading notifications" /> : items.length === 0 ? (
         <Empty icon={Bell} title="No notifications yet">You’ll hear here when something needs you: a document to acknowledge, a review, or a new announcement.</Empty>
@@ -50,7 +53,7 @@ export function Notifications() {
               return (
                 <li key={n.id} className="inbox-row rows-link">
                   <span className={n.read_at ? 'read-dot' : 'unread-dot'} aria-hidden="true" />
-                  <span className={`task-icon tag-${k.tone}`}><k.icon aria-hidden="true" size={16} /></span>
+                  <span className={`task-icon tag-${k.tone}`}><k.icon aria-hidden="true" size="1rem" /></span>
                   <div className="row-main">
                     <p className="row-title" style={{ fontWeight: n.read_at ? 500 : 600 }}>
                       {!n.read_at && <span className="visually-hidden">Unread: </span>}
@@ -61,7 +64,7 @@ export function Notifications() {
                   <span className="row-meta"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></span>
                   {!n.read_at && (
                     <button type="button" className="icon-btn mark-read" onClick={() => void markRead(n.id)} aria-label={`Mark “${n.title}” as read`} title="Mark as read">
-                      <Check aria-hidden="true" size={16} />
+                      <Check aria-hidden="true" size="1rem" />
                     </button>
                   )}
                 </li>

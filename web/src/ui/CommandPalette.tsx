@@ -136,7 +136,7 @@ export function CommandPalette({ isOpen, onOpenChange }: { isOpen: boolean; onOp
       <Modal className="cmd-modal">
         <Dialog className="cmd" aria-label="Search and commands">
           <div className="cmd-input-row">
-            <Search aria-hidden="true" size={17} className="cmd-input-icon" />
+            <Search aria-hidden="true" size="1.0625rem" className="cmd-input-icon" />
             <input
               className="cmd-input" autoFocus value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKeyDown}
               role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list"
@@ -158,13 +158,13 @@ export function CommandPalette({ isOpen, onOpenChange }: { isOpen: boolean; onOp
                       key={o.id} id={`${listId}-${i}`} data-index={i} role="option" aria-selected={i === active}
                       className="cmd-option" onMouseMove={() => i !== active && setActive(i)} onClick={() => choose(o)}
                     >
-                      {o.avatar ? <Avatar name={o.avatar} size={22} /> : <span className="cmd-option-icon"><Icon aria-hidden="true" size={15} /></span>}
+                      {o.avatar ? <Avatar name={o.avatar} size="1.375rem" /> : <span className="cmd-option-icon"><Icon aria-hidden="true" size="0.9375rem" /></span>}
                       <span className="cmd-option-text">
                         <span className="cmd-option-label">{o.label}</span>
                         {o.snippet ? <Snippet html={o.snippet} /> : null}
                       </span>
                       {o.section !== 'Go to' && o.section !== 'Commands' && o.section !== 'Create' && o.hint && <span className="cmd-option-hint">{o.hint}</span>}
-                      {i === active && <CornerDownLeft aria-hidden="true" size={14} className="cmd-enter" />}
+                      {i === active && <CornerDownLeft aria-hidden="true" size="0.875rem" className="cmd-enter" />}
                     </div>
                   );
                 })}

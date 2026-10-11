@@ -25,10 +25,10 @@ export function ApplicabilityRow({ artifactId, category, applicability, restrict
 
   return (
     <>
-      <dt><Users aria-hidden="true" size={15} /> Applies to</dt>
+      <dt><Users aria-hidden="true" size="0.9375rem" /> Applies to</dt>
       <dd>
         <span>{audienceSummary(current, dir)}</span>
-        {restricted && <Tag color="orange"><Lock aria-hidden="true" size={11} /> Only they can see it</Tag>}
+        {restricted && <Tag color="orange"><Lock aria-hidden="true" size="0.6875rem" /> Only they can see it</Tag>}
         {category && <Tag color="gray">{category}</Tag>}
         {canEdit && <span className="prop-actions"><button type="button" className="prop-link" onClick={() => setOpen(true)}>Change</button></span>}
       </dd>

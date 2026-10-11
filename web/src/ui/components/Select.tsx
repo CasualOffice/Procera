@@ -17,7 +17,7 @@ export function Select({ label, description, options, ...rest }: SelectProps) {
       <Label className="field-label">{label}</Label>
       <Button className="field-input select-trigger">
         <SelectValue />
-        <ChevronDown aria-hidden="true" size={18} />
+        <ChevronDown aria-hidden="true" size="1.125rem" />
       </Button>
       {description && <Text slot="description" className="field-description">{description}</Text>}
       <Popover className="popover">

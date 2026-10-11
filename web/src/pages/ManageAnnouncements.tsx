@@ -62,7 +62,7 @@ export function ManageAnnouncements() {
     <>
       <div className="page-head">
         <div><h1>Manage announcements</h1><p>Write, approve and publish announcements, and see who has read them.</p></div>
-        {canCreate && <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size={16} /> New announcement</Button>}
+        {canCreate && <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size="1rem" /> New announcement</Button>}
       </div>
       <div className="toolbar">
         <div className="segmented seg-scroll" role="group" aria-label="Filter by status">
@@ -73,7 +73,7 @@ export function ManageAnnouncements() {
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton variant="table" rows={4} label="Loading announcements" /> : rows.length === 0 ? (
         items.length ? <Empty compact title={`No ${TABS.find(([k]) => k === tab)?.[1].toLowerCase()} announcements`} action={<Button variant="secondary" onPress={() => setTab('all')}>Show all</Button>} /> : (
-          <Empty icon={Megaphone} title="No announcements yet" action={canCreate ? <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size={16} /> New announcement</Button> : undefined}>
+          <Empty icon={Megaphone} title="No announcements yet" action={canCreate ? <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size="1rem" /> New announcement</Button> : undefined}>
             Post news, notices and policy changes to everyone or to chosen departments, groups and roles. You can ask people to confirm they’ve read it.
           </Empty>
         )
@@ -88,15 +88,15 @@ export function ManageAnnouncements() {
                   <tr key={a.id}>
                     <td>
                       <span className="cell-entity">
-                        <span className={`doc-icon tag-${a.priority === 'critical' ? 'red' : 'orange'}`}><Megaphone aria-hidden="true" size={14} /></span>
+                        <span className={`doc-icon tag-${a.priority === 'critical' ? 'red' : 'orange'}`}><Megaphone aria-hidden="true" size="0.875rem" /></span>
                         <button type="button" className="cell-link" onClick={() => setOpen(a.id)}>{a.title}</button>
-                        {a.pinned && <Pin aria-label="Pinned" size={13} className="cell-glyph" />}
+                        {a.pinned && <Pin aria-label="Pinned" size="0.8125rem" className="cell-glyph" />}
                         {a.priority === 'critical' && <Tag color="red">Critical</Tag>}
                       </span>
                     </td>
                     <td>{stateTag(a)}</td>
                     <td className="col-optional cell-muted">{audienceSummary(audienceOf(a.audience), dir)}</td>
-                    <td className="col-optional">{au ? <span className="person"><Avatar name={au.display_name} size={20} />{au.display_name}</span> : null}</td>
+                    <td className="col-optional">{au ? <span className="person"><Avatar name={au.display_name} size="1.25rem" />{au.display_name}</span> : null}</td>
                     <td className="col-optional cell-muted">{a.recipient_count != null ? `${a.recipient_count} ${a.recipient_count === 1 ? 'person' : 'people'}` : ''}</td>
                     <td className="col-optional cell-muted"><time dateTime={when(a)}>{timeAgo(when(a))}</time></td>
                   </tr>
@@ -150,25 +150,25 @@ function AnnouncementDrawer({ a, people, onClose, onEdit, onChanged }: { a: Anno
 
   const actions = (
     <>
-      {a.state === 'draft' && <Button variant="secondary" onPress={onEdit}><SquarePen aria-hidden="true" size={15} /> Edit</Button>}
-      {a.state === 'draft' && publisher && !needsApproval && <Button onPress={() => void act('publish')} isDisabled={busy}><Send aria-hidden="true" size={15} /> {a.publish_at && Date.parse(a.publish_at) > Date.now() ? 'Schedule' : 'Publish now'}</Button>}
-      {a.state === 'draft' && (!publisher || needsApproval) && <Button onPress={() => void act('submit')} isDisabled={busy}><Send aria-hidden="true" size={15} /> Send for approval</Button>}
-      {a.state === 'pending_approval' && publisher && <Button variant="secondary" onPress={() => { setText(''); setDialog('reject'); }}><X aria-hidden="true" size={15} /> Request changes</Button>}
-      {a.state === 'pending_approval' && publisher && <Button onPress={() => void act('approve')} isDisabled={busy}><Check aria-hidden="true" size={15} /> Approve and publish</Button>}
-      {(a.state === 'published' || a.state === 'scheduled') && <Button variant="secondary" onPress={() => { setText(''); setDialog('archive'); }}><Archive aria-hidden="true" size={15} /> Archive</Button>}
+      {a.state === 'draft' && <Button variant="secondary" onPress={onEdit}><SquarePen aria-hidden="true" size="0.9375rem" /> Edit</Button>}
+      {a.state === 'draft' && publisher && !needsApproval && <Button onPress={() => void act('publish')} isDisabled={busy}><Send aria-hidden="true" size="0.9375rem" /> {a.publish_at && Date.parse(a.publish_at) > Date.now() ? 'Schedule' : 'Publish now'}</Button>}
+      {a.state === 'draft' && (!publisher || needsApproval) && <Button onPress={() => void act('submit')} isDisabled={busy}><Send aria-hidden="true" size="0.9375rem" /> Send for approval</Button>}
+      {a.state === 'pending_approval' && publisher && <Button variant="secondary" onPress={() => { setText(''); setDialog('reject'); }}><X aria-hidden="true" size="0.9375rem" /> Request changes</Button>}
+      {a.state === 'pending_approval' && publisher && <Button onPress={() => void act('approve')} isDisabled={busy}><Check aria-hidden="true" size="0.9375rem" /> Approve and publish</Button>}
+      {(a.state === 'published' || a.state === 'scheduled') && <Button variant="secondary" onPress={() => { setText(''); setDialog('archive'); }}><Archive aria-hidden="true" size="0.9375rem" /> Archive</Button>}
     </>
   );
 
   return (
     <Drawer title={a.title} onClose={onClose} footer={actions}>
-      <div className="drawer-tags">{stateTag(a)}{a.priority === 'critical' && <Tag color="red">Critical</Tag>}{a.pinned && <Tag color="gray"><Pin aria-hidden="true" size={11} /> Pinned</Tag>}</div>
+      <div className="drawer-tags">{stateTag(a)}{a.priority === 'critical' && <Tag color="red">Critical</Tag>}{a.pinned && <Tag color="gray"><Pin aria-hidden="true" size="0.6875rem" /> Pinned</Tag>}</div>
       <p className="drawer-next">{next[a.state]}</p>
       {needsApproval && <Notice tone="info" title="This one needs approval">Announcements to this audience must be approved by someone else before they go out. Send it for approval instead.</Notice>}
       {a.state === 'draft' && a.decision_comment && <Notice tone="warning" title="Changes requested">{a.decision_comment}</Notice>}
       {error && <Notice tone="danger" title={error} />}
       <dl className="props props-tight">
         <dt>Audience</dt><dd>{audienceSummary(audienceOf(a.audience), dir)}{a.recipient_count != null && <span className="muted">· {a.recipient_count} {a.recipient_count === 1 ? 'person' : 'people'}</span>}</dd>
-        <dt>Author</dt><dd>{author ? <span className="person"><Avatar name={author.display_name} size={20} />{author.display_name}</span> : null}</dd>
+        <dt>Author</dt><dd>{author ? <span className="person"><Avatar name={author.display_name} size="1.25rem" />{author.display_name}</span> : null}</dd>
         <dt>Acknowledgement</dt><dd>{a.require_ack ? 'People are asked to confirm they’ve read it' : 'Not asked'}</dd>
         {a.publish_at && <><dt>Publish</dt><dd>{new Date(a.publish_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</dd></>}
         <dt>Expires</dt><dd>{shortDate(a.expires_at)}</dd>

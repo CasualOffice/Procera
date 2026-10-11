@@ -46,7 +46,7 @@ export function Skeleton({ rows = 3, variant = 'list', label = 'Loading' }: { ro
 export function Empty({ icon: Icon, title, children, action, compact = false }: { icon?: LucideIcon; title: string; children?: React.ReactNode; action?: React.ReactNode; compact?: boolean }) {
   return (
     <div className={`empty${compact ? ' empty-compact' : ''}`}>
-      {Icon && <span className="empty-icon"><Icon aria-hidden="true" size={18} /></span>}
+      {Icon && <span className="empty-icon"><Icon aria-hidden="true" size="1.125rem" /></span>}
       <p className="empty-title">{title}</p>
       {children && <p className="empty-text">{children}</p>}
       {action && <div className="empty-action">{action}</div>}
@@ -61,7 +61,7 @@ export function LoadError({ error, onRetry, what = 'this page' }: { error: LoadF
     <div className="load-error" role="alert">
       <p className="empty-title">{denied ? `You don’t have access to ${what}` : `Couldn’t load ${what}`}</p>
       <p className="empty-text">{denied ? 'Ask a workspace admin if you need it.' : error.message}</p>
-      {!denied && onRetry && <div className="empty-action"><Button variant="secondary" onPress={onRetry}><RotateCw aria-hidden="true" size={14} /> Try again</Button></div>}
+      {!denied && onRetry && <div className="empty-action"><Button variant="secondary" onPress={onRetry}><RotateCw aria-hidden="true" size="0.875rem" /> Try again</Button></div>}
     </div>
   );
 }

@@ -41,7 +41,7 @@ export function Library() {
           <h1>Library</h1>
           <p>Policies say what and why; SOPs say how. Everything here is versioned, reviewed and audited.</p>
         </div>
-        {canCreate && <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size={16} /> New document</Button>}
+        {canCreate && <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> New document</Button>}
       </div>
 
       <div className="toolbar">
@@ -53,7 +53,7 @@ export function Library() {
           ))}
         </div>
         <SearchField className="search-input" aria-label="Filter documents" value={q} onChange={setQ}>
-          <Search aria-hidden="true" size={15} />
+          <Search aria-hidden="true" size="0.9375rem" />
           <Input placeholder="Filter by name…" />
         </SearchField>
       </div>
@@ -62,7 +62,7 @@ export function Library() {
         docs.length ? (
           <Empty icon={SearchX} title="No documents match" action={<Button variant="secondary" onPress={() => { setQ(''); setFilter('all'); }}>Clear filters</Button>}>Nothing matches {q ? `“${q}”` : 'this filter'}.</Empty>
         ) : (
-          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size={16} /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
+          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
         )
       ) : (
         <div className="table-wrap">
@@ -73,10 +73,10 @@ export function Library() {
                 const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined;
                 return (
                   <tr key={d.id}>
-                    <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
+                    <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.875rem" /> : <FileText aria-hidden="true" size="0.875rem" />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
                     <td className="col-optional"><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
                     <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
-                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">No owner</span>}</td>
+                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size="1.25rem" />{o.display_name}</span> : <span className="cell-muted">No owner</span>}</td>
                     <td className="col-optional">{d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>}</td>
                     <td className="cell-muted col-optional">{shortDate(d.created_at)}</td>
                   </tr>
@@ -115,10 +115,10 @@ function NewDocumentDialog({ kind, onClose, onCreated }: { kind: 'policy' | 'sop
       {error && <Notice tone="danger" title={error} />}
       <div className="radio-cards" role="group" aria-label="Document type">
         <button type="button" className="radio-card" aria-pressed={type === 'policy'} disabled={!can('policy:create')} onClick={() => setType('policy')}>
-          <span className="doc-icon tag-purple"><FileText aria-hidden="true" size={14} /></span><span><strong>Policy</strong><small>What the rule is and why</small></span>
+          <span className="doc-icon tag-purple"><FileText aria-hidden="true" size="0.875rem" /></span><span><strong>Policy</strong><small>What the rule is and why</small></span>
         </button>
         <button type="button" className="radio-card" aria-pressed={type === 'sop'} disabled={!can('sop:create')} onClick={() => setType('sop')}>
-          <span className="doc-icon tag-blue"><ScrollText aria-hidden="true" size={14} /></span><span><strong>SOP</strong><small>How the work is done, step by step</small></span>
+          <span className="doc-icon tag-blue"><ScrollText aria-hidden="true" size="0.875rem" /></span><span><strong>SOP</strong><small>How the work is done, step by step</small></span>
         </button>
       </div>
       <Form onSubmit={(e) => { e.preventDefault(); if (title.trim()) void submit(); }}>

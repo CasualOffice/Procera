@@ -62,7 +62,7 @@ export function DataGrid<T extends { id: string }>({
                       {canSort ? (
                         <button type="button" className="grid-sort" onClick={h.column.getToggleSortingHandler()}>
                           {flexRender(h.column.columnDef.header, h.getContext())}
-                          {sorted === 'asc' ? <ArrowUp aria-hidden="true" size={14} /> : sorted === 'desc' ? <ArrowDown aria-hidden="true" size={14} /> : <ArrowUpDown aria-hidden="true" size={14} className="grid-sort-idle" />}
+                          {sorted === 'asc' ? <ArrowUp aria-hidden="true" size="0.875rem" /> : sorted === 'desc' ? <ArrowDown aria-hidden="true" size="0.875rem" /> : <ArrowUpDown aria-hidden="true" size="0.875rem" className="grid-sort-idle" />}
                         </button>
                       ) : flexRender(h.column.columnDef.header, h.getContext())}
                     </th>

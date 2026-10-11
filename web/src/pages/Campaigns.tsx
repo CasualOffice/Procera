@@ -57,7 +57,7 @@ export function Campaigns() {
     <>
       <div className="page-head">
         <div><h1>Campaigns</h1><p>Ask people to read and acknowledge a published policy or SOP, then keep the evidence.</p></div>
-        {canManage && <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size={16} /> New campaign</Button>}
+        {canManage && <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New campaign</Button>}
       </div>
       {items && items.length > 0 && (
         <div className="toolbar">
@@ -67,7 +67,7 @@ export function Campaigns() {
         </div>
       )}
       {error ? <LoadError error={error} onRetry={reload} what="campaigns" /> : items === null ? <Skeleton variant="table" rows={4} label="Loading campaigns" /> : rows.length === 0 ? (
-        <Empty icon={ClipboardCheck} title="No campaigns yet" action={canManage ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size={16} /> New campaign</Button> : undefined}>
+        <Empty icon={ClipboardCheck} title="No campaigns yet" action={canManage ? <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New campaign</Button> : undefined}>
           A campaign asks a group of people to read a published document and confirm it, with reminders and an evidence export.
         </Empty>
       ) : (
@@ -79,7 +79,7 @@ export function Campaigns() {
                 <tr key={c.id}>
                   <td>
                     <span className="cell-entity">
-                      <span className={`doc-icon tag-${KIND_TAG[c.subject.kind]?.color ?? 'gray'}`}>{c.subject.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span>
+                      <span className={`doc-icon tag-${KIND_TAG[c.subject.kind]?.color ?? 'gray'}`}>{c.subject.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.875rem" /> : <FileText aria-hidden="true" size="0.875rem" />}</span>
                       <span className="cell-stack"><Link to={`/admin/campaigns/${c.id}`}>{c.title}</Link><span className="cell-sub">{c.subject.title} v{c.subject.version_no}</span></span>
                     </span>
                   </td>
@@ -134,7 +134,7 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
             <div className="doc-pick">
               {published.map((d) => (
                 <button key={d.id} type="button" className="doc-pick-item" aria-pressed={doc === d.id} onClick={() => setDoc(d.id)}>
-                  <span className={`doc-icon doc-icon-sm tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={13} /> : <FileText aria-hidden="true" size={13} />}</span>
+                  <span className={`doc-icon doc-icon-sm tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.8125rem" /> : <FileText aria-hidden="true" size="0.8125rem" />}</span>
                   <span className="doc-pick-title">{d.title}</span>
                   <span className="doc-pick-kind">{KIND_TAG[d.kind]?.label}</span>
                 </button>
@@ -193,11 +193,11 @@ export function CampaignDetail({ id }: { id: string }) {
           <p>Acknowledge <Link to={`/library/${c.subject.artifact_id}`}>{c.subject.title}</Link> v{c.subject.version_no} · {audienceSummary(audienceOf(c.audience), dir)}{c.due_at ? ` · due ${shortDate(c.due_at)}` : ''}</p>
         </div>
         <div className="actions">
-          {live && <Button variant="secondary" onPress={() => void download(`/api/v1/campaigns/${c.id}/evidence`, `campaign-${c.id}-evidence.csv`).then(() => setToast('Evidence downloaded.')).catch((e: unknown) => setActError(e instanceof Error ? e.message : 'Download failed.'))}><Download aria-hidden="true" size={15} /> Evidence CSV</Button>}
-          {canManage && c.state === 'active' && p.pending > 0 && <Button variant="secondary" onPress={() => void act(() => api<{ reminded: number }>(`/api/v1/campaigns/${c.id}/remind`, { method: 'POST' }), (r) => `Reminded ${r.reminded} ${r.reminded === 1 ? 'person' : 'people'}.`)}><BellRing aria-hidden="true" size={15} /> Remind pending</Button>}
-          {canManage && c.state === 'active' && <Button variant="secondary" onPress={() => { setReason(''); setEnding('close'); }}><Lock aria-hidden="true" size={14} /> Close</Button>}
-          {canManage && c.state === 'draft' && <Button variant="ghost" onPress={() => { setReason(''); setEnding('cancel'); }}><XCircle aria-hidden="true" size={15} /> Cancel</Button>}
-          {canManage && c.state === 'draft' && <Button onPress={() => void act(() => api(`/api/v1/campaigns/${c.id}/activate`, { method: 'POST' }), 'Launched. People have been notified.')}><Rocket aria-hidden="true" size={15} /> Launch</Button>}
+          {live && <Button variant="secondary" onPress={() => void download(`/api/v1/campaigns/${c.id}/evidence`, `campaign-${c.id}-evidence.csv`).then(() => setToast('Evidence downloaded.')).catch((e: unknown) => setActError(e instanceof Error ? e.message : 'Download failed.'))}><Download aria-hidden="true" size="0.9375rem" /> Evidence CSV</Button>}
+          {canManage && c.state === 'active' && p.pending > 0 && <Button variant="secondary" onPress={() => void act(() => api<{ reminded: number }>(`/api/v1/campaigns/${c.id}/remind`, { method: 'POST' }), (r) => `Reminded ${r.reminded} ${r.reminded === 1 ? 'person' : 'people'}.`)}><BellRing aria-hidden="true" size="0.9375rem" /> Remind pending</Button>}
+          {canManage && c.state === 'active' && <Button variant="secondary" onPress={() => { setReason(''); setEnding('close'); }}><Lock aria-hidden="true" size="0.875rem" /> Close</Button>}
+          {canManage && c.state === 'draft' && <Button variant="ghost" onPress={() => { setReason(''); setEnding('cancel'); }}><XCircle aria-hidden="true" size="0.9375rem" /> Cancel</Button>}
+          {canManage && c.state === 'draft' && <Button onPress={() => void act(() => api(`/api/v1/campaigns/${c.id}/activate`, { method: 'POST' }), 'Launched. People have been notified.')}><Rocket aria-hidden="true" size="0.9375rem" /> Launch</Button>}
         </div>
       </div>
       {actError && <Notice tone="danger" title={actError} />}
@@ -235,7 +235,7 @@ export function CampaignDetail({ id }: { id: string }) {
                   <tbody>
                     {rows.map((r) => (
                       <tr key={r.id}>
-                        <td><span className="cell-entity"><Avatar name={r.name} size={24} /><span className="cell-stack"><span>{r.name}</span><span className="cell-sub">{r.email}</span></span></span></td>
+                        <td><span className="cell-entity"><Avatar name={r.name} size="1.5rem" /><span className="cell-stack"><span>{r.name}</span><span className="cell-sub">{r.email}</span></span></span></td>
                         <td>{r.state === 'completed' ? <Tag color="green" dot>Done</Tag> : r.overdue ? <Tag color="red" dot>Overdue</Tag> : <Tag color="yellow" dot>Pending</Tag>}</td>
                         <td className="col-optional cell-muted">{r.department ?? ''}</td>
                         <td className="col-optional cell-muted">{r.acknowledged_at ? shortDate(r.acknowledged_at) : `due ${shortDate(r.due_at)}`}</td>

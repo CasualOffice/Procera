@@ -51,7 +51,7 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
   if (step === 'intro') {
     return (
       <>
-        <span className="mfa-badge"><ShieldCheck aria-hidden="true" size={20} /></span>
+        <span className="mfa-badge"><ShieldCheck aria-hidden="true" size="1.25rem" /></span>
         <h1>Turn on two-step verification</h1>
         <p className="lede">{workspaceName} asks people in your role to confirm sign-ins with a code from an authenticator app. It takes about a minute.</p>
         {error && <Notice tone="danger" title={error} />}
@@ -75,7 +75,7 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
           <span className="muted">Can’t scan? Enter this key:</span>
           <code>{secret.match(/.{1,4}/g)?.join(' ')}</code>
           <button type="button" className="icon-btn" aria-label={copied ? 'Key copied' : 'Copy key'} onClick={() => { void navigator.clipboard?.writeText(secret); setCopied(true); }}>
-            {copied ? <Check aria-hidden="true" size={15} /> : <Copy aria-hidden="true" size={15} />}
+            {copied ? <Check aria-hidden="true" size="0.9375rem" /> : <Copy aria-hidden="true" size="0.9375rem" />}
           </button>
         </div>
         <Form className="stack" onSubmit={(e) => { e.preventDefault(); void confirm(); }}>
@@ -87,13 +87,13 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
   }
   return (
     <>
-      <span className="mfa-badge mfa-badge-done"><Check aria-hidden="true" size={20} /></span>
+      <span className="mfa-badge mfa-badge-done"><Check aria-hidden="true" size="1.25rem" /></span>
       <h1>Save your recovery codes</h1>
       <p className="lede">If you lose your phone, each of these codes lets you sign in once. Store them somewhere safe. You won’t see them again.</p>
       <ul className="recovery" aria-label="Recovery codes">{codes.map((c) => <li key={c}><code>{c}</code></li>)}</ul>
-      <div className="actions" style={{ marginBottom: 12 }}>
-        <Button variant="secondary" onPress={download}><Download aria-hidden="true" size={15} /> Download</Button>
-        <Button variant="secondary" onPress={() => void navigator.clipboard?.writeText(codes.join('\n'))}><Copy aria-hidden="true" size={15} /> Copy</Button>
+      <div className="actions" style={{ marginBottom: '0.75rem' }}>
+        <Button variant="secondary" onPress={download}><Download aria-hidden="true" size="0.9375rem" /> Download</Button>
+        <Button variant="secondary" onPress={() => void navigator.clipboard?.writeText(codes.join('\n'))}><Copy aria-hidden="true" size="0.9375rem" /> Copy</Button>
       </div>
       <Button className="btn-block" onPress={async () => { await signOut(); navigate('/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>
     </>

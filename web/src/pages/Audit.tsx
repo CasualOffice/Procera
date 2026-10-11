@@ -74,8 +74,8 @@ export function Audit() {
       <div className="page-head">
         <div><h1>Audit log</h1><p>Every change and sensitive read in this workspace, newest first. Records can’t be edited or deleted.</p></div>
         {chain && (chain.ok
-          ? <span className="chain chain-ok"><ShieldCheck aria-hidden="true" size={15} /> Chain verified <span className="muted">· {chain.checked.toLocaleString()} events</span></span>
-          : <span className="chain chain-bad" role="alert"><ShieldAlert aria-hidden="true" size={15} /> Chain broken at event {chain.first_broken}</span>)}
+          ? <span className="chain chain-ok"><ShieldCheck aria-hidden="true" size="0.9375rem" /> Chain verified <span className="muted">· {chain.checked.toLocaleString()} events</span></span>
+          : <span className="chain chain-bad" role="alert"><ShieldAlert aria-hidden="true" size="0.9375rem" /> Chain broken at event {chain.first_broken}</span>)}
       </div>
       {!can('audit:view') && <p className="muted audit-own">You can see your own activity only.</p>}
 
@@ -138,8 +138,8 @@ function EventRow({ e, open, onToggle, onTimeline }: { e: AuditEvent; open: bool
   return (
     <>
       <tr className={open ? 'audit-open' : ''}>
-        <td className="cell-muted"><button type="button" className="audit-toggle" aria-expanded={open} onClick={onToggle} aria-label={`${actionText(e.action)} at ${time(e.occurred_at)}: details`}><ChevronRight aria-hidden="true" size={14} /></button><time dateTime={e.occurred_at}>{time(e.occurred_at)}</time></td>
-        <td className="col-optional">{e.actor_name ? <span className="person"><Avatar name={e.actor_name} size={20} />{e.actor_name}</span> : <span className="cell-muted">{who}</span>}</td>
+        <td className="cell-muted"><button type="button" className="audit-toggle" aria-expanded={open} onClick={onToggle} aria-label={`${actionText(e.action)} at ${time(e.occurred_at)}: details`}><ChevronRight aria-hidden="true" size="0.875rem" /></button><time dateTime={e.occurred_at}>{time(e.occurred_at)}</time></td>
+        <td className="col-optional">{e.actor_name ? <span className="person"><Avatar name={e.actor_name} size="1.25rem" />{e.actor_name}</span> : <span className="cell-muted">{who}</span>}</td>
         <td><span className="audit-action">{actionText(e.action)}</span><span className="audit-who-sm">{who}</span></td>
         <td className="col-optional">{e.object_type && e.object_id ? <button type="button" className="audit-obj" onClick={() => onTimeline(e.object_type!, e.object_id!)} title="Open this object’s timeline">{e.object_type.replace(/_/g, ' ')} <code>{e.object_id.slice(-6)}</code></button> : <span className="cell-muted" />}</td>
         <td>{e.result === 'allowed' ? <span className="cell-muted">Allowed</span> : <Tag color={RESULT[e.result]?.color} dot>{RESULT[e.result]?.label ?? e.result}</Tag>}</td>

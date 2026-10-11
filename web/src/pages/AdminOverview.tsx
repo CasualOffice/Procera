@@ -95,14 +95,14 @@ function OverviewBody({ data }: { data: Overview }) {
         <section aria-labelledby="attention-h" className="overview-attention">
           <h2 id="attention-h">Needs attention</h2>
           {data.attention.length === 0 ? (
-            <div className="overview-empty"><Info aria-hidden="true" size={16} /><span>All clear. Overdue acknowledgements, documents past their review date, drafts waiting for review and admins without two-step verification will show up here.</span></div>
+            <div className="overview-empty"><Info aria-hidden="true" size="1rem" /><span>All clear. Overdue acknowledgements, documents past their review date, drafts waiting for review and admins without two-step verification will show up here.</span></div>
           ) : (
             <ol className="attention-list">
               {data.attention.map((a, i) => (
                 <li key={`${a.kind}-${i}`} className={`attention-item sev-${a.severity}`}>
-                  {a.severity === 'high' ? <CircleAlert aria-hidden="true" size={16} /> : a.severity === 'medium' ? <AlertTriangle aria-hidden="true" size={16} /> : <Info aria-hidden="true" size={16} />}
+                  {a.severity === 'high' ? <CircleAlert aria-hidden="true" size="1rem" /> : a.severity === 'medium' ? <AlertTriangle aria-hidden="true" size="1rem" /> : <Info aria-hidden="true" size="1rem" />}
                   <Link to={a.link}>{a.title}</Link>
-                  <ArrowUpRight aria-hidden="true" size={14} className="attention-go" />
+                  <ArrowUpRight aria-hidden="true" size="0.875rem" className="attention-go" />
                 </li>
               ))}
             </ol>
@@ -164,5 +164,5 @@ function Sparkline({ points, label }: { points: number[]; label: string }) {
   if (points.length < 2) return null;
   const w = 96, h = 24, max = Math.max(1, ...points);
   const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${((i / (points.length - 1)) * w).toFixed(1)},${(h - 2 - (p / max) * (h - 4)).toFixed(1)}`).join(' ');
-  return <svg className="sparkline" width={w} height={h} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`${label}: ${points.join(', ')}`}><path d={d} fill="none" strokeWidth={1.5} /></svg>;
+  return <svg className="sparkline" style={{ width: '6rem', height: '1.5rem' }} viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`${label}: ${points.join(', ')}`}><path d={d} fill="none" strokeWidth={1.5} /></svg>;
 }

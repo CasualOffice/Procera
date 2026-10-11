@@ -90,41 +90,41 @@ export function LibraryDoc({ id }: { id: string }) {
   return (
     <article className="doc">
       <div className="doc-kicker">
-        <span className={`doc-icon tag-${kind?.color ?? 'gray'}`} style={{ width: 20, height: 20 }}>{a.kind === 'sop' ? <ScrollText aria-hidden="true" size={12} /> : <FileText aria-hidden="true" size={12} />}</span>
+        <span className={`doc-icon tag-${kind?.color ?? 'gray'}`} style={{ width: '1.25rem', height: '1.25rem' }}>{a.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.75rem" /> : <FileText aria-hidden="true" size="0.75rem" />}</span>
         <span>{kind?.label}</span>
       </div>
       <h1 className="doc-title">{a.title}</h1>
 
       <dl className="props">
-        <dt><CircleDot aria-hidden="true" size={15} /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
-        <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
-        <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
-        {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
+        <dt><CircleDot aria-hidden="true" size="0.9375rem" /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
+        <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
+        <dt><User aria-hidden="true" size="0.9375rem" /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size="1.25rem" />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
+        {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size="0.9375rem" /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size="1.25rem" /></span>)}</dd></>}
         {a.governance && a.current_published_version_id && <GovernanceRows artifactId={a.id} g={a.governance} canRecertify={p('publish')} canVerify={p('approve')} act={act} />}
         {a.kind === 'policy' && (p('publish') || !!a.category || !!a.restricted || a.applicability != null) && <ApplicabilityRow artifactId={a.id} category={a.category ?? null} applicability={a.applicability ?? null} restricted={!!a.restricted} canEdit={p('publish')} act={act} />}
-        {v.content_hash && <><dt><Hash aria-hidden="true" size={15} /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
+        {v.content_hash && <><dt><Hash aria-hidden="true" size="0.9375rem" /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
       </dl>
 
       {error && <Notice tone="danger" title={error} />}
       {a.governance && a.current_published_version_id && p('publish') && <ReviewCallout artifactId={a.id} g={a.governance} act={act} />}
       {pendingAck && pendingAck.subject.version_id === v.id && (
         <div className="callout callout-info" role="region" aria-label="Acknowledgement requested">
-          <BookOpenCheck aria-hidden="true" size={18} />
-          <div><p><strong>Please read and acknowledge this version by {shortDate(pendingAck.due_at)}.</strong></p><p className="muted" style={{ fontSize: 13 }}>{pendingAck.ack_text}</p></div>
-          <div className="actions"><Button onPress={() => void act(() => api(`/api/v1/acknowledgements/${pendingAck.id}/complete`, { method: 'POST', body: { content_hash: pendingAck.subject.content_hash } }), 'Acknowledged. Thank you.')}><Check aria-hidden="true" size={16} /> I acknowledge</Button></div>
+          <BookOpenCheck aria-hidden="true" size="1.125rem" />
+          <div><p><strong>Please read and acknowledge this version by {shortDate(pendingAck.due_at)}.</strong></p><p className="muted" style={{ fontSize: '0.8125rem' }}>{pendingAck.ack_text}</p></div>
+          <div className="actions"><Button onPress={() => void act(() => api(`/api/v1/acknowledgements/${pendingAck.id}/complete`, { method: 'POST', body: { content_hash: pendingAck.subject.content_hash } }), 'Acknowledged. Thank you.')}><Check aria-hidden="true" size="1rem" /> I acknowledge</Button></div>
         </div>
       )}
 
       {/* Lifecycle actions for this version */}
       {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} />}
       <div className="doc-actions">
-        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setDraft(blocksToText(blocks)); setEditing(true); }}><Pencil aria-hidden="true" size={15} /> Edit</Button>}
-        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/submit`, { method: 'POST' }), 'Submitted.')} isDisabled={!blocks.length}><Send aria-hidden="true" size={15} /> Submit for review</Button>}
-        {v.lifecycle === 'in_review' && p('approve') && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/reviews`, { method: 'POST', body: { decision: 'approve' } }), 'Approved.')}><Check aria-hidden="true" size={15} /> Approve</Button>}
+        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setDraft(blocksToText(blocks)); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
+        {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/submit`, { method: 'POST' }), 'Submitted.')} isDisabled={!blocks.length}><Send aria-hidden="true" size="0.9375rem" /> Submit for review</Button>}
+        {v.lifecycle === 'in_review' && p('approve') && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/reviews`, { method: 'POST', body: { decision: 'approve' } }), 'Approved.')}><Check aria-hidden="true" size="0.9375rem" /> Approve</Button>}
         {v.lifecycle === 'in_review' && (p('review') || p('approve')) && <Button variant="secondary" onPress={() => { setComment(''); setDialog('changes'); }}>Request changes</Button>}
         {v.lifecycle === 'in_review' && p('edit_draft') && <Button variant="ghost" onPress={() => void act(() => api(`/api/v1/versions/${v.id}/withdraw`, { method: 'POST' }), 'Withdrawn to draft.')}>Withdraw</Button>}
-        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setDialog('publish'); }}><Send aria-hidden="true" size={15} /> Publish</Button>}
-        {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size={15} /> New version</Button>}
+        {v.lifecycle === 'approved' && p('publish') && <Button onPress={() => { setComment(''); setDialog('publish'); }}><Send aria-hidden="true" size="0.9375rem" /> Publish</Button>}
+        {['published', 'deprecated'].includes(v.lifecycle) && p('edit_draft') && <Button variant="secondary" onPress={() => void act(() => api(`/api/v1/artifacts/${a.id}/versions`, { method: 'POST' }), 'New draft created.')}><Pencil aria-hidden="true" size="0.9375rem" /> New version</Button>}
         <span className="muted doc-meta">{author ? `Edited by ${author.display_name} · ` : ''}{timeAgo(v.created_at)} · {workspace?.name}</span>
       </div>
       <hr className="doc-rule" />
@@ -132,7 +132,7 @@ export function LibraryDoc({ id }: { id: string }) {
       {editing ? (
         <div className="stack">
           <label className="field-label" htmlFor="doc-editor">Content</label>
-          <p className="muted" style={{ margin: 0, fontSize: 13 }}>Use a blank line between paragraphs, “# ” for a heading and “- ” for a list item.</p>
+          <p className="muted" style={{ margin: 0, fontSize: '0.8125rem' }}>Use a blank line between paragraphs, “# ” for a heading and “- ” for a list item.</p>
           <textarea id="doc-editor" className="textarea" value={draft} onChange={(e) => setDraft(e.target.value)} autoFocus />
           <div className="actions">
             <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}`, { method: 'PATCH', headers: { 'if-match': `"${v.revision}"` }, body: { content: { blocks: textToBlocks(draft) } } }), 'Saved.')}>Save draft</Button>
@@ -144,7 +144,7 @@ export function LibraryDoc({ id }: { id: string }) {
       {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={people} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
 
       {data.versions.length > 1 && (
-        <section aria-labelledby="hist" style={{ marginTop: 40 }}>
+        <section aria-labelledby="hist" style={{ marginTop: '2.5rem' }}>
           <div className="section-head"><h2 id="hist">Version history</h2></div>
           <ul className="timeline">
             {data.versions.map((x, i) => {
@@ -191,7 +191,7 @@ function Lifecycle({ state, hasContent, approvals, required, canReview, canEdit,
         <ol className="lifecycle-steps" aria-label="Lifecycle">
           {STEPS.map(([k, label], i) => (
             <li key={k} className={i < at ? 'done' : i === at ? 'current' : ''} aria-current={i === at ? 'step' : undefined}>
-              <span className="lifecycle-mark" aria-hidden="true">{i < at || (i === at && state === 'published') ? <Check size={11} strokeWidth={3} /> : null}</span>{label}
+              <span className="lifecycle-mark" aria-hidden="true">{i < at || (i === at && state === 'published') ? <Check size="0.6875rem" strokeWidth={3} /> : null}</span>{label}
             </li>
           ))}
         </ol>

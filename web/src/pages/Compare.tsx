@@ -72,7 +72,7 @@ export function Compare({ id }: { id: string }) {
 
   return (
     <article className="doc cmp">
-      <Link className="cmp-back" to={`/library/${id}`}><ArrowLeft aria-hidden="true" size={14} /> {art.artifact.title}</Link>
+      <Link className="cmp-back" to={`/library/${id}`}><ArrowLeft aria-hidden="true" size="0.875rem" /> {art.artifact.title}</Link>
       <h1 className="doc-title">What changed</h1>
       <div className="cmp-bar">
         <label className="cmp-pick"><span className="visually-hidden">Older version</span>
@@ -80,7 +80,7 @@ export function Compare({ id }: { id: string }) {
             {vs.filter((v) => v.version_no < diff.to.version_no).map((v) => <option key={v.id} value={v.version_no}>v{v.version_no}{v.published_at ? `, ${shortDate(v.published_at)}` : ''}</option>)}
           </select>
         </label>
-        <ArrowRight aria-hidden="true" size={15} className="muted" />
+        <ArrowRight aria-hidden="true" size="0.9375rem" className="muted" />
         <label className="cmp-pick"><span className="visually-hidden">Newer version</span>
           <select className="field-input" value={diff.to.version_no} onChange={(e) => pick('to', Number(e.target.value))}>
             {vs.filter((v) => v.version_no > diff.from.version_no).map((v) => <option key={v.id} value={v.version_no}>v{v.version_no}{v.published_at ? `, ${shortDate(v.published_at)}` : ''}</option>)}

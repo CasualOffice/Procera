@@ -36,13 +36,13 @@ function Chips<T>({ label, icon: Icon, items, selected, id, name, hint, onToggle
   if (!items.length) return null;
   return (
     <div className="aud-row" role="group" aria-label={label}>
-      <span className="aud-label"><Icon aria-hidden="true" size={14} /> {label}</span>
+      <span className="aud-label"><Icon aria-hidden="true" size="0.875rem" /> {label}</span>
       <div className="aud-chips">
         {items.map((t) => {
           const on = selected.includes(id(t));
           return (
             <button key={id(t)} type="button" className="aud-chip" aria-pressed={on} onClick={() => onToggle(id(t))}>
-              {on && <Check aria-hidden="true" size={12} strokeWidth={2.5} />}
+              {on && <Check aria-hidden="true" size="0.75rem" strokeWidth={2.5} />}
               {name(t)}
               {hint && <span className="aud-chip-hint">{hint(t)}</span>}
             </button>

@@ -42,7 +42,7 @@ export function Announcements() {
     <>
       <div className="page-head">
         <div><h1>Announcements</h1><p>News and notices for you, newest first. Some ask you to confirm you’ve read them.</p></div>
-        {canCompose && <Link className="btn btn-secondary btn-md link-btn" to="/admin/announcements"><SquarePen aria-hidden="true" size={15} /> Manage announcements</Link>}
+        {canCompose && <Link className="btn btn-secondary btn-md link-btn" to="/admin/announcements"><SquarePen aria-hidden="true" size="0.9375rem" /> Manage announcements</Link>}
       </div>
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton rows={3} label="Loading announcements" /> : items.length === 0 ? (
         <Empty icon={Megaphone} title="No announcements">When something is posted for you, it shows up here.</Empty>
@@ -55,22 +55,22 @@ export function Announcements() {
             return (
               <li key={f.id} id={`post-${f.id}`} className={`post${f.read_at ? '' : ' post-unread'}${isOpen ? ' post-open' : ''}`}>
                 <div className="post-head">
-                  {a ? <Avatar name={a.display_name} size={32} /> : <span className="task-icon tag-orange"><Megaphone aria-hidden="true" size={16} /></span>}
+                  {a ? <Avatar name={a.display_name} size="2rem" /> : <span className="task-icon tag-orange"><Megaphone aria-hidden="true" size="1rem" /></span>}
                   <div className="post-main">
                     <p className="post-meta">
                       <span>{a?.display_name ?? 'Announcement'}</span><span aria-hidden="true">·</span><span>{timeAgo(f.published_at)}</span>
-                      {f.pinned && <span className="post-pin"><Pin aria-hidden="true" size={12} /> Pinned</span>}
+                      {f.pinned && <span className="post-pin"><Pin aria-hidden="true" size="0.75rem" /> Pinned</span>}
                     </p>
                     <h2 className="post-title">
                       <button type="button" aria-expanded={isOpen} onClick={() => toggle(f)}>
                         {!f.read_at && <span className="visually-hidden">Unread: </span>}{f.title}
-                        <ChevronDown aria-hidden="true" size={16} className="post-chev" />
+                        <ChevronDown aria-hidden="true" size="1rem" className="post-chev" />
                       </button>
                     </h2>
                   </div>
                   <span className="post-tags">
                     {f.priority === 'critical' && <Tag color="red" dot>Critical</Tag>}
-                    {f.require_ack && (f.acked_at ? <Tag color="green"><Check aria-hidden="true" size={12} /> Acknowledged</Tag> : <Tag color="orange">Needs acknowledgement</Tag>)}
+                    {f.require_ack && (f.acked_at ? <Tag color="green"><Check aria-hidden="true" size="0.75rem" /> Acknowledged</Tag> : <Tag color="orange">Needs acknowledgement</Tag>)}
                   </span>
                 </div>
                 {!isOpen && preview && <p className="post-preview" aria-hidden="true">{preview}</p>}
@@ -80,7 +80,7 @@ export function Announcements() {
                     {f.require_ack && !f.acked_at && (
                       <div className="post-ack">
                         <p>The sender asked everyone to confirm they’ve read this.</p>
-                        <Button onPress={async () => { await api(`/api/v1/announcements/${f.id}/acks`, { method: 'POST' }); reload(); }}><Check aria-hidden="true" size={16} /> I’ve read this</Button>
+                        <Button onPress={async () => { await api(`/api/v1/announcements/${f.id}/acks`, { method: 'POST' }); reload(); }}><Check aria-hidden="true" size="1rem" /> I’ve read this</Button>
                       </div>
                     )}
                   </div>

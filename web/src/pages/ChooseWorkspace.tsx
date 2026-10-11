@@ -39,9 +39,9 @@ export function ChooseWorkspace() {
                   }
                 }}
               >
-                <Avatar name={w.name} tone="brand" square size={32} />
+                <Avatar name={w.name} tone="brand" square size="2rem" />
                 <span className="choice-main"><strong>{w.name}</strong><span>{w.slug}</span></span>
-                <ChevronRight aria-hidden="true" size={16} className="muted" />
+                <ChevronRight aria-hidden="true" size="1rem" className="muted" />
               </AriaButton>
             </li>
           ))}
