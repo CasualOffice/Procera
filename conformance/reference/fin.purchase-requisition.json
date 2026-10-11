@@ -101,7 +101,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator.manager"
+            "ref": "expr:cel: initiator.manager"
           }
         ],
         "excludeInitiator": true,
@@ -126,7 +126,7 @@
           "action": "reassign",
           "to": {
             "type": "user",
-            "ref": "expr:feel: initiator.manager.manager"
+            "ref": "expr:cel: initiator.manager.manager"
           }
         }
       ]
@@ -198,7 +198,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator"
+            "ref": "expr:cel: initiator"
           }
         ]
       },
@@ -218,7 +218,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator"
+            "ref": "expr:cel: initiator"
           }
         ]
       },
@@ -238,7 +238,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator"
+            "ref": "expr:cel: initiator"
           }
         ]
       },

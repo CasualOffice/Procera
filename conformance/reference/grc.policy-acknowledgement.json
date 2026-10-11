@@ -37,7 +37,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee"
+            "ref": "expr:cel: employee"
           }
         ]
       },
@@ -58,7 +58,7 @@
           "action": "notify",
           "to": {
             "type": "user",
-            "ref": "expr:feel: employee.manager"
+            "ref": "expr:cel: employee.manager"
           }
         }
       ]
@@ -77,7 +77,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee.manager"
+            "ref": "expr:cel: employee.manager"
           }
         ]
       },

@@ -1,5 +1,5 @@
-//! Every expression in the five reference processes (conformance/reference, docs/11 §13),
-//! rewritten from the `expr:feel:` placeholders to CEL, compiles against the process's own
+//! Every expression in the five reference processes (conformance/reference, docs/11 §13), written
+//! in CEL since BPMS-080 wired the engine into the compiler, compiles against the process's own
 //! variable declarations, with the type its field needs.
 
 // Test helpers outside #[test] fns panic on purpose.
@@ -8,21 +8,6 @@
 use procera_expr::*;
 use serde_json::Value as J;
 use std::path::Path;
-
-/// FEEL placeholder → CEL. Expressions not listed are compiled as written, so a fixture
-/// expression that is not already valid CEL needs a row here.
-const CEL: &[(&str, &str)] = &[
-    (
-        "(if severity = \"critical\" then 5 else if severity = \"major\" then 3 else 1) * occurrence",
-        // `occurrence` is optional, so the CEL form handles the missing value explicitly.
-        "occurrence != null ? (severity == \"critical\" ? 5 : severity == \"major\" ? 3 : 1) * occurrence : 0",
-    ),
-    ("date and time(start_date, time(\"09:00:00\"))", "datetime(start_date) + duration(\"PT9H\")"),
-    ("instance.id + \":grant\"", "instance.id + \":grant\""),
-    ("sensitivity = \"high\"", "sensitivity == \"high\""),
-    // Optional boolean: a branch condition must not be null (docs/11 §6).
-    ("needs_doc_change", "needs_doc_change == true"),
-];
 
 fn schema_of(process: &J) -> Schema {
     let mut s = Schema::with_process_context();
@@ -59,8 +44,8 @@ fn reference_process_expressions_compile() {
         let mut exprs = Vec::new();
         collect("", &process, &mut exprs);
         for (key, tagged) in exprs {
-            let (_, feel) = split_tagged(tagged).unwrap();
-            let cel = CEL.iter().find(|(f, _)| *f == feel).map_or(feel, |(_, c)| c);
+            let (lang, cel) = split_tagged(tagged).unwrap();
+            assert_eq!(lang, LANGUAGE_TAG, "{}: {tagged}", path.display());
             let expected = match key.as_str() {
                 "when" => Some(Type::Bool),
                 "idempotencyKey" => Some(Type::String),
