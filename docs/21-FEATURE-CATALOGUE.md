@@ -95,6 +95,8 @@ Key:
 | AI Q&A over published content with citations (RBAC-filtered) | P1 | M10 | 16 |
 | SCORM/xAPI import | ✗ (P2 demand gate) | — | — |
 
+As built (BPMS-106 P0 subset, A-38): built-in **template packs** in code, versioned and reviewed. `policy-ack` 1.0.0 ("Employee handbook & acknowledgement") creates an Employee handbook and four starter policies (Code of conduct, Acceptable use of IT, Leave and time off, Workplace safety), each opening with a "Template to adapt" notice, and suggests an acknowledgement campaign for the handbook (everyone, due 14 days after launch). `core-sops` 1.0.0 ("Core procedures") creates two SOPs (New starter onboarding, Reporting an incident). Installing (Templates page, `POST /templates/{key}/install`) creates the chosen documents as drafts owned by the installer; an existing key is skipped and reported unless a numbered copy is asked for, so a second install never duplicates. The campaign is returned as a plan to start once the handbook is published. The gallery service, role mapping, test runs, lineage and upgrade diffs, and the 13 Wave-1 process templates remain BPMS-106.
+
 ## 5. Process design & execution
 
 | Feature | Pri | M | Ref |
