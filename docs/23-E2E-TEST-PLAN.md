@@ -185,6 +185,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-08 | A campaign task on Home leads to the document; “I acknowledge” records the acknowledgement (campaign progress +1) and the callout disappears | FR-AK01, docs/05 §3.1 |
 | E2E-R1-UI-09 | Invite a colleague from Members with a role; the invitation appears in the table as Invited | FR-W01, docs/05 §3.14 |
 | E2E-R1-UI-10 | Read and acknowledge a critical, pinned announcement in the feed | FR-AN04, docs/05 §3.23 |
+| E2E-R1-UI-11 | An admin without two-step verification is guided through setup (QR + key, confirm a code, recovery codes) and then signs in with MFA and lands on Home | docs/06 §3, docs/20 §2.3 |
 | E2E-R1-CMP-01 | Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05 |
 | E2E-R1-CMP-02 | Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04 |
 | E2E-R1-CMP-03 | Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5 |

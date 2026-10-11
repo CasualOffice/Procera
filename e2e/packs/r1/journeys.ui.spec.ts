@@ -1,9 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { hasDatabase, seedUser } from '../../fixtures/accounts';
+import { PW, hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
+import { totp } from '../../fixtures/totp';
+import { WEB } from '../../fixtures/ui';
+import { inviteToken } from '../../fixtures/workspace';
 import { axe, nav, signIn } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-UI-07..10 — end-to-end journeys in the browser: author and publish a policy, acknowledge a
+// E2E-R1-UI-07..11 — end-to-end journeys in the browser: author and publish a policy, acknowledge a
 // campaign, invite a colleague, read and acknowledge an announcement (BPMS-031/040/046/047/023).
 
 const doc = (text: string) => ({ blocks: [{ type: 'paragraph', text }] });
@@ -96,5 +99,39 @@ test.describe('journeys @r1 @ui', () => {
     await axe(page);
     await post.getByRole('button', { name: 'I’ve read this' }).click();
     await expect(post.getByText('Acknowledged')).toBeVisible();
+  });
+
+  test('E2E-R1-UI-11 an admin without two-step verification is guided through setup and then gets in', async ({ page, request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const email = await seedUser(request, 'new-admin');
+    await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['workspace.admin'] } });
+    const token = await inviteToken(request, ws.id, email);
+    const pw = await passwordSession(email);
+    await pw.c.post('/api/v1/invitations/accept', { headers: { authorization: `Bearer ${pw.token}` }, data: { token } });
+
+    await page.goto(`${WEB}/sign-in`);
+    await page.getByLabel('Work email').fill(email);
+    await page.getByLabel('Password').fill(PW);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Turn on two-step verification' })).toBeVisible();
+    await axe(page);
+    await page.getByRole('button', { name: 'Get started' }).click();
+    await expect(page.getByRole('img', { name: 'QR code for your authenticator app' })).toBeVisible();
+    const secret = (await page.locator('.mfa-secret code').innerText()).replace(/\s+/g, '');
+    await page.getByLabel('6-digit code').fill(totp(secret, await serverNow(request)));
+    await page.getByRole('button', { name: 'Verify and turn on' }).click();
+    const codes = page.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem');
+    await expect(codes).toHaveCount(10);
+    const recovery = await codes.first().innerText();
+    await axe(page);
+    await page.getByRole('button', { name: /sign in again/ }).click();
+    await expect(page.getByText('Two-step verification is on')).toBeVisible();
+    await page.getByLabel('Work email').fill(email);
+    await page.getByLabel('Password').fill(PW);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Code').fill(recovery);
+    await page.getByRole('button', { name: 'Verify' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toBeVisible();
   });
 });

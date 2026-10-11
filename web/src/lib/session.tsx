@@ -22,6 +22,8 @@ interface Session {
   workspaces: Workspace[];
   workspace: Workspace | null;
   permissions: Set<string>;
+  /** Why entering the workspace failed (e.g. `mfa_required`), shown on the chooser. */
+  entryError: string | null;
   can: (permission: string) => boolean;
   /** Returns the MFA token when a second factor is needed. */
   signIn: (email: string, password: string) => Promise<{ mfaToken?: string }>;
@@ -46,6 +48,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const autoSelected = useRef(false);
+  const [entryError, setEntryError] = useState<string | null>(null);
 
   /** Loads who I am and where I am from the current access token. */
   const load = useCallback(async () => {
@@ -58,11 +61,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       try {
         const p = await api<{ permissions: string[] }>('/api/v1/me/permissions');
         setPermissions(new Set(p.permissions));
+        setEntryError(null);
         setWorkspace(current);
         setStatus('ready');
         return;
       } catch (e) {
         if (!(e instanceof ApiError)) throw e;
+        setEntryError(e.code);
         // e.g. mfa_required for this role: fall through to the chooser, which explains it.
       }
     }
@@ -105,20 +110,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       workspaces,
       workspace,
       permissions,
+      entryError,
       can: (p) => permissions.has(p),
       async signIn(email, password) {
         const r = await authPost<{ status: string; access_token?: string; mfa_token?: string }>('/api/v1/auth/login', { email, password });
         if (r.status === 'mfa_required') return { mfaToken: r.mfa_token };
+        autoSelected.current = false;
         setAccessToken(r.access_token ?? null);
         await load();
         return {};
       },
       async completeMfa(mfaToken, code) {
         const r = await authPost<{ access_token: string }>('/api/v1/auth/mfa', { mfa_token: mfaToken, code: code.trim() });
+        autoSelected.current = false;
         setAccessToken(r.access_token);
         await load();
       },
-      selectWorkspace: select,
+      async selectWorkspace(id) {
+        await select(id);
+        // Entering can still fail after the token switch (e.g. MFA required for the role): surface it.
+        const p = await api<{ permissions: string[] }>('/api/v1/me/permissions').catch((e: unknown) => e);
+        if (p instanceof ApiError) throw p;
+      },
       async signOut() {
         await authPost('/api/v1/auth/logout').catch(() => undefined);
         setAccessToken(null);
@@ -126,11 +139,13 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setWorkspace(null);
         setWorkspaces([]);
         setPermissions(new Set());
+        setEntryError(null);
+        autoSelected.current = false;
         setStatus('signed_out');
       },
       reload: load,
     }),
-    [status, user, workspaces, workspace, permissions, load, select],
+    [status, user, workspaces, workspace, permissions, entryError, load, select],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

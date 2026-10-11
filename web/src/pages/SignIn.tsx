@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Form } from 'react-aria-components';
 import { ApiError } from '../lib/api';
+import { useRoute } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
@@ -9,6 +10,7 @@ import { TextField } from '../ui/components/TextField';
 /** Sign in (docs/06 §3): password, then a TOTP or recovery code when MFA is on. */
 export function SignIn() {
   const { signIn, completeMfa } = useSession();
+  const { query } = useRoute();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
@@ -59,6 +61,7 @@ export function SignIn() {
     <>
       <h1>Sign in to Procera</h1>
       <p className="lede">Welcome back. Sign in with your work account.</p>
+      {query.get('mfa') === 'on' && !error && <Notice tone="success" title="Two-step verification is on">Sign in again — you’ll be asked for a code from your app.</Notice>}
       {error && <Notice tone="danger" title={error} />}
       <Form
         className="stack"

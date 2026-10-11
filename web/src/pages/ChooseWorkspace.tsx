@@ -7,11 +7,14 @@ import { useSession } from '../lib/session';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
+import { MfaSetup } from './MfaSetup';
 
 /** Shown when the user belongs to several workspaces (or none). */
 export function ChooseWorkspace() {
-  const { workspaces, selectWorkspace, signOut, user } = useSession();
+  const { workspaces, selectWorkspace, signOut, user, entryError } = useSession();
   const [error, setError] = useState<string | null>(null);
+  const [needsMfa, setNeedsMfa] = useState<string | null>(entryError === 'mfa_required' && workspaces.length === 1 ? workspaces[0]!.name : null);
+  if (needsMfa && !user?.mfa_enabled) return <MfaSetup workspaceName={needsMfa} />;
   return (
     <>
       <h1>Choose a workspace</h1>
@@ -31,7 +34,8 @@ export function ChooseWorkspace() {
                     await selectWorkspace(w.workspace_id);
                     navigate('/', { replace: true });
                   } catch (e) {
-                    setError(e instanceof ApiError && e.code === 'mfa_required' ? 'This workspace requires two-step verification for your role. Turn it on, then sign in again.' : e instanceof Error ? e.message : 'Could not open the workspace.');
+                    if (e instanceof ApiError && e.code === 'mfa_required') setNeedsMfa(w.name);
+                    else setError(e instanceof Error ? e.message : 'Could not open the workspace.');
                   }
                 }}
               >

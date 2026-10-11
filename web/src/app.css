@@ -217,3 +217,13 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .post-body { padding: 0 16px 16px 60px; }
 .activity-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; }
 .table td:has(.cell-entity > span > span) { padding-top: 8px; padding-bottom: 8px; }
+/* Two-step verification setup */
+.mfa-badge { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: var(--color-info-bg); color: var(--color-info); margin-bottom: 16px; }
+.mfa-badge-done { background: var(--color-success-bg); color: var(--color-success); }
+.mfa-steps { margin: 0 0 24px; padding-left: 20px; color: var(--color-text-on-tinted); line-height: 1.55; }
+.mfa-steps li { margin: 6px 0; }
+.mfa-qr { display: flex; justify-content: center; padding: 16px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.mfa-secret { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; font-size: 13px; }
+.mfa-secret code { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: .04em; padding: 4px 8px; border-radius: 6px; background: var(--fill-hover); }
+.recovery { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 16px; margin: 0 0 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--color-bg); }
+.recovery code { font-family: var(--font-mono); font-size: 13px; letter-spacing: .03em; }
