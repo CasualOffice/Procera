@@ -1,0 +1,33 @@
+[package]
+name = "procera-engine"
+description = "Runtime persistence and scheduling: instances and their stimulus log, jobs with leases and fencing, timers, business calendars and SLA clocks around the pure interpreter (BPMS-083, docs/04 §4.2-§4.4)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-audit.workspace = true
+procera-db.workspace = true
+procera-ir.workspace = true
+procera-kernel.workspace = true
+procera-runtime.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+proptest.workspace = true
+tokio.workspace = true
+procera-kernel = { workspace = true, features = ["test-clock"] }
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true
