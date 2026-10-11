@@ -612,7 +612,7 @@ test.describe('R1 gate @r1 @ui', () => {
 
     // A permission change previews who is affected, with the right count.
     const hd2 = page.getByRole('dialog', { name: 'HR Designer' }); // still open after granting
-    await hd2.getByRole('button', { name: 'All', exact: true }).click();
+    await hd2.getByRole('button', { name: /^All/ }).click();
     await hd2.getByRole('checkbox', { name: /sop:submit_review/ }).check();
     await hd2.getByRole('button', { name: 'Review changes' }).click();
     const review = page.getByRole('dialog', { name: 'Review changes to HR Designer' });
@@ -925,7 +925,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const save = page.getByRole('dialog', { name: 'Save view' });
     await save.getByLabel('Name').fill('Published A or C');
     await save.getByText('A role…', { exact: true }).click();
-    await save.getByLabel('Role').selectOption({ label: 'Reviewer' });
+    await save.getByRole('combobox', { name: 'Role' }).selectOption({ label: 'Reviewer' });
     await save.getByRole('button', { name: 'Save view' }).click();
     await expect(page).toHaveURL(/[?&]view=/);
     const deep = page.url();
