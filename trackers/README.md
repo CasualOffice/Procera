@@ -8,7 +8,7 @@
 ```text
 Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  17/109 epics done  (16%)
 Partial   █████░░░░░░░░░░░░░░░░░░░░░░░░░  18% counting in-progress epics as half done
-Tests     44 automated E2E scenarios · 59 Rust tests (incl. property tests)
+Tests     45 automated E2E scenarios · 60 Rust tests (incl. property tests)
 Status    done 17 · in review 0 · in progress 5 · blocked 0 · not started 87 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
@@ -30,7 +30,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 | ID | Item | Status | Note |
 |---|---|---|---|
-| BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login done (E2E-R1-AUTH-06). Remaining: WebAuthn/passkeys, step-up endpoint, MFA-required-by-role enforcement |
+| BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login (E2E-R1-AUTH-06). Step-up: POST /session/step-up (TOTP code, or password without MFA) re-issues the token with a fresh auth_time; enforced against auth.stepup.window (401 step_up_required) for step-up settings, role create/edit and grant/revoke (E2E-R1-CFG-03). MFA required by role (auth.mfa.required_roles) enforced at workspace entry, 403 mfa_required (E2E-R1-MEM-10). Remaining: WebAuthn/passkeys |
 | BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
@@ -38,6 +38,9 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 ## Recently shipped (last 12 commits on main)
 
+- `9b56bf4` feat(api): [protected] step-up endpoint and enforcement, MFA required by role at workspace entry; E2E-R1-CFG-03, E2E-R1-MEM-10 (BPMS-022)
+- `771ba5f` feat(identity): [protected] step-up re-authentication with fresh auth_time (BPMS-022)
+- `6a54a7d` docs: E2E-R1-MEM-09; tracker marks BPMS-024 done
 - `3b2d1d1` feat(api): group role grants via /role-grants; E2E-R1-MEM-09 (BPMS-024)
 - `f497952` feat(access): [protected] role grants to groups, department-subtree scopes in Cedar, preview-matches-effect property test (BPMS-024)
 - `9938be3` docs: directory API, E2E plan and LLD path note; tracker marks BPMS-023 done
@@ -47,9 +50,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `12aff51` feat(api): workspace settings and platform floor APIs, profiles at workspace creation; E2E-R1-CFG-01..05 (BPMS-027)
 - `18036bf` feat(settings): [protected] settings catalogue, platform floors, profiles and effective resolution (BPMS-027)
 - `b5d66a3` chore(tracker): dashboard shows partial progress, test counts and recently shipped commits; BPMS-027 in progress
-- `d93d157` test(audit): [protected] route audit contract with static route check and E2E-R1-AUD-01 (BPMS-026)
-- `a9f9c55` feat(api): invitation list/revoke/resend, role preview, audited role and grant changes; E2E-R1-MEM-07..08 (BPMS-023, BPMS-024)
-- `1c1d461` fix(access): [protected] bound revocation and role edits by the actor's permissions; keep the last owner; role preview; no-escalation property test (BPMS-024)
 
 ## Done
 
@@ -257,7 +257,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 119 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 120 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

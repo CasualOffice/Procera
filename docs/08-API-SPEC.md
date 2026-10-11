@@ -64,7 +64,7 @@ Content-Type: application/problem+json
 
 | Area | Endpoints (abridged) | Key permissions |
 |---|---|---|
-| Session/me | `GET /me`, `GET /me/workspaces`, `POST /session/switch-workspace`, `POST /session/step-up`, `GET/PUT /me/preferences`, `POST /me/out-of-office` | self |
+| Session/me | `GET /me`, `GET /me/workspaces`, `POST /session/workspace` (switch), `POST /session/step-up` (`{code}` with TOTP, else `{password}`; returns an access token with a fresh `auth_time`; 401 `step_up_required` marks actions that need it), `GET/PUT /me/preferences`, `POST /me/out-of-office` | self |
 | Session & onboarding | `GET /me/workspaces`, `POST /session/workspace` (re-issues the access token with the chosen `ws` claim), `POST /invitations/accept`, `POST /invitations/register`, `GET /me/permissions`, `GET /permission-catalog` | authenticated (workspace calls need a selected workspace) |
 | Members | `GET /members`, `GET/POST /members/invitations`, `DELETE /members/invitations/{id}` (revoke; resend = invite again), `POST /members/{id}/deactivate` | `member:*` |
 | Directory | `GET/POST /departments`, `PATCH/DELETE /departments/{id}` (move = `parent_id`; head = `head_membership_id`), `GET/POST /groups`, `DELETE /groups/{id}`, `GET/POST /groups/{id}/members`, `DELETE /groups/{id}/members/{membership_id}`, `GET/POST /positions`, `DELETE /positions/{id}`, `PATCH /members/{id}` (title, department, manager, location), `GET /members/{id}/directory` (fields, sources, resolved manager), `POST /members/import?mode=plan\|apply` (`text/csv`: email, department path, title, manager_email, location) | `directory:view` / `directory:manage` |
