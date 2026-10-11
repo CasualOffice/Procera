@@ -4,10 +4,18 @@ description: This page doesn't exist.
 robots: noindex
 nav: none
 -->
-<section class="page-head" style="border-bottom:0">
-  <div class="wrap">
-    <span class="eyebrow">404</span>
-    <h1>This page doesn't exist</h1>
-    <p class="lede">It may have moved. Try the <a href="index.html">home page</a>, the <a href="features.html">features</a> or the <a href="roadmap.html">roadmap</a>.</p>
+<section aria-labelledby="lost-h">
+  <div class="wrap lost">
+    <div>
+      <span class="eyebrow">404</span>
+      <h1 id="lost-h" class="lost-h">This page wandered off</h1>
+      <p class="lede">It may have moved, or the link has a typo. These are good places to pick the thread back up.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="index.html">Home</a>
+        <a class="btn btn-secondary" href="features.html">Features</a>
+        <a class="btn btn-secondary" href="roadmap.html">Roadmap</a>
+      </div>
+    </div>
+    <div>{{ illus lost }}</div>
   </div>
 </section>

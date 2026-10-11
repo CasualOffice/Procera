@@ -303,3 +303,74 @@ COMPARE_ROWS = [
     ("Cases and investigations",
      ["n", "n", "n", "p", "plan:planned, R5"]),
 ]
+
+# ---------------------------------------------------------------- home page, v2
+# Points cite a feature id (str) or tracker epics (list); build.py turns either into a status,
+# so a persona can never claim something the tracker says isn't built.
+PERSONAS = [
+    dict(id="hr", tab="HR", role="People and HR", art="hr", shot="campaign",
+         title="Publish the handbook once. Know who has read it.",
+         lede="Start from the employee handbook pack, get it reviewed, and send it to everyone with a due date. Reminders and manager escalation do the chasing.",
+         points=[("Start from the Employee handbook pack: five drafts to adapt", "templates"),
+                 ("Acknowledgement campaigns tied to the exact version", "campaigns"),
+                 ("Reminders, then the manager hears about anyone overdue", "campaigns"),
+                 ("Departments, managers and locations from a CSV import", "directory")],
+         next=("Leave and onboarding requests", ["BPMS-100", "BPMS-101", "BPMS-103"])),
+    dict(id="manager", tab="Manager", role="Team managers", art="manager", shot="announcements",
+         title="See what your team still owes, without chasing it.",
+         lede="When someone on your team misses a due date, Procera tells you once, with a link straight to what's outstanding.",
+         points=[("Escalation when a report misses an acknowledgement", "campaigns"),
+                 ("Announcements for your department or location, with read receipts", "announcements"),
+                 ("Daily or weekly digests at your hour, not a flood of email", "notifications")],
+         next=("Approve your team's requests from one inbox", ["BPMS-103", "BPMS-105"])),
+    dict(id="employee", tab="Employee", role="Everyone else", art="employee", shot="phone-home",
+         title="One place for what you need to read, on any screen.",
+         lede="Home shows what's waiting for you. Read the policy, acknowledge it on the page, and get back to work.",
+         points=[("A Policies portal that shows what changed between versions", "library"),
+                 ("Acknowledge on the document itself, at phone size", "campaigns"),
+                 ("Suggest a change instead of emailing the owner", "reviews")],
+         next=("Raise and track requests", ["BPMS-103"])),
+    dict(id="it", tab="IT and security", role="IT and security", art="it", shot="people",
+         title="Access you can explain, line by line.",
+         lede="Roles with scoped grants, two-step verification required by role, and passkeys for step-up. Sensitive reads are logged too.",
+         points=[("Custom roles scoped to a department or a collection", "roles"),
+                 ("Authenticator apps, recovery codes and passkeys; step-up for sensitive actions", "security"),
+                 ("Uploads scanned by ClamAV and encrypted under the workspace key", "files")],
+         next=("Single sign-on and SCIM provisioning", "sso")),
+    dict(id="finance", tab="Finance", role="Finance leads", art="finance", shot="library",
+         title="Controls in writing today. Approvals in the workflow next.",
+         lede="Keep spending and expense policies versioned and reviewed by someone other than the author, and know who accepted which version.",
+         points=[("Spending policies reviewed by a second person", "reviews"),
+                 ("Effective-date publishing and review reminders", "schedule"),
+                 ("Formula-safe CSV and XLSX exports of any list", "grid")],
+         next=("Expense and purchase approvals", ["BPMS-100", "BPMS-101", "BPMS-103", "BPMS-105"])),
+    dict(id="compliance", tab="Compliance", role="Compliance and risk", art="compliance", shot="audit",
+         title="Evidence that holds up, without the spreadsheet.",
+         lede="Every change and sensitive read lands in a hash chain that Procera verifies. Export what an auditor asks for, with the version hash attached. Procera supports audit practices; it doesn't make anyone compliant by itself.",
+         points=[("A hash-chained audit log, verified in the product", "audit"),
+                 ("Evidence CSV with the version hash and sign-in method", "campaigns"),
+                 ("Review dates and recertification, so nothing goes stale", "schedule")],
+         next=("Legal hold, cases and investigations", "cases")),
+]
+
+# The core loop on the home page: (label, detail). The second step loops back on changes.
+LOOP = [
+    ("Draft", "Write in the block editor, from a starter template or a blank page."),
+    ("Review", "A second person approves. The author can't approve their own work."),
+    ("Publish", "Go live now or on the effective date. The old version is superseded."),
+    ("Acknowledge", "People confirm the exact version, on a laptop or a phone."),
+    ("Evidence", "Export who acknowledged what, with the content hash and sign-in method."),
+    ("Audit", "Every step is appended to a hash chain that the product verifies."),
+]
+
+# Where Procera leads (docs/design/ia-competitive-analysis.md §7.2): (title, text, feature id).
+LEADS = [
+    ("Acknowledgements bound to the version",
+     "Each acknowledgement records the version and its content hash, so “I read it” means this text, not whatever the page says today.", "campaigns"),
+    ("Separation of duties that can't be skipped",
+     "Authors can't approve their own documents, and reviewers confirm it's them with step-up before an approval counts.", "reviews"),
+    ("Announcements with receipts",
+     "Target a department, group or location, set a confirm-by date, and see reach and read receipts per post.", "announcements"),
+    ("An audit trail that shows tampering",
+     "Every mutation and restricted read is chained by SHA-256. Change one record and verification fails from that point on.", "audit"),
+]

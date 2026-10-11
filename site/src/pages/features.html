@@ -9,14 +9,16 @@ nav: features
     <h1>What Procera does, and what it doesn't do yet</h1>
     <p class="lede">Grouped by the four pillars. Each feature's status is computed from the tracker epics it depends on when this site is built, so it can't drift from the plan. "Available now" means built on the main branch and covered by automated tests; the first packaged release, R1, targets {{ r1_end }}.</p>
     {{ legend }}
-    <nav class="pillar-nav" aria-label="Pillars">
-      <a class="btn btn-secondary btn-sm" href="#design">Design</a>
-      <a class="btn btn-secondary btn-sm" href="#execute">Execute</a>
-      <a class="btn btn-secondary btn-sm" href="#govern">Govern</a>
-      <a class="btn btn-secondary btn-sm" href="#improve">Improve</a>
-    </nav>
   </div>
 </section>
+<nav class="pillar-nav sticky" aria-label="Pillars">
+  <div class="wrap">
+    <a class="btn btn-secondary btn-sm" href="#design">Design</a>
+    <a class="btn btn-secondary btn-sm" href="#execute">Execute</a>
+    <a class="btn btn-secondary btn-sm" href="#govern">Govern</a>
+    <a class="btn btn-secondary btn-sm" href="#improve">Improve</a>
+  </div>
+</nav>
 {{ features }}
 <section class="section band" aria-labelledby="next-h">
   <div class="wrap">

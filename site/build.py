@@ -28,6 +28,7 @@ DOCS = GITHUB + "/tree/main/docs"
 
 sys.path.insert(0, str(SRC))
 import content as C  # noqa: E402
+import illustrations as IL  # noqa: E402
 
 esc = html.escape
 NAV = [("index", "Home"), ("features", "Features"), ("flows", "User flows"), ("compare", "Compare"),
@@ -96,43 +97,32 @@ def shot(name, cls="", eager=False, caption=None, crop=True):
     else:
         style, ratio = ' style="width:100%"', f"{W} / {H}"
     load = 'fetchpriority="high"' if eager else 'loading="lazy" decoding="async"'
-    dark = "" if phone else (f'<source srcset="assets/screens/{name}-dark.png" '
-                             f'media="(prefers-color-scheme: dark)" data-dark>')
-    src = f"assets/screens/{name}.png" if phone else f"assets/screens/{name}-light.png"
     cap = f"<figcaption>{esc(caption)}</figcaption>" if caption else ""
     return (f'<figure class="shot{" phone" if phone else ""} {cls}"><div class="frame" style="aspect-ratio:{ratio}">'
-            f'<picture>{dark}<img src="{src}" alt="{esc(alt)}" width="{W}" height="{H}" {load}{style}></picture>'
-            f"</div>{cap}</figure>")
+            f"{picture(name, alt, W, H, load, style)}</div>{cap}</figure>")
+
+
+def has_webp(png):
+    return (SITE / png).with_suffix(".webp").exists()
+
+
+def picture(name, alt, W, H, load, style=""):
+    """<picture> with dark and WebP sources (WebP made offline by scripts/webp.py; PNG stays the
+    fallback). site.js pins the data-dark sources to the theme the visitor picks."""
+    phone = name == "phone-home"
+    light = f"assets/screens/{name}.png" if phone else f"assets/screens/{name}-light.png"
+    srcs = []
+    if not phone:
+        dark = f"assets/screens/{name}-dark.png"
+        if has_webp(dark):
+            srcs.append(f'<source srcset="{dark[:-4]}.webp" type="image/webp" media="(prefers-color-scheme: dark)" data-dark>')
+        srcs.append(f'<source srcset="{dark}" media="(prefers-color-scheme: dark)" data-dark>')
+    if has_webp(light):
+        srcs.append(f'<source srcset="{light[:-4]}.webp" type="image/webp">')
+    return f'<picture>{"".join(srcs)}<img src="{light}" alt="{esc(alt)}" width="{W}" height="{H}" {load}{style}></picture>'
 
 
 # ---------------------------------------------------------------- sections
-def t_pillars(_):
-    out = []
-    for i, (pid, name, meaning, text) in enumerate(C.PILLARS, 1):
-        feats = [f for f in C.FEATURES if f["pillar"] == pid]
-        avail = [f["title"] for f in feats if feature_status(f)[0] == "available"][:3]
-        items = "".join(f"<li>{esc(t)}</li>" for t in avail) or "<li>Planned from R2</li>"
-        out.append(f'<div class="pillar"><span class="num">0{i}</span><h3>{name}</h3>'
-                   f'<p class="muted">{esc(meaning)}.</p>'
-                   f'<ul aria-label="Available now in {name}">{items}</ul>'
-                   f'<a class="small" href="features.html#{pid}">{name} features</a></div>')
-    return f'<div class="pillars">{"".join(out)}</div>'
-
-
-def t_home_caps(_):
-    byid = {f["id"]: f for f in C.FEATURES}
-    rows = []
-    for fid in C.HOME_CAPS:
-        f = byid[fid]
-        cls, label, _ = feature_status(f)
-        lis = "".join(f"<li>{esc(b)}</li>" for b in f["bullets"][:3])
-        rows.append(f'<div class="cap"><div class="cap-text"><div>{badge(cls, label)}</div><h3>{esc(f["title"])}</h3>'
-                    f'<p class="muted">{esc(f["summary"])}</p><ul>{lis}</ul>'
-                    f'<a href="features.html#{fid}">Details<span class="sr-only"> about {esc(f["title"])}</span></a></div>'
-                    f'{shot(f["shot"])}</div>')
-    return f'<div class="caps">{"".join(rows)}</div>'
-
-
 def t_features(_):
     out = []
     for pid, name, meaning, text in C.PILLARS:
@@ -143,14 +133,15 @@ def t_features(_):
             aside = f'<p class="aside">{esc(f["aside"])}</p>' if f.get("aside") else ""
             top = f'<div class="top"><h3>{esc(f["title"])}</h3>{badge(cls, label)}</div><p>{esc(f["summary"])}</p>'
             if f.get("shot"):
-                items.append(f'<article class="feature" id="{f["id"]}"><div class="feature-text">{top}<ul>{lis}</ul>{aside}'
+                items.append(f'<article class="feature rv" id="{f["id"]}"><div class="feature-text">{top}<ul>{lis}</ul>{aside}'
                              f'<p class="source">{src}</p></div>{shot(f["shot"])}</article>')
             else:  # no screenshot: summary on the left, detail on the right
-                items.append(f'<article class="feature no-shot" id="{f["id"]}"><div class="feature-text">{top}'
+                items.append(f'<article class="feature no-shot rv" id="{f["id"]}"><div class="feature-text">{top}'
                              f'<p class="source">{src}</p></div><div class="feature-text"><ul>{lis}</ul>{aside}</div></article>')
         out.append(f'<section class="feature-group" id="{pid}" aria-labelledby="{pid}-h"><div class="wrap">'
-                   f'<header><span class="eyebrow">{name}</span><h2 id="{pid}-h">{esc(meaning)}</h2>'
-                   f'<p class="muted">{esc(text)}</p></header>{"".join(items)}</div></section>')
+                   f'<header class="group-head"><div><span class="eyebrow">{name}</span><h2 id="{pid}-h">{esc(meaning)}</h2>'
+                   f'<p class="muted">{esc(text)}</p></div><div class="group-art rv">{IL.PILLAR_ART[pid]()}</div></header>'
+                   f'{"".join(items)}</div></section>')
     return "".join(out)
 
 
@@ -173,7 +164,7 @@ def t_flows(_):
         cls = "flow-shots with-phone" if phone and len(f["shots"]) == 2 else "flow-shots"
         out.append(f'<section class="flow" id="{f["id"]}" aria-labelledby="{f["id"]}-h"><div class="wrap">'
                    f'<div class="flow-head"><h2 id="{f["id"]}-h">{esc(f["title"])}</h2><p class="lede">{esc(f["intro"])}</p></div>'
-                   f'<div class="flow-body"><div><ol class="steps">{steps}</ol>'
+                   f'<div class="flow-body"><div><ol class="steps rv">{steps}</ol>'
                    f'<p class="verified">{ICONS["check"]}<span>Verified by automated browser test{"s" if len(f["tests"]) > 1 else ""} {tests}, '
                    f'run against the real server, database and mail catcher.{note}</span></p></div>'
                    f'<div class="{cls}">{figs}</div></div></div></section>')
@@ -239,10 +230,12 @@ def t_roadmap(_):
 def t_stats(_):
     tt = T["totals"]
     r1 = REL["R1"]
-    return (f'<div class="stats"><div><b>{tt["Done"]}</b><span>of {tt["all"]} epics done</span></div>'
-            f'<div><b>{tt["In progress"] + tt["In review"]}</b><span>in progress</span></div>'
-            f'<div><b>{r1["done"]}/{r1["total"]}</b><span>R1 epics done</span></div>'
-            f'<div><b>{T["e2e_scenarios"]}</b><span>automated E2E scenarios</span></div></div>')
+    def n(v):  # motion.js counts these up from zero when they scroll into view
+        return f'<span data-count="{v}">{v}</span>'
+    return (f'<div class="stats"><div><b>{n(tt["Done"])}</b><span>of {tt["all"]} epics done</span></div>'
+            f'<div><b>{n(tt["In progress"] + tt["In review"])}</b><span>in progress</span></div>'
+            f'<div><b>{n(r1["done"])}/{r1["total"]}</b><span>R1 epics done</span></div>'
+            f'<div><b>{n(T["e2e_scenarios"])}</b><span>automated E2E scenarios</span></div></div>')
 
 
 def simple(value):
@@ -251,7 +244,7 @@ def simple(value):
 
 R1 = REL["R1"]
 TOKENS = {
-    "pillars": t_pillars, "home_caps": t_home_caps, "features": t_features, "flows": t_flows,
+    "features": t_features, "flows": t_flows,
     "flows_toc": t_flows_toc, "compare": t_compare, "roadmap": t_roadmap, "stats": t_stats,
     "shot": lambda a: shot(a[0], cls=" ".join(x for x in a[1:] if x not in ("eager", "full")),
                            eager="eager" in a, crop="full" not in a),
@@ -266,6 +259,8 @@ TOKENS = {
                      + badge("available", "Available now") + badge("progress", "In progress")
                      + badge("planned", "Planned · R2 to GA") + "</p>"),
 }
+import home  # noqa: E402  (needs the helpers above)
+TOKENS.update(home.tokens(sys.modules[__name__]))
 
 
 def expand(text, ctx):
@@ -295,13 +290,29 @@ def nav_html(active, cls):
     return "".join(f'<a href="{p}.html"{CUR if p == active else ""}>{n}</a>' for p, n in NAV)
 
 
+CSS_PARTS = ["site.css", "story.css", "home.css", "illus.css", "pages.css"]
+JS_PARTS = ["site.js", "motion.js"]
+
+
+def absolute_links(page):
+    """The 404 page is served for any missing path, at any depth (GitHub Pages serves it for
+    /Procera/a/b/c), so its relative links would break. Point them at SITE_URL instead."""
+    return re.sub(r'\b(href|src|srcset)="(?!https?:|mailto:|data:|#)([^"]+)"',
+                  lambda m: f'{m.group(1)}="{SITE_URL}/{m.group(2)}"', page)
+
+
 # ---------------------------------------------------------------- build
 def build():
     if DIST.exists():
         shutil.rmtree(DIST)
     (DIST / "assets" / "brand").mkdir(parents=True)
-    for sub in ("css", "js", "fonts", "screens"):
+    for sub in ("fonts", "screens"):
         shutil.copytree(SITE / "assets" / sub, DIST / "assets" / sub)
+    # Stylesheets and scripts are split by concern in the source and served as one file each.
+    for sub, out, parts in (("css", "site.css", CSS_PARTS), ("js", "site.js", JS_PARTS)):
+        (DIST / "assets" / sub).mkdir(parents=True)
+        (DIST / "assets" / sub / out).write_text(
+            "\n".join((SITE / "assets" / sub / f).read_text() for f in parts))
     for f in ("og.png",):
         if (SITE / "assets" / f).exists():
             shutil.copy2(SITE / "assets" / f, DIST / "assets" / f)
@@ -325,6 +336,8 @@ def build():
         head = expand(partial["head"], ctx)
         page = (f'<!doctype html>\n<html lang="en">\n{head}\n<body>\n{expand(partial["header"], ctx)}\n'
                 f'<main id="main">\n{expand(body, ctx)}\n</main>\n{expand(partial["footer"], ctx)}\n</body>\n</html>\n')
+        if slug == "404":
+            page = absolute_links(page)
         (DIST / p.name).write_text(page)
         if slug != "404":
             built.append(path)

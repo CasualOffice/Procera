@@ -1,0 +1,82 @@
+/* Illustrations and product-fragment pastels. The pastels are the product's avatar and tag
+   colours (web/src/ui/shell.css); every pairing keeps text at 4.5:1 or better. */
+:root {
+  --c0: #E7F3F8; --c0f: #1F5E8C; --c1: #EDF3EC; --c1f: #2B6A41; --c2: #F3EEF8; --c2f: #6940A5;
+  --c3: #FBECDD; --c3f: #8A4A16; --c4: #FAEEF4; --c4f: #9B2C66; --c5: #FBF3DB; --c5f: #6E520F;
+  --pl0: #E3EEF4; --pl1: #E4EDE2; --pl2: #EDE7F4; --pl3: #F7E6D6; --pl4: #F5E5ED; --pl5: #F5ECCF;
+  --il-ink: #2F2E2A; --il-paper: #FFFFFF; --il-paper-2: #F4F3EF; --il-line: #DAD8D2;
+  --il-shadow: rgba(47, 46, 42, .13); --il-red: #EE4136; --il-red-2: #C72D26;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --c0: #1E3445; --c0f: #9CCBF2; --c1: #22362A; --c1f: #9AD4AE; --c2: #352B45; --c2f: #C9B2EE;
+    --c3: #44301F; --c3f: #F0BE8C; --c4: #452637; --c4f: #F0A9CC; --c5: #423820; --c5f: #EBCF7C;
+    --pl0: #1C2A33; --pl1: #1D2A21; --pl2: #2A2433; --pl3: #33281D; --pl4: #33222B; --pl5: #322C1C;
+    --il-ink: #D9D8D3; --il-paper: #2A2A28; --il-paper-2: #232321; --il-line: #4A4945;
+    --il-shadow: rgba(0, 0, 0, .45); --il-red: #F0574D; --il-red-2: #C72D26;
+  }
+}
+:root[data-theme='dark'] {
+  --c0: #1E3445; --c0f: #9CCBF2; --c1: #22362A; --c1f: #9AD4AE; --c2: #352B45; --c2f: #C9B2EE;
+  --c3: #44301F; --c3f: #F0BE8C; --c4: #452637; --c4f: #F0A9CC; --c5: #423820; --c5f: #EBCF7C;
+  --pl0: #1C2A33; --pl1: #1D2A21; --pl2: #2A2433; --pl3: #33281D; --pl4: #33222B; --pl5: #322C1C;
+  --il-ink: #D9D8D3; --il-paper: #2A2A28; --il-paper-2: #232321; --il-line: #4A4945;
+  --il-shadow: rgba(0, 0, 0, .45); --il-red: #F0574D; --il-red-2: #C72D26;
+}
+
+.il { width: 100%; height: auto; display: block; overflow: visible; }
+.il text { font-family: var(--font); fill: var(--il-ink); }
+.il text.mono { font-family: var(--mono); }
+.il .k, .il .pp, .il .ps, .il .rk, .il .track, .il .prog, .il .f1s, .il .wk, .il [class^='cf'] {
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.il .k { fill: none; stroke: var(--il-ink); }
+.il .k.soft { stroke: var(--il-line); }
+.il .k.thick { stroke-width: 3; }
+.il .k.ring { stroke-width: 1; opacity: .25; }
+.il .pp { fill: var(--il-paper); stroke: var(--il-ink); }
+.il .ps { fill: var(--il-paper-2); stroke: var(--il-ink); }
+.il .dash, .il .pp.dash { stroke-dasharray: 4 4; fill: none; }
+.il .sh { fill: var(--il-shadow); }
+.il .ln { fill: var(--il-line); }
+.il .ln0 { fill: color-mix(in srgb, var(--c0f) 30%, transparent); }
+.il .kx { fill: var(--il-ink); }
+.il .kd { fill: var(--il-ink); opacity: .45; }
+.il .kt { fill: var(--il-ink); }
+.il .kt2, .il .kt3 { fill: var(--il-ink); opacity: .72; }
+.il text.wt { fill: var(--il-paper); }
+.il .wk { fill: none; stroke: #FFFFFF; }
+.il .rd { fill: var(--il-red); }
+.il .rk { fill: none; stroke: var(--il-red); stroke-width: 2.25; }
+.il .rb { fill: var(--il-red); }
+.il .rs { fill: var(--il-red-2); }
+.il .caret { fill: var(--il-red); }
+.il .track { fill: none; stroke: var(--il-line); stroke-width: 4; }
+.il .prog { fill: none; stroke: var(--il-ink); stroke-width: 4; }
+.il .f1s { fill: none; stroke: var(--c1f); stroke-width: 2; }
+.il .f0bg { fill: var(--c0f); }
+.il .badge { stroke: var(--il-paper); stroke-width: 1.5; }
+.il .t0 { fill: var(--c0); } .il .t1 { fill: var(--c1); } .il .t2 { fill: var(--c2); }
+.il .t3 { fill: var(--c3); } .il .t4 { fill: var(--c4); } .il .t5 { fill: var(--c5); }
+.il .f0, .il .d0 { fill: var(--c0f); } .il .f1, .il .d1 { fill: var(--c1f); } .il .f2, .il .d2 { fill: var(--c2f); }
+.il .f3, .il .d3 { fill: var(--c3f); } .il .f4, .il .d4 { fill: var(--c4f); } .il .f5, .il .d5 { fill: var(--c5f); }
+.il [class^='cf'] { fill: none; stroke-width: 2.4; }
+.il .cf0 { stroke: var(--c0f); } .il .cf1 { stroke: var(--c1f); } .il .cf2 { stroke: var(--c2f); }
+.il .cf3 { stroke: var(--c3f); } .il .cf4 { stroke: var(--c4f); } .il .cf5 { stroke: var(--c5f); }
+.il .pl0 { fill: var(--pl0); } .il .pl1 { fill: var(--pl1); } .il .pl2 { fill: var(--pl2); }
+.il .pl3 { fill: var(--pl3); } .il .pl4 { fill: var(--pl4); } .il .pl5 { fill: var(--pl5); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .il .blink { animation: il-blink 1.1s steps(1) infinite; }
+  .il .flowdash { animation: il-flow 1.6s linear infinite; }
+  .in .il .pop, .il.in .pop { animation: il-pop .5s cubic-bezier(.3, 1.5, .5, 1) both; }
+  .in .il .pop:nth-of-type(2n) { animation-delay: .15s; }
+  .in .il .pop:nth-of-type(3n) { animation-delay: .3s; }
+}
+@keyframes il-blink { 50% { opacity: 0; } }
+@keyframes il-flow { to { stroke-dashoffset: -14; } }
+@keyframes il-pop { from { transform: scale(.4); opacity: 0; } }
+.il .pop { transform-box: fill-box; transform-origin: center; }
+@media (forced-colors: active) {
+  .il * { forced-color-adjust: auto; }
+}

@@ -23,7 +23,7 @@
 <meta name="twitter:title" content="{{ title }}">
 <meta name="twitter:description" content="{{ description }}">
 <meta name="twitter:image" content="{{ og_image }}">
-<script>try{var t=localStorage.getItem('procera-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<script>document.documentElement.classList.add('js');try{var t=localStorage.getItem('procera-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <link rel="stylesheet" href="assets/css/site.css">
 <script src="assets/js/site.js" defer></script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Procera","applicationCategory":"BusinessApplication","operatingSystem":"Linux, self-hosted","license":"https://www.apache.org/licenses/LICENSE-2.0","url":"{{ site_url }}/","codeRepository":"https://github.com/CasualOffice/Procera","description":"Open-source, self-hostable process governance: policies, SOPs, acknowledgements, announcements and a tamper-evident audit trail."}</script>
