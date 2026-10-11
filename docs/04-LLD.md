@@ -639,6 +639,14 @@ advance(ws, instance_id, fence):
 
 Duplicate signals hit the `jobs` unique key or fail the token state check, so they are no-ops.
 
+**As built (BPMS-082):** the algorithm above, minus the transaction, lives in `crates/runtime` (`procera-runtime`). It is a pure function `(Program, InstanceState, Stimulus) → (InstanceState', [Command])`:
+- time comes from the stimulus, which the injected `Clock` stamps once;
+- the instance id comes from the injected `IdGen` at start;
+- every other id comes from a counter in the state;
+- side effects come back as commands with deterministic idempotency keys (`create_work_item`, `schedule_timer`, `call_connector`, `emit_event`, `complete_instance`, …).
+
+Each advance runs at most 200 node executions and yields with `continue_advance`. The locking, persistence and outbox steps above are BPMS-083/084. The state model, node semantics, command list and budgets are in [11 §15](11-WORKFLOW-IR-SPEC.md#15-as-built-bpms-082).
+
 ### 4.3 Concurrency guarantees
 
 - **One writer per instance:** every change to an instance takes `SELECT … FOR UPDATE` on `process_instances` first. Locks are always acquired in the order instance → token → work_item, which prevents deadlocks.

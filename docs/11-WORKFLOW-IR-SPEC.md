@@ -386,3 +386,111 @@ Each change is `added`, `removed` or `changed`. A changed entity lists the top-l
 - `qms.capa` used business-time `due` with no `refs.calendars` (check 11).
 
 Both fixtures are fixed.
+
+## 15. As built (BPMS-082)
+
+**Crate.** `crates/runtime` (`procera-runtime`) is the native interpreter. It depends on `procera-ir`, `procera-kernel` (`Clock`, `IdGen`), serde, `time` and `uuid`. It does no I/O, reads no clock and uses no randomness.
+
+**Contract.** The interpreter is a pure function:
+
+```text
+(Program, InstanceState, Stimulus) ──► (InstanceState', [Command])      or EventError (state unchanged)
+```
+
+- `Program` is the compiled normal-form IR indexed for execution (`Program::from_compiled`). It re-checks only what execution relies on: one start, edge endpoints, one edge per outcome, and a join for every split.
+- A `Stimulus` is an `Event` with its recorded time `at`. The application stamps it once with the injected `Clock` (`Stimulus::stamp`); `Stimulus::start` also takes the instance id from the injected `IdGen`. `at` is `now` for every expression the stimulus triggers (§6). Replaying the recorded stimuli needs neither port and reproduces the state, the trace and the commands exactly (`Interpreter::replay`).
+- Token, split and activation ids come from a counter in the state.
+- Expressions go through the `Evaluator` port: `eval(expr, scope)` and `eval_rule(rule, ref, output, scope)`. The scope holds the variables, `instance`, `initiator` and `now`. BPMS-081 implements the port and owns the expression budget. `testkit::MiniEvaluator` is a small test stand-in, not a FEEL or CEL implementation.
+
+**State model** (`InstanceState`, serde-serialisable, all collections ordered):
+
+| Field | Meaning |
+|---|---|
+| `status` | `running`, `waiting` (derived: every live token waits), `completed`, `terminated` (end-terminate or cancel; docs/04 `cancelled`), `failed` |
+| `tokens` | Live tokens only: `id`, `node`, `state` (`ready`, `waiting{kind, key, boundary_timers, timeout_timer}`, `incident{code, message, key}`), and `frames` (the enclosing split branches, innermost last) |
+| `splits` | Open parallel splits: split node, join node, expected branches, arrived branches |
+| `variables` | Process variables (plain values; envelope encryption of `restricted` values is the persistence layer's job, BPMS-083) |
+| `entries` | Entries per node (loop guard) |
+| `trace` | Ordered history: `instance_started`, `node_entered`, `node_left{outcome}`, `waiting{wait,key}`, `resumed{key}`, `boundary_triggered`, `forked`, `join_arrived`, `join_released`, `variables_set{names}`, `token_consumed`, `token_cancelled`, `incident_raised{code}`, `yielded`, `instance_completed`, `instance_terminated{reason}`, `instance_failed{outcome}`. Entries carry variable names, never values (§5) |
+| `revision`, `next_id` | +1 per accepted stimulus; id counter |
+
+**Advance loop.** The loop repeatedly takes the ready token with the lowest id and executes its node, until no token is ready or the instance is final:
+
+| Node | Behaviour |
+|---|---|
+| `start` | Leaves on `next` |
+| `end` | Consumes the token. `result: terminated` cancels every token and open activation, and the instance is `terminated` |
+| `set` | Evaluates every `assign` against the variables as they were before the node, then leaves on `next` |
+| `decision` | Takes the first branch whose `when` is `true`, in declared order, else `default`. A non-boolean result raises incident IR-R002. A rule-table decision takes the branch named by the rule output, else `default` |
+| `parallel.split` | Consumes the token and opens a split. Spawns one token per branch, in declared order, each with a new frame |
+| `parallel.join` | Records the token's branch in its split's arrived set and consumes the token. When every expected branch has arrived, it removes the split and releases one token on `next`. The join therefore fires exactly once |
+| `human.*` | `CreateWorkItem` (assignment or signers, form, outcomes, due, escalations, quorum, signature, subject), then waits |
+| `wait.timer` | `ScheduleTimer`: `at` (expression to an RFC 3339 instant), `after` (absolute `at + duration`), or `after` + `business` (left to the scheduler with the calendar). Then waits |
+| `wait.signal` | `SubscribeSignal` with the evaluated correlation value, plus a timeout timer when `timeout` is set. Then waits |
+| `service.call` | `CallConnector` with evaluated inputs and the evaluated `idempotencyKey`, then waits |
+| `notify` | `Notify`, then leaves on `next` |
+| `subprocess.call` | `StartSubprocess`, then waits |
+| `case.open` | `OpenCase`. Waits when `waitForClose`, else leaves on `opened` |
+
+On entering a waiting node, every `timeout` boundary arms a `ScheduleTimer`. An outcome with no edge fails the instance when the node says `unhandled: fail`, and raises incident IR-R003 otherwise. When no live token is left, the instance is `completed`.
+
+**Events.**
+
+| Event | Effect |
+|---|---|
+| `start` | Creates the instance (`Interpreter::start`) |
+| `work_item_completed{key, outcome, variables}` | The outcome must be one of the node's outcomes and the variables must be declared. Disarms the boundary timers and leaves on the outcome |
+| `timer_fired{key}` | A `wait.timer` leaves on `fired`. A signal timeout withdraws the subscription and leaves on `timeout`. A boundary timer runs its boundary: interrupting (the default) cancels the activation and moves the token; non-interrupting spawns a token at the target and keeps the wait |
+| `signal_received{key, variables}` | Cancels the timeout timer and leaves on `received` |
+| `service_completed{key, outcome, variables}` | `ok` or `error`. `error:<CODE>` goes to a matching `error:<CODE>` boundary, else to `error` |
+| `subprocess_finished{key, outcome}` | `completed`, `failed` or `cancelled` |
+| `case_closed{key}` | Leaves on `closed` |
+| `cancel{reason}` | Terminates the instance |
+| `continue` | Resumes after a budget yield |
+
+A stimulus for an unknown or already-completed activation, a final instance, a wrong outcome or an undeclared variable returns a typed `EventError` and changes nothing. Duplicate completions are therefore no-ops (docs/04 §4.2).
+
+**Commands** (effects as data, executed after commit): `create_work_item`, `cancel_work_item`, `schedule_timer` (purpose `wait`, `boundary` or `signal_timeout`; due `at` or `business`), `cancel_timer`, `subscribe_signal`, `cancel_subscription`, `call_connector`, `notify`, `start_subprocess`, `cancel_subprocess`, `open_case`, `raise_incident`, `emit_event` (`instance.started`, `instance.completed`, `instance.cancelled`, `instance.failed`; ids only), `complete_instance` (`completed`, `terminated` or `failed`), and `continue_advance`.
+
+Every command has a `key` derived only from the instance id and its history:
+- activations use `<instance>/<node>/<n>`;
+- boundary timers add `/boundary/<i>`, and signal timeouts add `/timeout`;
+- events use `<instance>/event/<topic>`, and completion uses `<instance>/complete`.
+
+**Budgets** (`Budget`):
+
+| Budget | Default | On exhaustion |
+|---|---|---|
+| `max_steps` (node executions per advance) | 200 (docs/04 §4.2) | The advance yields with `continue_advance`. Nothing is lost, and a later `continue` resumes |
+| `max_node_entries` (entries per node when it declares no `maxIterations`) | 1,000 | Incident IR-R004 on the token. A node that declares `maxIterations` uses that value instead |
+
+Expression budget overruns are incident IR-R010 (docs/04 §4.5). Runtime incident codes are IR-R001 (expression failed), IR-R002 (non-boolean condition), IR-R003 (no edge), IR-R004 (loop guard), IR-R005 (join outside its split), IR-R006 (bad value) and IR-R010 (A-23).
+
+**Conformance fixtures.** These live in `conformance/runtime/<group>/<case>/`:
+- `process.ir.json`: the authored IR, compiled by the runner;
+- `bundle.json` (optional): rule stand-ins, expression overrides and a budget;
+- `script.json`: ordered steps, which are `start`, `complete`, `fire_timer`, `fire_boundary`, `fire_timeout`, `signal`, `service`, `subprocess`, `case_closed`, `cancel`, `continue`, `advance_clock`, and `reject` (the step must be refused and leave the state unchanged);
+- `expected.trace.jsonl`: the trace without `seq` and `at`;
+- `expected.final.json`: the status, revision, tokens, open splits, variables and the command list.
+
+The runner (`crates/runtime/tests/conformance.rs`) also checks replay equality. `PROCERA_BLESS=1` rewrites the goldens. There are 22 cases covering the docs/15 §4 groups sequence, decision, parallel, loop, human, timer, signal, service, boundary, subprocess, terminate, cancel and incident, plus a `budget` group. Location and file format differ from docs/15 §4 (A-23).
+
+**Tests.**
+- Unit tests cover every node kind, gateway, boundary and budget.
+- The five reference processes run end to end with scripted events.
+- Property tests cover:
+  - determinism, replay equality, and equality after a JSON round trip of the state;
+  - small budgets terminating with the same result as the unbounded run;
+  - joins releasing once, after every branch arrives;
+  - terminate leaving no tokens and refusing later events;
+  - every opened activation being resumed, cancelled, fired or still waiting.
+
+**Gaps against the spec.**
+- Inclusive (OR) and event-based gateways are not in v1 (§1.4, §10), so the interpreter has none.
+- Assignment resolution, quorum, delegation, escalations and the work-item lifecycle belong to BPMS-085. `CreateWorkItem` carries the node's fields, and an escalation `outcome` comes back as a `work_item_completed`.
+- Business-calendar arithmetic, timer persistence and firing, and SLA clocks belong to BPMS-083.
+- The incident lifecycle (retry, skip) and suspend/resume belong to BPMS-088.
+- `cancel` boundaries are not triggered. Compensation is P2.
+- Start-form validation and `required` variables belong to BPMS-101. Variable types are not checked at runtime.
+- Persistence, the instance lock and the outbox belong to BPMS-083 and BPMS-084. The trace stays in the state until persistence moves it into `instance_events`.
+- Child-instance variable mapping for `subprocess.call` is not specified.
