@@ -147,6 +147,35 @@ pub(crate) async fn full_kinds(
     Ok(out)
 }
 
+/// As [`full_kinds`], plus this artifact's kind when the person authors it through a scoped grant
+/// (e.g. a collection designer sees that collection's drafts).
+async fn full_kinds_for(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut WsTx<'_>,
+    a: &procera_library::Artifact,
+) -> Result<Vec<&'static str>, ApiError> {
+    let mut full = full_kinds(s, me, tx).await?;
+    if let Some(kind) = AUTHORABLE.iter().find(|k| **k == a.kind)
+        && !full.contains(kind)
+        && a.collection_id.is_some()
+    {
+        let resource = artifact_resource(tx, a).await?;
+        for action in ["create", "edit_draft", "review", "approve", "publish"] {
+            if members(s)?
+                .access()
+                .check(tx, me.actor.membership, permission(kind, action)?, &resource)
+                .await?
+                .allowed
+            {
+                full.push(kind);
+                break;
+            }
+        }
+    }
+    Ok(full)
+}
+
 /// Kind of a version's artifact, after checking `action` on it and that the member may see the
 /// artifact and this version (hidden → 404).
 async fn authorize_version(
@@ -164,7 +193,7 @@ async fn authorize_version(
             .map_err(internal)?
             .ok_or_else(ApiError::not_found)?;
     let a = authorize_artifact(s, me, tx, artifact_id, action).await?;
-    let full = full_kinds(s, me, tx).await?;
+    let full = full_kinds_for(s, me, tx, &a).await?;
     if !Library::version_visible(
         &a.kind,
         &lifecycle,
@@ -259,7 +288,7 @@ async fn get_artifact(
     let mut tx = me.tx(m).await?;
     let lib = library(&s)?;
     let a = authorize_artifact(&s, &me, &mut tx, id, "view").await?;
-    let full = full_kinds(&s, &me, &mut tx).await?;
+    let full = full_kinds_for(&s, &me, &mut tx, &a).await?;
     let reader = Reader { membership: me.actor.membership, full_kinds: &full };
     let versions: Vec<Value> = lib.versions(&mut tx, id).await?.into_iter()
         .filter(|v| Library::version_visible(&a.kind, &v.lifecycle, &reader))
@@ -267,8 +296,21 @@ async fn get_artifact(
         .filter_map(|v| serde_json::to_value(&v).ok())
         .map(|v| json!({"id": v["id"], "version_no": v["version_no"], "lifecycle": v["lifecycle"], "content_hash": v["content_hash"], "effective_at": v["effective_at"], "published_at": v["published_at"], "change_reason": v["change_reason"]}))
         .collect();
+    // What this person may do with this document, scopes included (the page offers only these).
+    let resource = artifact_resource(&mut tx, &a).await?;
+    let mut actions = vec![];
+    for action in ["edit_draft", "submit_review", "review", "approve", "publish", "retire"] {
+        if let Ok(p) = permission(&a.kind, action)
+            && members(&s)?.access().check(&mut tx, me.actor.membership, p, &resource).await?.allowed
+        {
+            actions.push(action);
+        }
+    }
     tx.rollback().await.map_err(internal)?;
-    Ok(etag(Json(json!({ "artifact": a, "versions": versions })).into_response(), a.revision))
+    Ok(etag(
+        Json(json!({ "artifact": a, "versions": versions, "my_actions": actions })).into_response(),
+        a.revision,
+    ))
 }
 
 async fn new_version(
@@ -281,7 +323,8 @@ async fn new_version(
     let mut tx = me.tx(m).await?;
     let lib = library(&s)?;
     let a = lib.artifact(&mut tx, id).await?;
-    me.require(m, &mut tx, permission(&a.kind, "edit_draft")?, Resource::Workspace).await?;
+    let resource = artifact_resource(&mut tx, &a).await?;
+    me.require(m, &mut tx, permission(&a.kind, "edit_draft")?, resource).await?;
     let v = lib.new_version(&mut tx, &actor(&me, &headers), id).await?;
     tx.commit().await.map_err(internal)?;
     Ok((StatusCode::CREATED, Json(v)).into_response())
@@ -529,6 +572,22 @@ async fn retire(
 // ---- BPMS-044: recertification, verification, change requests ----
 
 /// Loads the artifact, checks `action` on its kind and that the member may see it (hidden → 404).
+/// What a permission on this artifact is checked against: its collection under the collection's
+/// ancestors (nearest first), so collection-scoped grants apply (docs/12 §4, E2E-R1-05); the
+/// workspace when it is not filed.
+async fn artifact_resource(tx: &mut WsTx<'_>, a: &procera_library::Artifact) -> Result<Resource, ApiError> {
+    let Some(cid) = a.collection_id else { return Ok(Resource::Workspace) };
+    let path: Option<Vec<Uuid>> = sqlx::query_scalar("SELECT path FROM collections WHERE id = $1")
+        .bind(cid)
+        .fetch_optional(tx.conn())
+        .await
+        .map_err(internal)?;
+    let mut chain =
+        path.unwrap_or_else(|| vec![cid]).into_iter().rev().map(procera_access::Scope::Collection);
+    let scope = chain.next().unwrap_or(procera_access::Scope::Workspace);
+    Ok(Resource::Scoped { scope, ancestors: chain.collect() })
+}
+
 async fn authorize_artifact(
     s: &AppState,
     me: &WsMember,
@@ -538,8 +597,9 @@ async fn authorize_artifact(
 ) -> Result<procera_library::Artifact, ApiError> {
     let lib = library(s)?;
     let a = lib.artifact(tx, id).await?;
-    me.require(members(s)?, tx, permission(&a.kind, action)?, Resource::Workspace).await?;
-    let full = full_kinds(s, me, tx).await?;
+    let resource = artifact_resource(tx, &a).await?;
+    me.require(members(s)?, tx, permission(&a.kind, action)?, resource).await?;
+    let full = full_kinds_for(s, me, tx, &a).await?;
     if !lib.visible(tx, &a, &Reader { membership: me.actor.membership, full_kinds: &full }).await? {
         return Err(ApiError::not_found());
     }

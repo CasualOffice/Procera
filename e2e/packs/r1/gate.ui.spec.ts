@@ -551,4 +551,152 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Holiday calendar 2027' }).click();
     await expect(page.getByText('Expired: it no longer shows in people’s feeds.')).toBeVisible();
   });
+
+  test('E2E-R1-05 clone Process Designer into HR Designer scoped to the HR collection: preview counts, the scope holds in the UI and the API, and missing permissions are refused', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const nina = await member(request, owner, ws.id, 'nina');
+    const hr = await (await owner.c.post('/api/v1/collections', { headers: h, data: { name: 'HR' } })).json();
+    const fin = await (await owner.c.post('/api/v1/collections', { headers: h, data: { name: 'Finance' } })).json();
+    const draft = async (key: string, title: string, col: string) => {
+      const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'sop', key, title, content: { blocks: [{ type: 'paragraph', text: title }] } } })).json();
+      expect((await owner.c.put(`/api/v1/artifacts/${r.artifact.id}/collection`, { headers: h, data: { collection_id: col } })).status()).toBe(200);
+      return r;
+    };
+    const onboarding = await draft('hr.onboarding', 'Onboarding', hr.id);
+    const payroll = await draft('fin.payroll', 'Payroll run', fin.id);
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Roles & access');
+    await expect(page.getByRole('heading', { level: 1, name: 'Roles & access' })).toBeVisible();
+    await page.getByRole('button', { name: 'Process Designer', exact: true }).click();
+    const pd = page.getByRole('dialog', { name: 'Process Designer' });
+    await expect(pd.getByText('Built-in roles can’t be changed.')).toBeVisible();
+    await pd.getByRole('button', { name: 'Duplicate' }).click();
+    const dup = page.getByRole('dialog', { name: 'Duplicate Process Designer' });
+    await dup.getByLabel('Name').fill('HR Designer');
+    await dup.getByRole('button', { name: 'Duplicate role' }).click();
+    await expect(page.getByText('Created HR Designer.')).toBeVisible();
+    const hd = page.getByRole('dialog', { name: 'HR Designer' });
+    await axe(page);
+
+    // Grant it to Nina for the HR collection only.
+    await hd.getByRole('button', { name: 'Grant role' }).click();
+    const grant = page.getByRole('dialog', { name: 'Grant a role' });
+    await grant.getByLabel('Person').selectOption({ label: 'nina' });
+    await grant.getByText('A collection', { exact: true }).click();
+    await grant.getByLabel('Collection').selectOption({ label: 'HR' });
+    await grant.getByRole('button', { name: 'Grant role' }).click();
+    await expect(page.getByText('Role granted.')).toBeVisible();
+
+    // A permission change previews who is affected, with the right count.
+    await page.getByRole('tab', { name: 'Roles' }).click();
+    await page.getByRole('button', { name: 'HR Designer', exact: true }).click();
+    const hd2 = page.getByRole('dialog', { name: 'HR Designer' });
+    await hd2.getByRole('button', { name: 'All', exact: true }).click();
+    await hd2.getByRole('checkbox', { name: /sop:submit_review/ }).check();
+    await hd2.getByRole('button', { name: 'Review changes' }).click();
+    const review = page.getByRole('dialog', { name: 'Review changes to HR Designer' });
+    await expect(review.getByText(/1 person gains 1 permission/)).toBeVisible();
+    await review.getByRole('button', { name: 'Save changes' }).click();
+    await expect(page.getByText('Role saved.')).toBeVisible();
+
+    // The scope holds: Nina edits the HR draft, but not the Finance one, in the UI and the API.
+    const np = await (await browser.newContext()).newPage();
+    await signInPassword(np, nina.email);
+    await np.goto(`${WEB}/library/${onboarding.artifact.id}`);
+    await expect(np.getByRole('heading', { level: 1, name: 'Onboarding' })).toBeVisible();
+    await expect(np.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+    await np.goto(`${WEB}/library/${payroll.artifact.id}`);
+    await expect(np.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    const ns = await passwordSession(nina.email);
+    const sw = await ns.c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${ns.token}` }, data: { workspace_id: ws.id } });
+    const nh = { authorization: `Bearer ${(await sw.json()).access_token}` };
+    expect((await ns.c.patch(`/api/v1/versions/${onboarding.version.id}`, { headers: nh, data: { content: { blocks: [{ type: 'paragraph', text: 'Updated by HR' }] } } })).status()).toBe(200);
+    expect([403, 404]).toContain((await ns.c.patch(`/api/v1/versions/${payroll.version.id}`, { headers: nh, data: { content: { blocks: [{ type: 'paragraph', text: 'Not mine' }] } } })).status());
+
+    // Giving a permission the editor does not hold is refused: an admin (no owner-only permissions)
+    // cannot put workspace billing into a role.
+    const adm = await member(request, owner, ws.id, 'admin2', 'workspace.admin');
+    const admin = await enter(adm.email, ws.id);
+    const hrRole = (await (await admin.c.get('/api/v1/roles', { headers: admin.headers })).json()).items.find((r: { name: string }) => r.name === 'HR Designer');
+    const esc = await admin.c.patch(`/api/v1/roles/${hrRole.id}`, { headers: admin.headers, data: { permissions: ['sop:view', 'workspace:billing.view'] } });
+    expect(esc.status()).toBe(403);
+    expect((await esc.json()).code).toBe('escalation');
+  });
+
+  test('E2E-R1-02 a system admin creates a Starter and an Enterprise workspace; the owner accepts from the email and turns on two-step verification', async ({ page, browser, request }) => {
+    const sysEmail = await seedUser(request, 'sysadmin');
+    await request.post('/__test/system-roles', { data: { email: sysEmail, role: 'system.admin' } });
+    const sys = await (await import('../../fixtures/accounts')).mfaSession(sysEmail);
+    await page.goto(`${WEB}/system`);
+    await page.getByLabel('Work email').fill(sysEmail);
+    await page.getByLabel('Password').fill(PW);
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Code').fill(sys.recovery[0]!);
+    await page.getByRole('button', { name: 'Verify' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Workspaces' })).toBeVisible();
+
+    const suffix = Date.now().toString(36);
+    const ownerA = uniqueEmail('owner-a');
+    for (const [name, profile, owner] of [[`Northwind ${suffix}`, /Starter/, ownerA], [`Contoso ${suffix}`, /Enterprise/, uniqueEmail('owner-b')]] as const) {
+      await page.getByRole('button', { name: 'New workspace' }).first().click();
+      const dlg = page.getByRole('dialog', { name: 'New workspace' });
+      await dlg.getByLabel('Workspace name').fill(name);
+      await expect(dlg.getByLabel('Slug')).not.toHaveValue('');
+      await dlg.getByRole('radio', { name: profile }).check();
+      await dlg.getByLabel('Owner email').fill(owner);
+      await axe(page);
+      await dlg.getByRole('button', { name: 'Create workspace' }).click();
+      await expect(page.getByText(`${name} was created`)).toBeVisible();
+      await expect(page.getByRole('table', { name: 'Workspaces' }).getByRole('button', { name: `${name}, open details` })).toBeVisible();
+    }
+
+    // Owner A accepts from the email, enrols two-step verification and lands in the workspace.
+    const list = await (await sys.c.get('/sysapi/v1/workspaces', { headers: sys.headers })).json();
+    const wsA = (list.items as { id: string; name: string }[]).find((w) => w.name === `Northwind ${suffix}`)!;
+    const { emailLink } = await import('../../fixtures/journey');
+    const link = await emailLink(request, wsA.id, ownerA, 'invitation', /\/invite\?token=/);
+    const op = await (await browser.newContext()).newPage();
+    await op.goto(link);
+    await expect(op.getByRole('heading', { level: 1, name: `Join Northwind ${suffix}` })).toBeVisible();
+    await op.getByLabel('Your name').fill('Owen Owner');
+    await op.getByLabel(/^Password/).fill(PW);
+    await op.getByLabel('Confirm password').fill(PW);
+    await op.getByRole('button', { name: 'Create account and join' }).click();
+    await expect(op.getByRole('heading', { level: 1, name: 'Turn on two-step verification' })).toBeVisible();
+    await op.getByRole('button', { name: 'Get started' }).click();
+    const secret = (await op.locator('.mfa-secret code').innerText()).replace(/\s+/g, '');
+    await op.getByLabel('6-digit code').fill(totp(secret, await serverNow(request)));
+    await op.getByRole('button', { name: 'Verify and turn on' }).click();
+    const code = await op.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem').first().innerText();
+    await op.getByRole('button', { name: /sign in again/ }).click();
+    await op.getByLabel('Work email').fill(ownerA);
+    await op.getByLabel('Password').fill(PW);
+    await op.getByRole('button', { name: 'Sign in' }).click();
+    await op.getByLabel('Code').fill(code);
+    await op.getByRole('button', { name: 'Verify' }).click();
+    await expect(op.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), Owen/ })).toBeVisible();
+  });
+
+  test('E2E-R1-01 first-run setup page: a bad token is refused, and an already set-up platform says so (no default credentials)', async ({ page, request }) => {
+    await page.goto(`${WEB}/setup`);
+    await expect(page.getByRole('heading', { level: 1, name: /Set up Procera|Procera is already set up/ })).toBeVisible();
+    if (await page.getByRole('heading', { level: 1, name: 'Set up Procera' }).isVisible()) {
+      await axe(page);
+      await page.getByLabel('Setup token').fill('not-a-real-token');
+      await page.getByLabel('Work email').fill(uniqueEmail('root'));
+      await page.getByLabel('Your name').fill('Root');
+      await page.getByLabel(/^Password/).fill(PW);
+      await page.getByLabel('Confirm password').fill(PW);
+      await page.getByRole('button', { name: 'Create system owner' }).click();
+      await expect(page.getByText(/This setup token doesn’t work|Procera is already set up/).first()).toBeVisible();
+    }
+    // No default account signs in.
+    for (const [email, pw] of [['admin@procera.local', 'admin'], ['admin', 'admin'], ['root@localhost', 'changeme']]) {
+      const r = await request.post('/api/v1/auth/login', { data: { email, password: pw } });
+      expect([401, 422, 429]).toContain(r.status());
+    }
+  });
 });

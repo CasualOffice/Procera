@@ -24,7 +24,7 @@ import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from './docGovernance';
 import { ApplicabilityRow } from './docApplicability';
 
-interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean; collection_id?: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
+interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean; collection_id?: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[]; /** What I may do with this document, collection scopes included. */ my_actions?: string[] }
 interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null; semver?: string | null; reack_required?: boolean; effective_at?: string | null }
 /** What publishing would do (BPMS-045): numbers per change, who is asked to re-acknowledge and by when. */
 interface PublishPreview { version_no: number; next_semver_major: string; next_semver_minor: string; reack_required_if_major: boolean; reack_required_if_minor: boolean; audience_size: number; due_at: string }
@@ -110,7 +110,7 @@ export function LibraryDoc({ id }: { id: string }) {
   const blocks = version.content.blocks ?? [];
   const pendingAck = (acks ?? []).find((x) => x.subject.artifact_id === a.id);
   const v = version;
-  const p = (action: string) => can(`${a.kind}:${action}`);
+  const p = (action: string) => (data.my_actions && action !== 'view' ? data.my_actions.includes(action) : can(`${a.kind}:${action}`));
   const approvals = v.reviews.filter((r) => r.decision === 'approve').length;
   const reack = (campaigns ?? []).find((c) => c.origin === 'reack' && c.subject.version_id === a.current_published_version_id);
   const publish = () => {
