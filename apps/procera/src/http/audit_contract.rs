@@ -75,6 +75,9 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/role-grants", &[&["role.granted"]]),
     emits("DELETE", "/api/v1/role-grants/{id}", &[&["role.revoked"]]),
     emits("PUT", "/api/v1/settings/{key}", &[&["setting.changed"]]),
+    emits("PUT", "/api/v1/settings/departments/{id}/{key}", &[&["setting.override_set"]]),
+    emits("DELETE", "/api/v1/settings/departments/{id}/{key}", &[&["setting.override_cleared"]]),
+    emits("POST", "/api/v1/settings/profile/apply", &[&["settings.profile_switched"]]),
     // Library (approval and publication can also append version.approved / version.published).
     emits("POST", "/api/v1/artifacts", &[&["artifact.created"]]),
     emits("POST", "/api/v1/artifacts/{id}/versions", &[&["version.created"]]),

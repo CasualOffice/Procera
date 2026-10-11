@@ -1,5 +1,5 @@
 import { type APIRequestContext, expect } from '@playwright/test';
-import { PW, client, mfaSession, seedUser, uniqueEmail } from './accounts';
+import { PW, client, mfaSession, seedUser, serverNow, uniqueEmail } from './accounts';
 
 // Workspace onboarding helpers shared by the R1 packs.
 
@@ -43,5 +43,18 @@ export async function workspaceWithOwner(request: APIRequestContext, profile = '
     expect((await request.post('/__test/settings', { data: { workspace: ws.id, key, value } })).ok()).toBe(true);
   }
   return { sys, ws, ownerEmail, owner: await enter(ownerEmail, ws.id) };
+}
+
+/**
+ * Re-signs the session's token with auth_time = server now (test control), so a step-up action
+ * works even if another test moved the shared clock. Returns headers with the fresh bearer.
+ */
+export async function freshAuth(s: Session): Promise<Record<string, string>> {
+  const token = (s.headers.authorization ?? '').replace(/^Bearer /, '');
+  const { auth_time } = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString());
+  const now = Math.floor((await serverNow(s.c)) / 1000);
+  const res = await s.c.post('/__test/session/backdate', { headers: s.headers, data: { seconds: auth_time - now } });
+  expect(res.status()).toBe(200);
+  return { authorization: `Bearer ${(await res.json()).access_token}` };
 }
 

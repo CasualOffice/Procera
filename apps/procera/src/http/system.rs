@@ -341,5 +341,6 @@ async fn set_floor(
         .set_floor(&mut tx, subject, u.user_id, &key, &r.value, &r.reason, (c.ip, c.user_agent))
         .await?;
     tx.commit().await.map_err(err)?;
+    super::settings::invalidate_floors(&s).await;
     Ok(Json(v).into_response())
 }

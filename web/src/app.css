@@ -635,3 +635,20 @@ h1, h2, .task-title, .post-title { text-wrap: balance; }
 a.choice-system { margin: var(--space-4) 0; border: 1px solid var(--line); border-radius: var(--radius-container); text-decoration: none; }
 a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 .choice-icon { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-control); color: #EDECE9; background: #1C1B19; flex: none; }
+
+/* Settings scopes: department overrides and profile switch (BPMS-027). */
+.scope-panel { display: flex; flex-direction: column; gap: 1rem; max-width: 55rem; }
+.scope-intro { margin: 0; font-size: 0.875rem; color: var(--color-text-secondary); max-width: 68ch; }
+.scope-pick { width: min(22.5rem, 100%); }
+.profile-fieldset { margin: 0; padding: 0; border: 0; min-width: 0; }
+.profile-fieldset legend { padding: 0 0 0.5rem; }
+.profile-choices { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 0.625rem; overflow: hidden; }
+.profile-choice { display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 1rem; border-top: 1px solid var(--line-subtle); cursor: pointer; }
+.profile-choice:first-child { border-top: 0; }
+.profile-choice:hover { background: var(--fill-hover); }
+.profile-choice-on { background: var(--color-bg); }
+.profile-choice input { margin-top: 0.1875rem; width: 1rem; height: 1rem; accent-color: var(--color-text); }
+.profile-choice-text { display: flex; flex-direction: column; gap: 0.125rem; }
+.profile-choice-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: var(--font-weight-medium); font-size: 0.875rem; }
+.profile-choice-about { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.plan-note { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; min-height: 2.625rem; }

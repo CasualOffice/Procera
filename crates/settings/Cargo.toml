@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 procera-audit.workspace = true
+procera-cache.workspace = true
 procera-db.workspace = true
 procera-kernel.workspace = true
 serde = { workspace = true }

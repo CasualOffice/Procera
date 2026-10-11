@@ -1,6 +1,7 @@
 import { type APIRequestContext, type APIResponse, expect, request as pwRequest, test } from '@playwright/test';
 import { BASE, PW, hasDatabase, serverNow, uniqueEmail } from '../../fixtures/accounts';
 import { totp } from '../../fixtures/totp';
+import { freshAuth } from '../../fixtures/workspace';
 
 // E2E-R1-AUD-01 — audit coverage contract (FR-T01, BPMS-026). Calls every mutating route once and checks
 // the audit events it appended against the route table served by /__test/audit/contract. Events are
@@ -101,6 +102,8 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   // Directory (adam is still active here).
   const dept = await (await step('POST', '/api/v1/departments', () => own.post('/api/v1/departments', { headers: oh, data: { name: 'Audit Dept' } }))).json();
   await step('PATCH', '/api/v1/departments/{id}', () => own.patch(`/api/v1/departments/${dept.id}`, { headers: oh, data: { name: 'Audit Department' } }));
+  await step('PUT', '/api/v1/settings/departments/{id}/{key}', () => own.put(`/api/v1/settings/departments/${dept.id}/locale.timezone`, { headers: oh, data: { value: 'Europe/Berlin' } }));
+  await step('DELETE', '/api/v1/settings/departments/{id}/{key}', () => own.delete(`/api/v1/settings/departments/${dept.id}/locale.timezone`, { headers: oh }));
   await step('PATCH', '/api/v1/members/{id}', () => own.patch(`/api/v1/members/${joined.membership_id}`, { headers: oh, data: { title: 'Auditor' } }));
   const grp = await (await step('POST', '/api/v1/groups', () => own.post('/api/v1/groups', { headers: oh, data: { name: 'Audit Group' } }))).json();
   await step('POST', '/api/v1/groups/{id}/members', () => own.post(`/api/v1/groups/${grp.id}/members`, { headers: oh, data: { membership_id: joined.membership_id } }));
@@ -180,6 +183,9 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
 
   // Settings: a workspace value, and a platform floor re-set to its current value (no effect on other tests).
   await step('PUT', '/api/v1/settings/{key}', () => own.put('/api/v1/settings/locale.week_start', { headers: oh, data: { value: 'sun' } }));
+  const switchPlan = await own.get('/api/v1/settings/profile/plan?profile=enterprise', { headers: oh });
+  const fresh = await freshAuth({ c: own, headers: oh });
+  await step('POST', '/api/v1/settings/profile/apply', () => own.post('/api/v1/settings/profile/apply', { headers: { ...fresh, 'if-match': switchPlan.headers()['etag']! }, data: { profile: 'enterprise', reason: 'audit drill' } }));
   const floors = await (await sys.get('/sysapi/v1/settings', { headers: sh })).json();
   const maxSize = floors.items.find((f: { key: string }) => f.key === 'files.max_size').value;
   await step('PUT', '/sysapi/v1/settings/{key}', () => sys.put('/sysapi/v1/settings/files.max_size', { headers: sh, data: { value: maxSize, reason: 'audit drill (unchanged)' } }));

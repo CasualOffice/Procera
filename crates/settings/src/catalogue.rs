@@ -80,6 +80,9 @@ pub struct Def {
     pub immediate: bool,
     /// Requires a fresh MFA-verified session to change.
     pub step_up: bool,
+    /// A department may override it (docs/20 §2 column Ovr, department scope). Never a ⚡ key: a
+    /// department-scoped admin can never change workspace security (docs/20 §0).
+    pub department: bool,
     #[serde(skip)]
     pub default: fn() -> Value,
 }
@@ -111,7 +114,7 @@ const fn def(
     perm: Option<&'static str>,
     default: fn() -> Value,
 ) -> Def {
-    Def { key, group, kind, perm, floor: None, immediate: false, step_up: false, default }
+    Def { key, group, kind, perm, floor: None, immediate: false, step_up: false, department: false, default }
 }
 
 const fn sec(
@@ -122,7 +125,22 @@ const fn sec(
     step_up: bool,
     default: fn() -> Value,
 ) -> Def {
-    Def { key, group: "security", kind, perm, floor: Some(floor), immediate: true, step_up, default }
+    Def {
+        key,
+        group: "security",
+        kind,
+        perm,
+        floor: Some(floor),
+        immediate: true,
+        step_up,
+        department: false,
+        default,
+    }
+}
+
+/// Marks a key as department-overridable (Ovr ✓ or ✓ (dept) in docs/20 §2; "(collection)" only is not).
+const fn dept(d: Def) -> Def {
+    Def { department: true, ..d }
 }
 
 const MIN: i64 = 60;
@@ -142,15 +160,15 @@ pub const CATALOGUE: &[Def] = &[
     ),
     def("branding.email_sender_name", "branding", Kind::Text { max_len: 80 }, Some(BRANDING), || json!("")),
     // 2.2 Localisation
-    def("locale.default", "locale", Kind::Text { max_len: 35 }, Some(SETTINGS), || json!("en")),
-    def("locale.timezone", "locale", Kind::Text { max_len: 64 }, Some(SETTINGS), || json!("UTC")),
-    def(
+    dept(def("locale.default", "locale", Kind::Text { max_len: 35 }, Some(SETTINGS), || json!("en"))),
+    dept(def("locale.timezone", "locale", Kind::Text { max_len: 64 }, Some(SETTINGS), || json!("UTC"))),
+    dept(def(
         "locale.week_start",
         "locale",
         Kind::Enum { values: &["mon", "tue", "wed", "thu", "fri", "sat", "sun"] },
         Some(SETTINGS),
         || json!("mon"),
-    ),
+    )),
     // 2.3 Identity and security (⚡)
     sec(
         "auth.mfa.required_roles",
@@ -238,51 +256,53 @@ pub const CATALOGUE: &[Def] = &[
         Some(SETTINGS),
         || json!("controlled"),
     ),
-    def(
+    dept(def(
         "governance.review.min_reviewers",
         "governance",
         Kind::Int { min: 0, max: 5 },
         Some(SETTINGS),
         || json!(1),
-    ),
-    def(
+    )),
+    dept(def(
         "governance.reack.policy",
         "governance",
         Kind::Enum { values: &["major_only", "every_publish", "none"] },
         Some(SETTINGS),
         || json!("major_only"),
-    ),
-    def(
+    )),
+    dept(def(
         "governance.reack.window",
         "governance",
         Kind::Duration { min: DAY, max: 365 * DAY },
         Some(SETTINGS),
         || json!(14 * DAY),
-    ),
-    def("governance.reason_for_change.required", "governance", Kind::Bool, Some(SETTINGS), || json!(true)),
+    )),
+    dept(def("governance.reason_for_change.required", "governance", Kind::Bool, Some(SETTINGS), || {
+        json!(true)
+    })),
     // BPMS-044: how long a published artifact stays current before it must be recertified, and how
     // long a verification badge lasts.
-    def(
+    dept(def(
         "governance.review_cadence.default",
         "governance",
         Kind::Duration { min: 7 * DAY, max: 3 * 365 * DAY },
         Some(SETTINGS),
         || json!(365 * DAY),
-    ),
-    def(
+    )),
+    dept(def(
         "governance.review_cadence.controlled",
         "governance",
         Kind::Duration { min: 7 * DAY, max: 3 * 365 * DAY },
         Some(SETTINGS),
         || json!(180 * DAY),
-    ),
-    def(
+    )),
+    dept(def(
         "governance.verification.validity",
         "governance",
         Kind::Duration { min: DAY, max: 365 * DAY },
         Some(SETTINGS),
         || json!(90 * DAY),
-    ),
+    )),
     // 2.7 Execution
     def("exec.request_id_pattern", "execution", Kind::Text { max_len: 40 }, Some(SETTINGS), || {
         json!("REQ-{yyyy}-{seq:6}")
@@ -326,6 +346,7 @@ pub const CATALOGUE: &[Def] = &[
         floor: Some(Comparator::Smaller),
         immediate: false,
         step_up: false,
+        department: false,
         default: || json!(100 * MB),
     },
     Def {
@@ -336,6 +357,7 @@ pub const CATALOGUE: &[Def] = &[
         floor: Some(Comparator::True),
         immediate: true,
         step_up: false,
+        department: false,
         default: || json!(true),
     },
     def("files.exif_strip", "files", Kind::Bool, Some(SETTINGS), || json!(true)),
@@ -355,60 +377,62 @@ pub const CATALOGUE: &[Def] = &[
         || json!(7 * DAY),
     ),
     // 2.14 Acknowledgement campaigns (copied onto each campaign when it is created)
-    def(
+    dept(def(
         "campaign.audience.snapshot",
         "campaigns",
         Kind::Enum { values: &["at_launch", "dynamic"] },
         Some(SETTINGS),
         || json!("dynamic"),
-    ),
-    def(
+    )),
+    dept(def(
         "campaign.reminders.cadence",
         "campaigns",
         Kind::DurationList { min: HOUR, max: 365 * DAY, max_items: 10 },
         Some(SETTINGS),
         || json!([3 * DAY, 7 * DAY]),
-    ),
+    )),
     // 0 = off.
-    def(
+    dept(def(
         "campaign.escalation.to_manager_after",
         "campaigns",
         Kind::Duration { min: 0, max: 365 * DAY },
         Some(SETTINGS),
         || json!(14 * DAY),
-    ),
-    def(
+    )),
+    dept(def(
         "campaign.default_due",
         "campaigns",
         Kind::Duration { min: DAY, max: 365 * DAY },
         Some(SETTINGS),
         || json!(14 * DAY),
-    ),
-    def("campaign.ack_text", "campaigns", Kind::Text { max_len: 500 }, Some(SETTINGS), || {
+    )),
+    dept(def("campaign.ack_text", "campaigns", Kind::Text { max_len: 500 }, Some(SETTINGS), || {
         json!("I have read and understood this document and will follow it.")
-    }),
+    })),
     // 2.15 Policies
-    def("policies.attest_on_join", "policies", Kind::Bool, Some(SETTINGS), || json!(true)),
+    dept(def("policies.attest_on_join", "policies", Kind::Bool, Some(SETTINGS), || json!(true))),
     def("policies.numbering_pattern", "policies", Kind::Text { max_len: 40 }, Some(SETTINGS), || {
         json!("POL-{seq:4}")
     }),
     // 2.17 Announcements
     def("announcements.enabled", "announcements", Kind::Bool, Some(SETTINGS), || json!(true)),
-    def(
+    dept(def(
         "announcements.approval_required",
         "announcements",
         Kind::Enum { values: &["off", "for_workspace_wide", "always"] },
         Some(SETTINGS),
         || json!("for_workspace_wide"),
-    ),
-    def("announcements.require_ack.default", "announcements", Kind::Bool, Some(SETTINGS), || json!(false)),
-    def(
+    )),
+    dept(def("announcements.require_ack.default", "announcements", Kind::Bool, Some(SETTINGS), || {
+        json!(false)
+    })),
+    dept(def(
         "announcements.expiry.default",
         "announcements",
         Kind::Duration { min: HOUR, max: 730 * DAY },
         Some(SETTINGS),
         || json!(30 * DAY),
-    ),
+    )),
     def(
         "announcements.channels",
         "announcements",
@@ -478,6 +502,10 @@ mod tests {
             if d.step_up {
                 assert!(d.immediate, "{}: step-up keys are security keys", d.key);
             }
+            if d.department {
+                assert!(!d.immediate && !d.step_up, "{}: ⚡ keys are never department-scopable", d.key);
+                assert!(d.perm.is_some(), "{}: a department override needs an editable key", d.key);
+            }
         }
         for p in ["starter", "standard", "enterprise", "regulated"] {
             for (k, v) in profile(p).expect("profile") {
@@ -486,6 +514,8 @@ mod tests {
             }
         }
         assert!(profile("nope").is_none());
+        assert!(CATALOGUE.iter().any(|d| d.department), "some keys are department-scopable");
+        assert!(!get("governance.review.required_for").is_some_and(|d| d.department), "collection-only Ovr");
     }
 
     #[test]

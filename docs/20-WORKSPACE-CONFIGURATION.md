@@ -44,6 +44,8 @@ Implementation:
 - System Admins can clone a profile into a custom platform profile, e.g. "Acme Group Standard" for all of an MNC's subsidiaries.
 - The key `general.profile` records `{name, version, applied_at}`.
 
+**As built (BPMS-027, CFG-017):** the four profiles live in code (`catalogue::profile`) and the workspace's profile is recorded in `workspaces.profile`. The Settings screen's *Configuration profile* tab, and `GET /api/v1/settings/profile/plan?profile=…`, preview a switch: every key any profile sets whose effective value would change, with its current value, the target value and the value after the floor clamp. Admin-set values that the switch replaces are flagged. `POST …/profile/apply` needs the plan's `ETag` in `If-Match`, a reason and step-up. It appends one `settings.profile_switched` event (assumption A-17 in [22](22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md)).
+
 **Delegated administration (MNC depth):** the Workspace Admin role can be granted scoped to `department:<id>` or `collection:<id>` ([12 §5](12-AUTHORIZATION-MODEL.md)). A scoped admin can:
 - manage members and roles *within* the scope;
 - set department/collection overrides (keys marked Ovr);
@@ -69,6 +71,8 @@ Resolution rules:
 5. Raising a platform floor clamps non-compliant workspace values at enforcement time and notifies affected Workspace Admins. Their stored value is kept but marked `clamped`.
 
 **Effective settings explainer** (UI + `GET /v1/settings/effective?key=…&scope=…`): for any key and scope it shows the final value and every layer that contributed, e.g. "12 h (workspace) — platform floor 12 h — default 24 h". This is required for supportability.
+
+**As built (BPMS-027): department overrides.** `scope=department:<id>` resolves for a department. A department inherits its ancestors' overrides and the nearest one wins; the floor still clamps. Only keys marked Ovr ✓ or ✓ (dept) in §2 are department-scopable (`Def::department` in the catalogue; collection-only keys are not), and none is a ⚡ key. The Settings screen's *Departments* tab picks a department, shows each scopable key's effective value with where it comes from, and sets or clears that department's override. Features still read the workspace-level value until they carry a department context (A-17).
 
 ## 2. Settings catalogue (workspace plane)
 
@@ -365,7 +369,7 @@ System settings follow the same versioning and audit rules as workspace settings
 - `platform_settings (key, value, is_floor, revision)` holds platform values and floors.
 - `workspace_settings (workspace_id, key, value, revision, updated_by)` holds values that differ from the code default; `updated_by IS NULL` marks a value applied from the creation profile.
 - `settings_revisions` is the append-only history for every layer (platform changes sit under the system workspace).
-- Department/collection overrides (layer 4) arrive with the directory (BPMS-023). Process-level values live in release bundles.
+- `department_settings (workspace_id, department_id, key, value, revision, updated_by)` holds department overrides (migration 0021, forced RLS, removed with the department); `settings_revisions.scope_id` names the department of a `department` revision. Collection overrides arrive with collections. Process-level values live in release bundles.
 - Step-up keys need an MFA-verified session until the step-up endpoint ships (BPMS-022).
 
 The original sketch, kept for reference:
@@ -390,7 +394,7 @@ CREATE TABLE settings_revisions (
 ```
 
 - The **catalogue lives in code** (`crates/settings/src/catalogue.rs`; durations in seconds, sizes in bytes): key, JSON Schema, default, comparator, floor-bound, overridable scopes, required permission, ⚡ flag and phase. Generated docs and the admin UI form are both built from it, so they never drift.
-- **Effective settings cache:** `(workspace, scope) → resolved map`, in-process (moka) with a TTL. A settings change writes an outbox event `settings.changed.v1{workspace_id, keys}`, and every API/worker node invalidates on receipt. ⚡ keys are additionally checked against the DB on security-sensitive paths (login, step-up) so they never wait on the cache.
+- **Effective settings cache** (as built, BPMS-027 / CFG-004): a snapshot of every stored layer per workspace in the shared Valkey cache, keyed by workspace and floor *generations*. Writers install a new generation after commit and the `settings.changed.v1` consumer does it again, so a change is visible on the next read. Without a shared cache (in-process backend or none) settings are read from the database. Details in [04 §7](04-LLD.md#7-settings-resolution). The original sketch: `(workspace, scope) → resolved map`, in-process (moka) with a TTL. A settings change writes an outbox event `settings.changed.v1{workspace_id, keys}`, and every API/worker node invalidates on receipt. ⚡ keys are additionally checked against the DB on security-sensitive paths (login, step-up) so they never wait on the cache.
 - Process-level settings are part of the IR / release bundle, not this table.
 
 ## 6. Configuration backlog

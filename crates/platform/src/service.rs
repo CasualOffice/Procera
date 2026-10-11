@@ -214,6 +214,37 @@ impl Platform {
         &self.settings
     }
 
+    /// The configuration profile recorded for the transaction's workspace (docs/20 §0).
+    pub async fn workspace_profile(&self, tx: &mut WsTx<'_>) -> Result<String, PlatformError> {
+        sqlx::query_scalar("SELECT profile FROM workspaces WHERE id = $1")
+            .bind(tx.ctx.workspace_id)
+            .fetch_optional(tx.conn())
+            .await?
+            .ok_or(PlatformError::NotFound)
+    }
+
+    /// Switches the transaction's workspace to `to` (CFG-017): applies the settings plan if it still
+    /// matches `basis`, then records the profile on the workspace, in the caller's transaction.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn switch_profile(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: (Uuid, Uuid),
+        to: &str,
+        reason: &str,
+        basis: Option<&str>,
+        client: (Option<String>, Option<String>),
+    ) -> Result<procera_settings::ProfilePlan, PlatformError> {
+        let from = self.workspace_profile(tx).await?;
+        let plan = self.settings.apply_profile_switch(tx, actor, &from, to, reason, basis, client).await?;
+        sqlx::query("UPDATE workspaces SET profile = $2, revision = revision + 1 WHERE id = $1")
+            .bind(tx.ctx.workspace_id)
+            .bind(to)
+            .execute(tx.conn())
+            .await?;
+        Ok(plan)
+    }
+
     pub fn new(
         db: Db,
         identity: Identity,

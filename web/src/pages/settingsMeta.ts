@@ -85,7 +85,7 @@ export const VALUES: Record<string, string> = {
   'compliance.officer': 'Compliance', 'case.manager': 'Case manager', investigator: 'Investigator', 'team.manager': 'Team manager', analyst: 'Analyst', reviewer: 'Reviewer', member: 'Member',
 };
 
-export const LAYER: Record<string, string> = { default: 'Product default', profile: 'Workspace profile', workspace: 'Set for this workspace', platform_floor: 'Platform minimum' };
+export const LAYER: Record<string, string> = { default: 'Product default', profile: 'Workspace profile', workspace: 'Set for this workspace', department: 'Set for a department', platform_floor: 'Platform minimum' };
 
 export function humanise(key: string): string {
   const last = key.split('.').slice(-2).join(' ').replace(/_/g, ' ');
