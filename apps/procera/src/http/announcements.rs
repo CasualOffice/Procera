@@ -197,8 +197,18 @@ async fn list(
     }
     let scope = ListScope { all: p.manage, others_submitted: p.publish, me: me.actor.membership };
     let items = service(&s)?.list(&mut tx, scope, q.state.as_deref()).await?;
+    // Whether publishing needs someone else's approval, so the page offers the right action upfront.
+    let mode = approval_mode(&s, &mut tx).await?;
     tx.rollback().await.map_err(internal)?;
-    Ok(Json(json!({ "items": items })).into_response())
+    let mut out = Vec::with_capacity(items.len());
+    for a in items {
+        let needs =
+            a.audience().map(|aud| procera_announcements::approval_applies(&mode, &aud)).unwrap_or(true);
+        let mut v = serde_json::to_value(&a).map_err(internal)?;
+        v["needs_approval"] = json!(needs);
+        out.push(v);
+    }
+    Ok(Json(json!({ "items": out })).into_response())
 }
 
 async fn create(

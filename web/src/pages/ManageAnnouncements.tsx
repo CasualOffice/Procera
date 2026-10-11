@@ -19,6 +19,8 @@ import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
 
 export interface Announcement {
+  /** Publishing needs someone else's approval (announcements.approval_required). */
+  needs_approval?: boolean;
   id: string; title: string; content: { blocks?: Block[] }; audience: unknown; priority: string; pinned: boolean; require_ack: boolean;
   publish_at: string | null; expires_at: string; state: string; expired: boolean; approval_required: boolean; channels: string[];
   author_membership_id: string; submitted_at: string | null; decided_by: string | null; decided_at: string | null; decision_comment: string | null;
@@ -129,7 +131,7 @@ function AnnouncementDrawer({ a, people, onClose, onEdit, onChanged }: { a: Anno
   const manage = can('announcement:manage');
   const publisher = can('announcement:publish') || manage;
   const [stats] = useResource<Analytics>(live ? `/api/v1/announcements/${a.id}/analytics` : null, [a.revision]);
-  useEffect(() => { setError(null); setNeedsApproval(false); }, [a.id, a.state]);
+  useEffect(() => { setError(null); setNeedsApproval(a.needs_approval === true); }, [a.id, a.state, a.needs_approval]);
 
   const act = async (path: string, body?: unknown) => {
     setBusy(true); setError(null);

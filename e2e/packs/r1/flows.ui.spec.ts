@@ -213,6 +213,7 @@ test.describe('complete flows @r1 @ui', () => {
     await expect(post.getByText('Acknowledged')).toBeVisible();
 
     await page.reload();
+    await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Office closed Friday' }).click();
     await expect(page.getByText(/\(1 of 2\)/).first()).toBeVisible();
   });
 
