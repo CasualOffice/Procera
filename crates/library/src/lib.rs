@@ -615,9 +615,10 @@ impl Library {
         {
             return Err(LibraryError::StaleRevision { current: r.12 });
         }
-        sqlx::query("UPDATE artifact_versions SET content = $2, revision = revision + 1 WHERE id = $1")
+        sqlx::query("UPDATE artifact_versions SET content = $2, last_activity_at = $3, revision = revision + 1 WHERE id = $1")
             .bind(id)
             .bind(content)
+            .bind(self.clock.now()) // retention measures drafts from their last edit (BPMS-066)
             .execute(tx.conn())
             .await?;
         self.audit(

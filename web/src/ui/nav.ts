@@ -1,6 +1,6 @@
-import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Gauge, History, House, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Gauge, Archive, History, House, Megaphone, ScrollText, Settings, ShieldCheck, SquarePen, UserPlus, Users, type LucideIcon } from 'lucide-react';
 
-export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'overview' | 'members' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'audit' | 'none';
+export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'overview' | 'members' | 'people' | 'manage-announcements' | 'campaigns' | 'settings' | 'retention' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -24,6 +24,7 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
     any('announcement:create', 'announcement:publish', 'announcement:manage') && { key: 'manage-announcements', label: 'Manage announcements', to: '/admin/announcements', icon: SquarePen, keywords: 'compose write publish approve posts' },
     can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },
     can('workspace:settings.view') && { key: 'settings', label: 'Settings', to: '/admin/settings', icon: Settings, keywords: 'configuration security preferences' },
+    can('workspace:settings.view') && { key: 'retention', label: 'Retention', to: '/admin/retention', icon: Archive, keywords: 'records keep delete drafts logs disposition' },
     any('audit:view', 'audit:view_own') && { key: 'audit', label: 'Audit log', to: '/admin/audit', icon: History, keywords: 'history events trail who changed' },
   ];
   return [

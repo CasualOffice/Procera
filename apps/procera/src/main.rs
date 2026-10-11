@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 mod bus;
 mod http;
 mod reack;
+mod retention;
 
 #[derive(Debug, Parser)]
 #[command(name = "procera", version, about = "Procera — turn processes into progress.")]
@@ -212,6 +213,9 @@ async fn main() -> anyhow::Result<()> {
                 (Some(l), Some(c), Some(a), true) => {
                     let (l, c, a) = (l.clone(), c.clone(), a.clone());
                     let notify = state.notify.clone();
+                    let retention = state.retention.clone();
+                    // Retention runs at most hourly (BPMS-066).
+                    let mut last_retention: Option<std::time::Instant> = None;
                     let mut rx = stop_rx.clone();
                     Some(tokio::spawn(async move {
                         loop {
@@ -233,6 +237,17 @@ async fn main() -> anyhow::Result<()> {
                                     "campaign reminders sent"
                                 ),
                                 Err(e) => tracing::error!(error = %e, "campaign reminder pass failed"),
+                            }
+                            if let Some(r) = retention.as_ref()
+                                && last_retention
+                                    .is_none_or(|t| t.elapsed() >= std::time::Duration::from_secs(3600))
+                            {
+                                last_retention = Some(std::time::Instant::now());
+                                match r.run().await {
+                                    Ok(0) => {}
+                                    Ok(n) => tracing::info!(removed = n, "retention removed records"),
+                                    Err(e) => tracing::error!(error = %e, "retention pass failed"),
+                                }
                             }
                             if let Some(n) = notify.as_ref() {
                                 match n.send_digests().await {

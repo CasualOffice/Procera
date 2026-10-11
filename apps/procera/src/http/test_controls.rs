@@ -31,6 +31,8 @@ pub fn router() -> Router<AppState> {
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
         .route("/library/backdate", post(backdate_artifact))
+        .route("/retention/backdate", post(backdate_retention))
+        .route("/retention/run", post(run_retention))
 }
 
 #[derive(Debug, Deserialize)]
@@ -92,6 +94,56 @@ async fn backdate_artifact(State(s): State<AppState>, Json(b): Json<ArtifactBack
     match r {
         Ok(1) => StatusCode::NO_CONTENT.into_response(),
         Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct RetentionBackdate {
+    workspace: uuid::Uuid,
+    version: Option<uuid::Uuid>,
+    notification: Option<uuid::Uuid>,
+    seconds: i64,
+}
+
+/// Moves a draft's last activity or a notification's creation `seconds` into the past, so retention
+/// classes can be tested without moving the shared clock (BPMS-066).
+async fn backdate_retention(State(s): State<AppState>, Json(b): Json<RetentionBackdate>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let by = b.seconds as f64;
+        let mut n = 0;
+        if let Some(v) = b.version {
+            n += sqlx::query("UPDATE artifact_versions SET last_activity_at = last_activity_at - make_interval(secs => $2) WHERE id = $1 AND lifecycle = 'draft'")
+                .bind(v).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        }
+        if let Some(id) = b.notification {
+            n += sqlx::query("UPDATE notifications SET created_at = created_at - make_interval(secs => $2) WHERE id = $1")
+                .bind(id).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        }
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(0) => problem(Problem::not_found()),
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+/// Runs the retention jobs now (BPMS-066). Separate from `/drain`: retention reads every workspace's
+/// settings, which would slow the drain that every other test calls.
+async fn run_retention(State(s): State<AppState>) -> Response {
+    let Some(r) = s.retention.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    match r.run().await {
+        Ok(n) => Json(serde_json::json!({ "removed": n })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }

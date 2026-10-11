@@ -18,6 +18,7 @@ pub mod error;
 pub mod library;
 pub mod notifications;
 pub mod overview;
+pub mod retention;
 pub mod search;
 pub mod settings;
 pub mod system;
@@ -41,6 +42,8 @@ pub struct AppState {
     pub library: Option<procera_library::Library>,
     pub campaigns: Option<procera_campaigns::Campaigns>,
     pub announcements: Option<procera_announcements::Announcements>,
+    /// Retention jobs (BPMS-066); run by the scheduler and by `/__test/drain`.
+    pub retention: Option<crate::retention::Retention>,
     /// Public base URL used in email links (`--public-url`).
     pub public_url: String,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
@@ -131,6 +134,12 @@ impl AppState {
             };
             self.campaigns = Some(campaigns);
             self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));
+            self.retention = Some(crate::retention::Retention::new(
+                db.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+                notify.clone(),
+            ));
             self.notify = Some(notify);
             self.library = Some(library);
             self.announcements = Some(announcements);
@@ -154,6 +163,7 @@ impl AppState {
             library: None,
             campaigns: None,
             announcements: None,
+            retention: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -183,6 +193,7 @@ impl AppState {
             library: None,
             campaigns: None,
             announcements: None,
+            retention: None,
             public_url: "http://127.0.0.1:8080".into(),
             secure_cookies: true,
             login_rate_per_min: 30,
@@ -212,6 +223,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", search::router())
         .nest("/api/v1", audit::router())
         .nest("/api/v1", overview::router())
+        .nest("/api/v1", retention::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]
