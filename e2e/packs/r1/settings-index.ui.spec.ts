@@ -73,7 +73,7 @@ test.describe('settings index @r1 @ui', () => {
     const reviewers = page.getByRole('listitem').filter({ has: page.getByText('Approvals needed before publishing', { exact: true }) });
     await reviewers.getByRole('button', { name: 'Different in 1 department: Approvals needed before publishing' }).click();
     const panel = page.getByRole('dialog', { name: 'Approvals needed before publishing by department' });
-    const finRow = panel.getByRole('listitem').filter({ has: panel.getByText('Finance', { exact: true }) });
+    const finRow = panel.getByRole('listitem').filter({ has: page.getByText('Finance', { exact: true }) });
     await expect(finRow.getByText('Set for Finance')).toBeVisible();
     await expect(finRow.getByText('2', { exact: true })).toBeVisible();
     await panel.getByRole('button', { name: 'Close' }).click();

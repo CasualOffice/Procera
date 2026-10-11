@@ -56,7 +56,7 @@ test.describe('library governance @r1 @ui', () => {
     const { id } = await publishPolicy(owner, 'conduct', 'Code of Conduct');
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await page.goto(`${WEB}/library/${id}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Code of Conduct' })).toBeVisible();
 
@@ -84,7 +84,7 @@ test.describe('library governance @r1 @ui', () => {
     const member = await addMember(request, ws, owner, 'suggester');
 
     await signIn(page, member.email, member.recovery[0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await page.goto(`${WEB}/library/${id}`);
     await page.getByRole('button', { name: 'Suggest a change' }).click();
     const dialog = page.getByRole('dialog', { name: 'Suggest a change' });
@@ -100,7 +100,7 @@ test.describe('library governance @r1 @ui', () => {
     expect(v2).toBeTruthy();
     const op = await secondPage(browser);
     await signIn(op, ownerEmail, owner.recovery![0]!);
-    await expect(op.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(op.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await op.goto(`${WEB}/library/${id}`);
     const ownerItem = op.getByRole('listitem').filter({ hasText: 'Allow premium economy over six hours' });
     await ownerItem.getByRole('button', { name: 'Accept' }).click();
@@ -120,7 +120,7 @@ test.describe('library governance @r1 @ui', () => {
     await publishNewVersion(owner, id, doc('Everyone may work remotely three days a week.', 'Core hours are 10 to 15.', 'Tell your manager which days.'), 'Three remote days');
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await page.goto(`${WEB}/library/${id}`);
     await page.getByRole('link', { name: 'Compare with v1' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'What changed' })).toBeVisible();
@@ -160,7 +160,7 @@ test.describe('library governance @r1 @ui', () => {
     const member = await addMember(request, ws, owner, 'outsider');
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await page.goto(`${WEB}/library/${id}`);
     await page.getByRole('button', { name: 'Change', exact: true }).click();
     const dialog = page.getByRole('dialog', { name: 'Who this policy applies to' });

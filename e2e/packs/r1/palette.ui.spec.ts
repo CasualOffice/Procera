@@ -20,7 +20,7 @@ test.describe('command palette and states @r1 @ui', () => {
     expect(r.status()).toBe(201);
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
 
     // Keyboard: Ctrl/⌘ K opens; typing searches content; Enter opens the highlighted result.
     await page.keyboard.press('ControlOrMeta+k');

@@ -24,8 +24,8 @@ test.describe('settings scopes @r1 @ui', () => {
     const row = page.getByRole('listitem').filter({ has: page.getByText('Time zone', { exact: true }) });
     await row.getByRole('button', { name: 'Same for all departments: Time zone' }).click();
     const panel = page.getByRole('dialog', { name: 'Time zone by department' });
-    const finRow = panel.getByRole('listitem').filter({ has: panel.getByText('Finance', { exact: true }) });
-    const payRow = panel.getByRole('listitem').filter({ has: panel.getByText('Payroll', { exact: true }) });
+    const finRow = panel.getByRole('listitem').filter({ has: page.getByText('Finance', { exact: true }) });
+    const payRow = panel.getByRole('listitem').filter({ has: page.getByText('Payroll', { exact: true }) });
     await expect(finRow.getByText('Inherited from workspace')).toBeVisible();
     await expect(finRow.getByText('UTC', { exact: true })).toBeVisible();
     await axe(page);

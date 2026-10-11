@@ -969,7 +969,9 @@ test.describe('R1 gate @r1 @ui', () => {
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
     await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
-    await page.getByRole('link', { name: 'Browse templates' }).click();
+    // A new workspace's owner starts from the setup checklist; templates sit in Admin › Content.
+    await expect(page.getByRole('region', { name: /^Set up / })).toBeVisible();
+    await nav(page, 'Templates');
     await expect(page.getByRole('heading', { level: 1, name: 'Templates' })).toBeVisible();
     await axe(page);
     await page.getByRole('button', { name: 'Install Employee handbook & acknowledgement' }).click();

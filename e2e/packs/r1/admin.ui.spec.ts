@@ -122,7 +122,7 @@ test.describe('administration @r1 @ui', () => {
     await owner.c.post('/api/v1/artifacts', { headers: owner.headers, data: { kind: 'policy', key: 'travel', title: 'Travel', content: doc('Economy for short flights.') } });
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await nav(page, 'Audit log');
     await expect(page.getByRole('heading', { level: 1, name: 'Audit log' })).toBeVisible();
     await expect(page.getByText('Chain verified')).toBeVisible();

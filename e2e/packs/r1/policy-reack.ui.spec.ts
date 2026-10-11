@@ -34,7 +34,7 @@ test.describe('re-acknowledgement on publish @r1 @ui', () => {
     expect((await (await owner.c.post(`/api/v1/versions/${v2.id}/submit`, { headers: h })).json()).lifecycle).toBe('approved');
 
     await signIn(page, ownerEmail, (owner as Session).recovery![0]!);
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await page.goto(`${WEB}/library/${artifact.id}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Fire safety' })).toBeVisible();
 

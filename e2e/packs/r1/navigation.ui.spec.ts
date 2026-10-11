@@ -87,7 +87,7 @@ test.describe('navigation and onboarding @r1 @ui', () => {
     await expect(page.getByRole('heading', { level: 2, name: 'Invite people' })).toBeVisible();
     await axe(page);
     await page.getByRole('textbox', { name: 'Email 1' }).fill(uniqueEmail('rev'));
-    await page.getByRole('button', { name: /^Role 1/ }).click();
+    await page.getByRole('button', { name: /Role 1/ }).click();
     await page.getByRole('option', { name: 'Reviewer' }).click();
     await page.getByRole('button', { name: 'Invite 1 and finish' }).click();
 
