@@ -58,6 +58,8 @@ Dependency rule: `domain` depends only on `kernel`, `application` depends on `do
 
 Key ports (traits): `Clock`, `IdGen`, `UnitOfWork`, `*Repository`, `Authorizer`, `OutboxWriter`, `Bus`, `ObjectStore`, `KeyProvider`, `Mailer`, `Scanner`, `Converter`, `RuntimeAdapter`, `ExpressionEngine`, `NotificationChannel`, `AiProvider`.
 
+**As built (BPMS-080):** the IR model, compiler, canonical form and semantic diff live in their own crate, `crates/ir` (`procera-ir`), with no dependency on `kernel` or any other context. The interpreter (BPMS-082) and publish (BPMS-084) consume it. The compiler's two ports are `ExpressionChecker`, the compile-time part of `ExpressionEngine` that BPMS-081 implements, and `Environment`, a read-only snapshot of refs, connectors and directory names that the caller loads before compiling. See [11 §14](11-WORKFLOW-IR-SPEC.md#14-as-built-bpms-080).
+
 ---
 
 ## 2. Data model

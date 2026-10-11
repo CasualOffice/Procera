@@ -296,6 +296,9 @@
     "processes": {
       "qms_doc_change": "process:qms.document-change@1"
     },
+    "calendars": {
+      "default": "calendar:default@1"
+    },
     "sop": "sop:capa-procedure@1"
   },
   "meta": {

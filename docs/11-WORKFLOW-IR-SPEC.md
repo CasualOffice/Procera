@@ -282,3 +282,107 @@ Modelling the five reference processes ([docs/spikes/BPMS-002](spikes/BPMS-002-r
 | IR-E015 | Unknown boundary target |
 | IR-E016 | Duplicate variable |
 | IR-E100 | Schema violation |
+
+The production compiler (BPMS-080, §14) keeps these codes and meanings and adds the ones below.
+
+## 14. As built (BPMS-080)
+
+**Crate.** `crates/ir` (`procera-ir`) holds the IR v1 model, the compiler, the canonical form and the semantic diff. It depends on serde, `serde_jcs`, `sha2` and `jsonschema` only. It does no I/O and reads no clock or randomness, so the same input always gives the same output.
+
+**Pipeline.**
+
+```text
+source JSON ─ JSON Schema (IR-E100) ─ typed parse ─ §11 checks ─┬─ any error → diagnostics only
+                                                                └─ none → normal form → JCS bytes → sha256
+```
+
+**Source format.** The compiler's input is an IR v1 document as authored, which need not be in normal form. Each editor maps its own canvas JSON to this shape before compiling. See A-21 in [22](22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md).
+
+**Normal form.** In the normal form:
+- every edge carries `on` (`next` when it was absent, §13.11);
+- nodes and edges are sorted by `id`, variables by `name`, and SLAs by `id`;
+- empty `sla`, `refs` and `meta` are omitted;
+- `meta.compilerVersion` is set to the compiler's output version (`0.1.0`).
+
+Order inside a node (branches, candidates, escalations) is meaningful and is kept as authored. The canonical bytes are the RFC 8785 (JCS) serialisation of the normal form. The checksum is the lowercase hex SHA-256 of those bytes, so key order and entity order in the source do not change it. Compiling the normal form again returns it unchanged.
+
+**Public API.**
+
+| Item | Purpose |
+|---|---|
+| `compile(&Value, &CompileContext) -> CompileOutput` / `compile_str` | Compile. `CompileOutput { compiled: Option<Compiled { ir, canonical, checksum }>, diagnostics, diff }`. `compiled` is `None` when any diagnostic is an error. |
+| `CompileContext { expressions, environment, previous }` | Injected ports. `Default` uses the built-in `LexicalChecker` and no environment. `previous` is the last published IR, used for the diff. |
+| `ExpressionChecker` (port) | `analyse(lang, body) -> Result<Analysis { references }, String>`. `LexicalChecker` checks brackets and strings, collects root variable names (§13.10 context roots excluded) and is a stand-in until BPMS-081 (CEL, ADR-0010) supplies the real parser and type checker. |
+| `Environment` (port) | Workspace snapshot for checks 8–10: `resolve(ref) -> Resolution`, `connector_usable(ref)`, `principal_exists(type, name)`. Without one, those checks are skipped and `IR-I001` is reported. |
+| `normalize`, `canonical_bytes`, `checksum_of`, `COMPILER_VERSION` | Canonical form and hash. |
+| `diff(old, new) -> SemanticDiff`, `SemanticDiff::apply(base)` | Semantic diff, explained below. |
+| `validate_schema`, `SCHEMA_V1`, `model::*`, `Code`, `Severity`, `Diagnostic` | Shape check, the data model and diagnostics. |
+
+**Diagnostics.** Each diagnostic has a stable `code`, a fixed `severity` (`error`, `warning` or `info`), a JSON `pointer` into the *source* document (RFC 6901), the `node` id when there is one, and a message. Diagnostics are sorted by code, then pointer. Only errors block the output.
+
+**Semantic diff.** Entities are matched by stable id:
+- nodes and edges by `id`;
+- variables by `name`;
+- SLAs by `id`;
+- refs by `<section>.<key>` (for example `forms.request`), or `sop` and `policy`;
+- the process header as `process`.
+
+Each change is `added`, `removed` or `changed`. A changed entity lists the top-level members that differ and carries its before and after values. `meta` is not diffed. `diff(a, b).apply(a)` reproduces the normal form of `b`, and `apply` refuses a base that does not match the diff's before side.
+
+**Conformance fixtures.** Compiler fixtures live in `conformance/compiler/<case>/source.json`, each with an `expected.json` that lists the non-info diagnostics (`code`, `pointer`) and the checksum, which is `null` when the compile fails. Golden checksums of the five reference processes are in `conformance/compiler/reference.checksums.json`. A test also checks that the compiler reports every code the BPMS-002 checker (`conformance/src/lib.rs`) reports for the same input.
+
+**Diagnostic codes.**
+
+| Code | Severity | §11 check | Meaning |
+|---|---|---|---|
+| IR-E001 | error | 1 | Exactly one `start` node |
+| IR-E002 | error | 2 | Duplicate node id |
+| IR-E003 | error | 2 | Duplicate edge id |
+| IR-E004 | error | 2 | Edge endpoint does not exist |
+| IR-E005 | error | 3 | Outcome not handled (no edge and no `unhandled: fail`) |
+| IR-E006 | error | 3 | Edge uses an outcome the node cannot produce |
+| IR-E007 | error | 4 | Decision without a `default` edge |
+| IR-E008 | error | 5 | One of: a split/join pairing error; a branch reaching a non-terminate end before its join; two branches sharing a node; the block being entered from outside |
+| IR-E009 | error | 1 | Node unreachable from `start` |
+| IR-E010 | error | 1 | No `end` reachable from `start` |
+| IR-E011 | error | 6 | Loop without a human/wait node or `maxIterations` |
+| IR-E012 | error | 12 | More than 500 nodes, more than 50 branches on a split, or parallel nesting deeper than 10 |
+| IR-E013 | error | 2 | Edge into `start` or out of `end` |
+| IR-E014 | error | 10 | `excludeActorsOf` references an unknown node |
+| IR-E015 | error | 2 | Boundary target does not exist |
+| IR-E016 | error | 2 | Duplicate variable name |
+| IR-E017 | error | 3 | One outcome handled by more than one edge (that would be an implicit fork, §1.4) |
+| IR-E018 | error | 3 | A field the node kind requires is missing. The required fields are: `assignment` on `human.task`, `human.approval` and `human.acknowledge`; `signers` and `document` on `human.sign`; `subject` on `human.acknowledge`; `branches` on a decision or split; `rule` and `output` together on a rule-table decision; `when` on each branch of an expression decision; `correlation` on `wait.signal`; `connector`, `action` and `idempotencyKey` on `service.call`; `to` and `template` on `notify`; `process` on `subprocess.call` |
+| IR-E019 | error | 7 | Expression is malformed or uses an unknown language tag |
+| IR-E020 | error | 7 | Expression reads, or `set` assigns, an undeclared variable |
+| IR-E021 | error | 7 | `restricted` variable used in an event-facing field: any `notify` field, a `correlation` key or an `idempotencyKey` |
+| IR-E022 | error | 8 | `form`, `inputForm`, `quiz`, `rule`, `calendar`, `connector`, `process`, `document` or `subject` names a `refs` key that is not declared. `document` may instead name a `file` variable |
+| IR-E023 | error | 8 | Reference not found, not published, or not usable by this author (environment) |
+| IR-E024 | error | 9 | Connector not enabled for the workspace, or scopes not granted (environment) |
+| IR-E025 | error | 10 | Named group, role, position or user does not exist (environment) |
+| IR-E026 | error | 10 | SoD cannot be satisfied: every candidate is the excluded initiator and there is no fallback |
+| IR-E027 | error | 11 | Business-time duration (`due`, `wait.timer`, SLA) with no calendar (`calendar`, or `refs.calendars.default`) |
+| IR-E028 | error | 11 | Timer misconfigured: a `wait.timer` without exactly one of `at` or `after`; a `timeout` boundary without `after`; or a zero-length duration |
+| IR-E029 | error | 11 | Absolute instant literal without a UTC offset |
+| IR-E030 | error | §3.2 | Escalation invalid: `reassign` without `to`; `outcome` without a valid outcome; or any `outcome` escalation in a `controlled` process |
+| IR-E031 | error | §4.1 | Boundary on a node kind that cannot have one |
+| IR-E032 | error | §9 | SLA `scope` or `pauseWhile` names an unknown node |
+| IR-E033 | error | 2 | Duplicate SLA id |
+| IR-E034 | error | 2 | Duplicate branch name on a decision or split |
+| IR-E100 | error | — | Schema violation (shape, unknown field, pattern), or the source is not JSON |
+| IR-W001 | warning | 7 | `readers` on a variable that is not `restricted` has no effect |
+| IR-W002 | warning | 10 | `excludeActorsOf` names a node that has no human actors |
+| IR-I001 | info | 8–10 | Compiled without an environment, so refs, connectors and directory names were not checked |
+
+**Gaps against §11.**
+- *Check 1:* there is no IR field that declares a "perpetual wait", so a process with no reachable end is always IR-E010.
+- *Check 7:* types are not checked. That needs the BPMS-081 type checker behind `ExpressionChecker`. Today's checks cover syntax, variable references and classification only.
+- *Check 10:* "SoD satisfiable" is limited to the initiator-only case. A full check needs directory data at publish time.
+- *Checks 8–10* run only when the caller supplies an `Environment`. The publish integration (BPMS-084) must always supply one.
+- *§1.5:* only `schemaVersion: 1` exists, so there is no migration function yet.
+
+**Fixture corrections.** Two BPMS-002 reference fixtures broke rules from §13 and §11:
+- `hr.employee-onboarding` `policy_ack` had no `assignment` (§13.2);
+- `qms.capa` used business-time `due` with no `refs.calendars` (check 11).
+
+Both fixtures are fixed.
