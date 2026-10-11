@@ -14,6 +14,9 @@
 pub mod diff;
 pub mod governance;
 pub mod portal;
+pub mod reack;
+
+pub use reack::{Change, PublishPlan, ReackPolicy, ReackSubject};
 
 use std::sync::Arc;
 
@@ -207,6 +210,10 @@ pub struct Version {
     /// Reviews in the current review round (since the last submission).
     pub reviews: Vec<ReviewRecord>,
     pub approvals_required: Option<i64>,
+    /// `major.minor`, set when the version is published or scheduled (BPMS-045, FR-PL03).
+    pub semver: Option<String>,
+    /// Whether going live asks the applicable audience to acknowledge again.
+    pub reack_required: bool,
 }
 
 /// Canonical hash of content (hex). Same content, same hash, whatever the key order.
@@ -247,8 +254,10 @@ type VersionRow = (
     Option<OffsetDateTime>,
     i32,
     i64,
+    Option<String>,
+    bool,
 );
-const VERSION_COLS: &str = "id, artifact_id, version_no, lifecycle, content, content_hash, change_reason, effective_at, created_by, created_at, published_at, review_round, revision";
+const VERSION_COLS: &str = "id, artifact_id, version_no, lifecycle, content, content_hash, change_reason, effective_at, created_by, created_at, published_at, review_round, revision, semver, reack_required";
 
 #[derive(sqlx::FromRow)]
 struct ArtifactRow {
@@ -439,6 +448,8 @@ impl Library {
             revision: r.12,
             reviews,
             approvals_required,
+            semver: r.13,
+            reack_required: r.14,
         }
     }
 
@@ -769,17 +780,21 @@ impl Library {
             .bind(id).bind(now).bind(actor.map(|a| a.membership)).execute(tx.conn()).await?;
         Self::refresh_state(tx, artifact_id).await?;
         let next_review = self.schedule_review(tx, artifact_id, now).await?;
-        let (no, hash): (i32, Option<Vec<u8>>) =
-            sqlx::query_as("SELECT version_no, content_hash FROM artifact_versions WHERE id = $1")
-                .bind(id)
-                .fetch_one(tx.conn())
-                .await?;
-        outbox::enqueue(tx, OutboxEvent { topic: "artifact.published.v1", aggregate_type: "artifact", aggregate_id: artifact_id, aggregate_revision: i64::from(no), payload: json!({"artifact_id": artifact_id, "version_id": id, "version_no": no, "superseded_version_id": previous}), trace_id: None }).await?;
-        self.audit(tx, actor, "version.published", id, json!({"version_no": no, "content_hash": hash.as_deref().map(bytes_to_hex), "superseded_version_id": previous, "next_review_at": next_review.unix_timestamp()}), None).await?;
+        let (no, hash, semver, reack): (i32, Option<Vec<u8>>, Option<String>, bool) = sqlx::query_as(
+            "SELECT version_no, content_hash, semver, reack_required FROM artifact_versions WHERE id = $1",
+        )
+        .bind(id)
+        .fetch_one(tx.conn())
+        .await?;
+        // BPMS-045: consumers start the re-acknowledgement campaign when `reack_required`.
+        outbox::enqueue(tx, OutboxEvent { topic: "artifact.published.v1", aggregate_type: "artifact", aggregate_id: artifact_id, aggregate_revision: i64::from(no), payload: json!({"artifact_id": artifact_id, "version_id": id, "version_no": no, "semver": semver, "reack_required": reack, "superseded_version_id": previous}), trace_id: None }).await?;
+        self.audit(tx, actor, "version.published", id, json!({"version_no": no, "semver": semver, "reack_required": reack, "content_hash": hash.as_deref().map(bytes_to_hex), "superseded_version_id": previous, "next_review_at": next_review.unix_timestamp()}), None).await?;
         Ok(())
     }
 
-    /// Publishes an approved version now, or schedules it for `effective_at`.
+    /// Publishes an approved version now, or schedules it for `effective_at`. Its number and whether
+    /// it asks for a re-acknowledgement are fixed here from `change` (BPMS-045).
+    #[allow(clippy::too_many_arguments)]
     pub async fn publish(
         &self,
         tx: &mut WsTx<'_>,
@@ -787,6 +802,7 @@ impl Library {
         id: Uuid,
         effective_at: Option<OffsetDateTime>,
         change_reason: Option<&str>,
+        change: Change,
         policy: &ReviewPolicy,
     ) -> Result<Version, LibraryError> {
         let (r, a) = self.load_version(tx, id, true).await?;
@@ -800,22 +816,26 @@ impl Library {
         if r.2 > 1 && policy.reason_for_change_required && reason.is_none() {
             return Err(LibraryError::Invalid("a reason for change is required".into()));
         }
-        sqlx::query("UPDATE artifact_versions SET change_reason = $2, effective_at = $3 WHERE id = $1")
+        let semver = Self::next_semver(tx, a.id, r.2, change).await?;
+        let reack = self.reack_policy(tx).await?.requires(r.2, change);
+        sqlx::query("UPDATE artifact_versions SET change_reason = $2, effective_at = $3, semver = $4, reack_required = $5 WHERE id = $1")
             .bind(id)
             .bind(reason)
             .bind(effective_at)
+            .bind(&semver)
+            .bind(reack)
             .execute(tx.conn())
             .await?;
         match effective_at.filter(|t| *t > self.clock.now()) {
             Some(at) => {
-                sqlx::query("UPDATE artifact_versions SET lifecycle = 'scheduled', revision = revision + 1 WHERE id = $1").bind(id).execute(tx.conn()).await?;
+                sqlx::query("UPDATE artifact_versions SET lifecycle = 'scheduled', scheduled_by = $2, revision = revision + 1 WHERE id = $1").bind(id).bind(actor.membership).execute(tx.conn()).await?;
                 Self::refresh_state(tx, a.id).await?;
                 self.audit(
                     tx,
                     Some(actor),
                     "version.scheduled",
                     id,
-                    json!({"effective_at": at.unix_timestamp()}),
+                    json!({"effective_at": at.unix_timestamp(), "semver": semver, "reack_required": reack}),
                     reason,
                 )
                 .await?;

@@ -9,9 +9,9 @@ use procera_crypto::LocalKey;
 use procera_db::{WsCtx, WsTx, test_support};
 use procera_identity::password::HashCost;
 use procera_identity::{Identity, IdentityConfig};
-use procera_kernel::UuidV7Gen;
 use procera_kernel::clock::ManualClock;
-use procera_library::{Library, ReviewPolicy};
+use procera_kernel::{Clock, UuidV7Gen};
+use procera_library::{Change, Library, ReviewPolicy};
 use procera_members::Members;
 use procera_members::audience::Audience;
 use procera_notify::Notify;
@@ -128,7 +128,7 @@ async fn launch_acknowledge_remind_escalate_enrol_and_export() -> anyhow::Result
     let (_, v1) =
         lib.create(&mut tx, &lib_actor, "policy", "sec.screens", "Screen lock", "standard", &body).await?;
     lib.submit(&mut tx, &lib_actor, v1.id, &none).await?;
-    let v1 = lib.publish(&mut tx, &lib_actor, v1.id, None, None, &none).await?;
+    let v1 = lib.publish(&mut tx, &lib_actor, v1.id, None, None, Change::Major, &none).await?;
     let hash = v1.content_hash.clone().expect("hash");
     let (_, draft) = lib.create(&mut tx, &lib_actor, "sop", "ops.draft", "Draft", "standard", &body).await?;
 
@@ -289,6 +289,34 @@ async fn launch_acknowledge_remind_escalate_enrol_and_export() -> anyhow::Result
         Err(CampaignError::Conflict(_))
     ));
     assert!(cmp.my_assignments(&mut tx, cy.membership, Some("pending")).await?.is_empty());
+
+    // BPMS-045: a re-acknowledgement campaign starts once per version, as the system when the
+    // scheduler published it, and launches at once with the requested due date.
+    let due = clock.now() + time::Duration::days(14);
+    let reack = NewCampaign {
+        title: Some("Re-acknowledge Screen lock v1.0".into()),
+        due_at: Some(due),
+        ..new(v1.id)
+    };
+    let r = cmp
+        .start_reack(&mut tx, None, owner.membership, &reack, &defaults("dynamic"))
+        .await?
+        .expect("started");
+    assert_eq!((r.origin.as_str(), r.state.as_str(), r.due_at), ("reack", "active", Some(due)));
+    assert_eq!((r.created_by, r.progress.assigned), (owner.membership, 3), "Ann, Ben and Cy");
+    assert!(
+        cmp.start_reack(&mut tx, Some(&owner), owner.membership, &reack, &defaults("dynamic"))
+            .await?
+            .is_none()
+    );
+    let nobody = NewCampaign {
+        audience: Audience { groups: vec![Uuid::now_v7()], ..Audience::default() },
+        ..new(v1.id)
+    };
+    assert!(cmp.start_reack(&mut tx, None, owner.membership, &nobody, &defaults("dynamic")).await?.is_none());
+    let system: i64 = sqlx::query_scalar("SELECT count(*) FROM audit_events WHERE action IN ('campaign.created', 'campaign.activated') AND object_id = $1 AND actor_kind = 'system'")
+        .bind(r.id).fetch_one(tx.conn()).await?;
+    assert_eq!(system, 2, "audited as the system");
     tx.commit().await?;
 
     let report = procera_audit::verify(&t.db, ws).await?;

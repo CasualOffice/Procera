@@ -114,6 +114,8 @@ pub struct Subject {
     pub title: String,
     pub version_id: Uuid,
     pub version_no: i32,
+    /// `major.minor` (BPMS-045).
+    pub semver: Option<String>,
     /// Hex SHA-256 of the canonical content.
     pub content_hash: String,
 }
@@ -131,6 +133,8 @@ pub struct Campaign {
     pub id: Uuid,
     pub title: String,
     pub subject: Subject,
+    /// `manual`, or `reack` when publishing a version started it (BPMS-045).
+    pub origin: String,
     pub audience: Value,
     pub audience_snapshot: String,
     pub ack_text: String,
@@ -213,6 +217,8 @@ struct CampaignRow {
     kind: String,
     artifact_title: String,
     version_no: i32,
+    semver: Option<String>,
+    origin: String,
     audience_rule: Value,
     audience_snapshot: String,
     ack_text: String,
@@ -234,7 +240,7 @@ struct CampaignRow {
 
 /// `$1` = now (for overdue counts).
 const CAMPAIGN_SELECT: &str = "SELECT c.id, c.title, c.subject_version_id, encode(c.subject_hash, 'hex') AS subject_hash,
-       a.id AS artifact_id, a.kind, a.title AS artifact_title, v.version_no,
+       a.id AS artifact_id, a.kind, a.title AS artifact_title, v.version_no, v.semver, c.origin,
        c.audience_rule, c.audience_snapshot, c.ack_text, c.due_at, c.due_in_secs, c.reminder_schedule,
        c.escalation_after_secs, c.state, c.created_by, c.created_at, c.launched_at, c.ended_at, c.end_reason, c.revision,
        coalesce(p.assigned, 0) AS assigned, coalesce(p.acknowledged, 0) AS acknowledged, coalesce(p.overdue, 0) AS overdue
@@ -257,8 +263,10 @@ impl From<CampaignRow> for Campaign {
                 title: r.artifact_title,
                 version_id: r.subject_version_id,
                 version_no: r.version_no,
+                semver: r.semver,
                 content_hash: r.subject_hash,
             },
+            origin: r.origin,
             audience: r.audience_rule,
             audience_snapshot: r.audience_snapshot,
             ack_text: r.ack_text,
@@ -296,6 +304,7 @@ struct AssignmentRow {
     kind: String,
     artifact_title: String,
     version_no: i32,
+    semver: Option<String>,
     state: String,
     assigned_at: OffsetDateTime,
     due_at: OffsetDateTime,
@@ -307,7 +316,7 @@ struct AssignmentRow {
 /// `$1` = now, `$2` = membership.
 const ASSIGNMENT_SELECT: &str = "SELECT r.id, r.campaign_id, c.title AS campaign_title, c.state AS campaign_state, c.ack_text,
        c.subject_version_id, encode(c.subject_hash, 'hex') AS subject_hash, a.id AS artifact_id, a.kind,
-       a.title AS artifact_title, v.version_no, r.state, r.assigned_at, r.due_at, r.completed_at, r.ack_version_id,
+       a.title AS artifact_title, v.version_no, v.semver, r.state, r.assigned_at, r.due_at, r.completed_at, r.ack_version_id,
        encode(r.ack_content_hash, 'hex') AS ack_content_hash
 FROM campaign_recipients r
 JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
@@ -327,6 +336,7 @@ fn assignment(r: AssignmentRow, now: OffsetDateTime) -> Assignment {
             title: r.artifact_title,
             version_id: r.subject_version_id,
             version_no: r.version_no,
+            semver: r.semver,
             content_hash: r.subject_hash,
         },
         ack_text: r.ack_text,
@@ -579,6 +589,48 @@ impl Campaigns {
         new: &NewCampaign,
         defaults: &Defaults,
     ) -> Result<Campaign, CampaignError> {
+        self.create_as(tx, Some(actor), actor.membership, new, defaults, "manual").await
+    }
+
+    /// Starts the re-acknowledgement campaign of a just-published version (BPMS-045, FR-PL03): created
+    /// and launched at once, at most one per version. `actor` is the publisher, or `None` when the
+    /// scheduler published it (audited as the system, recorded as created by `by`). Returns `None`
+    /// when the version already has one, is no longer the published version, or the audience matches
+    /// no active member.
+    pub async fn start_reack(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<&Actor>,
+        by: Uuid,
+        new: &NewCampaign,
+        defaults: &Defaults,
+    ) -> Result<Option<Campaign>, CampaignError> {
+        let (exists, lifecycle): (bool, Option<String>) = sqlx::query_as(
+            "SELECT EXISTS (SELECT 1 FROM campaigns WHERE origin = 'reack' AND subject_version_id = $1),
+                    (SELECT lifecycle FROM artifact_versions WHERE id = $1)",
+        )
+        .bind(new.version_id)
+        .fetch_one(tx.conn())
+        .await?;
+        if exists
+            || lifecycle.as_deref() != Some("published")
+            || self.audience_size(tx, &new.audience).await? == 0
+        {
+            return Ok(None);
+        }
+        let c = self.create_as(tx, actor, by, new, defaults, "reack").await?;
+        self.launch_as(tx, actor, by, c.id).await.map(Some)
+    }
+
+    async fn create_as(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<&Actor>,
+        by: Uuid,
+        new: &NewCampaign,
+        defaults: &Defaults,
+        origin: &str,
+    ) -> Result<Campaign, CampaignError> {
         if new.audience.is_empty() {
             return Err(CampaignError::Invalid(
                 "the audience is empty: choose everyone, departments, groups or roles".into(),
@@ -629,8 +681,8 @@ impl Campaigns {
             serde_json::to_value(&new.audience).map_err(|e| CampaignError::Internal(e.to_string()))?;
         sqlx::query(
             "INSERT INTO campaigns (workspace_id, id, title, subject_version_id, subject_hash, audience_rule, audience_snapshot,
-                                    ack_text, due_at, due_in_secs, reminder_schedule, escalation_after_secs, created_by, created_at)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)",
+                                    ack_text, due_at, due_in_secs, reminder_schedule, escalation_after_secs, created_by, created_at, origin)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)",
         )
         .bind(tx.ctx.workspace_id)
         .bind(id)
@@ -644,17 +696,18 @@ impl Campaigns {
         .bind(defaults.due_in)
         .bind(json!(cadence))
         .bind(defaults.escalation_after.filter(|s| *s > 0))
-        .bind(actor.membership)
+        .bind(by)
         .bind(self.clock.now())
+        .bind(origin)
         .execute(tx.conn())
         .await?;
         self.audit(
             tx,
-            Some(actor),
+            actor,
             Category::Content,
             "campaign.created",
             ("campaign", id),
-            json!({"version_id": new.version_id, "audience": audience_rule, "audience_snapshot": snapshot}),
+            json!({"version_id": new.version_id, "audience": audience_rule, "audience_snapshot": snapshot, "origin": origin}),
             None,
         )
         .await?;
@@ -782,6 +835,16 @@ impl Campaigns {
         actor: &Actor,
         id: Uuid,
     ) -> Result<Campaign, CampaignError> {
+        self.launch_as(tx, Some(actor), actor.membership, id).await
+    }
+
+    async fn launch_as(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<&Actor>,
+        by: Uuid,
+        id: Uuid,
+    ) -> Result<Campaign, CampaignError> {
         let (state, rule, snapshot, due_at, due_in, version) = Self::lock(tx, id).await?;
         if state != "draft" {
             return Err(CampaignError::Conflict(format!(
@@ -813,7 +876,7 @@ impl Campaigns {
         )
         .bind(id)
         .bind(now)
-        .bind(actor.membership)
+        .bind(by)
         .bind(due)
         .execute(tx.conn())
         .await?;
@@ -828,7 +891,7 @@ impl Campaigns {
         .await?;
         self.audit(
             tx,
-            Some(actor),
+            actor,
             Category::Content,
             "campaign.activated",
             ("campaign", id),

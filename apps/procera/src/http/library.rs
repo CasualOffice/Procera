@@ -418,7 +418,15 @@ async fn publish(
     }
     let policy = review_policy(&s, &mut tx).await?;
     let v = library(&s)?
-        .publish(&mut tx, &actor(&me, &headers), id, r.effective_at, r.change_reason.as_deref(), &policy)
+        .publish(
+            &mut tx,
+            &actor(&me, &headers),
+            id,
+            r.effective_at,
+            r.change_reason.as_deref(),
+            procera_library::Change::Major,
+            &policy,
+        )
         .await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(v).into_response())
