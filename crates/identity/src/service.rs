@@ -641,6 +641,117 @@ impl Identity {
         Ok((token, self.cfg.access_ttl.as_secs()))
     }
 
+    /// Step-up (docs/12 §11): re-verifies the signed-in user and re-issues the access token with a fresh
+    /// `auth_time`. Users with TOTP must give a current code (recovery codes are for sign-in only);
+    /// users without MFA give their password. Throttled like sign-in.
+    pub async fn step_up(
+        &self,
+        claims: &Claims,
+        code: Option<&str>,
+        password: Option<&str>,
+        client: &ClientInfo,
+    ) -> Result<(String, u64), IdentityError> {
+        let keys = vec![format!("stepup:{}", claims.sub)];
+        let mut tx = self.db.begin_system().await?;
+        if let Some(retry_after_secs) = self.throttled(&mut tx, &keys).await? {
+            return Err(IdentityError::Throttled { retry_after_secs });
+        }
+        let user = self.load_user(&mut tx, claims.sub).await?.ok_or(IdentityError::InvalidToken)?;
+        if user.status != "active" || user.token_version != claims.tv {
+            return Err(IdentityError::InvalidToken);
+        }
+        let (ok, method) = if user.mfa_enabled {
+            (
+                match code {
+                    Some(c) => self.check_totp(&mut tx, user.id, c).await?,
+                    None => false,
+                },
+                "otp",
+            )
+        } else {
+            let phc: Option<Vec<u8>> = sqlx::query_scalar(
+                "SELECT secret FROM user_credentials WHERE user_id = $1 AND kind = 'password'",
+            )
+            .bind(user.id)
+            .fetch_optional(tx.conn())
+            .await?;
+            let ok = match (password, phc) {
+                (Some(pw), Some(phc)) => {
+                    password::verify(pw, &String::from_utf8(phc).unwrap_or_default(), self.cfg.cost).0
+                }
+                (Some(pw), None) => {
+                    password::dummy_verify(pw, self.cfg.cost);
+                    false
+                }
+                _ => false,
+            };
+            (ok, "pwd")
+        };
+        if !ok {
+            self.audit(
+                &mut tx,
+                Some(user.subject_ref),
+                "session.step_up_failed",
+                Outcome::Denied,
+                client,
+                Some(method),
+            )
+            .await?;
+            tx.commit().await?;
+            self.record_failure(&keys).await?;
+            return Err(if method == "otp" {
+                IdentityError::InvalidCode
+            } else {
+                IdentityError::InvalidCredentials
+            });
+        }
+        self.clear_failures(&mut tx, &keys).await?;
+        self.audit(
+            &mut tx,
+            Some(user.subject_ref),
+            "session.stepped_up",
+            Outcome::Allowed,
+            client,
+            Some(method),
+        )
+        .await?;
+        tx.commit().await?;
+        let mut amr: Vec<&str> = claims.amr.iter().map(String::as_str).collect();
+        if !amr.contains(&method) {
+            amr.push(method);
+        }
+        let token = self.sign(
+            &user,
+            claims.sid,
+            &claims.plane,
+            claims.ws,
+            &amr,
+            self.now(),
+            "access",
+            self.cfg.access_ttl,
+        )?;
+        Ok((token, self.cfg.access_ttl.as_secs()))
+    }
+
+    /// Re-signs `claims` with a different `auth_time` (E2E controls only: simulates an old sign-in).
+    pub fn resign_with_auth_time(
+        &self,
+        claims: &Claims,
+        auth_time: OffsetDateTime,
+    ) -> Result<String, IdentityError> {
+        let user = User {
+            id: claims.sub,
+            email: String::new(),
+            display_name: String::new(),
+            status: "active".into(),
+            subject_ref: Uuid::nil(),
+            token_version: claims.tv,
+            mfa_enabled: false,
+        };
+        let amr: Vec<&str> = claims.amr.iter().map(String::as_str).collect();
+        self.sign(&user, claims.sid, &claims.plane, claims.ws, &amr, auth_time, "access", self.cfg.access_ttl)
+    }
+
     /// Verifies an access token's signature and claims (no database). Pair with [`Identity::token_state`].
     pub fn verify_access(&self, token: &str) -> Option<Claims> {
         self.jwt.verify(token, "access")

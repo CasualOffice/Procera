@@ -171,3 +171,43 @@ async fn deactivation_revokes_everything_and_is_audited() -> anyhow::Result<()> 
     let _ = Duration::from_secs(1);
     Ok(())
 }
+
+#[tokio::test]
+async fn step_up_uses_totp_when_enrolled_and_password_otherwise() -> anyhow::Result<()> {
+    let (_t, id) = setup_or_skip!();
+    let c = client("10.0.0.9");
+    // Without MFA: the password confirms; a wrong one is rejected; auth_time is refreshed.
+    id.create_user("erin@acme.test", "Erin", PW, &c).await?;
+    let tokens = authed(id.login("erin@acme.test", PW, &c).await?);
+    let claims = id.verify_access(&tokens.access_token).expect("access token");
+    let old = id
+        .verify_access(
+            &id.resign_with_auth_time(&claims, time::OffsetDateTime::now_utc() - time::Duration::hours(1))?,
+        )
+        .expect("re-signed");
+    assert!(matches!(
+        id.step_up(&old, None, Some("wrong password!!"), &c).await,
+        Err(IdentityError::InvalidCredentials)
+    ));
+    let (fresh, _) = id.step_up(&old, None, Some(PW), &c).await?;
+    let fresh = id.verify_access(&fresh).expect("fresh token");
+    assert!(fresh.auth_time > old.auth_time);
+    assert_eq!((fresh.sid, fresh.ws), (old.sid, old.ws));
+
+    // With TOTP: the password is not enough; a current code works.
+    let u = id.create_user("finn@acme.test", "Finn", PW, &c).await?;
+    let enr = id.totp_begin(u.id, &c).await?;
+    let secret = data_encoding::BASE32_NOPAD.decode(enr.secret.as_bytes())?;
+    let now = time::OffsetDateTime::now_utc().unix_timestamp();
+    id.totp_confirm(u.id, &totp::code_at(&secret, now / 30 - 1), &c).await?;
+    let mfa_token = match id.login("finn@acme.test", PW, &c).await? {
+        LoginOutcome::MfaRequired { mfa_token } => mfa_token,
+        LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
+    };
+    let t = id.complete_mfa(&mfa_token, &totp::code_at(&secret, now / 30), &c).await?;
+    let claims = id.verify_access(&t.access_token).expect("access token");
+    assert!(matches!(id.step_up(&claims, None, Some(PW), &c).await, Err(IdentityError::InvalidCode)));
+    let (up, _) = id.step_up(&claims, Some(&totp::code_at(&secret, now / 30 + 1)), None, &c).await?;
+    assert_eq!(id.verify_access(&up).map(|c| c.amr), Some(vec!["pwd".to_owned(), "otp".to_owned()]));
+    Ok(())
+}
