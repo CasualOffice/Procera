@@ -65,3 +65,11 @@ opt-level = 3
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
+
+# Lean dev builds: line tables for our crates (backtraces keep file:line), no debug info for
+# dependencies. Keeps target/ small enough for several worktrees at once.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

@@ -2,8 +2,13 @@
 # Complete local test suite — run before pushing a batch (docs/24 §7.3). Exits non-zero on any failure.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-API_PORT=${API_PORT:-18080}
-WEB_PORT=14173
+# PORT_OFFSET lets several checkouts (git worktrees, parallel agents) run the suite at once.
+OFF=${PORT_OFFSET:-0}
+API_PORT=${API_PORT:-$((18080 + OFF))}
+WEB_PORT=$((14173 + OFF))
+CACHE_PORT=$((16391 + OFF))
+PG_PORT=$((16432 + OFF))
+REL_PORT=$((18089 + OFF))
 step() { printf '\n\033[1m▶ %s\033[0m\n' "$*"; }
 cleanup() {
   for p in "${API_PID:-}" "${WEB_PID:-}" "${CACHE_PID:-}"; do [[ -n "$p" ]] && kill "$p" 2>/dev/null || true; done
@@ -19,9 +24,9 @@ cargo clippy --workspace --all-targets -q -- -D warnings
 step "Cache server for integration tests (Valkey/Redis if installed)"
 if [[ -z "${PROCERA_TEST_CACHE_URL:-}" ]]; then
   if SRV=$(command -v valkey-server || command -v redis-server); then
-    "$SRV" --port 16391 --save "" --appendonly no >/dev/null 2>&1 & CACHE_PID=$!
-    until (exec 3<>/dev/tcp/127.0.0.1/16391) 2>/dev/null; do sleep 0.2; done
-    export PROCERA_TEST_CACHE_URL=redis://127.0.0.1:16391; echo "using $SRV on :16391"
+    "$SRV" --port $CACHE_PORT --save "" --appendonly no >/dev/null 2>&1 & CACHE_PID=$!
+    until (exec 3<>/dev/tcp/127.0.0.1/$CACHE_PORT) 2>/dev/null; do sleep 0.2; done
+    export PROCERA_TEST_CACHE_URL=redis://127.0.0.1:$CACHE_PORT; echo "using $SRV on :$CACHE_PORT"
   else echo "no valkey/redis installed: remote cache tests will be skipped"; fi
 fi
 step "PostgreSQL for integration tests (throwaway cluster if PROCERA_TEST_DATABASE_URL is unset)"
@@ -30,9 +35,9 @@ if [[ -z "${PROCERA_TEST_DATABASE_URL:-}" ]]; then
     PGBIN=$(dirname "$(command -v initdb || echo /opt/homebrew/opt/postgresql@16/bin/initdb)")
     PGTMP=$(mktemp -d /tmp/procera-pg.XXXX)
     "$PGBIN/initdb" -D "$PGTMP" -U postgres --auth=trust -E UTF8 >/dev/null
-    "$PGBIN/pg_ctl" -D "$PGTMP" -o "-p 16432 -c unix_socket_directories='' -c listen_addresses=127.0.0.1" -l "$PGTMP/log" start >/dev/null
-    until "$PGBIN/pg_isready" -h 127.0.0.1 -p 16432 -q; do sleep 0.3; done
-    export PROCERA_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:16432/postgres; echo "throwaway Postgres on :16432"
+    "$PGBIN/pg_ctl" -D "$PGTMP" -o "-p $PG_PORT -c unix_socket_directories='' -c listen_addresses=127.0.0.1" -l "$PGTMP/log" start >/dev/null
+    until "$PGBIN/pg_isready" -h 127.0.0.1 -p $PG_PORT -q; do sleep 0.3; done
+    export PROCERA_TEST_DATABASE_URL=postgres://postgres@127.0.0.1:$PG_PORT/postgres; echo "throwaway Postgres on :$PG_PORT"
   else echo "no PostgreSQL found: database tests will be skipped"; fi
 fi
 step "Rust: tests (all features, and default features)"
@@ -74,16 +79,16 @@ if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
   API_ENV=(PROCERA_DATABASE_URL="postgres://procera_app@$HOSTPART/$E2E_DB" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" PROCERA_INSECURE_COOKIES=true PROCERA_LOGIN_RATE_PER_MIN=10000)
   echo "e2e database $E2E_DB"
 fi
-env "${API_ENV[@]}" PROCERA_BIND=127.0.0.1:$API_PORT target/debug/procera serve --all >/tmp/procera-test-all.log 2>&1 & API_PID=$!
-(cd web && npx vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all.log 2>&1) & WEB_PID=$!
+env "${API_ENV[@]}" PROCERA_BIND=127.0.0.1:$API_PORT PROCERA_PUBLIC_URL="http://127.0.0.1:$WEB_PORT" target/debug/procera serve --all >/tmp/procera-test-all-$OFF.log 2>&1 & API_PID=$!
+(cd web && PROCERA_API_URL="http://127.0.0.1:$API_PORT" npx vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all-$OFF.log 2>&1) & WEB_PID=$!
 until curl -fs -o /dev/null "http://127.0.0.1:$API_PORT/healthz"; do sleep 0.2; done
 until curl -fs -o /dev/null "http://127.0.0.1:$WEB_PORT/"; do sleep 0.2; done
 step "E2E: no-sleeps lint, API smoke pack, accessibility pack"
-(cd e2e && npm run --silent lint:no-sleeps && PROCERA_BASE_URL="http://127.0.0.1:$API_PORT" npx playwright test --project api --project chromium-desktop --reporter=line)
+(cd e2e && npm run --silent lint:no-sleeps && PROCERA_BASE_URL="http://127.0.0.1:$API_PORT" WEB_BASE_URL="http://127.0.0.1:$WEB_PORT" npx playwright test --project api --project chromium-desktop --reporter=line)
 step "Release binary has no /__test routes"
 cargo build -q --release -p procera
-PROCERA_BIND=127.0.0.1:18089 target/release/procera serve --all >/dev/null 2>&1 & REL=$!
-until curl -fs -o /dev/null http://127.0.0.1:18089/healthz; do sleep 0.2; done
-code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18089/__test/clock); kill $REL
+PROCERA_BIND=127.0.0.1:$REL_PORT target/release/procera serve --all >/dev/null 2>&1 & REL=$!
+until curl -fs -o /dev/null http://127.0.0.1:$REL_PORT/healthz; do sleep 0.2; done
+code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:$REL_PORT/__test/clock); kill $REL
 [[ "$code" == "404" ]] && echo "release /__test/clock -> 404"
 printf '\n\033[1;32m✔ all checks passed\033[0m\n'
