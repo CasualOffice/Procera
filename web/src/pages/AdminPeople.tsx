@@ -6,6 +6,7 @@ import { navigate, useRoute } from '../lib/router';
 import { Avatar } from '../ui/Avatar';
 import { Tag, type TagColor } from '../ui/Tag';
 import '../ui/admin.css';
+import { Skeleton } from '../ui/States';
 
 interface Person { membership_id: string; name: string; email: string; department: string | null; roles: string[]; mfa: boolean; last_active_at: string | null; joined_at: string; privileged: boolean; dormant: boolean; failed_logins_30d: number; grant_expiring: boolean }
 interface People {
@@ -42,7 +43,7 @@ export function AdminPeople() {
         ))}
       </div>
       {failed && <p className="muted" role="alert">People could not be loaded. Try again in a moment.</p>}
-      {!data && !failed && <div className="skeleton-list" aria-label="Loading people"><span /><span /><span /></div>}
+      {!data && !failed && <Skeleton variant="table" rows={5} label="Loading people" />}
       {data && (
         <>
           {data.items.length === 0 ? (

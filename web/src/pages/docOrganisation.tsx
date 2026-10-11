@@ -76,7 +76,7 @@ export function RaciRows({ artifactId, canEdit, act }: { artifactId: string; can
   const [open, setOpen] = useState(false);
   const load = () => { api<Raci>(`/api/v1/artifacts/${artifactId}/raci`).then(setRaci).catch(() => setRaci(null)); };
   useEffect(load, [artifactId]);
-  if (!raci) return null;
+  if (!raci) return canEdit ? <><dt><UsersRound aria-hidden="true" size="0.9375rem" /> RACI</dt><dd><span className="sk" role="status" aria-label="Loading RACI" style={{ width: '9rem' }} /></dd></> : null;
   const empty = ROLES.every(([k]) => raci[k].length === 0);
   if (empty && !canEdit) return null;
   return (

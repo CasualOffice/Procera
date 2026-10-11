@@ -8,6 +8,7 @@ import { Avatar } from './Avatar';
 import { CommandPalette, shortcutLabel } from './CommandPalette';
 import { type NavKey, navGroups } from './nav';
 import './shell.css';
+import { ShellSkeleton } from './States';
 
 export type { NavKey } from './nav';
 type Theme = 'auto' | 'light' | 'dark';
@@ -68,7 +69,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
     api<{ items: { status: string }[] }>('/api/v1/members').then((r) => setMemberCount(r.items.filter((m) => m.status === 'active').length)).catch(() => undefined);
   }, [workspace, can]);
 
-  if (!workspace || !user) return null;
+  if (!workspace || !user) return <ShellSkeleton />;
   const groups = navGroups(can);
 
   return (

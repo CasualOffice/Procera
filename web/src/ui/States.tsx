@@ -8,7 +8,17 @@ import { Button } from './components/Button';
  */
 
 /** Row-shaped placeholders. `variant="table"` draws a header and cell bars. */
-export function Skeleton({ rows = 3, variant = 'list', label = 'Loading' }: { rows?: number; variant?: 'list' | 'table' | 'doc'; label?: string }) {
+export function Skeleton({ rows = 3, variant = 'list', label = 'Loading' }: { rows?: number; variant?: 'list' | 'table' | 'doc' | 'tiles' | 'block'; label?: string }) {
+  if (variant === 'tiles') {
+    return (
+      <div className="sk-tiles" role="status" aria-label={label}>
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="sk-tile"><span className="sk sk-sub" style={{ width: '46%' }} /><span className="sk sk-figure" /><span className="sk" style={{ width: `${52 + ((i * 11) % 30)}%` }} /></div>
+        ))}
+      </div>
+    );
+  }
+  if (variant === 'block') return <div className="sk sk-block" role="status" aria-label={label} />;
   if (variant === 'doc') {
     return (
       <div className="sk-doc" role="status" aria-label={label}>
@@ -38,6 +48,19 @@ export function Skeleton({ rows = 3, variant = 'list', label = 'Loading' }: { ro
           <span className="sk-lines"><span className="sk" style={{ width: `${44 + ((i * 13) % 36)}%` }} /><span className="sk sk-sub" style={{ width: `${24 + ((i * 7) % 20)}%` }} /></span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** The app frame while who-you-are loads: sidebar and a page of placeholders, never a blank screen. */
+export function ShellSkeleton() {
+  return (
+    <div className="app" role="status" aria-label="Loading Procera">
+      <aside className="sidebar sk-sidebar">
+        <span className="sk sk-icon" />
+        {[70, 56, 64, 48, 60, 52].map((w, i) => <span key={i} className="sk" style={{ width: `${w}%` }} />)}
+      </aside>
+      <div className="sk-main"><Skeleton variant="doc" label="Loading page" /></div>
     </div>
   );
 }

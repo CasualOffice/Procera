@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { Link, navigate, useRoute } from '../lib/router';
 import { Tag } from '../ui/Tag';
 import '../ui/admin.css';
+import { Skeleton } from '../ui/States';
 
 interface Attention { kind: string; severity: 'high' | 'medium' | 'low'; count: number; title: string; link: string }
 interface Overview {
@@ -68,7 +69,7 @@ export function AdminOverview() {
       </div>
 
       {failed && <p className="muted" role="alert">The overview could not be loaded. Try again in a moment.</p>}
-      {!data && !failed && <div className="skeleton-list" aria-label="Loading overview"><span /><span /><span /></div>}
+      {!data && !failed && <div className="stack"><Skeleton variant="tiles" rows={4} label="Loading overview" /><Skeleton rows={3} label="Loading what needs attention" /></div>}
       {data && <OverviewBody data={data} />}
     </>
   );

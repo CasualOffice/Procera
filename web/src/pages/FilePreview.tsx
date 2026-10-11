@@ -5,6 +5,7 @@ import { type FileInfo, downloadFile } from '../lib/upload';
 import { Button } from '../ui/components/Button';
 import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
+import { Skeleton } from '../ui/States';
 
 /** Types the server previews (mirrors `procera_files::preview_kind`); everything else downloads. */
 const PREVIEWABLE = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'application/pdf']);
@@ -56,7 +57,7 @@ export function FilePreview({ file, onClose }: { file: FileInfo | null; onClose:
     >
       <div className="file-preview">
         {error && <Notice tone="danger" title={error} />}
-        {!error && !loaded && <p className="muted" role="status">Loading the preview…</p>}
+        {!error && !loaded && <Skeleton variant="block" label="Loading the preview" />}
         {loaded?.kind === 'image' && loaded.url && <img src={loaded.url} alt={`Preview of ${name}`} referrerPolicy="no-referrer" />}
         {loaded?.kind === 'pdf' && loaded.url && <iframe src={loaded.url} title={`Preview of ${name}`} referrerPolicy="no-referrer" />}
         {loaded?.kind === 'none' && <p className="muted">This type of file has no preview. Download it to open it.</p>}

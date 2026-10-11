@@ -5,6 +5,7 @@ import { type FileInfo, downloadFile, formatBytes, uploadFile } from '../lib/upl
 import { Notice } from '../ui/components/Notice';
 import { Tag, type TagColor } from '../ui/Tag';
 import { FilePreview, canPreview } from './FilePreview';
+import { Skeleton } from '../ui/States';
 
 const STATE: Record<string, [string, TagColor]> = { clean: ['Clean', 'green'], scanning: ['Scanning', 'yellow'], quarantined: ['Quarantined', 'red'], rejected: ['Rejected', 'red'], uploading: ['Uploading', 'gray'] };
 
@@ -43,8 +44,8 @@ export function Attachments({ versionId, canEdit }: { versionId: string; canEdit
     } catch (e) { fail(e, 'The upload failed.'); } finally { setProgress(null); if (input.current) input.current.value = ''; }
   };
 
-  if (items === null) return null;
   const mayEdit = canEdit && editable;
+  if (items === null) return mayEdit ? <section className="attachments"><Skeleton rows={1} label="Loading attachments" /></section> : null;
   if (!items.length && !mayEdit) return null;
   return (
     <section className="attachments" aria-labelledby="att-h">
