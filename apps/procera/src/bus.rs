@@ -212,6 +212,109 @@ impl AppBus {
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }
+            // BPMS-040: a draft waits for review: tell everyone who may review it, except its author.
+            "version.submitted.v1" => {
+                let (artifact, author, kind) = (
+                    uuid_field(m, "artifact_id")?,
+                    uuid_field(m, "author_membership_id")?,
+                    m.payload["kind"].as_str().unwrap_or("policy").to_owned(),
+                );
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())? {
+                    let name: Option<String> = sqlx::query_scalar(
+                        "SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
+                    )
+                    .bind(author)
+                    .fetch_optional(tx.conn())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    let reviewers = self
+                        .members
+                        .access()
+                        .members_holding(&mut tx, &[&format!("{kind}:review"), &format!("{kind}:approve")])
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    let link = format!("/library/{artifact}");
+                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "author": name.unwrap_or_else(|| "Someone".into()), "link": link});
+                    for (membership, email) in reviewers.iter().filter(|(id, _)| *id != author) {
+                        let dedupe = format!("review_requested:{}:{membership}", m.id);
+                        vars["link"] = json!(link);
+                        self.notify
+                            .notify_member(
+                                &mut tx,
+                                *membership,
+                                "review_requested",
+                                &vars,
+                                Some(&link),
+                                Some(("artifact", artifact)),
+                                &dedupe,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                        vars["link"] = json!(format!("{}{link}", self.public_url));
+                        // A review is asked for: urgent, never held for a digest.
+                        self.notify
+                            .email_member(
+                                &mut tx,
+                                *membership,
+                                "review_requested",
+                                email,
+                                &vars,
+                                &dedupe,
+                                Urgency::Urgent,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
+            // BPMS-040: the author hears the outcome of the review.
+            "version.reviewed.v1" => {
+                let (artifact, author) =
+                    (uuid_field(m, "artifact_id")?, uuid_field(m, "author_membership_id")?);
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())? {
+                    let email: Option<String> = sqlx::query_scalar(
+                        "SELECT u.email::text FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1 AND m.status = 'active'",
+                    )
+                    .bind(author)
+                    .fetch_optional(tx.conn())
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    let link = format!("/library/{artifact}");
+                    let dedupe = format!("review_decided:{}", m.id);
+                    let mut vars = json!({"title": m.payload["title"], "version": m.payload["version_no"], "outcome": m.payload["outcome"], "comment": m.payload["comment"], "link": link});
+                    self.notify
+                        .notify_member(
+                            &mut tx,
+                            author,
+                            "review_decided",
+                            &vars,
+                            Some(&link),
+                            Some(("artifact", artifact)),
+                            &dedupe,
+                        )
+                        .await
+                        .map_err(|e| e.to_string())?;
+                    if let Some(email) = email {
+                        vars["link"] = json!(format!("{}{link}", self.public_url));
+                        self.notify
+                            .email_member(
+                                &mut tx,
+                                author,
+                                "review_decided",
+                                &email,
+                                &vars,
+                                &dedupe,
+                                Urgency::Normal,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                    }
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
             // Writers already invalidate after commit; this covers a node that failed to (CFG-004).
             procera_settings::CHANGED_TOPIC => {
                 if let Some(c) = &self.settings_cache {

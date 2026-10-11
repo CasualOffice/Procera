@@ -678,6 +678,10 @@ impl Library {
         let required = policy.required(&a.criticality);
         self.audit(tx, Some(actor), "version.submitted", id, json!({"approvals_required": required}), None)
             .await?;
+        if required > 0 {
+            // Reviewers are told a draft is waiting (in-app and email, after commit).
+            outbox::enqueue(tx, OutboxEvent { topic: "version.submitted.v1", aggregate_type: "artifact_version", aggregate_id: id, aggregate_revision: r.12 + 1, payload: json!({"artifact_id": a.id, "version_id": id, "version_no": r.2, "kind": a.kind, "title": a.title, "author_membership_id": r.8, "approvals_required": required}), trace_id: None }).await?;
+        }
         if required == 0 {
             let hash = self.approve_now(tx, id, &r.4).await?;
             self.audit(
@@ -749,9 +753,11 @@ impl Library {
         sqlx::query("INSERT INTO reviews (workspace_id, id, artifact_version_id, reviewer_membership_id, review_round, decision, comment, decided_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)")
             .bind(tx.ctx.workspace_id).bind(self.ids.new_id()).bind(id).bind(actor.membership).bind(r.11).bind(decision).bind(comment).bind(self.clock.now()).execute(tx.conn()).await?;
         self.audit(tx, Some(actor), "version.reviewed", id, json!({"decision": decision}), comment).await?;
+        let mut outcome = decision;
         if decision == "approve" {
             let approvals = round.iter().filter(|x| x.decision == "approve").count() as i64 + 1;
             let required = policy.required(&a.criticality).max(1);
+            outcome = if approvals >= required { "approved" } else { "approval_recorded" };
             if approvals >= required {
                 let hash = self.approve_now(tx, id, &r.4).await?;
                 self.audit(
@@ -771,6 +777,10 @@ impl Library {
             .bind(id)
             .execute(tx.conn())
             .await?;
+        }
+        // The author hears the outcome: approved (ready to publish), changes requested or rejected.
+        if outcome != "approval_recorded" {
+            outbox::enqueue(tx, OutboxEvent { topic: "version.reviewed.v1", aggregate_type: "artifact_version", aggregate_id: id, aggregate_revision: r.12 + 1, payload: json!({"artifact_id": a.id, "version_id": id, "version_no": r.2, "kind": a.kind, "title": a.title, "author_membership_id": r.8, "outcome": outcome, "comment": comment}), trace_id: None }).await?;
         }
         Self::refresh_state(tx, a.id).await?;
         Ok(self.version(tx, id, Some(policy)).await?.0)

@@ -233,6 +233,28 @@ impl Access {
         Ok(perms.into_iter().flatten().collect())
     }
 
+    /// Active members (membership, email) holding any of `perms` through a live grant, direct or via
+    /// a group, at any scope: who to tell that work like a review is waiting (A-25). Authorization
+    /// still happens when they act.
+    pub async fn members_holding(
+        &self,
+        tx: &mut WsTx<'_>,
+        perms: &[&str],
+    ) -> Result<Vec<(Uuid, String)>, AccessError> {
+        let perms: Vec<String> = perms.iter().map(|p| (*p).to_owned()).collect();
+        Ok(sqlx::query_as(
+            "SELECT DISTINCT m.id, u.email::text FROM memberships m JOIN users u ON u.id = m.user_id
+             JOIN role_grants g ON g.workspace_id = m.workspace_id
+              AND (g.membership_id = m.id OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = m.id))
+             JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+             WHERE m.status = 'active' AND (g.expires_at IS NULL OR g.expires_at > now()) AND r.permissions && $1::text[]
+             ORDER BY m.id",
+        )
+        .bind(&perms)
+        .fetch_all(tx.conn())
+        .await?)
+    }
+
     async fn ensure_no_escalation(
         &self,
         tx: &mut WsTx<'_>,

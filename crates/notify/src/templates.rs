@@ -129,6 +129,46 @@ const TEMPLATES: &[(&str, &str)] = &[
 <ul style="margin:0 0 8px;padding-left:20px">{% for i in items %}<li style="margin:0 0 8px">{% if i.link %}<a href="{{ i.link }}">{{ i.title }}</a>{% else %}{{ i.title }}{% endif %}</li>{% endfor %}</ul>{% endblock %}
 {% block footer %}Change how often you get this in your notification preferences.{% endblock %}"#,
     ),
+    // BPMS-040: a draft waits for review. Vars: title, version, author, link.
+    ("review_requested.title", "Review {{ title }}"),
+    ("review_requested.body", "{{ author }} submitted version {{ version }} for review."),
+    ("review_requested.subject", "Review requested: {{ title }} v{{ version }}"),
+    (
+        "review_requested.text",
+        "{{ author }} submitted {{ title }} (version {{ version }}) for review.\n\nOpen it to approve or request changes:\n{{ link }}\n",
+    ),
+    (
+        "review_requested.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{{ author }} submitted <strong>{{ title }}</strong> (version {{ version }}) for review.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Review</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you can review this kind of document.{% endblock %}"#,
+    ),
+    // BPMS-040: the review outcome, to the author. Vars: title, version, outcome
+    // (approved | changes_requested | reject), comment (optional), link.
+    (
+        "review_decided.title",
+        "{% if outcome == 'approved' %}{{ title }} is approved{% elif outcome == 'reject' %}{{ title }} was rejected{% else %}Changes requested on {{ title }}{% endif %}",
+    ),
+    (
+        "review_decided.body",
+        "{% if outcome == 'approved' %}Version {{ version }} is ready to publish.{% else %}Version {{ version }} is back in draft{% if comment %}: “{{ comment }}”{% else %}.{% endif %}{% endif %}",
+    ),
+    (
+        "review_decided.subject",
+        "{% if outcome == 'approved' %}Approved: {{ title }} v{{ version }}{% elif outcome == 'reject' %}Rejected: {{ title }} v{{ version }}{% else %}Changes requested: {{ title }} v{{ version }}{% endif %}",
+    ),
+    (
+        "review_decided.text",
+        "{% if outcome == 'approved' %}{{ title }} (version {{ version }}) is approved and ready to publish.{% else %}{{ title }} (version {{ version }}) is back in draft.{% if comment %}\n\nReviewer's comment: {{ comment }}{% endif %}{% endif %}\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "review_decided.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">{% if outcome == 'approved' %}<strong>{{ title }}</strong> (version {{ version }}) is approved and ready to publish.{% else %}<strong>{{ title }}</strong> (version {{ version }}) is back in draft.{% endif %}</p>
+{% if comment and outcome != 'approved' %}<p style="margin:0 0 16px;padding:12px 16px;background:#f4f4f2;border-radius:6px">{{ comment }}</p>{% endif %}
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the document</a></p>{% endblock %}
+{% block footer %}You receive this because you wrote this version.{% endblock %}"#,
+    ),
     // BPMS-044: an artifact's review date passed. Vars: title.
     ("review_overdue.title", "{{ title }} is due for review"),
     (
@@ -182,6 +222,26 @@ mod tests {
         assert!(r.text.contains("https://x.test/invite?token=abc"));
         assert!(r.html.contains("Ann &lt;script&gt;") && r.html.contains("Acme &amp; Co"));
         assert!(!r.html.contains("<script>"));
+    }
+
+    #[test]
+    fn review_templates_render_every_outcome() {
+        let ctx =
+            json!({"title": "Travel <policy>", "version": 2, "author": "Ann", "link": "https://x.test/l"});
+        let r = email("review_requested", &ctx).expect("renders");
+        assert!(r.subject.contains("Travel <policy> v2") && r.html.contains("Travel &lt;policy&gt;"));
+        assert!(in_app("review_requested", &ctx).expect("renders").body.contains("Ann submitted version 2"));
+        for (outcome, comment, word) in [
+            ("approved", None, "ready to publish"),
+            ("changes_requested", Some("Fix <b>"), "back in draft"),
+            ("reject", Some("No"), "back in draft"),
+        ] {
+            let ctx = json!({"title": "T", "version": 1, "outcome": outcome, "comment": comment, "link": "https://x.test/l"});
+            let r = email("review_decided", &ctx).expect("renders");
+            assert!(r.text.contains(word), "{outcome}");
+            assert!(!r.html.contains("<b>"), "{outcome}: comment is escaped");
+            assert!(!in_app("review_decided", &ctx).expect("renders").title.is_empty());
+        }
     }
 
     #[test]
