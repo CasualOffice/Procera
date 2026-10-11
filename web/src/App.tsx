@@ -18,6 +18,8 @@ import { Announcements } from './pages/Announcements';
 import { ManageAnnouncements } from './pages/ManageAnnouncements';
 import { CampaignDetail, Campaigns } from './pages/Campaigns';
 import { Settings } from './pages/Settings';
+import { SettingsCategory } from './pages/SettingsCategory';
+import { categoryById } from './pages/settingsMeta';
 import { Audit } from './pages/Audit';
 import { Members } from './pages/Members';
 import { Roles } from './pages/Roles';
@@ -120,6 +122,8 @@ export function App() {
   const camp = match('/admin/campaigns/:id', path);
   if (camp) return <AppShell current="campaigns" crumbs={[ADMIN, ['Campaigns', '/admin/campaigns'], 'Campaign']}><CampaignDetail id={camp.id!} /></AppShell>;
   if (path === '/admin/settings') return <AppShell current="settings" crumbs={[ADMIN, 'Settings']}><Settings /></AppShell>;
+  const setCat = match('/admin/settings/:category', path);
+  if (setCat && categoryById(setCat.category!)) return <AppShell current="settings" crumbs={[ADMIN, ['Settings', '/admin/settings'], categoryById(setCat.category!)!.label]}><SettingsCategory key={setCat.category} id={setCat.category!} /></AppShell>;
   if (path === '/admin/audit') return <AppShell current="audit" crumbs={[ADMIN, 'Audit log']}><Audit /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>
