@@ -5,7 +5,7 @@ resolver = "3"
 members = ["crates/kernel", "crates/crypto", "crates/cache", "crates/db", "crates/audit", "crates/identity", "crates/access", "crates/members",
     "crates/settings",
     "crates/notify", "crates/keys", "crates/files",
-    "crates/library", "crates/ir", "crates/campaigns", "crates/announcements", "crates/search", "crates/platform", "apps/procera", "conformance"]
+    "crates/library", "crates/ir", "crates/campaigns", "crates/expr", "crates/announcements", "crates/search", "crates/platform", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
 
@@ -25,6 +25,8 @@ clap = { version = "4", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
+# Exact decimals for money in expressions (MIT, pure Rust, builds for wasm32; SP-08).
+rust_decimal = { version = "1.43", default-features = false, features = ["std", "serde"] }
 time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "signal", "sync", "time"] }
 tracing = "0.1"
@@ -48,6 +50,7 @@ procera-ir = { path = "crates/ir" }
 procera-campaigns = { path = "crates/campaigns" }
 procera-announcements = { path = "crates/announcements" }
 procera-search = { path = "crates/search" }
+procera-expr = { path = "crates/expr" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
