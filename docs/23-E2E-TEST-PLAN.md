@@ -303,7 +303,7 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R1-05 | Clone "Process Designer" → "HR Designer" scoped to the HR collection; preview count is correct; the scope is enforced on UI and API; adding a permission the editor lacks is refused | FR-W03, J6 |
 | E2E-R1-06 | Policy authored → submitted → self-approval blocked (SoD) → reviewer approves with step-up → scheduled → published at effective date (test clock) → old version watermarked as superseded in PDF | FR-G04/G05/G10, FR-PL01 |
 | E2E-R1-07 | Major version publish triggers a re-ack campaign; 50 employees ack (10 at mobile viewport); evidence export lists version hash and auth method | FR-PL03, FR-AK01–04 |
-| E2E-R1-08 | New joiner added to a department automatically receives outstanding applicable campaigns | FR-AK03 |
+| E2E-R1-08 | New joiner added to a department automatically receives outstanding applicable campaigns (browser: a campaign created with "Also ask people who join later" on; a new hire who joins from the invitation email after launch finds the request on Home, acknowledges, and shows Done) | FR-AK03 |
 | E2E-R1-09 | Announcement to location "Bangalore" with ack in 3 days; reminders; manager escalation after deadline (test clock); ack % by department correct | FR-AN01–06, J14 |
 | E2E-R1-10 | Announcement approval workflow: draft → reviewer → publish; expiry archives it | FX-C01, FR-AN03 |
 | E2E-R1-11 | File upload (resumable 50 MB): clean file previews; **EICAR quarantined** and undownloadable; signed URL expires and fails from workspace B | FR-F01–F03, SEC-10 |

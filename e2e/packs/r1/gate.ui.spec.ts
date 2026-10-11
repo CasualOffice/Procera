@@ -2,6 +2,8 @@ import { type APIRequestContext, type Locator, type Page, expect, test } from '@
 import { PW, hasDatabase, passwordSession, seedUser } from '../../fixtures/accounts';
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
+import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
+import { uniqueEmail } from '../../fixtures/accounts';
 
 // E2E-R1 release gate (docs/23 §R1, BPMS-032): the scenarios whose features have shipped, run in
 // the browser. R1-16 deactivation cuts access at once; R1-19 keyboard-only publish and acknowledge.
@@ -245,5 +247,41 @@ test.describe('R1 gate @r1 @ui', () => {
     const chain = await (await request.get(`/__test/audit/verify?workspace=${ws.id}`)).json();
     expect(chain.ok).toBe(true);
     expect(joiner.id).toBeTruthy();
+  });
+
+  test('E2E-R1-08 a new joiner automatically receives the open acknowledgement campaigns that apply to them', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key: 'conduct', title: 'Code of conduct', content: { blocks: [{ type: 'paragraph', text: 'Be kind.' }] } } })).json();
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+
+    // The campaign asks people who join later too (the default), and says so before launch.
+    await nav(page, 'Campaigns');
+    await page.getByRole('button', { name: 'New campaign' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New campaign' });
+    await dlg.getByRole('button', { name: /Code of conduct/ }).click();
+    await expect(dlg.getByRole('checkbox', { name: /Also ask people who join later/ })).toBeChecked();
+    await dlg.getByRole('button', { name: 'Create draft' }).click();
+    await expect(page.getByText('People who join the audience later are asked too')).toBeVisible();
+    await page.getByRole('button', { name: 'Launch' }).click();
+    await expect(page.getByRole('table', { name: 'People in this campaign' })).toBeVisible();
+    const campaignUrl = page.url();
+
+    // A new hire joins after launch and finds the request waiting on Home.
+    const email = uniqueEmail('joiner');
+    await inviteFromMembers(page, email);
+    const hire = await joinAsNewPerson(browser, request, ws.id, email, 'Jo Joiner');
+    await request.post('/__test/drain');
+    await hire.reload();
+    await expect(hire.getByText('Acknowledge “Code of conduct”')).toBeVisible();
+    await hire.getByRole('button', { name: 'Read and acknowledge' }).click();
+    await hire.getByRole('region', { name: 'Acknowledgement requested' }).getByRole('button', { name: 'I acknowledge' }).click();
+    await expect(hire.getByRole('status').filter({ hasText: 'Acknowledged' })).toBeVisible();
+
+    await page.goto(campaignUrl);
+    await expect(page.getByRole('row', { name: /Jo Joiner/ }).getByText('Done')).toBeVisible();
   });
 });

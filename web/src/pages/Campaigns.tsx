@@ -20,7 +20,7 @@ import { KIND_TAG, Tag, type TagColor } from '../ui/Tag';
 interface Progress { assigned: number; acknowledged: number; pending: number; overdue: number }
 export interface Campaign {
   id: string; title: string; state: string; audience: unknown; ack_text: string; due_at: string | null; due_in_secs: number; created_at: string; launched_at: string | null; ended_at: string | null; end_reason: string | null;
-  subject: { artifact_id: string; kind: string; title: string; version_id: string; version_no: number; semver?: string | null }; progress: Progress; audience_preview?: number; origin?: string;
+  subject: { artifact_id: string; kind: string; title: string; version_id: string; version_no: number; semver?: string | null }; progress: Progress; audience_preview?: number; origin?: string; audience_snapshot?: 'at_launch' | 'dynamic';
 }
 interface Recipient { id: string; name: string; email: string; department: string | null; state: string; due_at: string; overdue: boolean; acknowledged_at: string | null; reminders_sent: number }
 
@@ -108,6 +108,7 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
   const [titleTouched, setTitleTouched] = useState(false);
   const [audience, setAudience] = useState<Audience>(EVERYONE);
   const [due, setDue] = useState('');
+  const [joiners, setJoiners] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => { if (isOpen) { setDoc(''); setTitle(''); setTitleTouched(false); setAudience(EVERYONE); setDue(''); setError(null); } }, [isOpen]);
@@ -117,7 +118,7 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
     if (!chosen) return;
     setBusy(true); setError(null);
     try {
-      const c = await api<Campaign>('/api/v1/campaigns', { method: 'POST', body: { version_id: chosen.current_published_version_id, title: title.trim() || undefined, audience, due_at: due ? new Date(`${due}T23:59:00`).toISOString() : undefined } });
+      const c = await api<Campaign>('/api/v1/campaigns', { method: 'POST', body: { version_id: chosen.current_published_version_id, title: title.trim() || undefined, audience, audience_snapshot: joiners ? 'dynamic' : 'at_launch', due_at: due ? new Date(`${due}T23:59:00`).toISOString() : undefined } });
       onClose(); onCreated(c.id);
     } catch (e) { setError(e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'Could not create the campaign.'); } finally { setBusy(false); }
   };
@@ -145,6 +146,7 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
         </div>
         <TextField label="Name" value={title} onChange={(v) => { setTitle(v); setTitleTouched(true); }} description="Shown to people in their task list." />
         <AudiencePicker value={audience} onChange={setAudience} />
+        <label className="check-row"><input type="checkbox" checked={joiners} onChange={(e) => setJoiners(e.target.checked)} /><span><strong>Also ask people who join later</strong><small>New members in this audience get the request while the campaign is open.</small></span></label>
         <div className="field"><label className="field-label" htmlFor="camp-due">Due on <span className="muted">(optional)</span></label><input id="camp-due" type="date" className="field-input" value={due} onChange={(e) => setDue(e.target.value)} /><span className="field-description">Leave empty to use the workspace default, counted from launch.</span></div>
       </Form>
     </FormDialog>
@@ -207,6 +209,7 @@ export function CampaignDetail({ id }: { id: string }) {
           <p className="camp-big">{c.audience_preview ?? 0} <span>{c.audience_preview === 1 ? 'person' : 'people'} will be asked to acknowledge</span></p>
           <p className="muted">Launching notifies them and starts the clock{c.due_at ? '' : `: ${Math.round(c.due_in_secs / 86400)} days to complete`}. You can remind people and export the evidence any time.</p>
           <p className="camp-ack"><span className="muted">They confirm:</span> “{c.ack_text}”</p>
+          <p className="muted">{c.audience_snapshot === 'at_launch' ? 'Only the people in the audience at launch are asked.' : 'People who join the audience later are asked too, while it is open.'}</p>
         </div>
       ) : (
         <>
