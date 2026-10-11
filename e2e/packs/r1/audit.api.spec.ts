@@ -264,6 +264,13 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const starter = (await (await sys.get('/sysapi/v1/quota-defaults', { headers: sh })).json()).items[0];
   const { profile: _qp, revision: _qr, updated_at: _qu, ...starterLimits } = starter;
   await step('PUT', '/sysapi/v1/quota-defaults/{profile}', () => sys.put(`/sysapi/v1/quota-defaults/${starter.profile}`, { headers: sh, data: starterLimits }));
+  // Email settings (BPMS-065): saved pointing at a closed local port. E2E builds deliver only through
+  // PROCERA_SMTP_URL, so the shared queue is untouched; the test send fails, answers 200 with the error
+  // and is audited all the same.
+  const mail = await sys.get('/sysapi/v1/email', { headers: sh });
+  await step('PUT', '/sysapi/v1/email', () => sys.put('/sysapi/v1/email', { headers: { ...sh, 'if-match': mail.headers()['etag']! }, data: { host: 'localhost', port: 1, tls_mode: 'none', from_address: 'no-reply@procera.test', from_name: 'Procera', reason: 'audit drill' } }));
+  const probe = await (await step('POST', '/sysapi/v1/email/test', () => sys.post('/sysapi/v1/email/test', { headers: sh, data: { to: 'audit@procera.test' } }))).json();
+  expect(probe).toMatchObject({ sent: false, error: { kind: 'connection_refused' } });
 
   // 6. Sessions: refresh (exempt), logout, sign-out-everywhere; then schedule deletion.
   await step('POST', '/api/v1/auth/refresh', () => own.post('/api/v1/auth/refresh', { headers: CSRF }));
