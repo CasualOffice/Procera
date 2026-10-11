@@ -314,6 +314,7 @@ test.describe('complete flows @r1 @ui', () => {
     await dlg.getByLabel('Message').fill('Submit expenses in the new tool from Monday.');
     await dlg.getByRole('button', { name: 'Save draft' }).click();
     await page.getByRole('button', { name: 'Send for approval' }).click();
+    await expect(page.getByText('Waiting for a publisher to approve it.', { exact: false })).toBeVisible();
 
     // Admin: the approval email opens the post; they send it back with a note.
     const approve = await emailLink(request, ws.id, email, 'announcement_approval', /\/admin\/announcements\?id=/);
@@ -323,6 +324,7 @@ test.describe('complete flows @r1 @ui', () => {
     const back = admin.getByRole('dialog', { name: 'Request changes' });
     await back.getByLabel('What should change?').fill('Add the link to the tool.');
     await back.getByRole('button', { name: 'Send back' }).click();
+    await expect(admin.getByText('Sent back with changes requested. Edit it, then send it again.')).toBeVisible();
 
     // Owner: told it came back, with the note; edits and resubmits from the notification.
     await page.getByRole('dialog', { name: 'New expense tool' }).getByRole('button', { name: 'Close' }).click(); // the drawer stays open after sending
@@ -336,6 +338,7 @@ test.describe('complete flows @r1 @ui', () => {
     await edit.getByLabel('Message').fill('Submit expenses in the new tool from Monday: expenses.acme.test');
     await edit.getByRole('button', { name: 'Save draft' }).click();
     await page.getByRole('button', { name: 'Send for approval' }).click();
+    await expect(page.getByText('Waiting for a publisher to approve it.', { exact: false })).toBeVisible();
 
     // Admin approves; the owner hears it; the post is in everyone's feed.
     await admin.reload();
