@@ -697,13 +697,8 @@ test.describe('R1 gate @r1 @ui', () => {
     const secret = (await op.locator('.mfa-secret code').innerText()).replace(/\s+/g, '');
     await op.getByLabel('6-digit code').fill(totp(secret, await serverNow(request)));
     await op.getByRole('button', { name: 'Verify and turn on' }).click();
-    const code = await op.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem').first().innerText();
-    await op.getByRole('button', { name: /sign in again/ }).click();
-    await op.getByLabel('Work email').fill(ownerA);
-    await op.getByLabel('Password').fill(PW);
-    await op.getByRole('button', { name: 'Sign in' }).click();
-    await op.getByLabel('Code').fill(code);
-    await op.getByRole('button', { name: 'Verify' }).click();
+    await expect(op.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem')).toHaveCount(10);
+    await op.getByRole('button', { name: 'I’ve saved them, continue' }).click();
     await expect(op.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), Owen/ })).toBeVisible();
   });
 

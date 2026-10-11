@@ -247,11 +247,8 @@ test.describe('complete flows @r1 @ui', () => {
     const secret = (await admin.locator('.mfa-secret code').innerText()).replace(/\s+/g, '');
     await admin.getByLabel('6-digit code').fill(totp(secret, await serverNow(request)));
     await admin.getByRole('button', { name: 'Verify and turn on' }).click();
-    const recovery = await admin.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem').first().innerText();
-    await admin.getByRole('button', { name: /sign in again/ }).click();
-    await signInForm(admin, email);
-    await admin.getByLabel('Code').fill(recovery);
-    await admin.getByRole('button', { name: 'Verify' }).click();
+    await expect(admin.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem')).toHaveCount(10);
+    await admin.getByRole('button', { name: 'I’ve saved them, continue' }).click();
     await expect(admin.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), Ada/ })).toBeVisible();
 
     // Owner writes a workspace-wide post: it needs someone else's approval.

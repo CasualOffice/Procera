@@ -51,7 +51,7 @@ export function SystemShell({ current, title, children }: { current: SystemNavKe
     return (
       <div className="auth">
         <main id="main" className="auth-card" tabIndex={-1}>
-          <MfaSetup next={window.location.pathname} intro="System administration needs two-step verification. Turn it on now with an authenticator app; it takes about a minute. Then sign in again to open the system console." />
+          <MfaSetup next={window.location.pathname} intro="System administration needs two-step verification. Turn it on now with an authenticator app; it takes about a minute." />
         </main>
       </div>
     );

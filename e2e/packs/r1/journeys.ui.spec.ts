@@ -133,8 +133,14 @@ test.describe('journeys @r1 @ui', () => {
     await expect(codes).toHaveCount(10);
     const recovery = await codes.first().innerText();
     await axe(page);
-    await page.getByRole('button', { name: /sign in again/ }).click();
-    await expect(page.getByText('Two-step verification is on')).toBeVisible();
+    // The confirmed code counts as the second step: straight in, no second sign-in.
+    await page.getByRole('button', { name: 'I’ve saved them, continue' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await page.reload(); // the refreshed session keeps two-step
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    // The next sign-in asks for the second step.
+    await page.getByRole('button', { name: /^Account:/ }).click();
+    await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.getByLabel('Work email').fill(email);
     await page.getByLabel('Password').fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();

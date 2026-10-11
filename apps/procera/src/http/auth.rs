@@ -280,8 +280,11 @@ async fn totp_confirm(
     AuthUser(c): AuthUser,
     Json(req): Json<CodeReq>,
 ) -> Result<Response, ApiError> {
-    let codes = identity(&s)?.totp_confirm(c.sub, &req.code, &client_info(&headers)).await?;
-    let mut res = Json(json!({"recovery_codes": codes})).into_response();
+    let id = identity(&s)?;
+    let codes = id.totp_confirm(c.sub, &req.code, &client_info(&headers)).await?;
+    // The code just proved the authenticator: this session now counts as two-step (no second sign-in).
+    let (token, expires_in) = id.upgrade_session(&c, "otp").await?;
+    let mut res = Json(json!({"recovery_codes": codes, "access_token": token, "token_type": "Bearer", "expires_in": expires_in})).into_response();
     res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(res)
 }

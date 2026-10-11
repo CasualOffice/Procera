@@ -864,6 +864,40 @@ impl Identity {
         Ok((token, self.cfg.access_ttl.as_secs()))
     }
 
+    /// After a second factor is enrolled with a verified code, the current session counts as two-step:
+    /// the refresh family and a new access token carry `method`, so nobody has to sign in again.
+    pub async fn upgrade_session(
+        &self,
+        claims: &Claims,
+        method: &str,
+    ) -> Result<(String, u64), IdentityError> {
+        let mut tx = self.db.begin_system().await?;
+        let user = self.load_user(&mut tx, claims.sub).await?.ok_or(IdentityError::InvalidToken)?;
+        if user.status != "active" || user.token_version != claims.tv || !user.mfa_enabled {
+            return Err(IdentityError::InvalidToken);
+        }
+        let mut amr = claims.amr.clone();
+        if !amr.iter().any(|a| a == method) {
+            amr.push(method.to_owned());
+        }
+        let now = self.now();
+        sqlx::query(
+            "UPDATE refresh_tokens SET amr = $3, auth_time = $4
+              WHERE family_id = $1 AND user_id = $2 AND used_at IS NULL AND revoked_at IS NULL",
+        )
+        .bind(claims.sid)
+        .bind(user.id)
+        .bind(&amr)
+        .bind(now)
+        .execute(tx.conn())
+        .await?;
+        tx.commit().await?;
+        let amr: Vec<&str> = amr.iter().map(String::as_str).collect();
+        let token =
+            self.sign(&user, claims.sid, &claims.plane, claims.ws, &amr, now, "access", self.cfg.access_ttl)?;
+        Ok((token, self.cfg.access_ttl.as_secs()))
+    }
+
     /// Re-signs `claims` with a different `auth_time` (E2E controls only: simulates an old sign-in).
     pub fn resign_with_auth_time(
         &self,

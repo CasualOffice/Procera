@@ -2,7 +2,7 @@ import { Check, Copy, Download, ShieldCheck } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useState } from 'react';
 import { Form } from 'react-aria-components';
-import { ApiError, api } from '../lib/api';
+import { ApiError, api, setAccessToken } from '../lib/api';
 import { navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
@@ -16,7 +16,8 @@ type Step = 'intro' | 'scan' | 'codes';
  * when the system console requires it (`intro` explains why; `next` is where sign-in returns after).
  */
 export function MfaSetup({ workspaceName, intro, next }: { workspaceName?: string; intro?: string; next?: string }) {
-  const { signOut } = useSession();
+  const { signOut, reload, selectWorkspace, workspaces } = useSession();
+  const [upgraded, setUpgraded] = useState(false);
   const [step, setStep] = useState<Step>('intro');
   const [secret, setSecret] = useState('');
   const [qr, setQr] = useState('');
@@ -37,7 +38,9 @@ export function MfaSetup({ workspaceName, intro, next }: { workspaceName?: strin
   const confirm = async () => {
     setError(null);
     try {
-      const r = await api<{ recovery_codes: string[] }>('/api/v1/me/mfa/totp/confirm', { method: 'POST', body: { code: code.trim() } });
+      const r = await api<{ recovery_codes: string[]; access_token?: string }>('/api/v1/me/mfa/totp/confirm', { method: 'POST', body: { code: code.trim() } });
+      // The code proved the authenticator, so this session now counts as two-step: no second sign-in.
+      if (r.access_token) { setAccessToken(r.access_token); setUpgraded(true); }
       setCodes(r.recovery_codes);
       setStep('codes');
     } catch (e) { setError(e instanceof ApiError && e.code === 'invalid_code' ? 'That code didn’t match. Codes change every 30 seconds, so enter the one showing now.' : e instanceof Error ? e.message : 'Could not confirm.'); }
@@ -98,7 +101,13 @@ export function MfaSetup({ workspaceName, intro, next }: { workspaceName?: strin
         <Button variant="secondary" onPress={download}><Download aria-hidden="true" size="0.9375rem" /> Download</Button>
         <Button variant="secondary" onPress={() => void navigator.clipboard?.writeText(codes.join('\n'))}><Copy aria-hidden="true" size="0.9375rem" /> Copy</Button>
       </div>
-      <Button className="btn-block" onPress={async () => { await signOut(); navigate(next ? `/sign-in?mfa=on&next=${encodeURIComponent(next)}` : '/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>
+      {upgraded
+        ? <Button className="btn-block" onPress={async () => {
+            await reload();
+            if (!next && workspaces.length === 1) await selectWorkspace(workspaces[0]!.workspace_id).catch(() => undefined);
+            navigate(next ?? '/', { replace: true });
+          }}>I’ve saved them, continue</Button>
+        : <Button className="btn-block" onPress={async () => { await signOut(); navigate(next ? `/sign-in?mfa=on&next=${encodeURIComponent(next)}` : '/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>}
     </>
   );
 }
