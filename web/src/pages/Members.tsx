@@ -93,7 +93,7 @@ export function Members() {
             { id: 'title', header: 'Title', optional: true, value: (p) => p.title ?? '' },
             { id: 'status', header: 'Status', type: 'enum', value: (p) => p.status, cell: (p) => <Tag color={p.status === 'Active' ? 'green' : p.status === 'Invited' ? 'yellow' : 'gray'} dot>{p.status}</Tag> },
             { id: 'date', header: 'Joined', type: 'date', optional: true, value: (p) => p.date, cell: (p) => <span className="cell-muted">{p.invite ? `expires ${shortDate(p.date)}` : shortDate(p.date)}</span> },
-            ...(can('member:invite') && invites?.length ? [{ id: 'invitation', header: 'Invitation', sortable: false, value: (p: PersonRow) => (p.invite ? 'pending' : ''), cell: (p: PersonRow) => p.invite && (
+            ...(can('member:invite') ? [{ id: 'invitation', header: 'Invitation', sortable: false, value: (p: PersonRow) => (p.invite ? 'pending' : ''), cell: (p: PersonRow) => p.invite && (
               <span className="actions" style={{ flexWrap: 'nowrap' }}>
                 <Button variant="secondary" className="btn-sm" aria-label={`Resend invitation to ${p.email}`} onPress={() => void resend(p)}>Resend</Button>
                 <Button variant="ghost" className="btn-sm" aria-label={`Revoke invitation to ${p.email}`} onPress={() => setRevoking(p)}>Revoke</Button>
