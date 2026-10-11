@@ -21,6 +21,7 @@ pub mod overview;
 pub mod search;
 pub mod settings;
 pub mod system;
+pub mod system_console;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
 pub mod workspace;

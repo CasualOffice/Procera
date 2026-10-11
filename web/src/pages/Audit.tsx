@@ -41,12 +41,44 @@ function query(f: Filters, cursor?: string | null) {
   return p.toString();
 }
 
+/** Where an explorer reads from: the workspace chain, or the system chain in the system console. */
+export interface AuditSource {
+  title: string;
+  lede: string;
+  /** Events endpoint (takes the explorer's query string). */
+  events: string;
+  verify: string | null;
+  /** One object's events; `newestFirst` when the endpoint returns them newest first. */
+  timeline: (type: string, id: string) => string;
+  newestFirst?: boolean;
+  people?: Member[] | null;
+  ownOnly?: boolean;
+  actionHint: string;
+}
+
 /**
  * Admin · Audit log (docs/05 §3.19): read-only, newest first, filters, keyset paging, a row expands
  * to the full record, and any object opens its timeline. Chain verification shows at the top.
  */
 export function Audit() {
   const { can } = useSession();
+  const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
+  return (
+    <AuditExplorer source={{
+      title: 'Audit log',
+      lede: 'Every change and sensitive read in this workspace, newest first. Records can’t be edited or deleted.',
+      events: '/api/v1/audit/events',
+      verify: can('audit:view') ? '/api/v1/audit/verify' : null,
+      timeline: (type, id) => `/api/v1/audit/objects/${encodeURIComponent(type)}/${id}/timeline`,
+      people: members,
+      ownOnly: !can('audit:view'),
+      actionHint: 'announcement.published',
+    }} />
+  );
+}
+
+/** The shared explorer component (docs/05 §3.20: the system console reuses it on the system chain). */
+export function AuditExplorer({ source }: { source: AuditSource }) {
   const [draft, setDraft] = useState<Filters>(EMPTY);
   const [filters, setFilters] = useState<Filters>(EMPTY);
   const [items, setItems] = useState<AuditEvent[] | null>(null);
@@ -55,29 +87,29 @@ export function Audit() {
   const [more, setMore] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
   const [timeline, setTimeline] = useState<{ type: string; id: string } | null>(null);
-  const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
-  const [chain] = useResource<{ ok: boolean; checked: number; first_broken: number | null }>(can('audit:view') ? '/api/v1/audit/verify' : null);
+  const members = source.people;
+  const [chain] = useResource<{ ok: boolean; checked: number; first_broken: number | null }>(source.verify);
 
   const load = useCallback(async (f: Filters, after?: string | null) => {
     try {
-      const r = await api<Page>(`/api/v1/audit/events?${query(f, after)}`);
+      const r = await api<Page>(`${source.events}?${query(f, after)}`);
       setItems((cur) => (after ? [...(cur ?? []), ...r.items] : r.items));
       setCursor(r.next_cursor);
       setError(null);
     } catch (e) { setError(toFailure(e)); if (!after) setItems([]); }
-  }, []);
+  }, [source.events]);
   useEffect(() => { setItems(null); setOpen(null); void load(filters); }, [filters, load]);
   const active = Object.values(filters).filter(Boolean).length;
 
   return (
     <>
       <div className="page-head">
-        <div><h1>Audit log</h1><p>Every change and sensitive read in this workspace, newest first. Records can’t be edited or deleted.</p></div>
+        <div><h1>{source.title}</h1><p>{source.lede}</p></div>
         {chain && (chain.ok
           ? <span className="chain chain-ok"><ShieldCheck aria-hidden="true" size="0.9375rem" /> Chain verified <span className="muted">· {chain.checked.toLocaleString()} events</span></span>
           : <span className="chain chain-bad" role="alert"><ShieldAlert aria-hidden="true" size="0.9375rem" /> Chain broken at event {chain.first_broken}</span>)}
       </div>
-      {!can('audit:view') && <p className="muted audit-own">You can see your own activity only.</p>}
+      {source.ownOnly && <p className="muted audit-own">You can see your own activity only.</p>}
 
       <form className="audit-filters" aria-label="Filter events" onSubmit={(e) => { e.preventDefault(); setFilters(draft); }}>
         <label className="af"><span>Category</span>
@@ -98,7 +130,7 @@ export function Audit() {
             </select>
           </label>
         )}
-        <label className="af af-wide"><span>Action</span><input className="field-input" placeholder="announcement.published" value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })} /></label>
+        <label className="af af-wide"><span>Action</span><input className="field-input" placeholder={source.actionHint} value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })} /></label>
         <label className="af"><span>From</span><input type="date" className="field-input" value={draft.from} onChange={(e) => setDraft({ ...draft, from: e.target.value })} /></label>
         <label className="af"><span>To</span><input type="date" className="field-input" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} /></label>
         <div className="af-actions">
@@ -128,7 +160,7 @@ export function Audit() {
           </div>
         </>
       )}
-      {timeline && <Timeline type={timeline.type} id={timeline.id} onClose={() => setTimeline(null)} />}
+      {timeline && <Timeline type={timeline.type} id={timeline.id} url={source.timeline(timeline.type, timeline.id)} newestFirst={source.newestFirst} onClose={() => setTimeline(null)} />}
     </>
   );
 }
@@ -163,8 +195,9 @@ function EventRow({ e, open, onToggle, onTimeline }: { e: AuditEvent; open: bool
 }
 
 /** Every event for one object, oldest first (docs/05 §3.19 "per object" timeline). */
-function Timeline({ type, id, onClose }: { type: string; id: string; onClose: () => void }) {
-  const [page, , error] = useResource<Page>(`/api/v1/audit/objects/${encodeURIComponent(type)}/${id}/timeline`);
+export function Timeline({ type, id, url, newestFirst = false, onClose }: { type: string; id: string; url: string; newestFirst?: boolean; onClose: () => void }) {
+  const [raw, , error] = useResource<Page>(url);
+  const page = raw && newestFirst ? { ...raw, items: [...raw.items].reverse() } : raw;
   return (
     <Drawer title={`${actionText(type)} history`} onClose={onClose}>
       <p className="drawer-next"><code className="mono">{type}/{id}</code></p>

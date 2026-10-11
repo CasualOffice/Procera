@@ -130,6 +130,15 @@ pub struct Workspace {
     pub quotas: Quotas,
 }
 
+/// Filters for the system console's workspace list.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WorkspaceFilter {
+    pub state: Option<String>,
+    pub profile: Option<String>,
+    pub q: Option<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NewWorkspace {
@@ -192,11 +201,11 @@ fn to_ws(r: WsRow) -> Workspace {
 
 #[derive(Debug, Clone)]
 pub struct Platform {
-    db: Db,
+    pub(crate) db: Db,
     identity: Identity,
     members: Members,
     settings: procera_settings::Settings,
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
 }
 
@@ -216,7 +225,7 @@ impl Platform {
         Self { db, identity, members, settings, clock, ids }
     }
 
-    async fn audit(
+    pub(crate) async fn audit(
         &self,
         tx: &mut WsTx<'_>,
         actor: Option<Uuid>,
@@ -242,7 +251,7 @@ impl Platform {
         Ok(())
     }
 
-    async fn subject(&self, tx: &mut WsTx<'_>, user: Uuid) -> Result<Option<Uuid>, PlatformError> {
+    pub(crate) async fn subject(&self, tx: &mut WsTx<'_>, user: Uuid) -> Result<Option<Uuid>, PlatformError> {
         Ok(sqlx::query_scalar("SELECT subject_ref FROM users WHERE id = $1")
             .bind(user)
             .fetch_optional(tx.conn())
@@ -396,7 +405,7 @@ impl Platform {
         if inserted == 0 {
             return Err(PlatformError::SlugTaken);
         }
-        let q = Quotas::for_profile(&req.profile);
+        let q = crate::console::profile_defaults(&mut tx, &req.profile).await?;
         sqlx::query("INSERT INTO workspace_quotas (target_workspace_id, max_members, max_active_instances, max_storage_bytes, api_rpm, ai_tokens_month) VALUES ($1,$2,$3,$4,$5,$6)")
             .bind(id).bind(q.max_members).bind(q.max_active_instances).bind(q.max_storage_bytes).bind(q.api_rpm).bind(q.ai_tokens_month)
             .execute(tx.conn()).await?;
@@ -435,12 +444,27 @@ impl Platform {
         Ok(ws)
     }
 
-    pub async fn list_workspaces(&self) -> Result<Vec<Workspace>, PlatformError> {
-        let rows: Vec<WsRow> = sqlx::query_as(&format!(
-            "{SELECT_WS} WHERE w.state <> 'deleted' ORDER BY w.created_at DESC LIMIT 500"
-        ))
-        .fetch_all(self.db.pool())
-        .await?;
+    /// Workspaces that are not deleted, newest first, optionally filtered by state, profile and a
+    /// name/slug substring (case-insensitive).
+    pub async fn list_workspaces(&self, f: &WorkspaceFilter) -> Result<Vec<Workspace>, PlatformError> {
+        let mut qb = sqlx::QueryBuilder::<sqlx::Postgres>::new(SELECT_WS);
+        qb.push(" WHERE w.state <> 'deleted'");
+        if let Some(st) = f.state.as_deref().filter(|v| !v.is_empty()) {
+            qb.push(" AND w.state = ").push_bind(st.to_owned());
+        }
+        if let Some(pr) = f.profile.as_deref().filter(|v| !v.is_empty()) {
+            qb.push(" AND w.profile = ").push_bind(pr.to_owned());
+        }
+        if let Some(q) = f.q.as_deref().map(str::trim).filter(|v| !v.is_empty()) {
+            let like = format!("%{}%", q.replace('\\', "\\\\").replace('%', "\\%").replace('_', "\\_"));
+            qb.push(" AND (w.name ILIKE ")
+                .push_bind(like.clone())
+                .push(" OR w.slug::text ILIKE ")
+                .push_bind(like)
+                .push(")");
+        }
+        qb.push(" ORDER BY w.created_at DESC LIMIT 500");
+        let rows: Vec<WsRow> = qb.build_query_as().fetch_all(self.db.pool()).await?;
         Ok(rows.into_iter().map(to_ws).collect())
     }
 
@@ -537,10 +561,15 @@ impl Platform {
         id: Uuid,
         rev: Option<i64>,
         grace_days: i64,
+        reason: &str,
         client: &ClientInfo,
     ) -> Result<Workspace, PlatformError> {
         if !(7..=90).contains(&grace_days) {
             return Err(PlatformError::Invalid("grace_days must be between 7 and 90".into()));
+        }
+        let reason = reason.trim().to_owned();
+        if reason.is_empty() || reason.chars().count() > 500 {
+            return Err(PlatformError::Invalid("a reason (1-500 characters) is required".into()));
         }
         let due = self.clock.now() + time::Duration::days(grace_days);
         self.transition(actor, id, rev, "workspace.deletion_scheduled", client, move |from| match from {
@@ -548,7 +577,7 @@ impl Platform {
             | WorkspaceState::Active
             | WorkspaceState::SuspendedRo
             | WorkspaceState::SuspendedLocked => {
-                Ok((WorkspaceState::PendingDeletion, Some("scheduled for deletion".into()), Some(due)))
+                Ok((WorkspaceState::PendingDeletion, Some(reason), Some(due)))
             }
             other => Err(PlatformError::BadTransition(other.as_str())),
         })

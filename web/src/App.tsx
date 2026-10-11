@@ -22,6 +22,11 @@ import { Members } from './pages/Members';
 import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
 import { SignIn } from './pages/SignIn';
+import { SystemAudit } from './pages/system/SystemAudit';
+import { SystemHealth } from './pages/system/SystemHealth';
+import { SystemQuotas } from './pages/system/SystemQuotas';
+import { SystemWorkspaces } from './pages/system/SystemWorkspaces';
+import { SystemShell } from './ui/SystemShell';
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
@@ -30,17 +35,32 @@ function Redirect({ to }: { to: string }) {
 
 const ADMIN = 'Administration';
 
+/** The system console (docs/05 §2.3) lives at `/system`, outside any workspace. */
+const isSystemPath = (p: string) => p === '/system' || p.startsWith('/system/');
+
+function SystemRoutes({ path }: { path: string }) {
+  if (path === '/system' || path === '/system/') return <Redirect to="/system/workspaces" />;
+  if (path === '/system/workspaces') return <SystemShell current="workspaces" title="Workspaces"><SystemWorkspaces /></SystemShell>;
+  if (path === '/system/quotas') return <SystemShell current="quotas" title="Quotas & usage"><SystemQuotas /></SystemShell>;
+  if (path === '/system/health') return <SystemShell current="health" title="Platform health"><SystemHealth /></SystemShell>;
+  if (path === '/system/audit') return <SystemShell current="audit" title="System audit"><SystemAudit /></SystemShell>;
+  return <Redirect to="/system/workspaces" />;
+}
+
 export function App() {
-  const { path } = useRoute();
+  const { path, query } = useRoute();
   const { status } = useSession();
 
   // Public pages.
   if (path === '/design') return <AppShellPublic><DesignGallery /></AppShellPublic>;
   if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   if (status === 'signed_out') {
-    if (path !== '/sign-in') return <Redirect to={`/sign-in`} />;
+    if (path !== '/sign-in') return <Redirect to={isSystemPath(path) ? `/sign-in?next=${encodeURIComponent(path)}` : '/sign-in'} />;
     return <PlainShell><SignIn /></PlainShell>;
   }
+  const next = query.get('next');
+  if (path === '/sign-in' && next && isSystemPath(next)) return <Redirect to={next} />;
+  if (isSystemPath(path)) return <SystemRoutes path={path} />;
   if (status === 'choose_workspace') return <PlainShell><ChooseWorkspace /></PlainShell>;
   if (path === '/sign-in') return <Redirect to="/" />;
 

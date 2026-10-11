@@ -183,12 +183,15 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const floors = await (await sys.get('/sysapi/v1/settings', { headers: sh })).json();
   const maxSize = floors.items.find((f: { key: string }) => f.key === 'files.max_size').value;
   await step('PUT', '/sysapi/v1/settings/{key}', () => sys.put('/sysapi/v1/settings/files.max_size', { headers: sh, data: { value: maxSize, reason: 'audit drill (unchanged)' } }));
+  const starter = (await (await sys.get('/sysapi/v1/quota-defaults', { headers: sh })).json()).items[0];
+  const { profile: _qp, revision: _qr, updated_at: _qu, ...starterLimits } = starter;
+  await step('PUT', '/sysapi/v1/quota-defaults/{profile}', () => sys.put(`/sysapi/v1/quota-defaults/${starter.profile}`, { headers: sh, data: starterLimits }));
 
   // 6. Sessions: refresh (exempt), logout, sign-out-everywhere; then schedule deletion.
   await step('POST', '/api/v1/auth/refresh', () => own.post('/api/v1/auth/refresh', { headers: CSRF }));
   await step('POST', '/api/v1/auth/logout', () => own.post('/api/v1/auth/logout', { headers: CSRF }));
   await step('POST', '/api/v1/me/sign-out-everywhere', () => adam.post('/api/v1/me/sign-out-everywhere', { headers: bearer(adamLogin.access_token) }));
-  await step('POST', '/sysapi/v1/workspaces/{id}/schedule-deletion', () => sys.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers: sh, data: { grace_days: 30 } }));
+  await step('POST', '/sysapi/v1/workspaces/{id}/schedule-deletion', () => sys.post(`/sysapi/v1/workspaces/${ws.id}/schedule-deletion`, { headers: sh, data: { grace_days: 30, reason: 'customer request' } }));
 
   // 7. Compare with the contract: every route covered, every call appended exactly its contracted events.
   const contract: Entry[] = await (await request.get('/__test/audit/contract')).json();

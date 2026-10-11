@@ -630,3 +630,8 @@ h1, h2, .task-title, .post-title { text-wrap: balance; }
 /* Publish dialog: what publishing will ask of people (BPMS-045). */
 .publish-preview { display: flex; gap: 0.625rem; align-items: flex-start; margin: 0; padding: 0.75rem 0.875rem; border-radius: var(--radius-control); background: var(--color-info-bg); color: var(--color-text); font-size: 0.875rem; line-height: 1.45; }
 .publish-preview svg { flex: none; margin-top: 0.125rem; color: var(--color-info); }
+
+/* System console entry on the chooser (BPMS-065). */
+a.choice-system { margin: var(--space-4) 0; border: 1px solid var(--line); border-radius: var(--radius-container); text-decoration: none; }
+a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+.choice-icon { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius-control); color: #EDECE9; background: #1C1B19; flex: none; }
