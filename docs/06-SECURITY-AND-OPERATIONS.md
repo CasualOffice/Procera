@@ -132,6 +132,16 @@ workspace plane · **B7** workspace admin ↔ workspace content · **B8** produc
   `mfa.failed`, `session.stepped_up`, `session.step_up_failed`).
 - MFA required: all system-plane users (always); workspace owners/admins (default on);
   any role a workspace marks.
+- First-run bootstrap as built (FR-S01, BPMS-020/065, E2E-R1-01). There are no default
+  credentials. While no `system.owner` exists, the server prints a one-time token (24 h) to its log
+  at start-up. The web app's `/setup` page, reachable signed out, takes that token (or `?token=`,
+  removed from the address bar once read), work email, name and password, and calls
+  `POST /sysapi/v1/bootstrap`. An invalid, expired or used token is marked on the token field; once
+  an owner exists, the page says Procera is already set up and links to sign-in. The token is spent
+  before the account is created, so the page checks the password policy it can (length, no email
+  name) first; a rejection after that tells the operator to restart for a new token. The new owner
+  is signed in, enrols TOTP in the system console's MFA gate, signs in again with the code and
+  reaches the console.
 
 ### 3.7 Magic links (guests) and email-action links
 - 256-bit random token, stored hashed, **single-use**, **15 min** TTL, bound to
