@@ -47,6 +47,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await signInPassword(theirs, m.email);
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
     await page.goto(`${WEB}/members/${m.id}`);
     await page.getByRole('button', { name: 'Deactivate' }).click();
     const dlg = page.getByRole('dialog', { name: /^Deactivate/ });
