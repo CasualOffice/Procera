@@ -39,7 +39,7 @@ BPMS-047,COMMS,"Announcements: compose, targeting, schedule/expiry, pin, require
 BPMS-048,NOTIF,In-app notification centre + SMTP email + templates + digests,P0,R1,Fullstack,FR-N01/N02/N04,Bounce handling,M,BPMS-029,Done
 BPMS-049,SRCH,"Postgres FTS + trgm, permission-filtered search",P0,R1,Backend,04 §6,No restricted leakage,M,BPMS-040,Done
 BPMS-060,FILE,"Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",P0,R1,Backend,"FR-F01–F03, F05",EICAR quarantined; SEC-10,L,BPMS-030,In progress
-BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backend,"FR-F04, U-08",No active content,M,BPMS-060,Not started
+BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backend,"FR-F04, U-08",No active content,M,BPMS-060,In progress
 BPMS-062,FILE,"Workspace Files view, quotas, orphan cleanup",P0,R1,FE,FR-F06/F07,Held files undeletable,M,"BPMS-060,028",In progress
 BPMS-063,ADMIN,Workspace overview dashboard + people & access monitor,P0,R1,FE,FR-A01/A06,Every tile drills down,L,BPMS-028,Done
 BPMS-064,AUD,"Audit explorer, timelines, saved queries, export",P0,R1,Fullstack,FR-T03/T04,P95<2s @10M,L,BPMS-026,In progress
