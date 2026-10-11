@@ -10,6 +10,8 @@ import { Home } from './pages/Home';
 import { Notifications } from './pages/Notifications';
 import { Library } from './pages/Library';
 import { LibraryDoc } from './pages/LibraryDoc';
+import { Compare } from './pages/Compare';
+import { Policies } from './pages/Policies';
 import { Announcements } from './pages/Announcements';
 import { ManageAnnouncements } from './pages/ManageAnnouncements';
 import { CampaignDetail, Campaigns } from './pages/Campaigns';
@@ -42,6 +44,9 @@ export function App() {
   if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/policies') return <AppShell current="policies" crumbs={['Policies']}><Policies /></AppShell>;
+  const cmp = match('/library/:id/compare', path);
+  if (cmp) return <AppShell current="library" crumbs={[['Library', '/library'], 'Compare']}><Compare id={cmp.id!} /></AppShell>;
   const doc = match('/library/:id', path);
   if (doc) return <AppShell current="library" crumbs={[['Library', '/library'], 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;

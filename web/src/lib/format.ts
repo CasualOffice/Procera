@@ -1,4 +1,5 @@
-export function timeAgo(iso: string | null | undefined): string {
+export function timeAgo(raw: unknown): string {
+  const iso = toIso(raw);
   if (!iso) return '';
   const s = (Date.now() - Date.parse(iso)) / 1000;
   const fut = s < 0;
@@ -8,8 +9,24 @@ export function timeAgo(iso: string | null | undefined): string {
   return fut ? `in ${v}` : `${v} ago`;
 }
 
-export function shortDate(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+/**
+ * Normalises a timestamp to ISO 8601. Some list payloads still serialise `time::OffsetDateTime`
+ * as its tuple form `[year, ordinal_day, hour, minute, second, nanos, off_h, off_m, off_s]`
+ * (reported as an API gap); accept both so dates never render as "Invalid Date".
+ */
+export function toIso(v: unknown): string | null {
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v) && v.length >= 6 && v.every((x) => typeof x === 'number')) {
+    const [y, ord, h, m, s, ns, oh = 0, om = 0, os = 0] = v as number[];
+    const ms = Date.UTC(y!, 0, ord!, h!, m!, s!, Math.floor(ns! / 1e6)) - ((oh * 3600 + om * 60 + os) * 1000);
+    return new Date(ms).toISOString();
+  }
+  return null;
+}
+
+export function shortDate(iso: unknown): string {
+  const v = toIso(iso);
+  return v ? new Date(v).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 }
 
 export function slugify(s: string): string {

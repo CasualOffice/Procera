@@ -1,6 +1,6 @@
-import { Bell, BookOpen, ClipboardCheck, FilePlus2, History, House, Megaphone, ScrollText, Settings, SquarePen, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, History, House, Megaphone, ScrollText, Settings, SquarePen, UserPlus, Users, type LucideIcon } from 'lucide-react';
 
-export type NavKey = 'home' | 'inbox' | 'library' | 'announcements' | 'members' | 'manage-announcements' | 'campaigns' | 'settings' | 'audit' | 'none';
+export type NavKey = 'home' | 'inbox' | 'policies' | 'library' | 'announcements' | 'members' | 'manage-announcements' | 'campaigns' | 'settings' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -13,6 +13,7 @@ export function navGroups(can: (p: string) => boolean): NavGroup[] {
   const work: (NavItem | false)[] = [
     { key: 'home', label: 'Home', to: '/', icon: House, keywords: 'start dashboard tasks for you' },
     { key: 'inbox', label: 'Notifications', to: '/notifications', icon: Bell, keywords: 'inbox alerts unread' },
+    can('policy:view') && { key: 'policies', label: 'Policies', to: '/policies', icon: FileCheck, keywords: 'rules handbook what changed applies to me' },
     any('policy:view', 'sop:view') && { key: 'library', label: 'Library', to: '/library', icon: BookOpen, keywords: 'documents policies sops' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
   ];

@@ -134,7 +134,7 @@ svg.lucide { stroke-width: 1.75; }
 .cmd-modal { width: min(640px, 100%); outline: none; }
 .cmd-modal[data-entering] { animation: drop-in 160ms var(--ease-out); }
 @keyframes drop-in { from { transform: translateY(-6px) scale(.985); } }
-@media (prefers-reduced-motion: reduce) { .cmd-modal[data-entering], .cmd-overlay[data-entering] { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .cmd-modal[data-entering], .cmd-overlay[data-entering], .sheet, .toast, .menu-popover[data-entering], .menu-popover[data-exiting] { animation: none; } }
 .cmd { display: flex; flex-direction: column; max-height: min(560px, 76vh); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; outline: none; font-size: 14px; }
 .cmd-input-row { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line-subtle); }
 .cmd-input-icon { flex: none; color: var(--color-text-secondary); }
