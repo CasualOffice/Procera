@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.signal",
+    "version": 1,
+    "name": {
+      "en": "signal"
+    }
+  },
+  "variables": [
+    {
+      "name": "order",
+      "type": "string"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "sig",
+      "kind": "wait.signal",
+      "correlation": "expr:cel: order",
+      "timeout": "P1D"
+    },
+    {
+      "id": "chase",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "sig"
+    },
+    {
+      "id": "e2",
+      "from": "sig",
+      "to": "done",
+      "on": "received"
+    },
+    {
+      "id": "e3",
+      "from": "sig",
+      "to": "chase",
+      "on": "timeout"
+    },
+    {
+      "id": "e4",
+      "from": "chase",
+      "to": "done",
+      "on": "submitted"
+    }
+  ]
+}

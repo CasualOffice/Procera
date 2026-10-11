@@ -1,0 +1,13 @@
+{"kind":"instance_started"}
+{"kind":"variables_set","names":["tier"]}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"route","token":1}
+{"kind":"node_left","node":"route","outcome":"cfo","token":1}
+{"kind":"node_entered","node":"cfo_t","token":1}
+{"key":"01920000-0000-7000-8000-000000000001/cfo_t/2","kind":"waiting","node":"cfo_t","token":1,"wait":"work_item"}
+{"key":"01920000-0000-7000-8000-000000000001/cfo_t/2","kind":"resumed","node":"cfo_t","token":1}
+{"kind":"node_left","node":"cfo_t","outcome":"submitted","token":1}
+{"kind":"node_entered","node":"done","token":1}
+{"kind":"token_consumed","node":"done","token":1}
+{"kind":"instance_completed"}

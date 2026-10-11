@@ -1,0 +1,10 @@
+{"kind":"instance_started"}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"child","token":1}
+{"key":"01920000-0000-7000-8000-000000000001/child/2","kind":"waiting","node":"child","token":1,"wait":"subprocess"}
+{"key":"01920000-0000-7000-8000-000000000001/child/2","kind":"resumed","node":"child","token":1}
+{"kind":"node_left","node":"child","outcome":"completed","token":1}
+{"kind":"node_entered","node":"done","token":1}
+{"kind":"token_consumed","node":"done","token":1}
+{"kind":"instance_completed"}

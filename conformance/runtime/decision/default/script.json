@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"amount": 10, "vip": false}}},
+  {"complete": {"node": "std_t", "outcome": "submitted"}}
+]

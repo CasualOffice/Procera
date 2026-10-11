@@ -1,0 +1,70 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "review",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "fix",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "review",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "fix",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "review",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "code": "IR-R004",
+      "command": "raise_incident",
+      "node": "fix"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 6,
+  "status": "running",
+  "tokens": [
+    {
+      "code": "IR-R004",
+      "node": "fix",
+      "state": "incident"
+    }
+  ],
+  "variables": {}
+}

@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.human",
+    "version": 1,
+    "name": {
+      "en": "human"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "check",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      },
+      "outcomes": [
+        "pass",
+        "fail"
+      ]
+    },
+    {
+      "id": "ok",
+      "kind": "end"
+    },
+    {
+      "id": "ko",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "check"
+    },
+    {
+      "id": "e2",
+      "from": "check",
+      "to": "ok",
+      "on": "pass"
+    },
+    {
+      "id": "e3",
+      "from": "check",
+      "to": "ko",
+      "on": "fail"
+    }
+  ]
+}

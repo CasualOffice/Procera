@@ -1,0 +1,15 @@
+{"kind":"instance_started"}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"approve","token":1}
+{"key":"01920000-0000-7000-8000-000000000001/approve/2","kind":"waiting","node":"approve","token":1,"wait":"work_item"}
+{"interrupting":false,"kind":"boundary_triggered","node":"approve","on":"timeout","token":1}
+{"kind":"node_entered","node":"chase","token":3}
+{"kind":"node_left","node":"chase","outcome":"next","token":3}
+{"kind":"node_entered","node":"chased","token":3}
+{"kind":"token_consumed","node":"chased","token":3}
+{"key":"01920000-0000-7000-8000-000000000001/approve/2","kind":"resumed","node":"approve","token":1}
+{"kind":"node_left","node":"approve","outcome":"approved","token":1}
+{"kind":"node_entered","node":"done","token":1}
+{"kind":"token_consumed","node":"done","token":1}
+{"kind":"instance_completed"}

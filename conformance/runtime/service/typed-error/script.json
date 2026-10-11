@@ -1,0 +1,5 @@
+[
+  {"start": {"variables": {"user": "u-1"}}},
+  {"service": {"node": "call", "outcome": "error:LIMIT"}},
+  {"complete": {"node": "manual", "outcome": "submitted"}}
+]

@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.boundary",
+    "version": 1,
+    "name": {
+      "en": "boundary"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "approve",
+      "kind": "human.approval",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      },
+      "boundary": [
+        {
+          "on": "timeout",
+          "after": "P5D",
+          "interrupting": true,
+          "to": "chase"
+        }
+      ]
+    },
+    {
+      "id": "chase",
+      "kind": "notify",
+      "to": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      },
+      "template": "chase"
+    },
+    {
+      "id": "chased",
+      "kind": "end"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "approve"
+    },
+    {
+      "id": "e2",
+      "from": "approve",
+      "to": "done",
+      "on": "approved"
+    },
+    {
+      "id": "e3",
+      "from": "approve",
+      "to": "done",
+      "on": "rejected"
+    },
+    {
+      "id": "e4",
+      "from": "approve",
+      "to": "done",
+      "on": "changes_requested"
+    },
+    {
+      "id": "e5",
+      "from": "chase",
+      "to": "chased"
+    }
+  ]
+}

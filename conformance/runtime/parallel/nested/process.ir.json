@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.nest",
+    "version": 1,
+    "name": {
+      "en": "nest"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "outer",
+      "kind": "parallel.split",
+      "joinId": "outer_join",
+      "branches": [
+        {
+          "name": "x"
+        },
+        {
+          "name": "y"
+        }
+      ]
+    },
+    {
+      "id": "inner",
+      "kind": "parallel.split",
+      "joinId": "inner_join",
+      "branches": [
+        {
+          "name": "p"
+        },
+        {
+          "name": "q"
+        }
+      ]
+    },
+    {
+      "id": "tp",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tq",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ty",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "inner_join",
+      "kind": "parallel.join"
+    },
+    {
+      "id": "outer_join",
+      "kind": "parallel.join"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "outer"
+    },
+    {
+      "id": "e2",
+      "from": "outer",
+      "to": "inner",
+      "on": "x"
+    },
+    {
+      "id": "e3",
+      "from": "outer",
+      "to": "ty",
+      "on": "y"
+    },
+    {
+      "id": "e4",
+      "from": "inner",
+      "to": "tp",
+      "on": "p"
+    },
+    {
+      "id": "e5",
+      "from": "inner",
+      "to": "tq",
+      "on": "q"
+    },
+    {
+      "id": "e6",
+      "from": "tp",
+      "to": "inner_join",
+      "on": "submitted"
+    },
+    {
+      "id": "e7",
+      "from": "tq",
+      "to": "inner_join",
+      "on": "submitted"
+    },
+    {
+      "id": "e8",
+      "from": "inner_join",
+      "to": "outer_join"
+    },
+    {
+      "id": "e9",
+      "from": "ty",
+      "to": "outer_join",
+      "on": "submitted"
+    },
+    {
+      "id": "e10",
+      "from": "outer_join",
+      "to": "done"
+    }
+  ]
+}

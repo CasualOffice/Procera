@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"tier": "cfo"}}},
+  {"complete": {"node": "cfo_t", "outcome": "submitted"}}
+]

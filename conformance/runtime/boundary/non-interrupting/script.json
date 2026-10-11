@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"fire_boundary": {"node": "approve", "index": 0}},
+  {"complete": {"node": "approve", "outcome": "approved"}}
+]

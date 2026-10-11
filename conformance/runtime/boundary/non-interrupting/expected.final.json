@@ -1,0 +1,45 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "approval",
+      "node": "approve",
+      "outcomes": [
+        "approved",
+        "changes_requested",
+        "rejected"
+      ]
+    },
+    {
+      "command": "schedule_timer",
+      "due": {
+        "at": "2026-10-16T09:00:00Z",
+        "type": "at"
+      },
+      "node": "approve",
+      "purpose": "boundary"
+    },
+    {
+      "command": "notify",
+      "node": "chase",
+      "template": "chase"
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 3,
+  "status": "completed",
+  "tokens": [],
+  "variables": {}
+}

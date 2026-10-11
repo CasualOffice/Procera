@@ -1,0 +1,4 @@
+[
+  {"start": {}},
+  {"complete": {"node": "fill", "outcome": "submitted", "variables": {"note": "hi"}}}
+]

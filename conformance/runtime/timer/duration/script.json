@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"advance_clock": "PT2H"},
+  {"fire_timer": {"node": "wait"}}
+]

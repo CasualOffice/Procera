@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"user": "u-1"}}},
+  {"service": {"node": "call", "outcome": "ok"}}
+]

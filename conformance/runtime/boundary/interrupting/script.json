@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"advance_clock": "P5D"},
+  {"fire_boundary": {"node": "approve", "index": 0}}
+]

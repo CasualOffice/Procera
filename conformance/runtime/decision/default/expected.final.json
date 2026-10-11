@@ -1,0 +1,32 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "std_t",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.completed"
+    },
+    {
+      "command": "complete_instance",
+      "result": "completed"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 2,
+  "status": "completed",
+  "tokens": [],
+  "variables": {
+    "amount": 10,
+    "vip": false
+  }
+}

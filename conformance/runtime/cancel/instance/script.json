@@ -1,0 +1,5 @@
+[
+  {"start": {}},
+  {"complete": {"node": "ta", "outcome": "submitted"}},
+  {"cancel": {"reason": "withdrawn"}}
+]

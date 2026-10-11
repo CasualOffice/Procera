@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"order": "PO-1"}}},
+  {"signal": {"node": "sig"}}
+]

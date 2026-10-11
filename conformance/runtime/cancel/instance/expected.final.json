@@ -1,0 +1,40 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "ta",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "create_work_item",
+      "kind": "task",
+      "node": "tb",
+      "outcomes": [
+        "submitted"
+      ]
+    },
+    {
+      "command": "cancel_work_item"
+    },
+    {
+      "command": "emit_event",
+      "topic": "instance.cancelled"
+    },
+    {
+      "command": "complete_instance",
+      "result": "terminated"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 3,
+  "status": "terminated",
+  "tokens": [],
+  "variables": {}
+}

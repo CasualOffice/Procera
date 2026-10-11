@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.budget",
+    "version": 1,
+    "name": {
+      "en": "budget"
+    }
+  },
+  "variables": [
+    {
+      "name": "n",
+      "type": "integer"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "s0",
+      "kind": "set",
+      "assign": {
+        "n": "expr:cel: n + 1"
+      }
+    },
+    {
+      "id": "s1",
+      "kind": "set",
+      "assign": {
+        "n": "expr:cel: n + 1"
+      }
+    },
+    {
+      "id": "s2",
+      "kind": "set",
+      "assign": {
+        "n": "expr:cel: n + 1"
+      }
+    },
+    {
+      "id": "s3",
+      "kind": "set",
+      "assign": {
+        "n": "expr:cel: n + 1"
+      }
+    },
+    {
+      "id": "s4",
+      "kind": "set",
+      "assign": {
+        "n": "expr:cel: n + 1"
+      }
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e0",
+      "from": "start",
+      "to": "s0"
+    },
+    {
+      "id": "e1",
+      "from": "s0",
+      "to": "s1"
+    },
+    {
+      "id": "e2",
+      "from": "s1",
+      "to": "s2"
+    },
+    {
+      "id": "e3",
+      "from": "s2",
+      "to": "s3"
+    },
+    {
+      "id": "e4",
+      "from": "s3",
+      "to": "s4"
+    },
+    {
+      "id": "e9",
+      "from": "s4",
+      "to": "done"
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.seq",
+    "version": 1,
+    "name": {
+      "en": "seq"
+    }
+  },
+  "variables": [
+    {
+      "name": "note",
+      "type": "string"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "fill",
+      "kind": "human.task",
+      "assignment": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tell",
+      "kind": "notify",
+      "to": {
+        "candidates": [
+          {
+            "type": "role",
+            "ref": "process-owner"
+          }
+        ]
+      },
+      "template": "done",
+      "channels": [
+        "email"
+      ]
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "fill"
+    },
+    {
+      "id": "e2",
+      "from": "fill",
+      "to": "tell",
+      "on": "submitted"
+    },
+    {
+      "id": "e3",
+      "from": "tell",
+      "to": "done"
+    }
+  ]
+}

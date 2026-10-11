@@ -1,0 +1,15 @@
+{"kind":"instance_started"}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"fork","token":1}
+{"branches":["a","b"],"kind":"forked","node":"fork","split":2,"token":1}
+{"kind":"node_entered","node":"ta","token":3}
+{"kind":"node_entered","node":"tb","token":4}
+{"key":"01920000-0000-7000-8000-000000000001/ta/5","kind":"waiting","node":"ta","token":3,"wait":"work_item"}
+{"key":"01920000-0000-7000-8000-000000000001/tb/6","kind":"waiting","node":"tb","token":4,"wait":"work_item"}
+{"key":"01920000-0000-7000-8000-000000000001/ta/5","kind":"resumed","node":"ta","token":3}
+{"kind":"node_left","node":"ta","outcome":"submitted","token":3}
+{"kind":"node_entered","node":"join","token":3}
+{"branch":"a","kind":"join_arrived","node":"join","split":2,"token":3}
+{"kind":"token_cancelled","node":"tb","token":4}
+{"kind":"instance_terminated","reason":"cancelled:withdrawn"}

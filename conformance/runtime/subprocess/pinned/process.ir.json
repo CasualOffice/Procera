@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "process": {
+    "key": "conf.sub",
+    "version": 1,
+    "name": {
+      "en": "sub"
+    }
+  },
+  "variables": [],
+  "nodes": [
+    {
+      "id": "start",
+      "kind": "start"
+    },
+    {
+      "id": "child",
+      "kind": "subprocess.call",
+      "process": "child",
+      "versionPolicy": "pinned"
+    },
+    {
+      "id": "done",
+      "kind": "end"
+    },
+    {
+      "id": "failed",
+      "kind": "end",
+      "result": "terminated"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "start",
+      "to": "child"
+    },
+    {
+      "id": "e2",
+      "from": "child",
+      "to": "done",
+      "on": "completed"
+    },
+    {
+      "id": "e3",
+      "from": "child",
+      "to": "failed",
+      "on": "failed"
+    },
+    {
+      "id": "e4",
+      "from": "child",
+      "to": "failed",
+      "on": "cancelled"
+    }
+  ],
+  "refs": {
+    "processes": {
+      "child": "process:conf.child@1"
+    }
+  }
+}
