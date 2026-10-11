@@ -138,7 +138,8 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/api/v1/artifacts/{id}/owner", &[&["artifact.owner_set"]]),
     emits("PUT", "/api/v1/artifacts/{id}/raci", &[&["artifact.raci_set"]]),
     emits("POST", "/api/v1/security/encryption/rotate", &[&["key.rotated"]]),
-    // Saved views and grid exports (BPMS-028).
+    // Saved views (personal, everyone or one role; the audience is in the diff) and grid exports
+    // (CSV recorded, XLSX built and recorded: one `data.exported` either way) (BPMS-028).
     emits("POST", "/api/v1/views", &[&["view.created"]]),
     emits("PATCH", "/api/v1/views/{id}", &[&["view.updated"]]),
     emits("DELETE", "/api/v1/views/{id}", &[&["view.deleted"]]),

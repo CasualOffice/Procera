@@ -48,10 +48,14 @@ time.workspace = true
 
 uuid.workspace = true
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid"] }
+rust_xlsxwriter = "0.99"
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
 http-body-util = "0.1"
+calamine = "0.36"
+procera-db = { workspace = true, features = ["test-support"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 [lints]
 workspace = true

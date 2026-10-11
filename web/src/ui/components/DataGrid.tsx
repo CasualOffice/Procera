@@ -1,19 +1,22 @@
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronUp, Columns3, Download, Filter, Rows3, Save, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../../lib/api';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { api, downloadPost } from '../../lib/api';
 import { navigate, useRoute } from '../../lib/router';
 import { Button } from './Button';
 import { FormDialog } from './FormDialog';
+import { RadioCards } from './RadioCards';
 import { TextField } from './TextField';
 import './datagrid.css';
 
 /**
  * DataGrid v1 (BPMS-028, FR-V01–V09, docs/05 §4). One grid for every list:
  * - quick search, a filter builder with chips and a plain-language summary (operators typed by field),
+ *   one level of AND/OR groups (top-level AND of conditions and groups; each group matches all or any),
  *   multi-sort (shift-click, order numbers), a columns chooser (show, hide, move), density, CSV export
- *   (formula-safe, audited through `POST /exports`);
- * - saved views per list (`/views`): personal or shared, a default, a "modified" marker; the URL keeps
- *   the current state (`?grid=`), so a view can be linked;
+ *   (formula-safe, audited through `POST /exports`) and XLSX export (the same cells, built and audited by
+ *   `POST /exports` with `format: xlsx`);
+ * - saved views per list (`/views`): personal, shared with everyone or with one role, a default, a
+ *   "modified" marker; the URL keeps the current state (`?grid=`), so a view can be linked;
  * - selection with shift-range and bulk actions supplied by the page; Enter opens a row, Space selects;
  *   counts are announced in a live region; below 40rem rows become cards.
  * v1 filters and sorts the rows it is given; the server-driven query model with cursor paging (docs/04 §5)
@@ -41,8 +44,15 @@ export interface GridColumn<T> {
 
 export type Op = 'contains' | 'is' | 'is_not' | 'empty' | 'not_empty' | 'eq' | 'neq' | 'lt' | 'gt' | 'any_of' | 'none_of' | 'before' | 'after' | 'last_days' | 'true' | 'false';
 export interface GridFilter { id: string; op: Op; value?: string | string[] }
-export interface GridState { q: string; sort: { id: string; desc: boolean }[]; filters: GridFilter[]; columns: string[]; density: 'comfortable' | 'compact' }
-interface SavedView { id: string; name: string; state: GridState; shared: boolean; is_default: boolean; mine: boolean }
+/** One level of grouping: a group matches when all (and) or any (or) of its conditions match. */
+export interface FilterGroup { mode: 'and' | 'or'; filters: GridFilter[] }
+/**
+ * `filters` are ANDed (v1); `groups` (optional, so v1 saved views and `?grid=` links still load) are
+ * ANDed with them, each group matching all or any of its own conditions.
+ */
+export interface GridState { q: string; sort: { id: string; desc: boolean }[]; filters: GridFilter[]; groups?: FilterGroup[]; columns: string[]; density: 'comfortable' | 'compact' }
+interface SavedView { id: string; name: string; state: GridState; shared: boolean; shared_role?: string | null; shared_role_name?: string | null; is_default: boolean; mine: boolean }
+interface ShareRole { key: string; name: string }
 
 const OPS: Record<ColumnType, [Op, string][]> = {
   text: [['contains', 'contains'], ['is', 'is'], ['is_not', 'is not'], ['empty', 'is empty'], ['not_empty', 'is not empty']],
@@ -85,6 +95,24 @@ export function describe<T>(cols: GridColumn<T>[], f: GridFilter): string {
   return `${col.header} ${op}${NEEDS_VALUE.has(f.op) && v ? ` ${f.op === 'last_days' ? `${v}` : `“${v}”`}` : ''}`.replace('in the last N days 0', 'today').replace(/in the last N days (\d+)/, 'in the last $1 days');
 }
 
+/** Row test for the whole filter state: top-level conditions AND every non-empty group. */
+function passes<T>(cols: GridColumn<T>[], row: T, s: GridState): boolean {
+  const one = (f: GridFilter) => { const c = cols.find((x) => x.id === f.id); return !c || matches(c, row, f); };
+  return s.filters.every(one) && (s.groups ?? []).every((g) => g.filters.length === 0 || (g.mode === 'or' ? g.filters.some(one) : g.filters.every(one)));
+}
+
+/** The plain-language summary: `Status is “Published” and (Owner is “Ana” or Owner is “Ben”)`. */
+export function summarize<T>(cols: GridColumn<T>[], s: GridState): string {
+  const groups = (s.groups ?? []).filter((g) => g.filters.length > 0).map((g) => {
+    const inner = g.filters.map((f) => describe(cols, f)).join(g.mode === 'or' ? ' or ' : ' and ');
+    return g.filters.length > 1 ? `(${inner})` : inner;
+  });
+  return [...s.filters.map((f) => describe(cols, f)), ...groups].join(' and ');
+}
+
+const filterCount = (s: GridState) => s.filters.length + (s.groups ?? []).reduce((n, g) => n + g.filters.length, 0);
+const modeWord = (m: FilterGroup['mode']) => (m === 'or' ? 'any' : 'all');
+
 function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // spreadsheet formula injection (docs/06 §5)
@@ -113,15 +141,17 @@ export function DataGrid<T extends { id: string }>({
   showCaption?: boolean;
 }) {
   const { query } = useRoute();
-  const defaults: GridState = useMemo(() => ({ q: initialSearch, sort: initialSort, filters: [], columns: columns.filter((c) => !c.hidden).map((c) => c.id), density: 'comfortable' }), [columns, initialSort]);
+  const defaults: GridState = useMemo(() => ({ q: initialSearch, sort: initialSort, filters: [], groups: [], columns: columns.filter((c) => !c.hidden).map((c) => c.id), density: 'comfortable' }), [columns, initialSort]);
   const fromUrl = list ? decode(query.get('grid') ?? '') : null;
-  const [state, setStateRaw] = useState<GridState>(fromUrl ?? defaults);
+  const [state, setStateRaw] = useState<GridState>(fromUrl ? { ...defaults, ...fromUrl } : defaults);
   const [views, setViews] = useState<SavedView[]>([]);
   const [viewId, setViewId] = useState<string | null>(list ? query.get('view') : null);
   const [panel, setPanel] = useState<'filter' | 'columns' | null>(null);
   const [savingAs, setSavingAs] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [exportError, setExportError] = useState<string | null>(null);
   const anchor = useRef<number | null>(null);
+  const summaryId = useId();
 
   // Saved views: load, then apply the requested or default view unless the URL already has a state.
   useEffect(() => {
@@ -149,7 +179,7 @@ export function DataGrid<T extends { id: string }>({
   const visibleCols = state.columns.map((id) => columns.find((c) => c.id === id)).filter((c): c is GridColumn<T> => !!c);
 
   const rows = useMemo(() => {
-    let out = data.filter((r) => state.filters.every((f) => { const c = columns.find((x) => x.id === f.id); return !c || matches(c, r, f); }));
+    let out = data.filter((r) => passes(columns, r, state));
     if (state.q.trim()) {
       const q = state.q.trim().toLowerCase();
       out = out.filter((r) => columns.some((c) => String(c.value(r) ?? '').toLowerCase().includes(q)));
@@ -200,7 +230,15 @@ export function DataGrid<T extends { id: string }>({
     a.download = `${(list ?? caption).replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
-    if (list) await api('/api/v1/exports', { method: 'POST', body: { list, format: 'csv', rows: rows.length, columns: visibleCols.map((c) => c.id), filters: state.filters } }).catch(() => undefined);
+    if (list) await api('/api/v1/exports', { method: 'POST', body: { ...exportBody('csv'), list } }).catch(() => undefined);
+  };
+  const exportBody = (format: 'csv' | 'xlsx') => ({ format, rows: rows.length, columns: visibleCols.map((c) => c.id), filters: state.filters, ...(state.groups?.length ? { groups: state.groups } : {}) });
+  /** XLSX is built by the server from exactly the cells CSV would contain (same columns, rows, order and values). */
+  const exportXlsx = async () => {
+    if (!list) return;
+    const cell = (v: unknown) => (v === null || v === undefined ? null : typeof v === 'number' || typeof v === 'boolean' ? v : String(v));
+    const body = { ...exportBody('xlsx'), list, header: visibleCols.map((c) => c.header), cells: rows.map((r) => visibleCols.map((c) => cell(c.value(r)))) };
+    await downloadPost('/api/v1/exports', body, `${list.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.xlsx`);
   };
 
   const saveCurrent = async () => {
@@ -219,6 +257,15 @@ export function DataGrid<T extends { id: string }>({
     navigate(`${window.location.pathname}${q.toString() ? `?${q}` : ''}`, { replace: true });
   };
 
+  const groups = state.groups ?? [];
+  /** Replaces group `gi`; a group left without conditions disappears. */
+  const setGroup = (gi: number, g: FilterGroup) => setState({ ...state, groups: g.filters.length ? groups.map((x, j) => (j === gi ? g : x)) : groups.filter((_, j) => j !== gi) });
+  const addFilter = (f: GridFilter, to: AddTo) => {
+    if (to === 'all') setState({ ...state, filters: [...state.filters, f] });
+    else if (typeof to === 'number' && groups[to]) setGroup(to, { ...groups[to], filters: [...groups[to].filters, f] });
+    else setState({ ...state, groups: [...groups, { mode: to === 'new-and' ? 'and' : 'or', filters: [f] }] });
+  };
+
   const selectedRows = rows.filter((r) => selected.has(r.id));
   return (
     <div className={`grid density-${state.density}`}>
@@ -232,7 +279,7 @@ export function DataGrid<T extends { id: string }>({
             <label className="visually-hidden" htmlFor={`${list}-view`}>View</label>
             <select id={`${list}-view`} className="field-input grid-view-select" value={viewId ?? ''} onChange={(e) => applyView(e.target.value)}>
               <option value="">All rows</option>
-              {views.map((v) => <option key={v.id} value={v.id}>{v.name}{v.shared ? ' (shared)' : ''}{v.is_default ? ' · default' : ''}</option>)}
+              {views.map((v) => <option key={v.id} value={v.id}>{v.name}{v.shared ? ' (shared)' : v.shared_role ? ` (shared with ${v.shared_role_name ?? v.shared_role})` : ''}{v.is_default ? ' · default' : ''}</option>)}
             </select>
             {modified && <span className="grid-modified" title="Changed since the view was saved"><span aria-hidden="true">●</span><span className="visually-hidden">Modified</span></span>}
             {modified && <button type="button" className="grid-tool" onClick={() => void saveCurrent()}><Save aria-hidden="true" size="0.875rem" /> {current?.mine ? 'Save' : 'Save view'}</button>}
@@ -240,29 +287,49 @@ export function DataGrid<T extends { id: string }>({
           </span>
         )}
         <span className="grid-tools">
-          <button type="button" className="grid-tool" aria-expanded={panel === 'filter'} onClick={() => setPanel(panel === 'filter' ? null : 'filter')}><Filter aria-hidden="true" size="0.875rem" /> Filter{state.filters.length ? ` (${state.filters.length})` : ''}</button>
+          <button type="button" className="grid-tool" aria-expanded={panel === 'filter'} onClick={() => setPanel(panel === 'filter' ? null : 'filter')}><Filter aria-hidden="true" size="0.875rem" /> Filter{filterCount(state) ? ` (${filterCount(state)})` : ''}</button>
           <button type="button" className="grid-tool" aria-expanded={panel === 'columns'} onClick={() => setPanel(panel === 'columns' ? null : 'columns')}><Columns3 aria-hidden="true" size="0.875rem" /> Columns</button>
           <button type="button" className="grid-tool" aria-pressed={state.density === 'compact'} onClick={() => setState({ ...state, density: state.density === 'compact' ? 'comfortable' : 'compact' })}><Rows3 aria-hidden="true" size="0.875rem" /> Compact</button>
           <button type="button" className="grid-tool" onClick={() => void exportCsv()}><Download aria-hidden="true" size="0.875rem" /> Export</button>
+          {list && <button type="button" className="grid-tool" aria-label="Export XLSX" title="Export the rows and columns shown as an Excel workbook" onClick={() => { setExportError(null); exportXlsx().catch((e: Error) => setExportError(`The export failed: ${e.message}`)); }}>XLSX</button>}
         </span>
       </div>
 
-      {state.filters.length > 0 && (
-        <div className="grid-chips" role="group" aria-label="Active filters">
-          {state.filters.map((f, i) => (
-            <span key={`${f.id}-${i}`} className="grid-chip">
-              {describe(columns, f)}
-              <button type="button" aria-label={`Remove filter: ${describe(columns, f)}`} onClick={() => setState({ ...state, filters: state.filters.filter((_, j) => j !== i) })}><X aria-hidden="true" size="0.75rem" /></button>
-            </span>
-          ))}
-          <button type="button" className="grid-clear" onClick={() => setState({ ...state, filters: [] })}>Clear all</button>
-        </div>
+      {filterCount(state) > 0 && (
+        <>
+          <div className="grid-chips" role="group" aria-label="Active filters" aria-describedby={summaryId}>
+            {state.filters.map((f, i) => (
+              <span key={`${f.id}-${i}`} className="grid-chip">
+                {describe(columns, f)}
+                <button type="button" aria-label={`Remove filter: ${describe(columns, f)}`} onClick={() => setState({ ...state, filters: state.filters.filter((_, j) => j !== i) })}><X aria-hidden="true" size="0.75rem" /></button>
+              </span>
+            ))}
+            {groups.map((g, gi) => g.filters.length > 0 && (
+              <span key={gi} className="grid-chip-group" role="group" aria-label={`Filter group ${gi + 1}: match ${modeWord(g.mode)}`}>
+                <button type="button" className="grid-group-mode" aria-label={`Group ${gi + 1}: ${modeWord(g.mode)} of, switch to ${modeWord(g.mode === 'or' ? 'and' : 'or')} of`} title="Switch between matching any and all of these conditions" onClick={() => setGroup(gi, { ...g, mode: g.mode === 'or' ? 'and' : 'or' })}>{modeWord(g.mode)} of</button>
+                {g.filters.map((f, i) => (
+                  <span key={`${f.id}-${i}`} className="grid-chip-wrap">
+                    {i > 0 && <span className="grid-join" aria-hidden="true">{g.mode}</span>}
+                    <span className="grid-chip">
+                      {describe(columns, f)}
+                      <button type="button" aria-label={`Remove filter: ${describe(columns, f)}`} onClick={() => setGroup(gi, { ...g, filters: g.filters.filter((_, j) => j !== i) })}><X aria-hidden="true" size="0.75rem" /></button>
+                    </span>
+                  </span>
+                ))}
+                <button type="button" className="grid-group-remove" aria-label={`Remove group ${gi + 1}`} onClick={() => setState({ ...state, groups: groups.filter((_, j) => j !== gi) })}><X aria-hidden="true" size="0.75rem" /></button>
+              </span>
+            ))}
+            <button type="button" className="grid-clear" onClick={() => setState({ ...state, filters: [], groups: [] })}>Clear all</button>
+          </div>
+          <p className="grid-summary" id={summaryId}>Showing rows where {summarize(columns, state)}</p>
+        </>
       )}
-      {panel === 'filter' && <FilterBuilder columns={columns} data={data} onAdd={(f) => { setState({ ...state, filters: [...state.filters, f] }); setPanel(null); }} onClose={() => setPanel(null)} />}
+      {panel === 'filter' && <FilterBuilder columns={columns} data={data} groups={groups} onAdd={(f, to) => { addFilter(f, to); setPanel(null); }} onClose={() => setPanel(null)} />}
       {panel === 'columns' && <ColumnChooser columns={columns} chosen={state.columns} onChange={(c) => setState({ ...state, columns: c })} />}
 
       <div className="grid-statusbar">
         <p className="grid-status" role="status" aria-live="polite">{rows.length} of {data.length} rows{selected.size ? ` · ${selected.size} selected` : ''}</p>
+        {exportError && <p className="grid-error" role="alert">{exportError}</p>}
         {selectable && selected.size > 0 && bulkActions && <span className="grid-bulk">{bulkActions(selectedRows, () => setSelected(new Set()))}</span>}
       </div>
 
@@ -293,7 +360,7 @@ export function DataGrid<T extends { id: string }>({
           <tbody>
             {rows.length === 0 && (
               <tr><td colSpan={visibleCols.length + (selectable ? 1 : 0)} className="grid-empty">
-                {data.length === 0 && empty ? empty : <>No rows match. <button type="button" className="grid-clear" onClick={() => setState({ ...state, q: '', filters: [] })}>Clear search and filters</button></>}
+                {data.length === 0 && empty ? empty : <>No rows match. <button type="button" className="grid-clear" onClick={() => setState({ ...state, q: '', filters: [], groups: [] })}>Clear search and filters</button></>}
               </td></tr>
             )}
             {rows.map((r, i) => (
@@ -319,7 +386,11 @@ export function DataGrid<T extends { id: string }>({
   );
 }
 
-function FilterBuilder<T>({ columns, data, onAdd, onClose }: { columns: GridColumn<T>[]; data: T[]; onAdd: (f: GridFilter) => void; onClose: () => void }) {
+/** Where a new condition goes: the top-level AND, an existing group, or a new group. */
+type AddTo = 'all' | 'new-or' | 'new-and' | number;
+
+function FilterBuilder<T>({ columns, data, groups, onAdd, onClose }: { columns: GridColumn<T>[]; data: T[]; groups: FilterGroup[]; onAdd: (f: GridFilter, to: AddTo) => void; onClose: () => void }) {
+  const [to, setTo] = useState<string>('all');
   const [id, setId] = useState(columns[0]?.id ?? '');
   const col = columns.find((c) => c.id === id);
   const type = col?.type ?? 'text';
@@ -331,7 +402,15 @@ function FilterBuilder<T>({ columns, data, onAdd, onClose }: { columns: GridColu
   const multi = op === 'any_of' || op === 'none_of';
   const ready = !NEEDS_VALUE.has(op) || (multi ? picked.length > 0 : value.trim() !== '');
   return (
-    <form className="grid-panel" aria-label="Add a filter" onSubmit={(e) => { e.preventDefault(); if (ready) onAdd({ id, op, value: multi ? picked : NEEDS_VALUE.has(op) ? value.trim() : undefined }); }}>
+    <form className="grid-panel" aria-label="Add a filter" onSubmit={(e) => { e.preventDefault(); if (ready) onAdd({ id, op, value: multi ? picked : NEEDS_VALUE.has(op) ? value.trim() : undefined }, /^\d+$/.test(to) ? Number(to) : (to as AddTo)); }}>
+      <label className="grid-field"><span className="field-label">Add to</span>
+        <select className="field-input" value={to} onChange={(e) => setTo(e.target.value)}>
+          <option value="all">All rows must match (and)</option>
+          {groups.map((g, i) => <option key={i} value={String(i)}>{`Group ${i + 1} (match ${modeWord(g.mode)})`}</option>)}
+          <option value="new-or">New group: match any (or)</option>
+          <option value="new-and">New group: match all (and)</option>
+        </select>
+      </label>
       <label className="grid-field"><span className="field-label">Field</span>
         <select className="field-input" value={id} onChange={(e) => setId(e.target.value)}>{columns.map((c) => <option key={c.id} value={c.id}>{c.header}</option>)}</select>
       </label>
@@ -382,14 +461,41 @@ function ColumnChooser<T>({ columns, chosen, onChange }: { columns: GridColumn<T
 
 function SaveViewDialog({ list, state, onClose, onSaved }: { list: string; state: GridState; onClose: () => void; onSaved: (v: SavedView) => void }) {
   const [name, setName] = useState('');
-  const [shared, setShared] = useState(false);
+  const [audience, setAudience] = useState<'me' | 'everyone' | 'role'>('me');
+  const [roles, setRoles] = useState<ShareRole[] | null>(null);
+  const [role, setRole] = useState('');
   const [isDefault, setIsDefault] = useState(false);
-  const save = async () => onSaved(await api<SavedView>('/api/v1/views', { method: 'POST', body: { list, name: name.trim(), state, shared, is_default: isDefault } }));
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (audience !== 'role' || roles) return;
+    api<{ items: ShareRole[] }>('/api/v1/views/roles').then((r) => { setRoles(r.items); setRole((cur) => cur || r.items[0]?.key || ''); }).catch(() => setRoles([]));
+  }, [audience, roles]);
+  const ready = !!name.trim() && (audience !== 'role' || !!role);
+  const save = async () => {
+    setError(null);
+    try {
+      onSaved(await api<SavedView>('/api/v1/views', { method: 'POST', body: { list, name: name.trim(), state, shared: audience === 'everyone', ...(audience === 'role' ? { shared_role: role } : {}), is_default: isDefault } }));
+    } catch (e) { setError((e as Error).message); }
+  };
   return (
-    <FormDialog isOpen onOpenChange={(o) => !o && onClose()} title="Save view" description="Keeps the search, filters, sort and columns. Shared views are visible to everyone who can open this list."
-      footer={<><Button variant="secondary" onPress={onClose}>Cancel</Button><Button onPress={() => void save()} isDisabled={!name.trim()}>Save view</Button></>}>
+    <FormDialog isOpen onOpenChange={(o) => !o && onClose()} title="Save view" description="Keeps the search, filters, sort and columns. A shared view shows the same rows to each person only as far as they may see them."
+      footer={<><Button variant="secondary" onPress={onClose}>Cancel</Button><Button onPress={() => void save()} isDisabled={!ready}>Save view</Button></>}>
       <TextField label="Name" value={name} onChange={setName} autoFocus />
-      <label className="check-row"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} /><span><strong>Share with the workspace</strong></span></label>
+      <RadioCards label="Share with" value={audience} onChange={(v) => setAudience(v as typeof audience)} options={[
+        { id: 'me', label: 'Only me', description: 'A personal view.' },
+        { id: 'everyone', label: 'Everyone', description: 'Everyone who can open this list.' },
+        { id: 'role', label: 'A role…', description: 'The members who hold one role.' },
+      ]} />
+      {audience === 'role' && (
+        <label className="grid-field"><span className="field-label">Role</span>
+          <select className="field-input" value={role} onChange={(e) => setRole(e.target.value)} disabled={!roles}>
+            {!roles && <option value="">Loading roles…</option>}
+            {roles?.length === 0 && <option value="">No roles to share with</option>}
+            {roles?.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}
+          </select>
+        </label>
+      )}
+      {error && <p className="grid-error" role="alert">{error}</p>}
       <label className="check-row"><input type="checkbox" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} /><span><strong>Open this view by default</strong></span></label>
     </FormDialog>
   );
