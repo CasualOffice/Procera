@@ -36,7 +36,7 @@ test.describe('system email @r1 @ui', () => {
     await axe(page);
 
     await page.getByLabel('SMTP host').fill('localhost');
-    await page.getByRole('button', { name: /^Encryption/ }).click();
+    await page.getByRole('button', { name: /Encryption/ }).click();
     await page.getByRole('option', { name: 'None (only for a relay on this server)' }).click();
     await page.getByLabel('Port').fill('1');
     await page.getByLabel('Username').fill('mailer');
