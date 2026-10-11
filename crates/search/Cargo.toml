@@ -1,0 +1,27 @@
+[package]
+name = "procera-search"
+description = "Workspace search: Postgres full-text search plus pg_trgm, filtered to what the caller may view (BPMS-049, docs/04 §6)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-db.workspace = true
+serde = { workspace = true }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+procera-kernel.workspace = true
+procera-library.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

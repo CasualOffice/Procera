@@ -208,6 +208,29 @@ E2E scenarios (E2E),E2E-R1-UI-02,"Wrong password and wrong code produce clear, n
 E2E scenarios (E2E),E2E-R1-UI-03,With several workspaces the chooser appears; choosing one and switching from the header changes the context and the navigation (no Admin for a plain member) | docs/05 §2.1 workspace switcher,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-04,"The bell announces the unread count; the inbox lists the ""joined"" notification; mark all as read | FR-N01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-05,Sign out returns to sign-in; reloading stays signed out | docs/06 §3,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-06,"Theme switched from the account menu persists across reload; dark theme passes axe | docs/05 §7, WCAG 2.2 AA",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-01,"Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-02,"Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-03,"Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-04,"Reminder ladder and manager escalation run by the scheduler via drain; overdue list and counts; overdue can still be acknowledged | FR-AK01, FR-AN04",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-05,A new member matching a dynamic audience is enrolled (own window); at-launch campaigns stay fixed | FR-AK03,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-06,"Evidence CSV lists every assignee with department, timestamps, version, content hash and auth method; members cannot export | FR-AK04, CMP-03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-CMP-07,"Members cannot manage or track campaigns; a compliance officer can; draft version 409, empty audience 422; another workspace gets 404 | docs/12 §5",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-01,"Compose → edit with If-Match → publish to a department: only its members see it; first read recorded; in-app + email delivery after drain; edits after publish 409; content hash frozen | FR-AN01..03, FR-AN05",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-02,"Workspace-wide posts need approval; self-approval 403 sod_violation; publisher approves; reject needs a comment and returns the draft | FX-C01, FR-AN02",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-03,"Scheduled announcement goes live after clock + drain; expiry removes it from feeds (state stays published, expired: true) | FR-AN03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-04,"Required ack on a critical announcement; idempotent ack; analytics reconcile by department; archive needs a reason | FR-AN04, FR-AN06",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-05,Permissions and isolation: members read the feed but cannot compose; authors see only their drafts; other workspaces 404 | docs/12 §5,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-ANN-06,"Settings drive approval, ack default, expiry default and the enabled switch | docs/20 §2.17",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SRCH-01,"Ranked results across SOPs, policies, people, departments, groups; escaped highlighted snippets; typo and prefix matches; type filter; validation errors | BPMS-049, docs/05 §2.4",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SRCH-02,A SOP-only role sees only SOP results; other types filtered on the server | docs/12 §3,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-SRCH-03,Another workspace's content is never found; draft edits are searchable at once | docs/06 T-22,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-01,"Explorer filters, newest-first keyset pagination without duplicates, actor names, validation | BPMS-064, FR-T03",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-02,audit:view_own sees only own events; verify/export forbidden; no permission 403 | docs/12 §5,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-03,"Artifact timeline covers all versions, oldest first | FR-T04",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-04,Chain verify reports intact | FR-T02,23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-05,"Saved queries: create, duplicate 409, validation 422, private per member, delete; audited | FR-T03, FR-T01",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-06,"CSV and JSONL exports honour filters, need step-up, and are audited | FR-T01, docs/12 §11",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md

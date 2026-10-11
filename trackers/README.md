@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  19/109 epics done  (17%)
-Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  20% counting in-progress epics as half done
-Tests     57 automated E2E scenarios · 66 Rust tests (incl. property tests)
-Status    done 19 · in review 0 · in progress 6 · blocked 0 · not started 84 · deferred 0
+Overall   ██████░░░░░░░░░░░░░░░░░░░░░░░░  22/109 epics done  (20%)
+Partial   ███████░░░░░░░░░░░░░░░░░░░░░░░  23% counting in-progress epics as half done
+Tests     80 automated E2E scenarios · 88 Rust tests (incl. property tests)
+Status    done 22 · in review 0 · in progress 7 · blocked 0 · not started 80 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `███░░░░░░░░░` | 9/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████░░░░░░░░` | 12/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -36,21 +36,22 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app slice 1: history router, API client (in-memory access token, silent refresh via HttpOnly cookie, RFC 9457 errors), session provider, Vite proxy (same-origin), sign-in with MFA (TOTP or recovery code), workspace chooser, app shell with workspace switcher menu, notification bell with unread count, permission-shaped navigation, Home, notifications inbox; design gallery moved to /design. E2E-R1-UI-01..05 (axe on every screen). Remaining: system console shell, ⌘K command palette, mobile bottom bar |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-048 | In-app notification centre + SMTP email + templates + digests | **In progress** | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
+| BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. Remaining: explorer UI (docs/05 §3.19), async export job, POST /audit/query |
 
 ## Recently shipped (last 12 commits on main)
 
+- `3e3a8a9` Merge branch 'worktree-agent-a23072a4b06eb13fc'
+- `f9d916e` Merge branch 'worktree-agent-a3504768e11e15817'
+- `52a273b` feat(web): premium redesign — zinc palette, inset app frame, icon sidebar, workspace and account menus, split sign-in (BPMS-031)
+- `5674ad3` docs: campaigns API rows, as-built LLD note, campaign settings and timing assumption (BPMS-046)
+- `fa2bb65` feat(api): campaigns API, scheduler and joiner consumer; E2E-R1-CMP-01..07 (BPMS-046)
+- `58e4b8a` docs: announcements API rows and as-built note (BPMS-047)
+- `0cc518f` feat(api): announcements API, scheduler and delivery consumer; E2E-R1-ANN-01..06 (BPMS-047)
+- `829b15a` feat(announcements): [protected] drafts, audience snapshot, approval with SoD, scheduling, expiry, receipts (BPMS-047)
+- `422a2f7` feat(campaigns): [protected] acknowledgement campaign engine with reminders, escalation and joiners (BPMS-046)
+- `9e671c0` fix(web): ink links instead of brand red, menu spacing, icon theme toggle; local demo script (BPMS-031)
+- `d3f1bdb` docs: browser E2E scenarios; tracker BPMS-031 in progress
 - `b3ae597` feat(web): sign-in with MFA, workspace chooser and switcher, app shell, Home and inbox; browser E2E-R1-UI-01..05 (BPMS-031)
-- `266f27b` feat(members): shared audience resolver — all, department subtrees, groups, roles (BPMS-046/047 groundwork)
-- `7040fa1` chore: PORT_OFFSET for parallel test-all runs; lean dev profile
-- `14d9492` docs: library API and E2E plan; tracker marks BPMS-040 done
-- `2d693ae` feat(api): library API with step-up for controlled approval and publication, scheduler role; E2E-R1-LIB-01..05 (BPMS-040)
-- `b9a2354` feat(library): [protected] governed artifacts, immutable versions, review rounds with SoD, scheduled publication (BPMS-040)
-- `ddeb618` docs: notifications API, LLD as-built note, E2E plan; tracker BPMS-048
-- `b86794c` feat(api): invitation emails and member-joined notifications via the outbox; inbox API; E2E-R1-NOT-01..02 (BPMS-048)
-- `ba692f7` feat(notify): in-app inbox, sealed email queue, templates and SMTP delivery (BPMS-048)
-- `1f86c00` docs: tracker marks BPMS-029 done
-- `93e4b83` feat(worker): run the outbox dispatcher in serve --all; /__test/drain drains for real (BPMS-029)
-- `d4b0106` feat(outbox): [protected] dispatcher with per-aggregate order, backoff, hold-back and NOTIFY wake-ups (BPMS-029)
 
 ## Done
 
@@ -73,6 +74,9 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-029** Outbox + dispatcher + inbox dedup + idempotency keys — Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 - [x] **BPMS-040** Artifacts, versions, lifecycle state machine, immutability trigger, SoD — procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler
+- [x] **BPMS-046** Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export — procera-campaigns (migration 0013): acknowledgement campaigns for a published SOP/policy version; audience via the shared resolver (snapshot or dynamic), assignments with in-app + email notices, acknowledgement bound to version id + content hash + statement + auth method, reminder ladder and one-time manager escalation by the scheduler, dynamic new joiners, close/cancel, progress, audited evidence CSV; settings campaign.*; E2E-R1-CMP-01..07. Later: quiz-lite, exemptions, signed PDF evidence, auto re-ack on major publish
+- [x] **BPMS-047** Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics — procera-announcements (migration 0014): drafts with block content, audience snapshot, approval per announcements.approval_required with SoD, scheduling + derived expiry, pinned/critical, channels from settings, in-app + email delivery via the outbox, read and acknowledgement receipts, analytics, archive; settings announcements.*; E2E-R1-ANN-01..06. Later: poster scoping, reminders/escalation for unacked, comments/reactions, reach preview
+- [x] **BPMS-049** Postgres FTS + trgm, permission-filtered search — procera-search (migration 0015): Postgres FTS (english + simple) + pg_trgm fuzzy/prefix over SOPs, policies (artifact tsv kept current by triggers), members, departments, groups; one ranked list with escaped <mark> snippets; permission-filtered per type with Cedar before querying; RLS isolation; E2E-R1-SRCH-01..03
 
 ## Release checklists
 
@@ -101,7 +105,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 9/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 12/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -126,15 +130,15 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-043** (P0, M) Semantic diff across artifact kinds
 - [ ] **BPMS-044** (P0, M) Reviews, change requests, effective-date scheduling, renewal date, verification badge
 - [ ] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability
-- [ ] **BPMS-046** (P0, L) Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export
-- [ ] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
+- [x] **BPMS-046** (P0, L) Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export
+- [x] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
 - [ ] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests **[In progress]**
-- [ ] **BPMS-049** (P0, M) Postgres FTS + trgm, permission-filtered search
+- [x] **BPMS-049** (P0, M) Postgres FTS + trgm, permission-filtered search
 - [ ] **BPMS-060** (P0, L) Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs
 - [ ] **BPMS-061** (P0, M) Previews (image/PDF) in sandbox; Office preview spike
 - [ ] **BPMS-062** (P0, M) Workspace Files view, quotas, orphan cleanup
 - [ ] **BPMS-063** (P0, L) Workspace overview dashboard + people & access monitor
-- [ ] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export
+- [ ] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export **[In progress]**
 - [ ] **BPMS-065** (P0, M) System console: workspaces grid, quotas, health, system audit
 - [ ] **BPMS-120** (P0, L) Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks
 
@@ -260,7 +264,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 132 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 155 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 14 / 16 / 13 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

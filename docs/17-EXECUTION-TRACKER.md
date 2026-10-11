@@ -56,15 +56,15 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-043 | LIB | Semantic diff across artifact kinds | P0 | R1 | Fullstack | FR-G05 | Diff covers bundle artifacts | M | BPMS-040 | Not started |
 | BPMS-044 | LIB | Reviews, change requests, effective-date scheduling, renewal date, verification badge | P0 | R1 | Fullstack | FR-G05/G07, FX-G01/G02 | Expired flagged | M | BPMS-040 | Not started |
 | BPMS-045 | LIB | Policy library + employee policy portal + applicability | P0 | R1 | Fullstack | FR-PL01–PL03 | Applicability enforced | M | BPMS-042 | Not started |
-| BPMS-046 | CAMP | Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export | P0 | R1 | Backend | FR-AK01–04, ADR-0017 | 5k recipients/min | L | BPMS-029 | Not started |
-| BPMS-047 | COMMS | Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics | P0 | R1 | Fullstack | FR-AN01–06, FX-C01 | J14 passes | L | BPMS-046 | Not started |
+| BPMS-046 | CAMP | Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export | P0 | R1 | Backend | FR-AK01–04, ADR-0017 | 5k recipients/min | L | BPMS-029 | Done |
+| BPMS-047 | COMMS | Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics | P0 | R1 | Fullstack | FR-AN01–06, FX-C01 | J14 passes | L | BPMS-046 | Done |
 | BPMS-048 | NOTIF | In-app notification centre + SMTP email + templates + digests | P0 | R1 | Fullstack | FR-N01/N02/N04 | Bounce handling | M | BPMS-029 | In progress |
-| BPMS-049 | SRCH | Postgres FTS + trgm, permission-filtered search | P0 | R1 | Backend | 04 §6 | No restricted leakage | M | BPMS-040 | Not started |
+| BPMS-049 | SRCH | Postgres FTS + trgm, permission-filtered search | P0 | R1 | Backend | 04 §6 | No restricted leakage | M | BPMS-040 | Done |
 | BPMS-060 | FILE | Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs | P0 | R1 | Backend | FR-F01–F03, F05 | EICAR quarantined; SEC-10 | L | BPMS-030 | Not started |
 | BPMS-061 | FILE | Previews (image/PDF) in sandbox; Office preview spike | P0 | R1 | Backend | FR-F04, U-08 | No active content | M | BPMS-060 | Not started |
 | BPMS-062 | FILE | Workspace Files view, quotas, orphan cleanup | P0 | R1 | FE | FR-F06/F07 | Held files undeletable | M | BPMS-060,028 | Not started |
 | BPMS-063 | ADMIN | Workspace overview dashboard + people & access monitor | P0 | R1 | FE | FR-A01/A06 | Every tile drills down | L | BPMS-028 | Not started |
-| BPMS-064 | AUD | Audit explorer, timelines, saved queries, export | P0 | R1 | Fullstack | FR-T03/T04 | P95<2s @10M | L | BPMS-026 | Not started |
+| BPMS-064 | AUD | Audit explorer, timelines, saved queries, export | P0 | R1 | Fullstack | FR-T03/T04 | P95<2s @10M | L | BPMS-026 | In progress |
 | BPMS-065 | PLAT | System console: workspaces grid, quotas, health, system audit | P0 | R1 | FE | FR-S02–S09 | — | M | BPMS-020 | Not started |
 | BPMS-120 | PILOT | Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks | P0 | R1 | Product | G3 | G3 checklist | L | M6 | Not started |
 | BPMS-080 | RT | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | P0 | R2 | Runtime | 11, ADR-0003 | All checks covered | L | BPMS-009 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 19 · In review: 0 · In progress: 6 · Blocked: 0 · Not started: 84 · Deferred: 0 (of 109)
+**Progress:** Done: 22 · In review: 0 · In progress: 7 · Blocked: 0 · Not started: 80 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -161,7 +161,11 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
 | BPMS-040 | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | Done | procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler |
+| BPMS-046 | Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export | Done | procera-campaigns (migration 0013): acknowledgement campaigns for a published SOP/policy version; audience via the shared resolver (snapshot or dynamic), assignments with in-app + email notices, acknowledgement bound to version id + content hash + statement + auth method, reminder ladder and one-time manager escalation by the scheduler, dynamic new joiners, close/cancel, progress, audited evidence CSV; settings campaign.*; E2E-R1-CMP-01..07. Later: quiz-lite, exemptions, signed PDF evidence, auto re-ack on major publish |
+| BPMS-047 | Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics | Done | procera-announcements (migration 0014): drafts with block content, audience snapshot, approval per announcements.approval_required with SoD, scheduling + derived expiry, pinned/critical, channels from settings, in-app + email delivery via the outbox, read and acknowledgement receipts, analytics, archive; settings announcements.*; E2E-R1-ANN-01..06. Later: poster scoping, reminders/escalation for unacked, comments/reactions, reach preview |
 | BPMS-048 | In-app notification centre + SMTP email + templates + digests | In progress | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
+| BPMS-049 | Postgres FTS + trgm, permission-filtered search | Done | procera-search (migration 0015): Postgres FTS (english + simple) + pg_trgm fuzzy/prefix over SOPs, policies (artifact tsv kept current by triggers), members, departments, groups; one ranked list with escaped <mark> snippets; permission-filtered per type with Cedar before querying; RLS isolation; E2E-R1-SRCH-01..03 |
+| BPMS-064 | Audit explorer, timelines, saved queries, export | In progress | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. Remaining: explorer UI (docs/05 §3.19), async export job, POST /audit/query |
 
 ## Domain backlogs (detail, owned by their docs)
 
@@ -170,7 +174,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 132 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 155 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

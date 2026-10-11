@@ -7,6 +7,7 @@ use serde::Serialize;
 use std::sync::Arc;
 
 pub mod announcements;
+pub mod audit;
 /// Route → audit contract; consumed by its unit test and the e2e audit pack only.
 #[cfg(any(test, feature = "e2e"))]
 pub mod audit_contract;
@@ -16,6 +17,7 @@ pub mod directory;
 pub mod error;
 pub mod library;
 pub mod notifications;
+pub mod search;
 pub mod settings;
 pub mod system;
 #[cfg(feature = "e2e")]
@@ -198,6 +200,8 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", library::router())
         .nest("/api/v1", campaigns::router())
         .nest("/api/v1", announcements::router())
+        .nest("/api/v1", search::router())
+        .nest("/api/v1", audit::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

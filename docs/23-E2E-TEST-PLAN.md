@@ -178,6 +178,34 @@ Implemented in `e2e/packs/r1/library.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/shell.ui.spec.ts` (Chromium, against the built app behind the Vite proxy).
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-UI-06 | Theme switched from the account menu persists across reload; dark theme passes axe | docs/05 §7, WCAG 2.2 AA |
+| E2E-R1-CMP-01 | Launching a campaign snapshots the audience (department) and notifies each assignee in-app and by email; non-audience members get nothing; draft preview counts the audience | FR-AK01, FR-AK02, FR-AN05 |
+| E2E-R1-CMP-02 | Acknowledging records the exact version id, content hash and statement; a stale hash is refused (409 content_changed); progress counts update | FR-AK01, FR-PL03, FR-AK04 |
+| E2E-R1-CMP-03 | Only the assignee can acknowledge (others 404), only once (409), only while active; close/cancel rules | FR-AK01, docs/12 §5 |
+| E2E-R1-CMP-04 | Reminder ladder and manager escalation run by the scheduler via drain; overdue list and counts; overdue can still be acknowledged | FR-AK01, FR-AN04 |
+| E2E-R1-CMP-05 | A new member matching a dynamic audience is enrolled (own window); at-launch campaigns stay fixed | FR-AK03 |
+| E2E-R1-CMP-06 | Evidence CSV lists every assignee with department, timestamps, version, content hash and auth method; members cannot export | FR-AK04, CMP-03 |
+| E2E-R1-CMP-07 | Members cannot manage or track campaigns; a compliance officer can; draft version 409, empty audience 422; another workspace gets 404 | docs/12 §5 |
+| E2E-R1-ANN-01 | Compose → edit with If-Match → publish to a department: only its members see it; first read recorded; in-app + email delivery after drain; edits after publish 409; content hash frozen | FR-AN01..03, FR-AN05 |
+| E2E-R1-ANN-02 | Workspace-wide posts need approval; self-approval 403 sod_violation; publisher approves; reject needs a comment and returns the draft | FX-C01, FR-AN02 |
+| E2E-R1-ANN-03 | Scheduled announcement goes live after clock + drain; expiry removes it from feeds (state stays published, expired: true) | FR-AN03 |
+| E2E-R1-ANN-04 | Required ack on a critical announcement; idempotent ack; analytics reconcile by department; archive needs a reason | FR-AN04, FR-AN06 |
+| E2E-R1-ANN-05 | Permissions and isolation: members read the feed but cannot compose; authors see only their drafts; other workspaces 404 | docs/12 §5 |
+| E2E-R1-ANN-06 | Settings drive approval, ack default, expiry default and the enabled switch | docs/20 §2.17 |
+| E2E-R1-SRCH-01 | Ranked results across SOPs, policies, people, departments, groups; escaped highlighted snippets; typo and prefix matches; type filter; validation errors | BPMS-049, docs/05 §2.4 |
+| E2E-R1-SRCH-02 | A SOP-only role sees only SOP results; other types filtered on the server | docs/12 §3 |
+| E2E-R1-SRCH-03 | Another workspace's content is never found; draft edits are searchable at once | docs/06 T-22 |
+| E2E-R1-AUDX-01 | Explorer filters, newest-first keyset pagination without duplicates, actor names, validation | BPMS-064, FR-T03 |
+| E2E-R1-AUDX-02 | audit:view_own sees only own events; verify/export forbidden; no permission 403 | docs/12 §5 |
+| E2E-R1-AUDX-03 | Artifact timeline covers all versions, oldest first | FR-T04 |
+| E2E-R1-AUDX-04 | Chain verify reports intact | FR-T02 |
+| E2E-R1-AUDX-05 | Saved queries: create, duplicate 409, validation 422, private per member, delete; audited | FR-T03, FR-T01 |
+| E2E-R1-AUDX-06 | CSV and JSONL exports honour filters, need step-up, and are audited | FR-T01, docs/12 §11 |
+
+Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts` and `search-audit.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

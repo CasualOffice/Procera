@@ -33,6 +33,7 @@ procera-notify.workspace = true
 procera-library.workspace = true
 procera-campaigns.workspace = true
 procera-announcements.workspace = true
+procera-search.workspace = true
 procera-audit.workspace = true
 procera-crypto.workspace = true
 serde.workspace = true

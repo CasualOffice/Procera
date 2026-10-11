@@ -150,6 +150,10 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const ann2 = await (await own.post('/api/v1/announcements', { headers: oh, data: { title: 'Audit notice 2', audience: { roles: ['member'] } } })).json();
   await step('POST', '/api/v1/announcements/{id}/publish', () => own.post(`/api/v1/announcements/${ann2.id}/publish`, { headers: oh }));
   await step('POST', '/api/v1/announcements/{id}/archive', () => own.post(`/api/v1/announcements/${ann2.id}/archive`, { headers: oh, data: { reason: 'drill' } }));
+  // Audit explorer: saved queries, and an export (step-up: the owner's MFA sign-in above is recent).
+  const sq = await (await step('POST', '/api/v1/audit/saved-queries', () => own.post('/api/v1/audit/saved-queries', { headers: oh, data: { name: 'Library changes', filters: { action: 'version.' } } }))).json();
+  await step('DELETE', '/api/v1/audit/saved-queries/{id}', () => own.delete(`/api/v1/audit/saved-queries/${sq.id}`, { headers: oh }));
+  await step('POST', '/api/v1/audit/exports', () => own.post('/api/v1/audit/exports', { headers: oh, data: { format: 'jsonl', filters: { category: 'content' } } }));
 
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
