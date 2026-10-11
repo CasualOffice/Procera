@@ -25,11 +25,14 @@ const COLUMNS: GridColumn<RequestRow>[] = [
   { id: 'status', header: 'Status', value: (r) => r.status, type: 'enum' },
 ];
 import tokens from '../ui/tokens.json';
+import { Empty } from '../ui/States';
+import { ART_KINDS } from '../ui/illustrations';
 
 /** Design-system gallery: the living reference for BPMS-010 and the target of E2E accessibility scans. */
 export function DesignGallery() {
   const [ack, setAck] = useState(false);
   const [deleted, setDeleted] = useState(false);
+  const [replay, setReplay] = useState(0);
   return (
     <article>
       <h1>Design system</h1>
@@ -87,6 +90,16 @@ export function DesignGallery() {
           <Notice tone="warning" title="3 approvals are overdue in Finance" />
           <Notice tone="danger" title="The file failed the malware scan and was quarantined" />
         </div>
+      </section>
+
+      <section aria-labelledby="empty-h">
+        <h2 id="empty-h">Empty states</h2>
+        <p>Each kind of emptiness has its drawing. It plays once on arrival and holds still under reduced motion.</p>
+        <Button variant="secondary" onPress={() => setReplay((n) => n + 1)}>Replay</Button>
+        <ul className="art-gallery" key={replay}>
+          {ART_KINDS.map((k) => <li key={k}><Empty art={k} title={k}>Illustration for the {k} empty state.</Empty></li>)}
+          <li><Empty compact art="no-match" title="Compact" action={<Button variant="secondary">Clear filters</Button>}>Inside drawers and cards.</Empty></li>
+        </ul>
       </section>
 
       <section aria-labelledby="type">

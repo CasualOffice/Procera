@@ -1,6 +1,7 @@
 import { RotateCw, type LucideIcon } from 'lucide-react';
 import type { LoadFailure } from '../lib/data';
 import { Button } from './components/Button';
+import { Art, type ArtKind } from './illustrations';
 
 /**
  * The state kit (docs/05 §3, UX-005): skeletons shaped like the content, a composed empty state
@@ -65,11 +66,14 @@ export function ShellSkeleton() {
   );
 }
 
-/** A composed empty state: icon, one line of what this is, one line of how it fills, one action. */
-export function Empty({ icon: Icon, title, children, action, compact = false }: { icon?: LucideIcon; title: string; children?: React.ReactNode; action?: React.ReactNode; compact?: boolean }) {
+/**
+ * A composed empty state: an illustration (or icon), one line of what this is, one line of how it
+ * fills, one action. `art` picks the drawing for the kind of emptiness; it wins over `icon`.
+ */
+export function Empty({ icon: Icon, art, title, children, action, compact = false }: { icon?: LucideIcon; art?: ArtKind; title: string; children?: React.ReactNode; action?: React.ReactNode; compact?: boolean }) {
   return (
-    <div className={`empty${compact ? ' empty-compact' : ''}`}>
-      {Icon && <span className="empty-icon"><Icon aria-hidden="true" size="1.125rem" /></span>}
+    <div className={`empty${compact ? ' empty-compact' : ''}${art ? ' empty-art' : ''}`}>
+      {art ? <Art kind={art} /> : Icon && <span className="empty-icon"><Icon aria-hidden="true" size="1.125rem" /></span>}
       <p className="empty-title">{title}</p>
       {children && <p className="empty-text">{children}</p>}
       {action && <div className="empty-action">{action}</div>}

@@ -1,0 +1,74 @@
+/* Empty-state illustrations (ui/illustrations): the marketing site's drawing language in the app.
+   Ink outlines, paper cards with a hard offset shadow, the product's tag pastels, dashed strokes
+   for "not yet", brand red only as a tiny accent. Colours follow the theme through these tokens. */
+.art {
+  --art-ink: var(--color-text);
+  --art-paper: var(--color-surface);
+  --art-paper-2: var(--color-surface-muted);
+  --art-line: color-mix(in srgb, var(--color-text) 17%, var(--color-surface));
+  --art-shadow: color-mix(in srgb, var(--color-text) 13%, transparent);
+  --art-red: var(--color-brand);
+  --a0: #E7F3F8; --a0f: #1F5E8C; --a1: #EDF3EC; --a1f: #2B6A41; --a2: #F3EEF8; --a2f: #6940A5;
+  --a3: #FBECDD; --a3f: #8A4A16; --a4: #FAEEF4; --a4f: #9B2C66; --a5: #FBF3DB; --a5f: #6E520F;
+  --a6: #EFEEEA; --a6f: #5F5E5A;
+  display: block; width: 7.5rem; height: auto; overflow: visible; margin: 0 auto 0.875rem;
+}
+.empty-compact .art { width: 5.25rem; margin-bottom: 0.625rem; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .art {
+    --art-shadow: rgba(0, 0, 0, .5); --art-paper: #2A2A28; --art-paper-2: #232321;
+    --a0: #1E3445; --a0f: #9CCBF2; --a1: #22362A; --a1f: #9AD4AE; --a2: #352B45; --a2f: #C9B2EE;
+    --a3: #44301F; --a3f: #F0BE8C; --a4: #452637; --a4f: #F0A9CC; --a5: #423820; --a5f: #EBCF7C;
+    --a6: #2A2A2A; --a6f: #B1B0AC;
+  }
+}
+:root[data-theme='dark'] .art {
+  --art-shadow: rgba(0, 0, 0, .5); --art-paper: #2A2A28; --art-paper-2: #232321;
+  --a0: #1E3445; --a0f: #9CCBF2; --a1: #22362A; --a1f: #9AD4AE; --a2: #352B45; --a2f: #C9B2EE;
+  --a3: #44301F; --a3f: #F0BE8C; --a4: #452637; --a4f: #F0A9CC; --a5: #423820; --a5f: #EBCF7C;
+  --a6: #2A2A2A; --a6f: #B1B0AC;
+}
+
+.art * { stroke-linecap: round; stroke-linejoin: round; }
+.art .k { fill: none; stroke: var(--art-ink); stroke-width: 1.5; }
+.art .pp { fill: var(--art-paper); stroke: var(--art-ink); stroke-width: 1.5; }
+.art .ps { fill: var(--art-paper-2); stroke: var(--art-ink); stroke-width: 1.5; }
+.art .dash { fill: none; stroke: var(--art-ink); stroke-width: 1.25; stroke-dasharray: 3 3; opacity: .55; }
+.art .sh { fill: var(--art-shadow); }
+.art .ln { fill: var(--art-line); }
+.art .kx { fill: var(--art-ink); }
+.art .rd { fill: var(--art-red); }
+.art .pl { opacity: .9; }
+.art .t0 { fill: var(--a0); } .art .t1 { fill: var(--a1); } .art .t2 { fill: var(--a2); }
+.art .t3 { fill: var(--a3); } .art .t4 { fill: var(--a4); } .art .t5 { fill: var(--a5); } .art .t6 { fill: var(--a6); }
+.art .f0 { fill: var(--a0f); } .art .f1 { fill: var(--a1f); } .art .f2 { fill: var(--a2f); }
+.art .f3 { fill: var(--a3f); } .art .f4 { fill: var(--a4f); } .art .f5 { fill: var(--a5f); }
+.art .s0 { fill: none; stroke: var(--a0f); stroke-width: 2; } .art .s1 { fill: none; stroke: var(--a1f); stroke-width: 2; }
+.art .s2 { fill: none; stroke: var(--a2f); stroke-width: 2; } .art .s3 { fill: none; stroke: var(--a3f); stroke-width: 2; }
+.art .s4 { fill: none; stroke: var(--a4f); stroke-width: 2; } .art .s5 { fill: none; stroke: var(--a5f); stroke-width: 2; }
+.art .ring { stroke: var(--art-paper); stroke-width: 1.5; }
+
+/* Motion: a one-shot entrance (≤ 900 ms in total) and at most one slow idle loop per drawing.
+   Elements carry their delay in --d. Reduced motion shows the final frame. */
+.art .a-rise, .art .a-pop, .art .a-sway, .art .a-fan, .art .a-float, .art .a-burst { transform-box: fill-box; transform-origin: center; }
+.art .a-sway { transform-origin: 50% 0; }
+.art .a-burst { opacity: 0; }
+.art .a-fan { transform-origin: 50% 100%; }
+@media (prefers-reduced-motion: no-preference) {
+  .art .a-rise { animation: art-rise 420ms var(--motion-easing) var(--d, 0ms) both; }
+  .art .a-pop { animation: art-pop 380ms cubic-bezier(.3, 1.6, .5, 1) var(--d, 0ms) both; }
+  .art .a-draw { stroke-dasharray: 1; animation: art-draw 520ms ease-out var(--d, 0ms) both; }
+  .art .a-sway { animation: art-sway 820ms ease-in-out var(--d, 0ms) both; }
+  .art .a-fan { animation: art-fan 520ms var(--motion-easing) var(--d, 0ms) both; }
+  .art .a-burst { animation: art-burst 700ms ease-out var(--d, 0ms) both; }
+  .art .a-float { animation: art-float 5.2s ease-in-out 1s infinite; }
+}
+@keyframes art-rise { from { opacity: 0; transform: translateY(0.375rem); } }
+@keyframes art-pop { from { opacity: 0; transform: scale(.3); } }
+@keyframes art-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes art-sway { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(9deg); } 55% { transform: rotate(-6deg); } 80% { transform: rotate(2deg); } }
+@keyframes art-fan { from { opacity: 0; transform: rotate(0) translateY(0.25rem); } }
+@keyframes art-burst { from { opacity: .7; transform: scale(.6); } to { opacity: 0; transform: scale(1.5); } }
+@keyframes art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-0.125rem); } }
+@media (forced-colors: active) { .art * { forced-color-adjust: auto; } }
+.art-gallery { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1rem; }
