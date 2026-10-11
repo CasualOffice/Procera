@@ -502,6 +502,10 @@ CREATE TABLE sla_clocks (workspace_id uuid NOT NULL, id uuid NOT NULL, instance_
   node_id text, target interval NOT NULL, business boolean NOT NULL, calendar_version_id uuid,
   started_at timestamptz NOT NULL, paused_total interval NOT NULL DEFAULT '0', paused_since timestamptz,
   due_at timestamptz NOT NULL, stopped_at timestamptz, breached_at timestamptz, PRIMARY KEY (workspace_id, id));
+-- As built (0011, BPMS-048): `notifications` (in-app inbox: membership, kind, title, body, link, ref, dedupe_key, read_at)
+-- and `email_messages` (to, subject, body_sealed, dedupe_key, state queued|sent|failed, attempts, next_attempt_at).
+-- Outbox consumers write them with inbox dedup; the worker sends due email over SMTP with backoff (2^n s, max 1 h, 12 tries).
+-- `notification_intents` below remains the target once channels, digests and quiet hours (FR-N04) land.
 CREATE TABLE notification_intents (workspace_id uuid NOT NULL, id uuid NOT NULL, membership_id uuid NOT NULL,
   kind text NOT NULL, ref_type text, ref_id uuid, channel text NOT NULL, priority smallint NOT NULL,
   digest_key text, state text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), sent_at timestamptz,

@@ -58,7 +58,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-045 | LIB | Policy library + employee policy portal + applicability | P0 | R1 | Fullstack | FR-PL01–PL03 | Applicability enforced | M | BPMS-042 | Not started |
 | BPMS-046 | CAMP | Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export | P0 | R1 | Backend | FR-AK01–04, ADR-0017 | 5k recipients/min | L | BPMS-029 | Not started |
 | BPMS-047 | COMMS | Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics | P0 | R1 | Fullstack | FR-AN01–06, FX-C01 | J14 passes | L | BPMS-046 | Not started |
-| BPMS-048 | NOTIF | In-app notification centre + SMTP email + templates + digests | P0 | R1 | Fullstack | FR-N01/N02/N04 | Bounce handling | M | BPMS-029 | Not started |
+| BPMS-048 | NOTIF | In-app notification centre + SMTP email + templates + digests | P0 | R1 | Fullstack | FR-N01/N02/N04 | Bounce handling | M | BPMS-029 | In progress |
 | BPMS-049 | SRCH | Postgres FTS + trgm, permission-filtered search | P0 | R1 | Backend | 04 §6 | No restricted leakage | M | BPMS-040 | Not started |
 | BPMS-060 | FILE | Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs | P0 | R1 | Backend | FR-F01–F03, F05 | EICAR quarantined; SEC-10 | L | BPMS-030 | Not started |
 | BPMS-061 | FILE | Previews (image/PDF) in sandbox; Office preview spike | P0 | R1 | Backend | FR-F04, U-08 | No active content | M | BPMS-060 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 18 · In review: 0 · In progress: 4 · Blocked: 0 · Not started: 87 · Deferred: 0 (of 109)
+**Progress:** Done: 18 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 86 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -159,6 +159,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | In progress | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
+| BPMS-048 | In-app notification centre + SMTP email + templates + digests | In progress | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 
 ## Domain backlogs (detail, owned by their docs)
 
@@ -167,7 +168,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 120 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 122 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

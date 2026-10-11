@@ -151,6 +151,13 @@ Implemented in `e2e/packs/r1/settings.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/directory.api.spec.ts`.
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-NOT-01 | An invitation queues an email (subject, HTML button, link); the link's token registers the invitee; the inviter gets an in-app "joined" notification; read / unread / read-all work | FR-N01, FR-N02, FR-W01 |
+| E2E-R1-NOT-02 | A member cannot mark another member's notification (404) | FR-N01, SEC-01 |
+
+Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/__test/mail`, the local stand-in for Mailpit).
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |

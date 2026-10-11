@@ -7,9 +7,9 @@
 
 ```text
 Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  18/109 epics done  (17%)
-Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  18% counting in-progress epics as half done
-Tests     45 automated E2E scenarios · 62 Rust tests (incl. property tests)
-Status    done 18 · in review 0 · in progress 4 · blocked 0 · not started 87 · deferred 0
+Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  19% counting in-progress epics as half done
+Tests     47 automated E2E scenarios · 65 Rust tests (incl. property tests)
+Status    done 18 · in review 0 · in progress 5 · blocked 0 · not started 86 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -34,9 +34,13 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
+| BPMS-048 | In-app notification centre + SMTP email + templates + digests | **In progress** | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 
 ## Recently shipped (last 12 commits on main)
 
+- `b86794c` feat(api): invitation emails and member-joined notifications via the outbox; inbox API; E2E-R1-NOT-01..02 (BPMS-048)
+- `ba692f7` feat(notify): in-app inbox, sealed email queue, templates and SMTP delivery (BPMS-048)
+- `1f86c00` docs: tracker marks BPMS-029 done
 - `93e4b83` feat(worker): run the outbox dispatcher in serve --all; /__test/drain drains for real (BPMS-029)
 - `d4b0106` feat(outbox): [protected] dispatcher with per-aggregate order, backoff, hold-back and NOTIFY wake-ups (BPMS-029)
 - `33db515` docs: step-up API and E2E scenarios; tracker BPMS-022
@@ -46,9 +50,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `3b2d1d1` feat(api): group role grants via /role-grants; E2E-R1-MEM-09 (BPMS-024)
 - `f497952` feat(access): [protected] role grants to groups, department-subtree scopes in Cedar, preview-matches-effect property test (BPMS-024)
 - `9938be3` docs: directory API, E2E plan and LLD path note; tracker marks BPMS-023 done
-- `3acf31c` feat(api): directory APIs and E2E-R1-DIR-01..04; directory routes in the audit contract (BPMS-023)
-- `09fd4a6` feat(directory): [protected] department tree, groups, positions, manager links and CSV import (BPMS-023)
-- `84008cf` chore(tracker): refresh dashboard
 
 ## Done
 
@@ -125,7 +126,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability
 - [ ] **BPMS-046** (P0, L) Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export
 - [ ] **BPMS-047** (P0, L) Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics
-- [ ] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests
+- [ ] **BPMS-048** (P0, M) In-app notification centre + SMTP email + templates + digests **[In progress]**
 - [ ] **BPMS-049** (P0, M) Postgres FTS + trgm, permission-filtered search
 - [ ] **BPMS-060** (P0, L) Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs
 - [ ] **BPMS-061** (P0, M) Previews (image/PDF) in sandbox; Office preview spike
@@ -257,7 +258,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 120 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 122 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

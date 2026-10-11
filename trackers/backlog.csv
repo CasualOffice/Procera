@@ -36,7 +36,7 @@ BPMS-044,LIB,"Reviews, change requests, effective-date scheduling, renewal date,
 BPMS-045,LIB,Policy library + employee policy portal + applicability,P0,R1,Fullstack,FR-PL01–PL03,Applicability enforced,M,BPMS-042,Not started
 BPMS-046,CAMP,"Campaign engine: ack/quiz-lite, audience snapshot, reminders, escalation, new joiners, evidence export",P0,R1,Backend,"FR-AK01–04, ADR-0017",5k recipients/min,L,BPMS-029,Not started
 BPMS-047,COMMS,"Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics",P0,R1,Fullstack,"FR-AN01–06, FX-C01",J14 passes,L,BPMS-046,Not started
-BPMS-048,NOTIF,In-app notification centre + SMTP email + templates + digests,P0,R1,Fullstack,FR-N01/N02/N04,Bounce handling,M,BPMS-029,Not started
+BPMS-048,NOTIF,In-app notification centre + SMTP email + templates + digests,P0,R1,Fullstack,FR-N01/N02/N04,Bounce handling,M,BPMS-029,In progress
 BPMS-049,SRCH,"Postgres FTS + trgm, permission-filtered search",P0,R1,Backend,04 §6,No restricted leakage,M,BPMS-040,Not started
 BPMS-060,FILE,"Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",P0,R1,Backend,"FR-F01–F03, F05",EICAR quarantined; SEC-10,L,BPMS-030,Not started
 BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backend,"FR-F04, U-08",No active content,M,BPMS-060,Not started
