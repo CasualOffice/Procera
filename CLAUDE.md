@@ -2,7 +2,7 @@
 
 **Procera** is an open-source (Apache-2.0), self-hostable, multi-tenant process-governance and workflow product. It covers policies, SOPs, approvals, e-signatures, announcements with acknowledgements, cases, investigations and audit.
 
-The repository is in the **design phase**: `docs/` is the source of truth and there is no product code yet. Other tools read [AGENTS.md](AGENTS.md), which defers to this file.
+The product is **pre-release (0.1 in progress)**: Rust server in `apps/` + `crates/`, React app in `web/`, E2E packs in `e2e/`; `docs/` remains the design reference. Other tools read [AGENTS.md](AGENTS.md), which defers to this file.
 
 ## 1. Read before any task
 
@@ -79,13 +79,16 @@ Known traps:
 ## 6. Repository map
 
 ```text
+apps/procera/       server binary (API, worker, scheduler, admin CLI)
+crates/             Rust domain and infra crates
+migrations/         PostgreSQL migrations (forced RLS)
+web/                React + TypeScript app
+e2e/                Playwright packs (api + chromium-desktop)
+site/               static website (GitHub Pages via .github/workflows/site.yml)
 docs/00–24 + adr/   design pack (24 = engineering rules)
-docs/archive/v0.1/  original blueprint (historical; don't edit)
-assets/brand/       logos, icons, favicons, banner, palette + brand guide
+assets/brand/       logos, icons, palette + brand guide
+scripts/            demo.sh, test-all.sh, build_tracker.py
 trackers/           generated tracker outputs
-scripts/            build_tracker.py
-.github/            PR/issue templates, CODEOWNERS
-LICENSE NOTICE GOVERNANCE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md MAINTAINERS.md
 ```
 
 ## 7. Commands

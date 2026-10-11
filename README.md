@@ -10,14 +10,39 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue.svg"></a>
-  <img alt="Status: design phase" src="https://img.shields.io/badge/status-design%20phase-orange.svg">
+  <img alt="Status: pre-release, 0.1 in progress" src="https://img.shields.io/badge/status-pre--release%20%C2%B7%200.1-orange.svg">
   <img alt="Rust + PostgreSQL" src="https://img.shields.io/badge/stack-Rust%20%C2%B7%20PostgreSQL%20%C2%B7%20React-0F172A.svg">
   <img alt="WCAG 2.2 AA" src="https://img.shields.io/badge/a11y-WCAG%202.2%20AA-067647.svg">
 </p>
 
 ---
 
-> **Status: design phase.** This repository currently holds Procera's complete design and planning pack: PRD, system design, LLD, security, UX, test plans, roadmap and trackers. Implementation starts after the P0 architecture gate, and the first usable release (**R1, Jan 2027**) follows. See the [roadmap](docs/07-ROADMAP-AND-MILESTONES.md).
+> **Status: pre-release.** Procera 0.1 is being polished: the governed-document loop below works end to end in the browser and is covered by end-to-end tests, but there is no packaged release yet. Build from source to try it. Website: <https://casualoffice.github.io/Procera/>
+
+## What works today (0.1)
+
+```
+Write a policy or SOP → review (separation of duties) → approve → publish → everyone acknowledges → audit
+```
+
+- **Library:** policies and SOPs with a block editor, versions with word-level compare, review cycles, collections, applicability, starter template packs, Word/HTML/Markdown export.
+- **Review and publish:** reviewers never approve their own work, step-up for controlled documents, scheduled go-live, reason for change.
+- **Acknowledgements:** campaigns bound to the exact version, reminders and manager escalation, new joiners included, evidence export; announcements with confirm-by dates.
+- **Audit:** every change in a tamper-evident hash chain, an audit explorer with filters, timelines and exports.
+- **Running a workspace:** guided setup, people, departments and groups, roles (built-in, custom and job presets), settings by category, branding, files with malware scanning, encryption keys, retention.
+- **Accounts:** passwords with reset links, two-step verification (authenticator apps, passkeys), admin account controls.
+- **Self-hosting:** many workspaces on one server, a system console, PostgreSQL row-level isolation per workspace.
+
+Workflows, e-signing and cases are designed (see the docs) but **not built yet**.
+
+## Try it
+
+Needs Rust (see `rust-toolchain.toml`), Node 20+ and PostgreSQL 16 binaries on your PATH.
+
+```bash
+./scripts/demo.sh        # throwaway database + API + web app, seeded "Acme" workspace; prints sign-in details
+./scripts/test-all.sh    # the full gate: fmt, clippy, Rust tests, web checks, browser end-to-end tests
+```
 
 ## What is Procera?
 
@@ -46,7 +71,7 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 - **The open-source BPM field has emptied.** Major OSS engines have gone end-of-life or source-available, and the remaining ones ship without a business UI ([analysis](docs/10-COMPETITIVE-ANALYSIS.md)).
 - **Self-hosting and sovereignty.** Apache-2.0, workspace-level isolation and encryption keys, air-gapped installs, and no telemetry by default.
 
-## Highlights of the design
+## Design highlights
 
 | Area | Approach |
 |---|---|
@@ -60,17 +85,16 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 
 ## Roadmap
 
-| Release | Target | What you can do |
-|---|---|---|
-| P0 | Nov 2026 | Architecture gate, design system, test harness |
-| **R1: Workspace & Policies** | **Jan 2027** | Policy/SOP library, announcements with acknowledgements, files, audit, admin dashboard |
-| R2: Requests & Approvals | Mar 2027 | Leave, expense, purchase, access and onboarding workflows |
-| R3: Operate & Sign | May 2027 | Full admin console, approval-limit matrices, employee e-signing, all Wave-1 templates |
-| R4: Enterprise Connect | Jul 2027 | SSO/SCIM, scoped admins, webhooks/API, email approvals, external signers |
-| R5: Cases & Compliance | Aug 2027 | Cases, investigations, legal hold, regulated-industry signatures, reporting |
-| **1.0** | **Oct 2027** | Hardened, audited, multi-language GA |
+| Version | What it adds |
+|---|---|
+| **0.1** (now) | The governed-document loop above, polished for small companies |
+| 0.2 | Requests and approvals: leave, expense, purchase, access and onboarding workflows |
+| 0.3 | Visual workflow designer and template gallery |
+| 0.4 | Automation and integrations: SSO/SCIM, webhooks and API, email approvals, e-signing |
+| 0.5 | Analytics and improvement: reports, process insights, cases and investigations |
+| **1.0** | Hardened, audited, multi-language |
 
-Dates are indicative. Every release is installable, upgradeable in place and gated by its [E2E pack](docs/23-E2E-TEST-PLAN.md).
+Live progress: the [tracker dashboard](trackers/README.md) and the [website roadmap](https://casualoffice.github.io/Procera/roadmap.html). Each release is gated by its [end-to-end pack](docs/23-E2E-TEST-PLAN.md).
 
 ## Documentation
 
@@ -88,14 +112,19 @@ Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 ## Repository layout
 
 ```text
-docs/        numbered design pack, adr/, archive/v0.1/
-assets/      brand/ — logos, icons, favicons, banner, palette (see assets/brand/README.md)
-trackers/    README.md dashboard + Delivery_Tracker.xlsx + CSV exports (generated, do not hand-edit)
-scripts/     build_tracker.py (regenerates the tracker from docs)
-.github/     PR/issue templates, CODEOWNERS
-crates/      Rust library crates (kernel; domain/infra crates added per tracker item)
-apps/        procera binary (api · worker · scheduler · admin CLI)
-# coming: web/ e2e/ conformance/ migrations/ deploy/
+apps/procera/   the server binary: API, worker, scheduler, admin CLI
+crates/         Rust crates: access, audit, identity, members, library, campaigns, announcements,
+                files, keys, crypto, notify, search, settings, platform, db, cache, engine, runtime, ir, expr
+migrations/     PostgreSQL migrations (forced row-level security on every workspace table)
+web/            React + TypeScript app (React Aria)
+e2e/            Playwright end-to-end packs (API and browser)
+conformance/    workflow runtime conformance fixtures
+deploy/         compose files and SQL roles
+site/           the website (static, generated from tracker data)
+docs/           design pack (00–24) and ADRs
+assets/brand/   logos and brand guide (not Apache-licensed)
+scripts/        demo, full test gate, tracker generator
+trackers/       generated delivery tracker (do not hand-edit)
 ```
 
 ## Contributing
