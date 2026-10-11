@@ -1,0 +1,96 @@
+<!--
+title: Security and self-hosting: Procera
+description: How Procera isolates workspaces, encrypts data, chains its audit log and signs people in, and what you need to host it yourself. Claims are limited to what is built and tested.
+nav: security
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Security and self-hosting</span>
+    <h1>Security you can read, run and verify</h1>
+    <p class="lede">Everything here describes the main branch and links to the design it implements. Where something is designed but not built, we say so. Procera supports the controls that security programmes look for; it isn't certified against any standard.</p>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="iso-h">
+  <div class="wrap side-grid">
+    <div class="prose">
+      <h2 id="iso-h">Workspace isolation in the database</h2>
+      <p>A workspace is a tenant. Every workspace table carries a <code>workspace_id</code> and has <strong>forced row-level security</strong> in PostgreSQL. Each transaction sets the workspace for that transaction only, and the server refuses to start if any workspace table lacks its policy. A cross-workspace test sweep (<code>E2E-R1-ISO</code>) checks that another workspace's records come back as not found.</p>
+      <p>Workspace admins see and control everything in their workspace, and their reads of content are recorded. System administrators manage workspaces from a separate console and don't read workspace content.</p>
+      <h3>Tracker</h3>
+      <p>Forced RLS and the sweep: BPMS-025, done. System console: BPMS-065, done.</p>
+    </div>
+    {{ shot people }}
+  </div>
+</section>
+
+<section class="section" aria-labelledby="enc-h">
+  <div class="wrap side-grid">
+    <div class="prose">
+      <h2 id="enc-h">Envelope encryption with key rotation</h2>
+      <p>Each workspace has its own versioned <strong>key-encryption key</strong> (KEK), sealed by a root key. Sensitive values and file chunks are encrypted with AES-256-GCM under data keys that the workspace KEK wraps. Rotating the KEK needs a reason and step-up confirmation, is audited, and rewraps data keys in the background without re-encrypting the data. Deleting a workspace destroys its keys (crypto-shredding).</p>
+      <ul>
+        <li><strong>Built:</strong> local sealed root key, per-workspace KEKs, rotation, rewrap and shredding, the Encryption admin page (BPMS-030, in progress).</li>
+        <li><strong>Not built yet:</strong> root keys in an external key service (OpenBao, cloud KMS) and automatic yearly rotation.</li>
+      </ul>
+    </div>
+    <div class="prose">
+      <h2>Tamper-evident audit</h2>
+      <p>Every mutation and every restricted read appends an event to a <strong>per-workspace hash chain</strong> (canonical JSON, SHA-256) in the same transaction as the change. The table is append-only, enforced by grants and a trigger. The audit explorer verifies the chain and shows it; exports need step-up and are themselves audited (BPMS-026 and BPMS-064, done).</p>
+      <p>Signed checkpoints, RFC 3161 timestamps, WORM export and a standalone verifier are planned for R5 (BPMS-162).</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" aria-labelledby="auth-h">
+  <div class="wrap side-grid">
+    <div class="prose">
+      <h2 id="auth-h">Sign-in, MFA and passkeys</h2>
+      <ul>
+        <li><strong>Passwords</strong> hashed with Argon2id, known-breached passwords rejected, login throttling and per-IP rate limits.</li>
+        <li><strong>Sessions</strong> with short-lived access tokens and rotating refresh tokens with reuse detection; sign out everywhere; deactivation revokes sessions at once.</li>
+        <li><strong>Two-step verification</strong> with authenticator apps (TOTP) and recovery codes, required by role if you choose.</li>
+        <li><strong>Passkeys and security keys</strong> (WebAuthn) as a second factor and for step-up, with phishing-origin and replay protection.</li>
+        <li><strong>Step-up</strong> confirmation before sensitive actions such as approvals, exports and key rotation.</li>
+      </ul>
+      <p>BPMS-021 and BPMS-022, done. Single sign-on (OIDC, SAML broker) and SCIM provisioning are planned for R4.</p>
+    </div>
+    <div class="prose">
+      <h2>Files and malware scanning</h2>
+      <ul>
+        <li>Types are detected from content; executables, scripts, HTML and SVG are refused.</li>
+        <li>Uploads are scanned by <strong>ClamAV</strong> (clamd, as a separate process) and quarantined on detection. Without clamd, a built-in check catches only the EICAR test file and the server warns.</li>
+        <li>Download and preview links are signed, short-lived (5 and 2 minutes), bound to the person and workspace, and re-authorised on every request.</li>
+        <li>Previews are limited to clean images and PDFs, served with a sandboxing content security policy.</li>
+      </ul>
+      <p>BPMS-060 to 062, in progress.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section band" id="self-hosting" aria-labelledby="host-h">
+  <div class="wrap side-grid">
+    <div class="prose">
+      <h2 id="host-h">What you need to self-host</h2>
+      <p>Procera is standalone: the first releases need no identity provider, chat platform or HR system. Integrations arrive later, behind optional ports.</p>
+      <dl class="kv">
+        <div><dt>PostgreSQL 16+</dt><dd>The only system of record. Row-level security does the isolation work, so other databases aren't supported.</dd></div>
+        <div><dt>SMTP server</dt><dd>For invitations, acknowledgements, reminders and digests. Bounces are handled; the in-app inbox is always there too.</dd></div>
+        <div><dt>Object storage</dt><dd>Any S3-compatible store is the design target (SeaweedFS or RustFS as defaults). Today files are stored on local disk; the S3 backend is the next step in BPMS-060.</dd></div>
+        <div><dt>Valkey or Redis (optional)</dt><dd>A cache only, never authoritative: rate limits, session and settings caches. Without it, Procera falls back to in-process caches.</dd></div>
+        <div><dt>ClamAV (recommended)</dt><dd>clamd over TCP for malware scanning of uploads.</dd></div>
+      </dl>
+    </div>
+    <div class="prose">
+      <h2>How to run it today</h2>
+      <p>There is no packaged release yet. You can build and run Procera from source (a Rust server and a React web app) using the repository's Dockerfile and the E2E compose file as a reference stack. Helm charts, an air-gapped bundle and in-place upgrade tests are planned for 1.0 (BPMS-184).</p>
+      <p class="callout"><strong>Pre-release software.</strong> Don't put production data in it before R1. Report vulnerabilities privately as described in <a href="{{ gh }}/blob/main/SECURITY.md">SECURITY.md</a>.</p>
+      <h3>Read the design</h3>
+      <ul>
+        <li><a href="{{ docs }}/06-SECURITY-AND-OPERATIONS.md">Security and operations (docs/06)</a></li>
+        <li><a href="{{ docs }}/12-AUTHORIZATION-MODEL.md">Authorization model (docs/12)</a></li>
+        <li><a href="{{ docs }}/14-DATA-GOVERNANCE-AND-COMPLIANCE.md">Data governance (docs/14)</a></li>
+      </ul>
+    </div>
+  </div>
+</section>

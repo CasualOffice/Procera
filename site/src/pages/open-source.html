@@ -1,0 +1,51 @@
+<!--
+title: Open source: Procera
+description: Procera is Apache-2.0 open source. How the project is governed, how to contribute, and where the design documents, tracker and tests live.
+nav: open-source
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Open source</span>
+    <h1>Built in the open, under Apache-2.0</h1>
+    <p class="lede">The code, the design documents, the tracker and the end-to-end tests are all public. You can read why a decision was made before you read the code that implements it.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="{{ gh }}">{{ icon github }}CasualOffice/Procera on GitHub</a>
+      <a class="btn btn-secondary" href="{{ docs }}/00-INDEX.md">{{ icon book }}Start with the docs index</a>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap side-grid">
+    <div class="prose">
+      <h2>Licence</h2>
+      <p>Procera's source code is licensed under the <a href="{{ gh }}/blob/main/LICENSE">Apache License 2.0</a>, with a <a href="{{ gh }}/blob/main/NOTICE">NOTICE</a> file. You can use, modify and run it, including commercially. Dependencies are limited to permissive licences, checked in CI by a licence gate.</p>
+      <p>The Procera name, logo and brand assets are trademarks of CasualOffice and are not covered by the Apache licence. <a href="{{ gh }}/blob/main/GOVERNANCE.md#7-trademark">Governance §7</a> explains what you can do with them.</p>
+
+      <h2 style="margin-top:3rem">Contributing</h2>
+      <p>Contributions are welcome, from people and from AI-assisted workflows, under the same rules:</p>
+      <ul>
+        <li><strong>Design first.</strong> Behaviour, data, API, security and UX changes update the design documents before or with the code.</li>
+        <li><strong>Tests with every feature:</strong> unit, integration against real PostgreSQL, and an end-to-end scenario.</li>
+        <li><strong>Small commits</strong> in Conventional Commits style with a DCO sign-off (<code>git commit -s</code>).</li>
+        <li><strong>Honest claims:</strong> "supports" or "-ready", never "compliant" or "certified".</li>
+      </ul>
+      <p>Read <a href="{{ gh }}/blob/main/CONTRIBUTING.md">CONTRIBUTING.md</a>, the binding <a href="{{ docs }}/24-ENGINEERING-RULES.md">engineering rules</a> and the <a href="{{ gh }}/blob/main/CODE_OF_CONDUCT.md">Code of Conduct</a>.</p>
+    </div>
+    <div class="prose">
+      <h2>Governance</h2>
+      <dl class="kv">
+        <div><dt><a href="{{ gh }}/blob/main/GOVERNANCE.md">GOVERNANCE.md</a></dt><dd>How decisions are made and who maintains what.</dd></div>
+        <div><dt><a href="{{ gh }}/blob/main/MAINTAINERS.md">MAINTAINERS.md</a></dt><dd>Current maintainers.</dd></div>
+        <div><dt><a href="{{ gh }}/blob/main/SECURITY.md">SECURITY.md</a></dt><dd>Private vulnerability reporting.</dd></div>
+        <div><dt><a href="{{ docs }}/adr">Architecture decisions</a></dt><dd>ADRs for every architectural choice, with status.</dd></div>
+        <div><dt><a href="{{ gh }}/blob/main/trackers/README.md">Tracker dashboard</a></dt><dd>What's active and what's next; this site's roadmap is generated from it.</dd></div>
+      </dl>
+      <h3>Stack</h3>
+      <p>Rust (Axum, sqlx, Cedar) on PostgreSQL 16+, a React and TypeScript web app (React Aria, TanStack), Playwright for end-to-end tests. Self-hosted Geist fonts, no CDNs.</p>
+      <pre class="cmd"><code>git clone {{ gh }}.git
+cd Procera
+less docs/00-INDEX.md</code></pre>
+    </div>
+  </div>
+</section>
