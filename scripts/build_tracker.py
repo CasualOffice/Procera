@@ -367,14 +367,6 @@ def rust_test_count():
         n += len(re.findall(r"#\[(?:tokio::)?test\]", f.read_text()))
     return n
 
-def recent_commits(n):
-    import subprocess
-    try:
-        out = subprocess.run(["git", "log", f"-{n}", "--format=%h\t%s"], capture_output=True, text=True, check=True).stdout
-    except Exception:
-        return []
-    return [tuple(l.split("\t", 1)) for l in out.splitlines() if "\t" in l]
-
 def write_dashboard():
     from collections import Counter, defaultdict
     by_rel = defaultdict(list)
@@ -404,9 +396,8 @@ def write_dashboard():
         o += [f"| {r[0]} | {r[2]} | **{status_of(r[0])[0]}** | {status_of(r[0])[1]} |" for r in active]
     else:
         o.append("_Nothing in progress._")
-    shipped = recent_commits(12)
-    if shipped:
-        o += ["", "## Recently shipped (last 12 commits on main)", ""] + [f"- `{h}` {t}" for h, t in shipped]
+    # No git-derived section: a generated file must be reproducible from the sources alone (CI checks
+    # it is not stale, and a commit can never list itself). Recent work: `git log --oneline main`.
     recent = [r for r in CORE if status_of(r[0])[0] == "Done"]
     o += ["", "## Done", ""]
     o += [f"- [x] **{r[0]}** {r[2]} — {status_of(r[0])[1]}" for r in recent] or ["_Nothing done yet._"]

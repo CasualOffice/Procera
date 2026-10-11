@@ -67,7 +67,7 @@ jobs:
           path: "**/*.cdx.json"
 
   e2e-smoke:
-    name: E2E API packs (P0 smoke + R1 auth) + release has no test controls
+    name: E2E (API packs + browser journeys with axe) + release has no test controls
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -86,7 +86,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: e2e/package-lock.json
+          cache-dependency-path: |
+            e2e/package-lock.json
+            web/package-lock.json
       - name: Validate E2E compose stack
         run: docker compose -f deploy/compose.e2e.yml config -q
       - name: Build e2e and release binaries
@@ -119,6 +121,23 @@ jobs:
           npm ci --no-audit --no-fund
           npm run lint:no-sleeps
           npx playwright test --project api
+      # Browser journeys need the API: the built web app is served by vite preview, which proxies
+      # /api to the e2e server (same setup as scripts/test-all.sh).
+      - name: Build and serve the web app against the e2e server
+        working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          PROCERA_API_URL=http://127.0.0.1:18080 ./node_modules/.bin/vite preview --port 14173 --strictPort --host 127.0.0.1 > /tmp/preview.log 2>&1 &
+          for i in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:14173/ && break; sleep 0.5; done
+      - name: Run browser journeys and axe / keyboard / reflow / target-size checks
+        working-directory: e2e
+        env:
+          PROCERA_BASE_URL: http://127.0.0.1:18080
+          WEB_BASE_URL: http://127.0.0.1:14173
+        run: |
+          npx playwright install --with-deps chromium
+          npx playwright test --project chromium-desktop
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -127,6 +146,7 @@ jobs:
             e2e/playwright-report
             e2e/test-results
             /tmp/procera-e2e.log
+            /tmp/preview.log
 
   web:
     name: web · tokens · contrast · types · build · JS licence gate
@@ -149,40 +169,3 @@ jobs:
         with:
           name: web-dist
           path: web/dist
-
-  e2e-a11y:
-    name: E2E accessibility (design system, chromium)
-    runs-on: ubuntu-latest
-    needs: web
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: |
-            web/package-lock.json
-            e2e/package-lock.json
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: web/dist
-      - name: Serve built web app
-        working-directory: web
-        run: |
-          npm ci --no-audit --no-fund
-          npm run preview > /tmp/preview.log 2>&1 &
-          for i in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:14173/ && break; sleep 0.5; done
-      - name: Run axe / keyboard / reflow / target-size checks
-        working-directory: e2e
-        run: |
-          npm ci --no-audit --no-fund
-          npx playwright install --with-deps chromium
-          npx playwright test --project chromium-desktop
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: e2e-a11y-report
-          path: |
-            e2e/playwright-report
-            e2e/test-results

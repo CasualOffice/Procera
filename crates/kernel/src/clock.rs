@@ -4,9 +4,18 @@
 use std::fmt::Debug;
 use time::OffsetDateTime;
 
-/// A source of the current instant, always in UTC.
+/// A source of the current instant, always in UTC, at **microsecond** precision.
+///
+/// PostgreSQL stores microseconds; a nanosecond instant (Linux) would not round-trip, so a value
+/// written and read back would compare unequal to the one returned to the caller.
 pub trait Clock: Send + Sync + Debug {
     fn now(&self) -> OffsetDateTime;
+}
+
+/// Truncates an instant to whole microseconds (PostgreSQL `timestamptz` precision).
+pub fn to_micros(t: OffsetDateTime) -> OffsetDateTime {
+    let micros = t.nanosecond() / 1_000 * 1_000;
+    t.replace_nanosecond(micros).unwrap_or(t)
 }
 
 /// Production clock backed by the system time.
@@ -15,7 +24,7 @@ pub struct SystemClock;
 
 impl Clock for SystemClock {
     fn now(&self) -> OffsetDateTime {
-        OffsetDateTime::now_utc()
+        to_micros(OffsetDateTime::now_utc())
     }
 }
 
@@ -24,7 +33,7 @@ pub use manual::ManualClock;
 
 #[cfg(feature = "test-clock")]
 mod manual {
-    use super::Clock;
+    use super::{Clock, to_micros};
     use std::sync::Mutex;
     use time::{Duration, OffsetDateTime};
 
@@ -36,14 +45,14 @@ mod manual {
 
     impl ManualClock {
         pub fn new(start: OffsetDateTime) -> Self {
-            Self { now: Mutex::new(start) }
+            Self { now: Mutex::new(to_micros(start)) }
         }
 
         /// Moves time forward. Time never moves backwards.
         pub fn advance(&self, by: Duration) -> OffsetDateTime {
             let mut guard = self.now.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if by.is_positive() {
-                *guard += by;
+                *guard = to_micros(*guard + by);
             }
             *guard
         }
@@ -61,8 +70,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn system_clock_is_utc() {
-        assert!(SystemClock.now().offset().is_utc());
+    fn system_clock_is_utc_with_microsecond_precision() {
+        let now = SystemClock.now();
+        assert!(now.offset().is_utc());
+        assert_eq!(now.nanosecond() % 1_000, 0);
     }
 
     #[cfg(feature = "test-clock")]

@@ -156,10 +156,17 @@ test.describe('campaigns @r1 @campaigns', () => {
     // moved into the past instead of moving the shared clock, which would expire the step-up window of
     // every test running in parallel. A missed ladder sends a single reminder.
     expect((await request.post('/__test/campaigns/backdate', { data: { workspace: ws.id, campaign: c.id, seconds: 15 * 86400 } })).status()).toBe(204);
-    await request.post('/__test/drain');
-    expect((await notificationKinds(ben)).filter((k) => k === 'campaign_reminder').length).toBeGreaterThanOrEqual(2);
+    // Drain is global: a drain started by a parallel test may pick up these reminders and still be
+    // delivering them when ours returns, so drain until delivery is visible.
+    await expect.poll(async () => {
+      await request.post('/__test/drain');
+      return (await notificationKinds(ben)).filter((k) => k === 'campaign_reminder').length;
+    }).toBeGreaterThanOrEqual(2);
+    await expect.poll(async () => {
+      await request.post('/__test/drain');
+      return notificationKinds(boss);
+    }).toContain('campaign_escalated');
     expect((await mailKinds(request, ws.id, ben.email)).filter((m) => m.kind === 'campaign_reminder').length).toBeGreaterThanOrEqual(2);
-    expect(await notificationKinds(boss)).toContain('campaign_escalated');
     expect((await mailKinds(request, ws.id, boss.email)).map((m) => m.kind)).toContain('campaign_escalated');
     const overdue = (await (await owner.c.get(`/api/v1/campaigns/${c.id}/recipients?state=overdue`, { headers: owner.headers })).json()).items;
     expect(overdue).toHaveLength(1);

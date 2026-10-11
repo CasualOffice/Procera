@@ -8,7 +8,7 @@
 ```text
 Overall   ██████░░░░░░░░░░░░░░░░░░░░░░░░  22/109 epics done  (20%)
 Partial   ███████░░░░░░░░░░░░░░░░░░░░░░░  25% counting in-progress epics as half done
-Tests     93 automated E2E scenarios · 91 Rust tests (incl. property tests)
+Tests     96 automated E2E scenarios · 91 Rust tests (incl. property tests)
 Status    done 22 · in review 0 · in progress 10 · blocked 0 · not started 77 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
@@ -40,21 +40,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-045 | Policy library + employee policy portal + applicability | **In progress** | API done (UI pending: Policies portal page, applicability control + UI E2E). Migration 0017: policy category, applicability (audience; NULL = everyone) and restricted flag; procera_audience_contains SQL twin of the audience resolver; reader visibility (A-14): view-only readers see published history only, restricted policies hidden outside their applicability in lists, reads, diff, change requests and search; PUT /artifacts/{id}/applicability (audited); GET /me/policies portal with what-changed summaries vs the previous published version, text + category filters; E2E-R1-POL-01..03. Remaining: re-acknowledgement on major publish (FR-PL03), superseded watermark in exports. |
 | BPMS-048 | In-app notification centre + SMTP email + templates + digests | **In progress** | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. Remaining: explorer UI (docs/05 §3.19), async export job, POST /audit/query |
-
-## Recently shipped (last 12 commits on main)
-
-- `e20bc5e` docs: library governance API, settings, E2E rows; tracker BPMS-043/044 done
-- `4cf56bf` fix(audit): artifact timeline includes the artifact's own events (BPMS-064)
-- `7207ba3` feat(library)!: [protected] semantic diff, review cadence, verification, change requests (BPMS-043, BPMS-044)
-- `3fe4cc8` docs(e2e): record demo and test account credentials
-- `6491775` fix(web): neutral focus and controls in dialogs, calmer inbox, mobile tables and callout, document title in breadcrumb; DEMO_OFFSET for parallel demos (BPMS-031)
-- `84bc5d8` chore(demo): password-only demo workspace via real settings; e2e-only settings control
-- `d9edb78` feat(web): guided two-step verification setup when a workspace requires it; E2E-R1-UI-11 (BPMS-031, BPMS-022)
-- `0feeb72` fix(web): centred sign-in card replaces the edge-to-edge preview panel (BPMS-031)
-- `500a892` feat(web): Notion/Attio-style redesign with Library, document view, Announcements and Members; browser journeys E2E-R1-UI-07..10 (BPMS-031)
-- `1bd40a7` Merge BPMS-049 search and BPMS-064 audit explorer; tracker and E2E plan for BPMS-046/047/049/064
-- `3e3a8a9` Merge branch 'worktree-agent-a23072a4b06eb13fc'
-- `f9d916e` Merge branch 'worktree-agent-a3504768e11e15817'
 
 ## Done
 
