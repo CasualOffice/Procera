@@ -137,6 +137,11 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             }
             _ => Err(invalid(d, "expected a colour like #EE4136")),
         },
+        Kind::Image => match v.as_str() {
+            Some("") => Ok(json!("")),
+            Some(s) if uuid::Uuid::parse_str(s).is_ok() => Ok(json!(s.to_lowercase())),
+            _ => Err(invalid(d, "expected the id of an uploaded image, or empty for none")),
+        },
         Kind::DurationList { min, max, max_items } => {
             let items = v.as_array().ok_or_else(|| invalid(d, "expected a list of seconds"))?;
             if items.len() > max_items {

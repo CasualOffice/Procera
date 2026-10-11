@@ -1,7 +1,7 @@
 import { Check, ChevronsUpDown, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
-import { ApiError, api } from '../lib/api';
+import { ApiError, api, blobUrl } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from './Avatar';
@@ -32,6 +32,7 @@ function applyTheme(t: Theme) {
 export function AppShell({ children, current = 'home', crumbs = [], actions }: { children: React.ReactNode; current?: NavKey; crumbs?: Crumb[]; actions?: React.ReactNode }) {
   const { user, workspace, workspaces, can, selectWorkspace, signOut, reload } = useSession();
   const [unread, setUnread] = useState(0);
+  const [logo, setLogo] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [palette, setPalette] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
@@ -73,8 +74,10 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   useEffect(() => {
     if (!workspace) return;
     let live = true;
-    api<{ light: Record<string, string>; dark: Record<string, string> }>('/api/v1/branding').then((b) => {
+    api<{ light: Record<string, string>; dark: Record<string, string>; logo: string | null }>('/api/v1/branding').then((b) => {
       if (!live) return;
+      if (b.logo) void blobUrl(b.logo).then((u) => { if (live) setLogo(u); else URL.revokeObjectURL(u); }).catch(() => undefined);
+      else setLogo(null);
       const vars = (x: Record<string, string>) => `--color-accent-text:${x.text};--color-accent-strong:${x.strong};--color-accent-strong-hover:${x.strong_hover};--color-focus:${x.focus};`;
       let el = document.getElementById('ws-brand') as HTMLStyleElement | null;
       if (!el) { el = document.createElement('style'); el.id = 'ws-brand'; document.head.appendChild(el); }
@@ -82,6 +85,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
     }).catch(() => undefined);
     return () => { live = false; document.getElementById('ws-brand')?.remove(); };
   }, [workspace]);
+  useEffect(() => () => { if (logo) URL.revokeObjectURL(logo); }, [logo]);
   useEffect(() => {
     if (!workspace || !can('member:view')) return;
     api<{ items: { status: string }[] }>('/api/v1/members').then((r) => setMemberCount(r.items.filter((m) => m.status === 'active').length)).catch(() => undefined);
@@ -96,7 +100,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
       <aside className="sidebar">
         <MenuTrigger>
           <AriaButton className="ws-switcher" aria-label={`Workspace: ${workspace.name}. Switch workspace`}>
-            <Avatar name={workspace.name} tone="brand" square size="1.875rem" />
+            {logo ? <img className="ws-logo" src={logo} alt="" /> : <Avatar name={workspace.name} tone="brand" square size="1.875rem" />}
             <span className="ws-switcher-text">
               <span className="ws-switcher-name">{workspace.name}</span>
               <span className="ws-switcher-meta">{memberCount === null ? 'Workspace' : `${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}</span>

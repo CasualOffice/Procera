@@ -23,6 +23,7 @@ use super::workspace::{WsMember, members};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/branding", get(branding))
+        .route("/branding/logo", get(branding_logo))
         .route("/settings", get(list))
         .route("/settings/effective", get(effective))
         .route("/settings/{key}", get(effective_by_path).put(update))
@@ -76,9 +77,32 @@ async fn branding(State(s): State<AppState>, me: WsMember) -> Result<Response, A
     let st = settings(&s)?;
     let accent = st.effective(&mut tx, "branding.accent").await?.value;
     let theme = st.effective(&mut tx, "branding.theme_default").await?.value;
+    let logo = st.effective(&mut tx, "branding.logo").await?.value;
     tx.rollback().await.map_err(internal)?;
     let derived = procera_settings::branding::derive(accent.as_str().unwrap_or("#EE4136"));
-    Ok(Json(json!({ "accent": derived.accent, "light": derived.light, "dark": derived.dark, "adjusted": derived.adjusted, "theme_default": theme })).into_response())
+    let has_logo = logo.as_str().is_some_and(|v| !v.is_empty());
+    Ok(Json(json!({ "accent": derived.accent, "light": derived.light, "dark": derived.dark, "adjusted": derived.adjusted, "theme_default": theme, "logo": has_logo.then(|| format!("/api/v1/branding/logo?v={}", logo.as_str().unwrap_or(""))) })).into_response())
+}
+
+/// The workspace logo for every member: the image bytes (metadata stripped, as previews), served
+/// inline only as an image, never sniffed, never cached across workspaces.
+async fn branding_logo(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let logo = settings(&s)?.effective(&mut tx, "branding.logo").await?.value;
+    let Some(id) = logo.as_str().and_then(|v| v.parse::<Uuid>().ok()) else {
+        return Err(ApiError::not_found());
+    };
+    let (_, ct, data) =
+        super::files::files(&s)?.preview(&mut tx, id).await.map_err(|_| ApiError::not_found())?;
+    tx.rollback().await.map_err(internal)?;
+    let mut res = data.into_response();
+    let h = res.headers_mut();
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static(ct));
+    h.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=300"));
+    h.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("default-src 'none'; sandbox"));
+    Ok(res)
 }
 
 pub fn settings(s: &AppState) -> Result<&Settings, ApiError> {
@@ -257,6 +281,14 @@ async fn update(
     me.require(m, &mut tx, perm, Resource::Workspace).await?;
     if d.step_up {
         me.require_step_up(&s, &mut tx).await?;
+    }
+    // An image setting (the logo) must name a clean image this workspace holds.
+    if d.kind == procera_settings::catalogue::Kind::Image
+        && let Some(id) = r.value.as_str().filter(|v| !v.is_empty()).and_then(|v| v.parse::<Uuid>().ok())
+        && super::files::files(&s)?.preview(&mut tx, id).await.is_err()
+    {
+        return Err(ApiError::new(422, "validation_failed", "Validation failed")
+            .detail("the logo must be a clean PNG, JPEG, GIF or WebP image uploaded to this workspace"));
     }
     let expected = headers
         .get(header::IF_MATCH)

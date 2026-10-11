@@ -705,6 +705,7 @@ impl Files {
         Ok(sqlx::query_as(&format!(
             "SELECT {COLS} FROM files f WHERE f.state IN ('clean', 'quarantined', 'rejected', 'scanning') AND f.completed_at < $1
                AND NOT EXISTS (SELECT 1 FROM file_links l WHERE l.workspace_id = f.workspace_id AND l.file_id = f.id)
+               AND NOT EXISTS (SELECT 1 FROM workspace_settings w WHERE w.workspace_id = f.workspace_id AND w.key LIKE 'branding.%' AND w.value = to_jsonb(f.id::text))
              ORDER BY f.completed_at"
         ))
         .bind(self.clock.now() - Duration::seconds(after))

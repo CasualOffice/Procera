@@ -3,6 +3,7 @@ import { PW, hasDatabase, passwordSession, seedUser } from '../../fixtures/accou
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
+import { PNG_1PX } from '../../fixtures/files';
 import { uniqueEmail } from '../../fixtures/accounts';
 
 // E2E-R1 release gate (docs/23 §R1, BPMS-032): the scenarios whose features have shipped, run in
@@ -353,9 +354,18 @@ test.describe('R1 gate @r1 @ui', () => {
     const b = await (await owner.c.get('/api/v1/branding', { headers: owner.headers })).json();
     expect(b).toMatchObject({ accent: '#FFE14D', adjusted: true });
     expect(b.light.text).toBe(shade);
+    // A logo: uploaded in Settings, shown in everyone's sidebar.
+    const logoRow = page.getByRole('listitem').filter({ has: page.getByText('Logo', { exact: true }) });
+    await logoRow.getByRole('button', { name: 'Change Logo' }).click();
+    await logoRow.locator('#logo-input').setInputFiles({ name: 'acme.png', mimeType: 'image/png', buffer: PNG_1PX });
+    await expect(logoRow.getByText('acme.png')).toBeVisible();
+    await logoRow.getByRole('button', { name: 'Save' }).click();
+    await expect(logoRow.getByText('Uploaded image')).toBeVisible();
     const them = await (await browser.newContext({ colorScheme: 'light' })).newPage();
     await signInPassword(them, m.email);
     await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-accent-text').trim().toUpperCase())).toBe(shade);
     await expect.poll(() => them.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-focus').trim().toUpperCase())).toBe(b.light.focus);
+    await expect(them.locator('img.ws-logo')).toBeVisible();
+    expect((await owner.c.get('/api/v1/branding/logo', { headers: owner.headers })).headers()['content-type']).toBe('image/png');
   });
 });

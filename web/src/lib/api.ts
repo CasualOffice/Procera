@@ -90,6 +90,14 @@ export async function download(path: string, filename: string, retried = false):
   URL.revokeObjectURL(url);
 }
 
+/** An authenticated binary response as an object URL (e.g. the workspace logo); the caller revokes it. */
+export async function blobUrl(path: string, retried = false): Promise<string> {
+  const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
+  if (res.status === 401 && !retried && (await refresh())) return blobUrl(path, true);
+  if (!res.ok) await parse(res);
+  return URL.createObjectURL(await res.blob());
+}
+
 /** Opens an authenticated HTML response (e.g. a print-ready export) in a new tab. */
 export async function openHtml(path: string, retried = false): Promise<void> {
   const tab = window.open('', '_blank');

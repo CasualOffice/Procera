@@ -43,6 +43,8 @@ pub enum Kind {
     },
     /// `#RRGGBB`.
     Colour,
+    /// A clean image file (its id), or empty for none (e.g. the workspace logo).
+    Image,
     /// Ascending list of distinct durations in seconds (e.g. a reminder ladder).
     DurationList {
         min: i64,
@@ -151,6 +153,7 @@ const MB: i64 = 1_048_576;
 pub const CATALOGUE: &[Def] = &[
     // 2.1 Branding
     def("branding.accent", "branding", Kind::Colour, Some(BRANDING), || json!("#EE4136")),
+    def("branding.logo", "branding", Kind::Image, Some(BRANDING), || json!("")),
     def(
         "branding.theme_default",
         "branding",

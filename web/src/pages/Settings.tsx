@@ -11,11 +11,12 @@ import { DepartmentOverrides, ProfileSwitch } from './SettingsScopes';
 import { LoadError, Skeleton } from '../ui/States';
 import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
 import { contrast, textShade } from '../lib/contrast';
+import { uploadFile } from '../lib/upload';
 
 export type Kind =
   | { type: 'bool' } | { type: 'int'; min: number; max: number } | { type: 'duration'; min: number; max: number } | { type: 'size'; min: number; max: number }
   | { type: 'enum'; values: string[] } | { type: 'set'; values: string[]; allow_all: boolean } | { type: 'list'; max_items: number; max_len: number }
-  | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'duration_list'; min: number; max: number; max_items: number };
+  | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'image' } | { type: 'duration_list'; min: number; max: number; max_items: number };
 export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number }
 
 /** A value as a short sentence fragment, for read-only display and the explainer. */
@@ -29,6 +30,7 @@ export function show(kind: Kind, v: unknown): string {
     case 'list': { const a = (v as string[]) ?? []; return a.length ? a.join(', ') : 'None'; }
     case 'duration_list': { const a = (v as number[]) ?? []; return a.length ? a.map(durationText).join(', ') : 'None'; }
     case 'text': return String(v ?? '') || 'Not set';
+    case 'image': return v ? 'Uploaded image' : 'Not set';
     default: return String(v ?? '');
   }
 }
@@ -236,6 +238,8 @@ export function Control({ kind, value, onChange, labelledBy, describedBy }: { ki
       return <textarea className="textarea textarea-xs" value={((value as string[]) ?? []).join('\n')} onChange={(e) => onChange(e.target.value.split(/[\n,]/).map((x) => x.trim()).filter(Boolean))} {...a11y} />;
     case 'duration_list':
       return <input className="field-input" value={((value as number[]) ?? []).map((x) => x / 86_400).join(', ')} onChange={(e) => onChange(e.target.value.split(',').map((x) => Math.round(Number(x.trim()) * 86_400)).filter((x) => x > 0))} {...a11y} />;
+    case 'image':
+      return <ImageControl value={String(value ?? '')} onChange={onChange} />;
     case 'colour':
       return (
         <span className="setting-inline">
@@ -259,6 +263,32 @@ function ContrastNote({ colour }: { colour: string }) {
       {t.adjusted
         ? <>Too light for text on its own ({contrast(colour, '#FFFFFF').toFixed(1)}:1). Links and labels will use <code>{t.shade}</code> ({t.ratio.toFixed(1)}:1) so they stay readable.</>
         : <>Readable as text ({t.ratio.toFixed(1)}:1 on white).</>}
+    </span>
+  );
+}
+
+/** Upload a logo (scanned like any file, then set as the value), or remove it. */
+function ImageControl({ value, onChange }: { value: string; onChange: (v: unknown) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState<string | null>(null);
+  const pick = async (f?: File) => {
+    if (!f) return;
+    setBusy(true); setError(null);
+    try {
+      if (f.size > 512 * 1024) throw new Error('The image must be 512 KB or smaller.');
+      const done = await uploadFile(f);
+      if (done.state !== 'clean' || !/^image\/(png|jpeg|gif|webp)$/.test(done.sniffed_type ?? '')) throw new Error('Use a clean PNG, JPEG, GIF or WebP image.');
+      setName(f.name); onChange(done.id);
+    } catch (e) { setError(e instanceof Error ? e.message : 'The upload failed.'); } finally { setBusy(false); }
+  };
+  return (
+    <span className="setting-inline">
+      <input id="logo-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp" className="visually-hidden" onChange={(e) => void pick(e.target.files?.[0])} />
+      <label htmlFor="logo-input" className="btn btn-secondary btn-md" role="button" tabIndex={0}>{busy ? 'Uploading…' : value ? 'Replace image' : 'Upload image'}</label>
+      {value && <Button variant="ghost" onPress={() => { setName(null); onChange(''); }}>Remove</Button>}
+      {name && <span className="muted">{name}</span>}
+      {error && <span className="field-error" role="alert">{error}</span>}
     </span>
   );
 }

@@ -55,6 +55,7 @@ export const LABELS: Record<string, [string, string?]> = {
   'directory.positions.enabled': ['Use positions in the directory'],
   'directory.deactivation.reassign_strategy': ['When someone leaves, give their work to'],
   'branding.accent': ['Accent colour'],
+  'branding.logo': ['Logo', 'Shown in the sidebar for everyone in this workspace. PNG, JPEG, GIF or WebP, up to 512 KB.'],
   'branding.theme_default': ['Default appearance'],
   'branding.email_sender_name': ['Email sender name', 'Leave empty to use the workspace name.'],
   'locale.default': ['Language', 'A language tag such as en or en-GB.'],
