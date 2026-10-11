@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  18/109 epics done  (17%)
-Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  19% counting in-progress epics as half done
-Tests     47 automated E2E scenarios · 65 Rust tests (incl. property tests)
-Status    done 18 · in review 0 · in progress 5 · blocked 0 · not started 86 · deferred 0
+Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  19/109 epics done  (17%)
+Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  20% counting in-progress epics as half done
+Tests     52 automated E2E scenarios · 66 Rust tests (incl. property tests)
+Status    done 19 · in review 0 · in progress 5 · blocked 0 · not started 85 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `███░░░░░░░░░` | 8/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `███░░░░░░░░░` | 9/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -38,6 +38,9 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 
 ## Recently shipped (last 12 commits on main)
 
+- `2d693ae` feat(api): library API with step-up for controlled approval and publication, scheduler role; E2E-R1-LIB-01..05 (BPMS-040)
+- `b9a2354` feat(library): [protected] governed artifacts, immutable versions, review rounds with SoD, scheduled publication (BPMS-040)
+- `ddeb618` docs: notifications API, LLD as-built note, E2E plan; tracker BPMS-048
 - `b86794c` feat(api): invitation emails and member-joined notifications via the outbox; inbox API; E2E-R1-NOT-01..02 (BPMS-048)
 - `ba692f7` feat(notify): in-app inbox, sealed email queue, templates and SMTP delivery (BPMS-048)
 - `1f86c00` docs: tracker marks BPMS-029 done
@@ -47,9 +50,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `9b56bf4` feat(api): [protected] step-up endpoint and enforcement, MFA required by role at workspace entry; E2E-R1-CFG-03, E2E-R1-MEM-10 (BPMS-022)
 - `771ba5f` feat(identity): [protected] step-up re-authentication with fresh auth_time (BPMS-022)
 - `6a54a7d` docs: E2E-R1-MEM-09; tracker marks BPMS-024 done
-- `3b2d1d1` feat(api): group role grants via /role-grants; E2E-R1-MEM-09 (BPMS-024)
-- `f497952` feat(access): [protected] role grants to groups, department-subtree scopes in Cedar, preview-matches-effect property test (BPMS-024)
-- `9938be3` docs: directory API, E2E plan and LLD path note; tracker marks BPMS-023 done
 
 ## Done
 
@@ -71,6 +71,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-026** Audit chain append + coverage contract test — procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)
 - [x] **BPMS-029** Outbox + dispatcher + inbox dedup + idempotency keys — Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
+- [x] **BPMS-040** Artifacts, versions, lifecycle state machine, immutability trigger, SoD — procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler
 
 ## Release checklists
 
@@ -99,7 +100,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 8/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 9/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -118,7 +119,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-032** (P0, L) E2E-R1 pack (R1-01…19 + ISO)
 - [x] **BPMS-033** (P0, M) Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback
 - [ ] **BPMS-034** (P0, S) Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search **[In progress]**
-- [ ] **BPMS-040** (P0, L) Artifacts, versions, lifecycle state machine, immutability trigger, SoD
+- [x] **BPMS-040** (P0, L) Artifacts, versions, lifecycle state machine, immutability trigger, SoD
 - [ ] **BPMS-041** (P0, M) Landscape, collections, owners, RACI, visibility
 - [ ] **BPMS-042** (P0, L) SOP/policy block editor + renderer (web/PDF)
 - [ ] **BPMS-043** (P0, M) Semantic diff across artifact kinds
@@ -258,7 +259,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 122 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 127 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 12 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

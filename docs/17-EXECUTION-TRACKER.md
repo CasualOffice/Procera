@@ -50,7 +50,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-032 | E2E | E2E-R1 pack (R1-01…19 + ISO) | P0 | R1 | SDET + feature owners | 23 §5 | Green on Chromium + mobile | L | BPMS-013 | Not started |
 | BPMS-033 | OPS | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | P0 | R1 | Platform | ADR-0019 | E2E passes with cache off | M | BPMS-020 | Done |
 | BPMS-034 | BRAND | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | P0 | R1 | Design + Product | assets/brand, OQ-01, U-16 | SVGs in assets/brand/vector; clearance memo | S |  | In progress |
-| BPMS-040 | LIB | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | P0 | R1 | Backend | FR-G04, T07 | T07 passes | L | BPMS-024,026 | Not started |
+| BPMS-040 | LIB | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | P0 | R1 | Backend | FR-G04, T07 | T07 passes | L | BPMS-024,026 | Done |
 | BPMS-041 | LIB | Landscape, collections, owners, RACI, visibility | P0 | R1 | Fullstack | FR-G01/G02 | Search authorized-only | M | BPMS-040 | Not started |
 | BPMS-042 | LIB | SOP/policy block editor + renderer (web/PDF) | P0 | R1 | FE | FR-G03, ADR-0013, U-10 | Tagged PDF export | L | BPMS-040 | Not started |
 | BPMS-043 | LIB | Semantic diff across artifact kinds | P0 | R1 | Fullstack | FR-G05 | Diff covers bundle artifacts | M | BPMS-040 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 18 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 86 · Deferred: 0 (of 109)
+**Progress:** Done: 19 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 85 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -159,6 +159,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | In progress | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-033 | Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback | Done | procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | In progress | Raster assets + brand guide merged; SVG masters and trademark search pending |
+| BPMS-040 | Artifacts, versions, lifecycle state machine, immutability trigger, SoD | Done | procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler |
 | BPMS-048 | In-app notification centre + SMTP email + templates + digests | In progress | procera-notify (migration 0011): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox (list/unread/read/read-all), email queue with sealed bodies and dedupe, SMTP delivery via lettre (STARTTLS/TLS) with backoff (max 1 h, 12 tries), workspace sender name; outbox consumers: invitation email with accept link, member-joined in-app to the inviter. Flags --public-url, --smtp-url, --mail-from. E2E-R1-NOT-01..02. Remaining: digests + quiet hours (FR-N04), localisation + terminology (CFG-008), more event kinds as features land |
 
 ## Domain backlogs (detail, owned by their docs)
@@ -168,7 +169,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 122 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 127 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

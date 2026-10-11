@@ -158,6 +158,16 @@ Implemented in `e2e/packs/r1/directory.api.spec.ts`.
 
 Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/__test/mail`, the local stand-in for Mailpit).
 
+| ID | Scenario | Covers |
+|---|---|---|
+| E2E-R1-LIB-01 | SOP draft → edit with `If-Match` (stale → 412) → submit (no review needed: approved, content hash frozen) → published; editing an approved version 409; content and hash identical on retrieval; one open draft per artifact | FR-G04, FR-G05, T07 |
+| E2E-R1-LIB-02 | Controlled policy needs a review: the author's own approval is refused (403 `sod_violation`); a reviewer cannot publish; a reviewer approves; the owner publishes | FR-G04 SoD, docs/12 §6 |
+| E2E-R1-LIB-03 | Changes requested needs a comment and returns the draft; withdraw; later versions need a reason for change; publishing supersedes (previous → deprecated) | FR-G04, docs/20 §2.6 |
+| E2E-R1-LIB-04 | A scheduled version goes live when its effective time passes (test clock + drain) and supersedes the live one; retire | FR-G05, FR-PL01 |
+| E2E-R1-LIB-05 | Members read published policies but cannot author; lists contain only kinds the member may view | docs/12 §5 |
+
+Implemented in `e2e/packs/r1/library.api.spec.ts`.
+
 ### E2E-R1: Workspace & Policies
 
 | ID | Scenario | Proves |
