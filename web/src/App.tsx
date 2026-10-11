@@ -27,6 +27,7 @@ import { SystemHealth } from './pages/system/SystemHealth';
 import { SystemQuotas } from './pages/system/SystemQuotas';
 import { SystemWorkspaces } from './pages/system/SystemWorkspaces';
 import { SystemShell } from './ui/SystemShell';
+import { Security } from './pages/Security';
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
@@ -74,6 +75,7 @@ export function App() {
   const doc = match('/library/:id', path);
   if (doc) return <AppShell current="library" crumbs={[['Library', '/library'], 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
+  if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;

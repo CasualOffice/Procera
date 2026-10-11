@@ -3,14 +3,16 @@
 
 use std::time::Duration;
 
+use axum::extract::Path;
 use axum::extract::{FromRequestParts, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header, request::Parts};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{delete, get, post};
 use axum::{Json, Router};
 use procera_cache::CacheKey;
 use procera_identity::jwt::Claims;
-use procera_identity::{ClientInfo, Identity, LoginOutcome, Tokens};
+use procera_identity::webauthn::CredentialJson;
+use procera_identity::{ClientInfo, Factor, Identity, LoginOutcome, Tokens};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -26,12 +28,16 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/auth/login", post(login))
         .route("/auth/mfa", post(mfa))
+        .route("/auth/mfa/webauthn/options", post(mfa_passkey_options))
         .route("/auth/refresh", post(refresh))
         .route("/auth/logout", post(logout))
         .route("/me", get(me))
         .route("/me/sign-out-everywhere", post(sign_out_everywhere))
         .route("/me/mfa/totp", post(totp_begin))
         .route("/me/mfa/totp/confirm", post(totp_confirm))
+        .route("/me/mfa/webauthn", get(list_passkeys).post(register_passkey))
+        .route("/me/mfa/webauthn/options", post(passkey_registration_options))
+        .route("/me/mfa/webauthn/{id}", delete(remove_passkey))
 }
 
 fn identity(s: &AppState) -> Result<&Identity, ApiError> {
@@ -117,10 +123,10 @@ async fn login(
     }
     match identity(&s)?.login(&req.email, &req.password, &client).await? {
         LoginOutcome::Authenticated(t) => Ok(token_response(&s, *t)),
-        LoginOutcome::MfaRequired { mfa_token } => Ok(Json(
-            json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": ["totp", "recovery_code"]}),
-        )
-        .into_response()),
+        LoginOutcome::MfaRequired { mfa_token, methods } => {
+            Ok(Json(json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": methods}))
+                .into_response())
+        }
     }
 }
 
@@ -128,7 +134,12 @@ async fn login(
 #[serde(deny_unknown_fields)]
 struct MfaReq {
     mfa_token: String,
-    code: String,
+    /// A TOTP or recovery code, or…
+    #[serde(default)]
+    code: Option<String>,
+    /// …a passkey assertion for a challenge from `/auth/mfa/webauthn/options`.
+    #[serde(default)]
+    credential: Option<CredentialJson>,
 }
 
 async fn mfa(
@@ -136,8 +147,35 @@ async fn mfa(
     headers: HeaderMap,
     Json(req): Json<MfaReq>,
 ) -> Result<Response, ApiError> {
-    let tokens = identity(&s)?.complete_mfa(&req.mfa_token, &req.code, &client_info(&headers)).await?;
+    let factor = match (&req.code, &req.credential) {
+        (Some(code), None) => Factor::Code(code),
+        (None, Some(cred)) => Factor::Passkey(cred),
+        _ => {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("Send exactly one of `code` or `credential`"));
+        }
+    };
+    let tokens = identity(&s)?.complete_mfa_with(&req.mfa_token, factor, &client_info(&headers)).await?;
     Ok(token_response(&s, tokens))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MfaTokenReq {
+    mfa_token: String,
+}
+
+/// Passkey challenge for the second sign-in step (after the password).
+async fn mfa_passkey_options(
+    State(s): State<AppState>,
+    Json(req): Json<MfaTokenReq>,
+) -> Result<Response, ApiError> {
+    Ok(no_store(Json(identity(&s)?.mfa_passkey_options(&req.mfa_token).await?).into_response()))
+}
+
+fn no_store(mut res: Response) -> Response {
+    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    res
 }
 
 async fn refresh(State(s): State<AppState>, headers: HeaderMap) -> Result<Response, ApiError> {
@@ -239,4 +277,62 @@ async fn totp_confirm(
     let mut res = Json(json!({"recovery_codes": codes})).into_response();
     res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     Ok(res)
+}
+
+/// Account-level actions (not tied to a workspace) need an authentication within this window,
+/// the platform default of `auth.stepup.window` (docs/12 §11, docs/22 A-16).
+pub const ACCOUNT_STEP_UP_WINDOW_SECS: i64 = 300;
+
+pub fn require_recent_auth(s: &AppState, c: &Claims) -> Result<(), ApiError> {
+    let age = s.clock.now().unix_timestamp() - c.auth_time;
+    if (0..=ACCOUNT_STEP_UP_WINDOW_SECS).contains(&age) {
+        Ok(())
+    } else {
+        Err(ApiError::new(401, "step_up_required", "Confirm it's you to continue").detail(format!(
+            "POST /api/v1/session/step-up; this action needs authentication within the last {ACCOUNT_STEP_UP_WINDOW_SECS} seconds"
+        )))
+    }
+}
+
+async fn list_passkeys(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Response, ApiError> {
+    Ok(Json(json!({"items": identity(&s)?.passkeys(c.sub).await?})).into_response())
+}
+
+async fn passkey_registration_options(
+    State(s): State<AppState>,
+    AuthUser(c): AuthUser,
+) -> Result<Response, ApiError> {
+    Ok(no_store(Json(identity(&s)?.passkey_registration_options(c.sub).await?).into_response()))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RegisterPasskeyReq {
+    name: String,
+    credential: CredentialJson,
+}
+
+async fn register_passkey(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    AuthUser(c): AuthUser,
+    Json(req): Json<RegisterPasskeyReq>,
+) -> Result<Response, ApiError> {
+    let (passkey, codes) =
+        identity(&s)?.passkey_register(c.sub, &req.name, &req.credential, &client_info(&headers)).await?;
+    let mut res =
+        (StatusCode::CREATED, Json(json!({"passkey": passkey, "recovery_codes": codes}))).into_response();
+    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(res)
+}
+
+async fn remove_passkey(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    AuthUser(c): AuthUser,
+    Path(id): Path<uuid::Uuid>,
+) -> Result<Response, ApiError> {
+    require_recent_auth(&s, &c)?;
+    identity(&s)?.passkey_remove(c.sub, id, &client_info(&headers)).await?;
+    Ok(StatusCode::NO_CONTENT.into_response())
 }

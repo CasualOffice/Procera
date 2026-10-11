@@ -1,11 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api, authPost, refresh, setAccessToken } from './api';
+import { getPasskey } from './passkey';
 
 export interface User {
   id: string;
   email: string;
   display_name: string;
   mfa_enabled: boolean;
+  /** Enrolled second factors: `totp`, `webauthn`. */
+  mfa_methods: string[];
 }
 export interface Workspace {
   workspace_id: string;
@@ -25,9 +28,11 @@ interface Session {
   /** Why entering the workspace failed (e.g. `mfa_required`), shown on the chooser. */
   entryError: string | null;
   can: (permission: string) => boolean;
-  /** Returns the MFA token when a second factor is needed. */
-  signIn: (email: string, password: string) => Promise<{ mfaToken?: string }>;
+  /** Returns the MFA token and the accepted factors when a second factor is needed. */
+  signIn: (email: string, password: string) => Promise<{ mfaToken?: string; methods?: string[] }>;
   completeMfa: (mfaToken: string, code: string) => Promise<void>;
+  /** Second step with a passkey (throws `PasskeyCancelled` if the prompt is dismissed). */
+  completeMfaWithPasskey: (mfaToken: string) => Promise<void>;
   selectWorkspace: (id: string) => Promise<void>;
   signOut: () => Promise<void>;
   reload: () => Promise<void>;
@@ -113,8 +118,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       entryError,
       can: (p) => permissions.has(p),
       async signIn(email, password) {
-        const r = await authPost<{ status: string; access_token?: string; mfa_token?: string }>('/api/v1/auth/login', { email, password });
-        if (r.status === 'mfa_required') return { mfaToken: r.mfa_token };
+        const r = await authPost<{ status: string; access_token?: string; mfa_token?: string; methods?: string[] }>('/api/v1/auth/login', { email, password });
+        if (r.status === 'mfa_required') return { mfaToken: r.mfa_token, methods: r.methods ?? [] };
         autoSelected.current = false;
         setAccessToken(r.access_token ?? null);
         await load();
@@ -122,6 +127,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       async completeMfa(mfaToken, code) {
         const r = await authPost<{ access_token: string }>('/api/v1/auth/mfa', { mfa_token: mfaToken, code: code.trim() });
+        autoSelected.current = false;
+        setAccessToken(r.access_token);
+        await load();
+      },
+      async completeMfaWithPasskey(mfaToken) {
+        const options = await authPost<{ public_key: Record<string, unknown> }>('/api/v1/auth/mfa/webauthn/options', { mfa_token: mfaToken });
+        const credential = await getPasskey(options);
+        const r = await authPost<{ access_token: string }>('/api/v1/auth/mfa', { mfa_token: mfaToken, credential });
         autoSelected.current = false;
         setAccessToken(r.access_token);
         await load();

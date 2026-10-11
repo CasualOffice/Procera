@@ -124,7 +124,7 @@ async fn totp_enrolment_mfa_login_recovery_codes_and_replay() -> anyhow::Result<
     assert_eq!(codes.len(), 10);
 
     let mfa_token = match id.login("dana@acme.test", PW, &client("10.0.0.1")).await? {
-        LoginOutcome::MfaRequired { mfa_token } => mfa_token,
+        LoginOutcome::MfaRequired { mfa_token, .. } => mfa_token,
         LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
     };
     assert!(id.verify_access(&mfa_token).is_none(), "an MFA token is not an access token");
@@ -201,7 +201,7 @@ async fn step_up_uses_totp_when_enrolled_and_password_otherwise() -> anyhow::Res
     let now = time::OffsetDateTime::now_utc().unix_timestamp();
     id.totp_confirm(u.id, &totp::code_at(&secret, now / 30 - 1), &c).await?;
     let mfa_token = match id.login("finn@acme.test", PW, &c).await? {
-        LoginOutcome::MfaRequired { mfa_token } => mfa_token,
+        LoginOutcome::MfaRequired { mfa_token, .. } => mfa_token,
         LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
     };
     let t = id.complete_mfa(&mfa_token, &totp::code_at(&secret, now / 30), &c).await?;
@@ -209,5 +209,104 @@ async fn step_up_uses_totp_when_enrolled_and_password_otherwise() -> anyhow::Res
     assert!(matches!(id.step_up(&claims, None, Some(PW), &c).await, Err(IdentityError::InvalidCode)));
     let (up, _) = id.step_up(&claims, Some(&totp::code_at(&secret, now / 30 + 1)), None, &c).await?;
     assert_eq!(id.verify_access(&up).map(|c| c.amr), Some(vec!["pwd".to_owned(), "otp".to_owned()]));
+    Ok(())
+}
+
+mod support {
+    pub mod passkey;
+}
+
+#[allow(clippy::expect_used)]
+fn cred(v: serde_json::Value) -> procera_identity::webauthn::CredentialJson {
+    serde_json::from_value(v).expect("credential json")
+}
+
+#[tokio::test]
+async fn passkey_registration_mfa_step_up_and_removal() -> anyhow::Result<()> {
+    use procera_identity::Factor;
+    use support::passkey::{SoftKey, challenge_of};
+    let (t, id) = setup_or_skip!();
+    let c = client("10.0.0.7");
+    let u = id.create_user("gwen@acme.test", "Gwen", PW, &c).await?;
+    let mut key = SoftKey::new("localhost", "http://localhost:8080");
+
+    // Register: the options carry the RP, the user handle and a fresh challenge.
+    let opts = id.passkey_registration_options(u.id).await?;
+    assert_eq!(opts["public_key"]["rp"]["id"], "localhost");
+    assert_eq!(opts["public_key"]["attestation"], "none");
+    let ch = challenge_of(&opts);
+    let (pk, codes) = id.passkey_register(u.id, "  Laptop  ", &cred(key.register(&ch)), &c).await?;
+    assert_eq!(pk.name, "Laptop");
+    assert_eq!(codes.map(|c| c.len()), Some(10), "the first second factor issues recovery codes");
+    // The challenge is single use, and the same authenticator cannot be registered twice.
+    assert!(matches!(
+        id.passkey_register(u.id, "Again", &cred(key.register(&ch)), &c).await,
+        Err(IdentityError::PasskeyInvalid(_))
+    ));
+    let opts = id.passkey_registration_options(u.id).await?;
+    assert_eq!(opts["public_key"]["excludeCredentials"].as_array().map(Vec::len), Some(1));
+    assert!(matches!(
+        id.passkey_register(u.id, "Again", &cred(key.register(&challenge_of(&opts))), &c).await,
+        Err(IdentityError::PasskeyExists)
+    ));
+    assert!(matches!(
+        id.passkey_register(u.id, "", &cred(key.register(&challenge_of(&opts))), &c).await,
+        Err(IdentityError::Invalid(_))
+    ));
+    assert_eq!(id.me(u.id).await?.map(|u| u.mfa_methods), Some(vec!["webauthn".to_owned()]));
+
+    // Sign-in now needs the passkey; the methods say so.
+    let (mfa_token, methods) = match id.login("gwen@acme.test", PW, &c).await? {
+        LoginOutcome::MfaRequired { mfa_token, methods } => (mfa_token, methods),
+        LoginOutcome::Authenticated(_) => panic!("MFA must be required"),
+    };
+    assert_eq!(methods, ["webauthn", "recovery_code"]);
+    // A response made for another origin (phishing) is rejected, and the failure spends the challenge.
+    let ch = challenge_of(&id.mfa_passkey_options(&mfa_token).await?);
+    key.origin = "http://evil.test".into();
+    assert!(matches!(
+        id.complete_mfa_with(&mfa_token, Factor::Passkey(&cred(key.assert(&ch))), &c).await,
+        Err(IdentityError::PasskeyRejected(r)) if r.contains("origin")
+    ));
+    key.origin = "http://localhost:8080".into();
+    assert!(matches!(
+        id.complete_mfa_with(&mfa_token, Factor::Passkey(&cred(key.assert(&ch))), &c).await,
+        Err(IdentityError::PasskeyRejected(r)) if r.contains("challenge")
+    ));
+    let ch = challenge_of(&id.mfa_passkey_options(&mfa_token).await?);
+    let tokens = id.complete_mfa_with(&mfa_token, Factor::Passkey(&cred(key.assert(&ch))), &c).await?;
+    let claims = id.verify_access(&tokens.access_token).expect("access token");
+    assert_eq!(claims.amr, ["pwd", "hwk"]);
+
+    // Step-up with the passkey; a sign-in challenge cannot answer a step-up.
+    let ch = challenge_of(&id.mfa_passkey_options(&mfa_token).await?);
+    assert!(matches!(
+        id.step_up_with(&claims, Some(Factor::Passkey(&cred(key.assert(&ch)))), &c).await,
+        Err(IdentityError::PasskeyRejected(_))
+    ));
+    let ch = challenge_of(&id.step_up_passkey_options(&claims).await?);
+    let (up, _) = id.step_up_with(&claims, Some(Factor::Passkey(&cred(key.assert(&ch)))), &c).await?;
+    assert!(id.verify_access(&up).is_some_and(|u| u.auth_time >= claims.auth_time));
+    // A cloned authenticator (counter going backwards) is refused.
+    key.counter = 0;
+    let ch = challenge_of(&id.step_up_passkey_options(&claims).await?);
+    assert!(matches!(
+        id.step_up_with(&claims, Some(Factor::Passkey(&cred(key.assert(&ch)))), &c).await,
+        Err(IdentityError::PasskeyRejected(r)) if r.contains("counter")
+    ));
+    // The password alone does not step up an MFA account.
+    assert!(id.step_up(&claims, None, Some(PW), &c).await.is_err());
+
+    // Removal: unknown or foreign ids are 404; removing the last factor drops MFA and the codes.
+    let list = id.passkeys(u.id).await?;
+    assert_eq!(list.len(), 1);
+    assert!(list[0].last_used_at.is_some());
+    assert!(matches!(id.passkey_remove(u.id, uuid::Uuid::now_v7(), &c).await, Err(IdentityError::NotFound)));
+    let other = id.create_user("hal@acme.test", "Hal", PW, &c).await?;
+    assert!(matches!(id.passkey_remove(other.id, list[0].id, &c).await, Err(IdentityError::NotFound)));
+    id.passkey_remove(u.id, list[0].id, &c).await?;
+    assert!(matches!(id.login("gwen@acme.test", PW, &c).await?, LoginOutcome::Authenticated(_)));
+    let report = procera_audit::verify(&t.db, WsCtx { workspace_id: procera_db::SYSTEM_WORKSPACE }).await?;
+    assert_eq!(report.first_broken, None);
     Ok(())
 }

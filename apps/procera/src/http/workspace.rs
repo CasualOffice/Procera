@@ -22,6 +22,7 @@ pub fn router() -> Router<AppState> {
         .route("/me/workspaces", get(my_workspaces))
         .route("/session/workspace", post(switch_workspace))
         .route("/session/step-up", post(step_up))
+        .route("/session/step-up/webauthn/options", post(step_up_passkey_options))
         .route("/invitations/accept", post(accept))
         .route("/invitations/register", post(register))
         .route("/permission-catalog", get(permission_catalog))
@@ -273,6 +274,9 @@ struct StepUpReq {
     code: Option<String>,
     #[serde(default)]
     password: Option<String>,
+    /// A passkey assertion for a challenge from `/session/step-up/webauthn/options`.
+    #[serde(default)]
+    credential: Option<procera_identity::webauthn::CredentialJson>,
 }
 
 /// Re-authenticates within the current sign-in and returns an access token with a fresh `auth_time`.
@@ -282,10 +286,32 @@ async fn step_up(
     AuthUser(c): AuthUser,
     Json(r): Json<StepUpReq>,
 ) -> Result<Response, ApiError> {
+    use procera_identity::Factor;
     let id = s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
-    let (token, ttl) =
-        id.step_up(&c, r.code.as_deref(), r.password.as_deref(), &client_info(&headers)).await?;
+    let factor = match (&r.credential, &r.code, &r.password) {
+        (Some(cred), None, None) => Some(Factor::Passkey(cred)),
+        (None, Some(code), _) => Some(Factor::Code(code)),
+        (None, None, Some(pw)) => Some(Factor::Password(pw)),
+        (None, None, None) => None,
+        _ => {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("Send a passkey `credential` on its own"));
+        }
+    };
+    let (token, ttl) = id.step_up_with(&c, factor, &client_info(&headers)).await?;
     Ok(Json(json!({"access_token": token, "token_type": "Bearer", "expires_in": ttl})).into_response())
+}
+
+/// Passkey challenge for step-up.
+async fn step_up_passkey_options(
+    State(s): State<AppState>,
+    AuthUser(c): AuthUser,
+) -> Result<Response, ApiError> {
+    let id = s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
+    let mut res = Json(id.step_up_passkey_options(&c).await?).into_response();
+    res.headers_mut()
+        .insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
+    Ok(res)
 }
 
 #[derive(Debug, Deserialize)]

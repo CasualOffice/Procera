@@ -77,6 +77,9 @@ CREATE TABLE user_credentials (                   -- one row per factor
   kind text NOT NULL CHECK (kind IN ('password','totp','webauthn','recovery_code')),
   secret_ref bytea NOT NULL,                      -- argon2id PHC string / encrypted TOTP seed / COSE key
   label text, created_at timestamptz NOT NULL DEFAULT now(), last_used_at timestamptz);
+  -- webauthn rows (migration 0020, BPMS-022) add credential_id (globally unique), sign_count,
+  -- transports, backup_eligible/backup_state, user_verified. Single-use ceremony challenges live in
+  -- webauthn_challenges (user_id, purpose register|mfa|step_up, challenge, expires_at, used_at).
 
 CREATE TABLE sessions (
   id_hash bytea PRIMARY KEY,                      -- SHA-256 of opaque session id; raw id only in cookie

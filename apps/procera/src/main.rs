@@ -43,6 +43,10 @@ enum Command {
         /// Public base URL of the web app, used in email links.
         #[arg(long, env = "PROCERA_PUBLIC_URL", default_value = "http://127.0.0.1:8080")]
         public_url: String,
+        /// WebAuthn relying party id (a registrable domain such as `example.com`). Defaults to the host
+        /// of the public URL; a loopback IP maps to `localhost`, since browsers reject IP addresses.
+        #[arg(long, env = "PROCERA_WEBAUTHN_RP_ID")]
+        webauthn_rp_id: Option<String>,
         /// SMTP relay, e.g. smtp://user:pass@host:587?tls=required or smtps://host:465. Without it, emails stay queued.
         #[arg(long, env = "PROCERA_SMTP_URL", hide_env_values = true)]
         smtp_url: Option<String>,
@@ -88,6 +92,7 @@ async fn main() -> anyhow::Result<()> {
             insecure_cookies,
             login_rate_per_min,
             public_url,
+            webauthn_rp_id,
             smtp_url,
             mail_from,
         } => {
@@ -134,7 +139,13 @@ async fn main() -> anyhow::Result<()> {
                     keys,
                     base.clock.clone(),
                     std::sync::Arc::new(procera_kernel::UuidV7Gen),
-                    procera_identity::IdentityConfig::default(),
+                    procera_identity::IdentityConfig {
+                        relying_party: procera_identity::webauthn::RelyingParty::from_public_url(
+                            &public_url,
+                            webauthn_rp_id.as_deref(),
+                        ),
+                        ..procera_identity::IdentityConfig::default()
+                    },
                 )?),
                 (Some(_), None) => anyhow::bail!(
                     "PROCERA_MASTER_KEY is required when a database is configured (generate one with `procera keygen`)"

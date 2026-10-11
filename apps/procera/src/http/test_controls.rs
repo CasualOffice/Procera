@@ -25,6 +25,8 @@ pub fn router() -> Router<AppState> {
         .route("/system-roles", post(grant_system_role))
         .route("/invitations/token", get(invitation_token))
         .route("/session/backdate", post(backdate_session))
+        .route("/webauthn", get(webauthn_rp))
+        .route("/session/age", post(age_sign_ins))
         .route("/mail", get(mail))
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
@@ -428,6 +430,44 @@ async fn backdate_session(
         Ok(token) => Json(serde_json::json!({ "access_token": token })).into_response(),
         Err(e) => super::error::ApiError::from(e).into_response(),
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SignInAge {
+    email: String,
+    seconds: i64,
+}
+
+/// Moves the sign-in time of every live sign-in of `email` `seconds` into the past, so a browser
+/// session (whose access token lives in page memory) gets an old `auth_time` on its next refresh.
+/// Lets browser journeys reach step-up without moving the shared clock.
+async fn age_sign_ins(State(s): State<AppState>, Json(b): Json<SignInAge>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r = sqlx::query(
+        "UPDATE refresh_tokens SET auth_time = auth_time - make_interval(secs => $2)
+         WHERE user_id = (SELECT id FROM users WHERE email = $1) AND revoked_at IS NULL",
+    )
+    .bind(b.email.trim().to_lowercase())
+    .bind(b.seconds as f64)
+    .execute(db.pool())
+    .await;
+    match r {
+        Ok(_) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
+    }
+}
+
+/// The WebAuthn relying party (RP ID and allowed origins), so E2E authenticators answer for the
+/// origin the server expects whatever `--public-url` it runs with.
+async fn webauthn_rp(State(s): State<AppState>) -> Response {
+    let Some(id) = s.identity.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let rp = id.relying_party();
+    Json(serde_json::json!({ "rp_id": rp.id, "origins": rp.origins })).into_response()
 }
 
 #[derive(Debug, Deserialize)]

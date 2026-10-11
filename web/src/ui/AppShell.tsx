@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Search, Sun } from 'lucide-react';
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Search, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -158,9 +158,14 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                 if (key === 'signout') {
                   await signOut();
                   navigate('/sign-in', { replace: true });
-                } else setTheme(String(key).replace('theme-', '') as Theme);
+                } else if (key === 'security') navigate('/account/security');
+                else setTheme(String(key).replace('theme-', '') as Theme);
               }}
             >
+              <MenuItem id="security" className="menu-item" textValue="Security">
+                <ShieldCheck aria-hidden="true" size="1rem" /> Security
+              </MenuItem>
+              <Separator className="menu-separator" />
               <MenuSection>
                 <Header className="menu-header">Appearance</Header>
                 {([['auto', 'System', Monitor], ['light', 'Light', Sun], ['dark', 'Dark', Moon]] as const).map(([k, label, Icon]) => (

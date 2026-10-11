@@ -1,5 +1,6 @@
 import { type APIRequestContext, type APIResponse, expect, request as pwRequest, test } from '@playwright/test';
 import { BASE, PW, hasDatabase, serverNow, uniqueEmail } from '../../fixtures/accounts';
+import { softAuthenticator } from '../../fixtures/passkey';
 import { totp } from '../../fixtures/totp';
 import { freshAuth } from '../../fixtures/workspace';
 
@@ -13,6 +14,7 @@ type Ev = { chain: string; seq: number; action: string };
 
 test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit events @r1 @audit', async ({ request }) => {
   test.skip(!(await hasDatabase(request)), 'needs a database-backed e2e build');
+  test.slow(); // walks every mutating route once (about 25 s alone; longer beside the parallel packs)
   const ua = `procera-audit-contract/${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const ctx = () => pwRequest.newContext({ baseURL: BASE, extraHTTPHeaders: { accept: 'application/json', 'user-agent': ua } });
   const observed = new Map<string, string[]>();
@@ -55,6 +57,19 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   expect(step1.status).toBe('mfa_required');
   const mfa = await (await step('POST', '/api/v1/auth/mfa', () => sys.post('/api/v1/auth/mfa', { data: { mfa_token: step1.mfa_token, code: totp(enr.secret, now, 1) } }))).json();
   const sh = bearer(mfa.access_token);
+
+  // 2b. Passkeys (BPMS-022): enrol, sign in with password + passkey, step-up options, removal.
+  const pkEmail = await seed('passkey');
+  const pkc = await ctx();
+  const key = await softAuthenticator(request);
+  const pkPw = await (await pkc.post('/api/v1/auth/login', { data: { email: pkEmail, password: PW } })).json();
+  const regOpts = await (await step('POST', '/api/v1/me/mfa/webauthn/options', () => pkc.post('/api/v1/me/mfa/webauthn/options', { headers: bearer(pkPw.access_token) }))).json();
+  const reg = await (await step('POST', '/api/v1/me/mfa/webauthn', () => pkc.post('/api/v1/me/mfa/webauthn', { headers: bearer(pkPw.access_token), data: { name: 'Audit key', credential: key.register(regOpts) } }))).json();
+  const pkStep1 = await (await pkc.post('/api/v1/auth/login', { data: { email: pkEmail, password: PW } })).json();
+  const mfaOpts = await (await step('POST', '/api/v1/auth/mfa/webauthn/options', () => pkc.post('/api/v1/auth/mfa/webauthn/options', { data: { mfa_token: pkStep1.mfa_token } }))).json();
+  const pkLogin = await (await pkc.post('/api/v1/auth/mfa', { data: { mfa_token: pkStep1.mfa_token, credential: key.assert(mfaOpts) } })).json();
+  await step('POST', '/api/v1/session/step-up/webauthn/options', () => pkc.post('/api/v1/session/step-up/webauthn/options', { headers: bearer(pkLogin.access_token) }));
+  await step('DELETE', '/api/v1/me/mfa/webauthn/{id}', () => pkc.delete(`/api/v1/me/mfa/webauthn/${reg.passkey.id}`, { headers: bearer(pkLogin.access_token) }));
 
   // 3. Workspace lifecycle on the system plane.
   const ownerEmail = uniqueEmail('owner');

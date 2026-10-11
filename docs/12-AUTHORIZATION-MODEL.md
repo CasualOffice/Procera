@@ -55,7 +55,7 @@ Standalone first. No external system is needed, and enterprise identity layers o
 | Mechanism | Phase | Notes |
 |---|---|---|
 | Local accounts: email + password | P0 | Argon2id (m=19 MiB, t=2, p=1 minimum, per OWASP). Breached-password check against an offline k-anonymity list. Lockout and back-off. Verified email. |
-| MFA: TOTP + WebAuthn/passkeys | P0 | A workspace can *require* MFA for all members or for certain roles (default: required for admins). Recovery codes. |
+| MFA: TOTP + WebAuthn/passkeys | P0 | A workspace can *require* MFA for all members or for certain roles (default: required for admins). Recovery codes. Passkeys are a second factor after the password and a step-up method; members add, name and remove them under Account › Security (removal needs step-up). See docs/22 A-19. |
 | Passkey-only login | P1 | Phishing-resistant. Satisfies A11Y 3.3.8. |
 | Magic-link login for guests | P1 | For external participants (FR-P08). Single-use, 15 min, bound to one work item. |
 | OIDC SSO (any IdP; Keycloak is the reference) | P1 | Per workspace. Auth code + PKCE. Domain-verified auto-join. |
@@ -223,7 +223,7 @@ Recent re-authentication (default 5 min; ESIG-03 for Part 11 mode) is required f
 - workspace ownership transfer or deletion
 - break-glass
 
-It uses WebAuthn or password+TOTP, or OIDC `max_age=0` under SSO. `auth_time` is recorded.
+It uses WebAuthn or password+TOTP, or OIDC `max_age=0` under SSO. `auth_time` is recorded. As built (BPMS-022): an account with MFA steps up with a TOTP code or a passkey (`amr` gains `otp` or `hwk`); an account without MFA uses its password. Account-level actions outside a workspace (removing a passkey) use the platform default window of 5 minutes.
 
 ## 12. Policy engine and enforcement
 
