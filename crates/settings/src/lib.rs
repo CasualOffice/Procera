@@ -119,6 +119,22 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             }
             _ => Err(invalid(d, "expected a colour like #4F46E5")),
         },
+        Kind::DurationList { min, max, max_items } => {
+            let items = v.as_array().ok_or_else(|| invalid(d, "expected a list of seconds"))?;
+            if items.len() > max_items {
+                return Err(invalid(d, format!("at most {max_items} items")));
+            }
+            let mut set = BTreeSet::new();
+            for i in items {
+                match i.as_i64() {
+                    Some(n) if (min..=max).contains(&n) => {
+                        set.insert(n);
+                    }
+                    _ => return Err(invalid(d, format!("items must be between {min} and {max} seconds"))),
+                }
+            }
+            Ok(json!(set))
+        }
     }
 }
 
