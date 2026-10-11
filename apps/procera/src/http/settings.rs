@@ -23,6 +23,7 @@ use super::workspace::{WsMember, members};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/branding", get(branding))
+        .route("/workspace", axum::routing::patch(rename_workspace))
         .route("/branding/logo", get(branding_logo))
         .route("/settings", get(list))
         .route("/settings/effective", get(effective))
@@ -106,6 +107,46 @@ async fn branding_logo(State(s): State<AppState>, me: WsMember) -> Result<Respon
     h.insert(header::CACHE_CONTROL, HeaderValue::from_static("private, max-age=300"));
     h.insert(header::CONTENT_SECURITY_POLICY, HeaderValue::from_static("default-src 'none'; sandbox"));
     Ok(res)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RenameReq {
+    name: String,
+}
+
+/// Renames the workspace (owners and admins: `workspace:settings.manage`). Recorded on the workspace
+/// chain, and on the system chain by the platform service.
+async fn rename_workspace(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Json(r): Json<RenameReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "workspace:settings.manage", Resource::Workspace).await?;
+    let ws = platform(&s)?
+        .rename(me.user_id, me.ctx.workspace_id, None, &r.name, &client_info(&headers))
+        .await
+        .map_err(|e| ApiError::new(422, "validation_failed", "Validation failed").detail(e.to_string()))?;
+    let mut ev = procera_audit::AuditEvent::new(
+        Some(me.actor.subject_ref),
+        procera_audit::ActorKind::User,
+        procera_audit::Category::Config,
+        "workspace.renamed",
+        procera_audit::Outcome::Allowed,
+    )
+    .object("workspace", me.ctx.workspace_id);
+    let c = client_info(&headers);
+    ev.ip = c.ip;
+    ev.user_agent = c.user_agent;
+    ev.diff = Some(json!({"name": ws.name}));
+    procera_audit::append(&mut tx, s.clock.as_ref(), &procera_kernel::UuidV7Gen, &ev)
+        .await
+        .map_err(internal)?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "id": me.ctx.workspace_id, "name": ws.name })).into_response())
 }
 
 pub fn settings(s: &AppState) -> Result<&Settings, ApiError> {

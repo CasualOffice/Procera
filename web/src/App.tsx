@@ -36,6 +36,7 @@ import { SystemHealth } from './pages/system/SystemHealth';
 import { SystemQuotas } from './pages/system/SystemQuotas';
 import { SystemWorkspaces } from './pages/system/SystemWorkspaces';
 import { SystemShell } from './ui/SystemShell';
+import { Profile } from './pages/Profile';
 import { Security } from './pages/Security';
 
 function Redirect({ to }: { to: string }) {
@@ -98,6 +99,7 @@ export function App() {
   const ack = match('/acknowledgements/:id', path);
   if (ack) return <AppShell current="home" crumbs={['Home']}><AckLink id={ack.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
+  if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
   if (path === '/admin/files') return <AppShell current="files" crumbs={[ADMIN, 'Files']}><FilesAdmin /></AppShell>;

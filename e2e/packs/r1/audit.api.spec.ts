@@ -170,6 +170,8 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('DELETE', '/api/v1/files/{id}/links/{object_type}/{object_id}', () => own.delete(`/api/v1/files/${fc.file.id}/links/artifact_version/${draftV.version.id}`, { headers: oh }));
   const ret = await step('POST', '/api/v1/files/retention', () => own.post('/api/v1/files/retention', { headers: oh, data: { file_ids: [fc.file.id], class: 'operational', reason: 'Scratch upload' } }));
   expect(ret.status(), await ret.text()).toBe(200);
+  await step('PATCH', '/api/v1/workspace', () => own.patch('/api/v1/workspace', { headers: oh, data: { name: 'Audit Company' } }));
+  await step('PATCH', '/api/v1/me/profile', () => own.patch('/api/v1/me/profile', { headers: oh, data: { display_name: 'Audit Owner', timezone: 'Asia/Kolkata' } }));
   await step('POST', '/api/v1/files/orphans/purge', () => own.post('/api/v1/files/orphans/purge', { headers: oh }));
   await step('DELETE', '/api/v1/files/{id}', () => own.delete(`/api/v1/files/${fc.file.id}`, { headers: oh }));
   await step('PUT', '/api/v1/me/notification-preferences', () => own.put('/api/v1/me/notification-preferences', { headers: oh, data: { digest: 'daily' } }));

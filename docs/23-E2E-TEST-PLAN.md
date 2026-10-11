@@ -259,6 +259,8 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-43 | Files: a draft attachment shows retention class Draft and last accessed Never; downloading it updates last accessed; two unattached files are selected and deleted in bulk | BPMS-062 |
 | E2E-R1-UI-44 | A reader opens Export on a published SOP (Print or PDF, Word, Markdown) and downloads a .docx | BPMS-042 |
 | E2E-R1-UI-45 | An author inserts an image from the editor (upload, required description, caption), saves, and readers see it with its alt text after a reload | BPMS-042 |
+| E2E-R1-UI-46 | A person opens Account › Profile from the account menu, changes their name and time zone, saves, and the shell and a reload show the new values | BPMS-021 |
+| E2E-R1-UI-47 | An owner renames the workspace from Settings; the switcher shows the new name and it survives a reload (audited on both chains, AUD-01) | BPMS-020 |
 | E2E-R1-FLOW-01 | Onboarding start to finish: the owner invites from Members; the invitee opens the link from the email, creates an account (password confirmation checked) and lands on Home in the workspace; the link then no longer works; the owner sees them Active and opens their person page | BPMS-023 |
 | E2E-R1-FLOW-02 | Someone with an account opens the invitation email, signs in from the page, comes back to it and joins with one click; an unknown link explains itself | BPMS-023 |
 | E2E-R1-FLOW-03 | Policy to evidence: the owner writes and publishes a policy and launches a campaign; a colleague (invited the same way) sees the task on Home, opens the acknowledgement email link, acknowledges on the document; the owner sees them Done, 1 of 2, and downloads the evidence CSV | BPMS-040, 046 |

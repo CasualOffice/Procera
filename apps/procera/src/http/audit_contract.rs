@@ -161,6 +161,9 @@ pub const CONTRACT: &[Entry] = &[
         &[&["file.uploaded"], &["file.quarantined"], &["file.rejected"], &["file.scan_failed"]],
     ),
     emits("DELETE", "/api/v1/files/{id}", &[&["file.deleted"]]),
+    // Recorded on the system chain (by the platform service) and on the workspace chain.
+    emits("PATCH", "/api/v1/workspace", &[&["workspace.renamed", "workspace.renamed"]]),
+    emits("PATCH", "/api/v1/me/profile", &[&["user.profile_updated"]]),
     emits("POST", "/api/v1/files/retention", &[&["file.retention_changed"]]),
     emits("POST", "/api/v1/files/{id}/links", &[&["file.linked"]]),
     emits("DELETE", "/api/v1/files/{id}/links/{object_type}/{object_id}", &[&["file.unlinked"]]),

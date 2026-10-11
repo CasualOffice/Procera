@@ -7,6 +7,7 @@ import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
 import { StepUpDialog } from '../ui/StepUp';
 import { Tabs } from '../ui/components/Tabs';
+import { TextField } from '../ui/components/TextField';
 import { DepartmentOverrides, ProfileSwitch } from './SettingsScopes';
 import { LoadError, Skeleton } from '../ui/States';
 import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
@@ -51,12 +52,49 @@ export function Settings() {
       <div className="page-head">
         <div><h1>Settings</h1><p>How this workspace works. Changes apply to everyone and are recorded in the audit log.</p></div>
       </div>
+      <WorkspaceName />
       <Tabs label="Settings scope" tabs={[
         { id: 'workspace', label: 'Workspace', content: workspaceTab },
         { id: 'departments', label: 'Departments', content: <DepartmentOverrides /> },
         { id: 'profile', label: 'Configuration profile', content: <ProfileSwitch onApplied={reload} /> },
       ]} />
     </>
+  );
+}
+
+/** The workspace's name, shown in the switcher, emails and the browser tab. Owners and admins rename it. */
+function WorkspaceName() {
+  const { workspace, can, reload } = useSession();
+  const [name, setName] = useState(workspace?.name ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setName(workspace?.name ?? ''), [workspace?.name]);
+  if (!workspace) return null;
+  const editable = can('workspace:settings.manage');
+  const dirty = name.trim() !== workspace.name;
+  const save = async () => {
+    setBusy(true); setErr(null); setSaved(false);
+    try {
+      await api('/api/v1/workspace', { method: 'PATCH', body: { name: name.trim() } });
+      await reload();
+      setSaved(true);
+    } catch (e) {
+      setErr(e instanceof ApiError ? (e.problem.detail ?? e.message) : 'Could not rename the workspace');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="workspace-name" aria-labelledby="ws-name-h">
+      <h2 id="ws-name-h" className="visually-hidden">Workspace name</h2>
+      <form className="workspace-name-form" onSubmit={(e) => { e.preventDefault(); if (dirty && name.trim()) void save(); }}>
+        <TextField label="Workspace name" value={name} onChange={(v) => { setName(v); setSaved(false); }} isReadOnly={!editable} isRequired maxLength={120}
+          description={editable ? 'Shown in the workspace switcher, emails and the browser tab.' : 'Only owners and admins can rename the workspace.'} />
+        {editable && <Button type="submit" variant="secondary" isDisabled={!dirty || busy || !name.trim()}>{busy ? 'Saving…' : saved && !dirty ? <><Check aria-hidden="true" size="0.875rem" /> Saved</> : 'Rename'}</Button>}
+      </form>
+      {err && <Notice tone="danger" title="Couldn’t rename the workspace">{err}</Notice>}
+    </section>
   );
 }
 

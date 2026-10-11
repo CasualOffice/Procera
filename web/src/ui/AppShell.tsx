@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, Sun } from 'lucide-react';
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { ApiError, api, blobUrl } from '../lib/api';
@@ -185,9 +185,13 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                   await signOut();
                   navigate('/sign-in', { replace: true });
                 } else if (key === 'security') navigate('/account/security');
+                else if (key === 'profile') navigate('/account/profile');
                 else setTheme(String(key).replace('theme-', '') as Theme);
               }}
             >
+              <MenuItem id="profile" className="menu-item" textValue="Profile">
+                <UserRound aria-hidden="true" size="1rem" /> Profile
+              </MenuItem>
               <MenuItem id="security" className="menu-item" textValue="Security">
                 <ShieldCheck aria-hidden="true" size="1rem" /> Security
               </MenuItem>
