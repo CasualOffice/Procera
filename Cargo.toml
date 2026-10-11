@@ -4,7 +4,8 @@ resolver = "3"
 # do not add empty placeholder crates.
 members = ["crates/kernel", "crates/crypto", "crates/cache", "crates/db", "crates/audit", "crates/identity", "crates/access", "crates/members",
     "crates/settings",
-    "crates/notify", "crates/platform", "apps/procera", "conformance"]
+    "crates/notify",
+    "crates/library", "crates/platform", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
 
@@ -40,6 +41,7 @@ procera-access = { path = "crates/access" }
 procera-members = { path = "crates/members" }
 procera-settings = { path = "crates/settings" }
 procera-notify = { path = "crates/notify" }
+procera-library = { path = "crates/library" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

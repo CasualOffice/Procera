@@ -2294,6 +2294,7 @@ dependencies = [
  "procera-db",
  "procera-identity",
  "procera-kernel",
+ "procera-library",
  "procera-members",
  "procera-notify",
  "procera-platform",
@@ -2429,6 +2430,25 @@ dependencies = [
  "serde_json",
  "thiserror",
  "time",
+ "uuid",
+]
+
+[[package]]
+name = "procera-library"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-audit",
+ "procera-db",
+ "procera-kernel",
+ "serde",
+ "serde_jcs",
+ "serde_json",
+ "sha2",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
  "uuid",
 ]
 
