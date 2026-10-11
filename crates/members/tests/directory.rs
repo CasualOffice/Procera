@@ -190,6 +190,21 @@ async fn tree_cycles_resolution_groups_and_csv_import() -> anyhow::Result<()> {
     let dir = members.member_directory(&mut tx, cc).await?;
     assert_eq!(dir["field_sources"]["department"], "csv");
     assert_eq!(dir["title"], "Controller");
+    // Audience: union of department subtree, group and role; inactive members never included.
+    use procera_members::audience::{self, Audience};
+    let fin =
+        members.list_departments(&mut tx).await?.into_iter().find(|d| d.name == "Finance").expect("Finance");
+    let by_dept =
+        audience::resolve(&mut tx, &Audience { departments: vec![fin.id], ..Audience::default() }).await?;
+    assert!(by_dept.contains(&b) && by_dept.contains(&cc), "Finance and its child Payables");
+    let g2 = members.create_group(&mut tx, actor, "Auditors", None, &c).await?;
+    members.add_group_member(&mut tx, actor, g2.id, d, &c).await?;
+    let mixed = Audience { departments: vec![fin.id], groups: vec![g2.id], ..Audience::default() };
+    let all_in = audience::resolve(&mut tx, &mixed).await?;
+    assert!(all_in.contains(&d) && !all_in.contains(&a));
+    assert!(audience::contains(&mut tx, &mixed, d).await? && !audience::contains(&mut tx, &mixed, a).await?);
+    assert_eq!(audience::resolve(&mut tx, &Audience::default()).await?, Vec::<Uuid>::new());
+    assert_eq!(audience::resolve(&mut tx, &Audience { all: true, ..Audience::default() }).await?.len(), 4);
     tx.rollback().await?;
     Ok(())
 }

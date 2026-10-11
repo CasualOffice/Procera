@@ -6,6 +6,7 @@
 //!   for that email). Accepting an owner invite activates a `provisioning` workspace.
 //! - Every change is audited in the workspace chain and emitted to the outbox.
 
+pub mod audience;
 pub mod directory;
 
 use std::sync::Arc;
