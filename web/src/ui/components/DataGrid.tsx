@@ -123,7 +123,7 @@ const encode = (s: GridState) => btoa(unescape(encodeURIComponent(JSON.stringify
 const decode = (g: string): GridState | null => { try { return JSON.parse(decodeURIComponent(escape(atob(g.replace(/-/g, '+').replace(/_/g, '/'))))); } catch { return null; } };
 
 export function DataGrid<T extends { id: string }>({
-  caption, data, columns, list, selectable = false, rowHref, bulkActions, empty, initialSort = [], initialSearch = '', showCaption = true,
+  caption, data, columns, list, selectable = false, rowHref, rowLabel, bulkActions, empty, initialSort = [], initialSearch = '', showCaption = true,
 }: {
   caption: string;
   data: T[];
@@ -132,6 +132,8 @@ export function DataGrid<T extends { id: string }>({
   list?: string;
   selectable?: boolean;
   rowHref?: (row: T) => string;
+  /** Names a row for its selection checkbox ("Select Nina"); defaults to the row id. */
+  rowLabel?: (row: T) => string;
   bulkActions?: (selected: T[], clear: () => void) => React.ReactNode;
   /** Shown when there is no data at all (distinct from "no matches"). */
   empty?: React.ReactNode;
@@ -370,7 +372,7 @@ export function DataGrid<T extends { id: string }>({
                   if (e.key === 'Enter' && rowHref) { e.preventDefault(); navigate(rowHref(r)); }
                   if (e.key === ' ' && selectable) { e.preventDefault(); selectRow(i, e.shiftKey); }
                 }}>
-                {selectable && <td className="grid-select"><input type="checkbox" aria-label={`Select row ${r.id}`} checked={selected.has(r.id)} onClick={(e) => { e.preventDefault(); selectRow(i, e.shiftKey); }} onChange={() => undefined} /></td>}
+                {selectable && <td className="grid-select"><input type="checkbox" aria-label={rowLabel ? `Select ${rowLabel(r)}` : `Select row ${r.id}`} checked={selected.has(r.id)} onClick={(e) => { e.preventDefault(); selectRow(i, e.shiftKey); }} onChange={() => undefined} /></td>}
                 {visibleCols.map((c) => (
                   <td key={c.id} className={[c.optional ? 'col-optional' : '', c.className ?? ''].join(' ')} data-label={c.header}>
                     {c.cell ? c.cell(r) : String(c.value(r) ?? '')}

@@ -9,6 +9,7 @@ import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/wo
 // E2E-R1-UI-52 — groups: empty state, new group, add several people, remove one, delete.
 // E2E-R1-UI-53 — person page: edit profile, add to and remove from a group, manager loop refused, role chip opens the role.
 // E2E-R1-UI-54 — deactivate, then reactivate with a reason and step-up; resend and revoke a pending invitation.
+// E2E-R1-UI-55 — Members bulk actions: Set department and Add to group on the selected rows (invitations skipped).
 
 const home = (page: Page) => expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 
@@ -263,6 +264,42 @@ test.describe('directory @r1 @ui', () => {
     const list = (await (await owner.c.get('/api/v1/members', { headers: owner.headers })).json()).items as { id: string; status: string }[];
     expect(list.find((m) => m.id === nina.id)!.status).toBe('active');
     expect((await (await owner.c.get('/api/v1/members/invitations', { headers: owner.headers })).json()).items).toEqual([]);
+  });
+
+  test('E2E-R1-UI-55 an owner selects members and sets their department and adds them to a group in bulk', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const nina = await member(request, owner, ws.id, 'Nina');
+    const theo = await member(request, owner, ws.id, 'Theo');
+    const pending = uniqueEmail('pending');
+    expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email: pending, roles: ['member'] } })).ok()).toBe(true);
+    const finance = await (await owner.c.post('/api/v1/departments', { headers: owner.headers, data: { name: 'Finance' } })).json();
+    const auditors = await (await owner.c.post('/api/v1/groups', { headers: owner.headers, data: { name: 'Auditors' } })).json();
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await home(page);
+    await nav(page, 'Members');
+    await expect(page.getByRole('heading', { level: 1, name: 'Members' })).toBeVisible();
+
+    for (const who of ['Nina', 'Theo', pending]) await page.getByRole('checkbox', { name: `Select ${who}` }).click();
+    await page.getByRole('button', { name: 'Set department' }).click();
+    let dialog = page.getByRole('dialog', { name: 'Set department' });
+    await pick(page, dialog, /Department/, 'Finance');
+    await expect(dialog.getByText('Moves Nina, Theo to Finance.', { exact: false })).toBeVisible();
+    await expect(dialog.getByText('Skipped: 1 invitation (only active members can be changed).')).toBeVisible();
+    await axe(page);
+    await dialog.getByRole('button', { name: 'Set department for 2 people' }).click();
+    await expect(page.getByText('2 people now in Finance.')).toBeVisible();
+
+    for (const who of ['Nina', 'Theo']) await page.getByRole('checkbox', { name: `Select ${who}` }).click();
+    await page.getByRole('button', { name: 'Add to group' }).click();
+    dialog = page.getByRole('dialog', { name: 'Add to group' });
+    await expect(dialog.getByRole('button', { name: /Group/ })).toContainText('Auditors');
+    await dialog.getByRole('button', { name: 'Add 2 people' }).click();
+    await expect(page.getByText('Added 2 people to Auditors.')).toBeVisible();
+
+    for (const id of [nina.id, theo.id]) {
+      const dir = await (await owner.c.get(`/api/v1/members/${id}/directory`, { headers: owner.headers })).json();
+      expect([dir.department_id, dir.group_ids]).toEqual([finance.id, [auditors.id]]);
+    }
   });
 });
 
