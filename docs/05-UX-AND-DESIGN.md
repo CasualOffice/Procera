@@ -455,6 +455,8 @@ Built once (`@procera/ui/DataGrid`) on **TanStack Table + TanStack Virtual** (MI
 | **Accessibility** | WAI-ARIA grid pattern. Arrow-key cell navigation, `Enter` to open, `Space` to select. Sort and filter changes are announced through a live region. |
 | **Responsive** | ≤ 640 px renders cards (primary field, status, 2–3 key fields). Filters go in a sheet, sort in a select. |
 
+_As built (BPMS-028, v1):_ `web/src/ui/components/DataGrid.tsx` is the one grid: quick search, a filter builder with typed operators (text, enum, number, date incl. "last N days", boolean), filter chips with a plain-language label and "Clear all", multi-sort with order numbers, a columns chooser (show, hide, move), density, formula-safe CSV export recorded through `POST /exports`, saved views per list (personal or shared, a default, a "modified" marker) with the state in the URL (`?view=`, `?grid=`), selection with shift-range and page-supplied bulk actions, Enter to open and Space to select, a live count, and cards below 40rem. v1 filters and sorts the rows it is given; the server-driven query model with cursor paging, XLSX and async exports, AND/OR groups and column resizing come with large lists. Used by Library and Members.
+
 ## 5. Dashboard design rules
 
 1. **Every number drills down** to a pre-filtered DataGrid showing exactly the records behind it. No dead tiles.

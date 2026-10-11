@@ -92,7 +92,7 @@ Content-Type: application/problem+json
 | Search | `GET /search?q=&types=sop,policy,member,department,group&limit=` (`{items: [{type, id, title, subtitle, snippet, score}], types}`; one ranked list; `snippet` is HTML-escaped with `<mark>` around matches; at most 50) | per type: `sop:view`, `policy:view`, `member:view`, `directory:view` (departments, groups); types the caller may not view are left out |
 | Insights | `GET /metrics/processes/{id}`, `GET /dashboards`, `POST /dashboards`, `GET /reports/{key}`, `POST /reports/{key}/exports`, `GET /stream` (SSE) | `report:*`, `monitoring:*` |
 | Ops | `GET /incidents`, `POST /incidents/{id}/retry\|skip\|resolve` | `request:retry` |
-| Views | `GET/POST /views?list=…`, `PATCH/DELETE /views/{id}` | self / shared |
+| Views | `GET /views?list=` (mine first, then shared), `POST /views {list, name, state, shared?, is_default?}` (one default per member per list), `PATCH /views/{id}` and `DELETE /views/{id}` (owner only; 403 for shared views of others, 404 otherwise); `POST /exports {list, format: csv, rows, columns, filters}` records a grid export (audited `data.exported`) | self / shared (BPMS-028) |
 | Tokens | `GET/POST /api-tokens`, `DELETE /api-tokens/{id}` | `api_token:manage` + step-up |
 | AI (optional) | `POST /ai/drafts {kind, prompt, sources}`, `GET /ai/drafts/{id}` | `ai:use_assistant` |
 

@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████████░░░░░░░░░░░░░░░░░░░░░  32/109 epics done  (29%)
+Overall   █████████░░░░░░░░░░░░░░░░░░░░░  33/109 epics done  (30%)
 Partial   ██████████░░░░░░░░░░░░░░░░░░░░  33% counting in-progress epics as half done
-Tests     147 automated E2E scenarios · 118 Rust tests (incl. property tests)
-Status    done 32 · in review 0 · in progress 7 · blocked 0 · not started 70 · deferred 0
+Tests     149 automated E2E scenarios · 118 Rust tests (incl. property tests)
+Status    done 33 · in review 0 · in progress 7 · blocked 0 · not started 69 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████░░░░` | 21/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████░░░░` | 22/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `██░░░░░░░░░░` | 1/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -58,6 +58,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-025** Forced RLS + repository WsCtx + CI cross-workspace sweep — procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests
 - [x] **BPMS-026** Audit chain append + coverage contract test — procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)
 - [x] **BPMS-027** Settings layering, floors, profiles, explainer — Catalogue, floors, profiles, explainer (earlier); department overrides as layer 4 with tree inheritance (0021), profile switch plan/apply with If-Match, reason and step-up (CFG-017), effective-settings cache with generation invalidation over Valkey, never authoritative (CFG-004); Settings tabs for departments and profile. E2E-R1-CFG-01..08, E2E-R1-UI-16, 35..36 (A-17)
+- [x] **BPMS-028** Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard) — DataGrid v1 (web/src/ui/components/DataGrid.tsx): quick search, typed filter builder with chips and plain-language summary, multi-sort with order numbers, columns chooser, density, formula-safe CSV export audited via POST /exports, saved views per list (personal/shared, default, modified marker; migration 0028; /views API) with URL state, selection with shift-range and bulk actions, Enter/Space keyboard, live count, cards below 40rem; adopted by Library and Members. E2E-R1-VIEW-01, E2E-R1-UI-38, E2E-P0-10. Later: server-driven query + cursor paging, XLSX/async export, AND/OR groups, column resize.
 - [x] **BPMS-029** Outbox + dispatcher + inbox dedup + idempotency keys — Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 - [x] **BPMS-040** Artifacts, versions, lifecycle state machine, immutability trigger, SoD — procera-library (migration 0012): artifacts + versions for SOPs and policies; lifecycle draft → in_review → approved → scheduled/published → deprecated → retired with guarded transitions; one open draft per artifact; reviews in numbered rounds, approvals from governance.review.* settings, author never reviews own version, distinct approvers, comment required to reject; content_hash = SHA-256(JCS) frozen at approval and a trigger forbids changing approved content or moving back (T07); publish supersedes, future effective_at schedules (worker + drain), reason for change on later versions, retire; step-up for controlled approve/publish; outbox artifact.published.v1; every transition audited. E2E-R1-LIB-01..05. Process artifacts arrive with the designer/compiler
@@ -100,7 +101,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 21/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 22/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -112,7 +113,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [x] **BPMS-025** (P0, M) Forced RLS + repository WsCtx + CI cross-workspace sweep
 - [x] **BPMS-026** (P0, M) Audit chain append + coverage contract test
 - [x] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer
-- [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
+- [x] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
 - [x] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys
 - [ ] **BPMS-030** (P0, M) Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK **[In progress]**
 - [ ] **BPMS-031** (P0, M) App shell, workspace switcher, system console shell, ⌘K **[In progress]**
@@ -259,7 +260,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 223 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 225 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 20 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
