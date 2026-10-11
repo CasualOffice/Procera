@@ -636,13 +636,17 @@ test.describe('R1 gate @r1 @ui', () => {
     expect((await ns.c.patch(`/api/v1/versions/${onboarding.version.id}`, { headers: nh, data: { content: { blocks: [{ type: 'paragraph', text: 'Updated by HR' }] } } })).status()).toBe(200);
     expect([403, 404]).toContain((await ns.c.patch(`/api/v1/versions/${payroll.version.id}`, { headers: nh, data: { content: { blocks: [{ type: 'paragraph', text: 'Not mine' }] } } })).status());
 
-    // Giving a permission the editor does not hold is refused: an admin (no owner-only permissions)
-    // cannot put workspace billing into a role.
-    const adm = await member(request, owner, ws.id, 'admin2', 'workspace.admin');
-    const admin = await enter(adm.email, ws.id);
-    const hrRole = (await (await admin.c.get('/api/v1/roles', { headers: admin.headers })).json()).items.find((r: { name: string }) => r.name === 'HR Designer');
-    const esc = await admin.c.patch(`/api/v1/roles/${hrRole.id}`, { headers: admin.headers, data: { permissions: ['sop:view', 'workspace:billing.view'] } });
-    expect(esc.status()).toBe(403);
+    // Giving a permission the editor does not hold is refused: a role manager who can edit roles
+    // but cannot export audit data tries to put audit export into HR Designer.
+    const rm = await member(request, owner, ws.id, 'rolemgr');
+    expect((await owner.c.post('/api/v1/roles', { headers: h, data: { key: 'custom.role_manager', name: 'Role manager', permissions: ['role:view', 'role:manage', 'sop:view'] } })).status()).toBe(201);
+    expect((await owner.c.post('/api/v1/role-grants', { headers: h, data: { membership_id: rm.id, role_key: 'custom.role_manager', scope_kind: 'workspace' } })).status()).toBe(201);
+    const rs = await passwordSession(rm.email);
+    const rsw = await rs.c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${rs.token}` }, data: { workspace_id: ws.id } });
+    const rh = { authorization: `Bearer ${(await rsw.json()).access_token}` };
+    const hrRole = (await (await rs.c.get('/api/v1/roles', { headers: rh })).json()).items.find((r: { name: string }) => r.name === 'HR Designer');
+    const esc = await rs.c.patch(`/api/v1/roles/${hrRole.id}`, { headers: rh, data: { permissions: [...hrRole.permissions, 'audit:export'] } });
+    expect(esc.status(), await esc.text()).toBe(403);
     expect((await esc.json()).code).toBe('escalation');
   });
 
