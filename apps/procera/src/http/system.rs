@@ -1,13 +1,17 @@
 //! System API (`/sysapi/v1`, docs/08 §5). Every route requires a system role and MFA (docs/06 §3.6),
-//! except the one-time bootstrap.
+//! except the one-time bootstrap. Workspace lifecycle and quota changes also need a recent
+//! authentication (step-up, docs/12 §11). The console reads metadata, counts and health only; it
+//! never reads workspace content (docs/12 §1). Console reads live in [`super::system_console`].
 
-use axum::extract::{FromRequestParts, Path, State};
+use axum::extract::{FromRequestParts, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header, request::Parts};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use procera_platform::authz::{SystemAction, can};
-use procera_platform::{NewWorkspace, Platform, PlatformError, Quotas, Workspace};
+use procera_platform::{
+    ConsoleWorkspace, NewWorkspace, Platform, PlatformError, Quotas, Workspace, WorkspaceFilter,
+};
 use serde::Deserialize;
 use serde_json::json;
 use uuid::Uuid;
@@ -28,9 +32,10 @@ pub fn router() -> Router<AppState> {
         .route("/workspaces/{id}/quotas", put(quotas))
         .route("/settings", get(platform_settings))
         .route("/settings/{key}", put(set_floor))
+        .merge(super::system_console::router())
 }
 
-fn platform(s: &AppState) -> Result<&Platform, ApiError> {
+pub(super) fn platform(s: &AppState) -> Result<&Platform, ApiError> {
     s.platform.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
@@ -67,7 +72,12 @@ impl From<PlatformError> for ApiError {
 pub struct SystemUser {
     pub user_id: Uuid,
     pub roles: Vec<String>,
+    /// When the user last authenticated (sign-in or step-up), unix seconds.
+    pub auth_time: i64,
 }
+
+/// The system plane's step-up window (docs/12 §11 default; the system plane has no workspace settings).
+pub const SYSTEM_STEP_UP_SECONDS: i64 = 300;
 
 impl FromRequestParts<AppState> for SystemUser {
     type Rejection = ApiError;
@@ -83,12 +93,24 @@ impl FromRequestParts<AppState> for SystemUser {
                 "System administration requires MFA. Enrol at POST /api/v1/me/mfa/totp and sign in again.",
             ));
         }
-        Ok(Self { user_id: claims.sub, roles })
+        Ok(Self { user_id: claims.sub, roles, auth_time: claims.auth_time })
     }
 }
 
 impl SystemUser {
-    fn require(&self, action: SystemAction) -> Result<(), ApiError> {
+    /// Requires a recent authentication for lifecycle and quota changes (docs/12 §11).
+    pub fn require_step_up(&self, s: &AppState) -> Result<(), ApiError> {
+        let age = s.clock.now().unix_timestamp() - self.auth_time;
+        if (0..=SYSTEM_STEP_UP_SECONDS).contains(&age) {
+            Ok(())
+        } else {
+            Err(ApiError::new(401, "step_up_required", "Confirm it's you to continue").detail(format!(
+                "POST /api/v1/session/step-up; this action needs authentication within the last {SYSTEM_STEP_UP_SECONDS} seconds"
+            )))
+        }
+    }
+
+    pub fn require(&self, action: SystemAction) -> Result<(), ApiError> {
         if can(&self.roles, action) {
             Ok(())
         } else {
@@ -97,7 +119,7 @@ impl SystemUser {
     }
 }
 
-fn if_match(headers: &HeaderMap) -> Option<i64> {
+pub(super) fn if_match(headers: &HeaderMap) -> Option<i64> {
     headers
         .get(header::IF_MATCH)
         .and_then(|v| v.to_str().ok())
@@ -105,11 +127,20 @@ fn if_match(headers: &HeaderMap) -> Option<i64> {
 }
 
 fn ws_response(status: StatusCode, ws: &Workspace) -> Response {
-    let mut res = (status, Json(ws)).into_response();
-    if let Ok(v) = HeaderValue::from_str(&format!("\"{}\"", ws.revision)) {
+    etag((status, Json(ws)).into_response(), ws.revision)
+}
+
+pub(super) fn etag(mut res: Response, revision: i64) -> Response {
+    if let Ok(v) = HeaderValue::from_str(&format!("\"{revision}\"")) {
         res.headers_mut().insert(header::ETAG, v);
     }
     res
+}
+
+/// A lifecycle response: the workspace with its usage, as the console lists it.
+async fn console_response(s: &AppState, ws: &Workspace) -> Result<Response, ApiError> {
+    let row: ConsoleWorkspace = platform(s)?.console_workspace(ws.id).await?;
+    Ok(etag((StatusCode::OK, Json(&row)).into_response(), row.workspace.revision))
 }
 
 #[derive(Debug, Deserialize)]
@@ -136,9 +167,14 @@ async fn me(u: SystemUser) -> Json<serde_json::Value> {
     Json(json!({"user_id": u.user_id, "roles": u.roles}))
 }
 
-async fn list(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
+/// The console's workspace grid (`?state=&profile=&q=`): metadata, quotas and usage counts.
+async fn list(
+    State(s): State<AppState>,
+    u: SystemUser,
+    Query(f): Query<WorkspaceFilter>,
+) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceRead)?;
-    Ok(Json(json!({"items": platform(&s)?.list_workspaces(&Default::default()).await?})).into_response())
+    Ok(Json(json!({"items": platform(&s)?.console_workspaces(&f).await?})).into_response())
 }
 
 async fn create(
@@ -162,7 +198,8 @@ async fn get_one(
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceRead)?;
-    Ok(ws_response(StatusCode::OK, &platform(&s)?.get_workspace(id).await?))
+    let row = platform(&s)?.console_workspace(id).await?;
+    Ok(etag((StatusCode::OK, Json(&row)).into_response(), row.workspace.revision))
 }
 
 #[derive(Debug, Deserialize)]
@@ -198,6 +235,7 @@ async fn suspend(
     Json(r): Json<SuspendReq>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceWrite)?;
+    u.require_step_up(&s)?;
     let locked = match r.mode.as_str() {
         "read_only" => false,
         "locked" => true,
@@ -209,7 +247,7 @@ async fn suspend(
     let ws = platform(&s)?
         .suspend(u.user_id, id, if_match(&headers), locked, &r.reason, &client_info(&headers))
         .await?;
-    Ok(ws_response(StatusCode::OK, &ws))
+    console_response(&s, &ws).await
 }
 
 async fn restore(
@@ -219,8 +257,9 @@ async fn restore(
     Path(id): Path<Uuid>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceWrite)?;
+    u.require_step_up(&s)?;
     let ws = platform(&s)?.restore(u.user_id, id, if_match(&headers), &client_info(&headers)).await?;
-    Ok(ws_response(StatusCode::OK, &ws))
+    console_response(&s, &ws).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -238,10 +277,11 @@ async fn schedule_deletion(
     Json(r): Json<DeletionReq>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceWrite)?;
+    u.require_step_up(&s)?;
     let ws = platform(&s)?
         .schedule_deletion(u.user_id, id, if_match(&headers), r.grace_days, &r.reason, &client_info(&headers))
         .await?;
-    Ok(ws_response(StatusCode::OK, &ws))
+    console_response(&s, &ws).await
 }
 
 async fn quotas(
@@ -252,8 +292,9 @@ async fn quotas(
     Json(q): Json<Quotas>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceWrite)?;
+    u.require_step_up(&s)?;
     let ws = platform(&s)?.set_quotas(u.user_id, id, &q, &client_info(&headers)).await?;
-    Ok(ws_response(StatusCode::OK, &ws))
+    console_response(&s, &ws).await
 }
 
 async fn platform_settings(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {

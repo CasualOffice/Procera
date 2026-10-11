@@ -56,6 +56,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/sysapi/v1/workspaces/{id}/schedule-deletion", &[&["workspace.deletion_scheduled"]]),
     emits("PUT", "/sysapi/v1/workspaces/{id}/quotas", &[&["workspace.quotas_changed"]]),
     emits("PUT", "/sysapi/v1/settings/{key}", &[&["platform.floor_changed"]]),
+    emits("PUT", "/sysapi/v1/quota-defaults/{profile}", &[&["platform.quota_defaults_changed"]]),
     // Workspace plane.
     emits("POST", "/api/v1/session/workspace", &[&["session.workspace_selected"]]),
     emits("POST", "/api/v1/session/step-up", &[&["session.stepped_up"]]),
@@ -180,6 +181,7 @@ mod tests {
             ("/api/v1", include_str!("search.rs")),
             ("/api/v1", include_str!("audit.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
+            ("/sysapi/v1", include_str!("system_console.rs")),
             ("", include_str!("../http.rs")),
         ];
         let mut out = BTreeSet::new();
