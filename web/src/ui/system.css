@@ -1,0 +1,67 @@
+/* System Admin console (docs/05 §2.3, §3.20): the same work surface as the workspace app, with a
+   dark chrome and a "System" label so nobody mistakes one realm for the other. */
+.sys-sidebar {
+  --color-text: #EDECE9; --color-text-secondary: #B5B3AD; --color-text-on-tinted: #CFCDC8;
+  --fill-hover: rgb(255 255 255 / .07); --fill-active: rgb(255 255 255 / .12);
+  --line-subtle: rgb(255 255 255 / .08);
+  background: #1C1B19; color: var(--color-text); border-right-color: #1C1B19;
+}
+.sys-brand { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.5rem 0.25rem; font-weight: var(--font-weight-semibold); font-size: 0.9375rem; letter-spacing: -0.01em; }
+.sys-label { margin-left: auto; padding: 0.125rem 0.4375rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: var(--font-weight-semibold); letter-spacing: .08em; text-transform: uppercase; color: #1C1B19; background: #EDECE9; }
+.sys-foot { display: flex; flex-direction: column; gap: 0.25rem; padding-top: var(--space-3); border-top: 1px solid var(--line-subtle); }
+.sys-who { display: flex; flex-direction: column; margin: 0 0 0.25rem; padding: 0 0.5rem; font-size: 0.8125rem; line-height: 1.35; }
+.sys-who span:last-child { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.sys-foot-link, .sys-sidebar .sys-signout { display: flex; align-items: center; gap: 0.5rem; min-height: 1.875rem; padding: 0 0.5rem; border-radius: var(--radius-control); font-size: 0.8125rem; color: var(--color-text-on-tinted); text-decoration: none; justify-content: flex-start; background: transparent; border: 0; }
+.sys-foot-link:hover, .sys-sidebar .sys-signout[data-hovered] { background: var(--fill-hover); color: var(--color-text); }
+.sys-note { display: inline-flex; align-items: center; gap: 0.375rem; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.sys-gate h1 { margin-bottom: var(--space-3); }
+@media (max-width: 52rem) { .sys-note { display: none; } }
+
+/* Workspaces grid */
+.sys-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin-bottom: var(--space-4); }
+.sys-toolbar .filter-chips { margin: 0; }
+.sys-search { flex: 1 1 13rem; max-width: 20rem; }
+.sys-search input, .sys-toolbar select { font: inherit; font-size: 0.8125rem; color: var(--color-text); background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-control); min-height: 2rem; padding: 0 0.625rem; width: 100%; }
+.sys-toolbar select { width: auto; padding-right: 1.75rem; }
+.ws-row-btn { all: unset; cursor: pointer; display: flex; flex-direction: column; min-width: 0; }
+.ws-row-btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; border-radius: 0.25rem; }
+.ws-row-btn strong { font-weight: var(--font-weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-row-btn span { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
+.meter { display: inline-flex; align-items: center; gap: 0.5rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.meter-num { min-width: 5.5rem; }
+.meter-bar { position: relative; flex: none; width: 3rem; height: 0.3125rem; border-radius: 999px; background: var(--color-surface-muted); overflow: hidden; }
+.meter-bar > span { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: var(--color-text-secondary); }
+.meter-warn .meter-bar > span { background: var(--color-warning); }
+.meter-full .meter-bar > span { background: var(--color-danger); }
+
+/* Workspace drawer */
+.ws-facts { display: grid; grid-template-columns: 8.5rem 1fr; gap: 0.5rem var(--space-3); margin: 0 0 var(--space-6); font-size: 0.8125rem; }
+.ws-facts dt { color: var(--color-text-secondary); }
+.ws-facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ws-section-h { margin: var(--space-6) 0 var(--space-2); font-size: 0.8125rem; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.ws-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.ws-reason { margin: 0 0 var(--space-4); }
+
+/* Health */
+.health-list { margin: 0; border-top: 1px solid var(--line); }
+.health-row { display: grid; grid-template-columns: minmax(10rem, 15rem) 1fr; gap: var(--space-3); align-items: baseline; padding: 0.875rem 0.125rem; border-bottom: 1px solid var(--line); }
+.health-row dt { display: flex; align-items: center; gap: 0.625rem; font-weight: var(--font-weight-medium); }
+.health-row dd { margin: 0; color: var(--color-text-secondary); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.health-row dd strong { color: var(--color-text); font-weight: var(--font-weight-medium); }
+.health-ok { color: var(--color-success); }
+.health-degraded { color: var(--color-warning); }
+.health-down { color: var(--color-danger); }
+.health-summary { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-6); font-size: var(--font-size-lg); }
+@media (max-width: 40rem) { .health-row { grid-template-columns: 1fr; gap: 0.25rem; } .health-row dd { padding-left: 1.625rem; } }
+
+/* Quotas */
+.quota-section { margin-top: var(--space-8); }
+.quota-section h2 { font-size: 0.8125rem; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); margin: 0 0 var(--space-1); }
+.quota-section > p { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }
+.quota-form { display: grid; gap: var(--space-4); }
+.sys-app { --frame: #1C1B19; }
+@media (max-width: 53.75rem) {
+  .sys-brand { padding: 0.25rem; }
+  .sys-foot { flex-direction: row; align-items: center; margin-left: auto; padding-top: 0; border-top: 0; }
+  .sys-who, .sys-foot-link span { display: none; }
+}

@@ -33,3 +33,26 @@ export function StepUpDialog({ isOpen, onClose, onDone }: { isOpen: boolean; onC
     </FormDialog>
   );
 }
+
+/**
+ * Runs `fn`; if the server answers `step_up_required`, asks the person to confirm it's them and
+ * runs it again. Other errors go to `onError`. Render `dialog` once in the component.
+ */
+export function useStepUp(onError: (e: unknown) => void): { guard: (fn: () => Promise<void>) => Promise<void>; dialog: React.ReactNode } {
+  const [pending, setPending] = useState<null | (() => Promise<void>)>(null);
+  const guard = async (fn: () => Promise<void>) => {
+    try {
+      await fn();
+    } catch (e) {
+      if (e instanceof ApiError && e.code === 'step_up_required') setPending(() => fn);
+      else onError(e);
+    }
+  };
+  const retry = () => {
+    const fn = pending;
+    setPending(null);
+    if (fn) fn().catch(onError);
+  };
+  const dialog = <StepUpDialog isOpen={pending !== null} onClose={() => setPending(null)} onDone={retry} />;
+  return { guard, dialog };
+}
