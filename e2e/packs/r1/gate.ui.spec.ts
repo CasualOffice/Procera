@@ -166,7 +166,8 @@ test.describe('R1 gate @r1 @ui', () => {
     const props = page.locator('dl.props');
     await expect(props).toContainText('Finance');
     await expect(props).toContainText('Bangalore');
-    await props.getByRole('link').first().click(); // their manager
+    await props.getByRole('link', { name: 'ana', exact: true }).click(); // their manager
+    await expect(page.getByRole('heading', { level: 1, name: 'ana' })).toBeVisible();
     await expect(page.locator('dl.props')).toContainText('Olivia');
   });
 });
