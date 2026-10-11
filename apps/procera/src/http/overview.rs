@@ -108,7 +108,7 @@ async fn overview(
 
     let mut attention: Vec<Value> = vec![];
     for (id, title, n) in &overdue_acks {
-        attention.push(json!({"kind": "overdue_acknowledgements", "severity": "high", "count": n, "title": format!("{n} overdue acknowledgement{} for {title}", if *n == 1 { "" } else { "s" }), "link": format!("/campaigns/{id}")}));
+        attention.push(json!({"kind": "overdue_acknowledgements", "severity": "high", "count": n, "title": format!("{n} overdue acknowledgement{} for {title}", if *n == 1 { "" } else { "s" }), "link": format!("/admin/campaigns/{id}")}));
     }
     for (id, title, _) in &privileged_without_mfa {
         attention.push(json!({"kind": "privileged_without_mfa", "severity": "high", "count": 1, "title": format!("{title} holds an admin role without two-step verification"), "link": format!("/admin/people?filter=no_mfa#{id}")}));

@@ -37,7 +37,7 @@ test.describe('admin overview @r1 @admin', () => {
     const o = await (await owner.c.get('/api/v1/admin/overview', { headers: h })).json();
     expect(o.summary.overdue_acknowledgements).toBe(2); // owner + member, both assigned and overdue (the later joiner is not overdue)
     const first = o.attention[0];
-    expect(first).toMatchObject({ kind: 'overdue_acknowledgements', severity: 'high', count: 2, link: `/campaigns/${cmp.id}` });
+    expect(first).toMatchObject({ kind: 'overdue_acknowledgements', severity: 'high', count: 2, link: `/admin/campaigns/${cmp.id}` });
     expect(o.metrics.acknowledgements.pending).toBe(2);
     expect(o.security.failed_logins).toBeGreaterThanOrEqual(1);
     expect(o.security.members_without_mfa).toBe(1); // the owner enrolled TOTP; the member did not

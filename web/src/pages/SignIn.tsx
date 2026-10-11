@@ -61,7 +61,7 @@ export function SignIn() {
     <>
       <h1>Sign in to Procera</h1>
       <p className="lede">Welcome back. Sign in with your work account.</p>
-      {query.get('mfa') === 'on' && !error && <Notice tone="success" title="Two-step verification is on">Sign in again — you’ll be asked for a code from your app.</Notice>}
+      {query.get('mfa') === 'on' && !error && <Notice tone="success" title="Two-step verification is on">Sign in again. You’ll be asked for a code from your app.</Notice>}
       {error && <Notice tone="danger" title={error} />}
       <Form
         className="stack"

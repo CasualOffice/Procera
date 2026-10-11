@@ -12,6 +12,8 @@ import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
+import { Empty, LoadError, Skeleton } from '../ui/States';
+import { BookOpen, SearchX } from 'lucide-react';
 
 type Filter = 'all' | 'policy' | 'sop';
 
@@ -21,7 +23,7 @@ export function Library() {
   const { query } = useRoute();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
-  const [docs, reload] = useItems<Artifact>('/api/v1/artifacts');
+  const [docs, reload, loadError] = useItems<Artifact>('/api/v1/artifacts');
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
   const people = memberMap(members);
   const newKind = query.get('new');
@@ -56,12 +58,12 @@ export function Library() {
         </SearchField>
       </div>
 
-      {docs === null ? <div className="skeleton-list"><span /><span /><span /></div> : rows.length === 0 ? (
-        <div className="empty-soft">
-          <p className="empty-title">{docs.length ? 'No documents match' : 'Your library is empty'}</p>
-          <p className="muted">{docs.length ? 'Try another filter.' : 'Start with a policy such as a Code of Conduct, or an SOP your team follows.'}</p>
-          {!docs.length && canCreate && <div style={{ marginTop: 14 }}><Button onPress={() => setCreating('policy')}><Plus aria-hidden="true" size={16} /> New document</Button></div>}
-        </div>
+      {loadError ? <LoadError error={loadError} onRetry={reload} what="the library" /> : docs === null ? <Skeleton variant="table" rows={5} label="Loading documents" /> : rows.length === 0 ? (
+        docs.length ? (
+          <Empty icon={SearchX} title="No documents match" action={<Button variant="secondary" onPress={() => { setQ(''); setFilter('all'); }}>Clear filters</Button>}>Nothing matches {q ? `“${q}”` : 'this filter'}.</Empty>
+        ) : (
+          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size={16} /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
+        )
       ) : (
         <div className="table-wrap">
           <table className="table" aria-label="Documents">
@@ -74,7 +76,7 @@ export function Library() {
                     <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size={14} /> : <FileText aria-hidden="true" size={14} />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
                     <td className="col-optional"><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
                     <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
-                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">—</span>}</td>
+                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size={20} />{o.display_name}</span> : <span className="cell-muted">No owner</span>}</td>
                     <td className="col-optional">{d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>}</td>
                     <td className="cell-muted col-optional">{shortDate(d.created_at)}</td>
                   </tr>
@@ -122,7 +124,7 @@ function NewDocumentDialog({ kind, onClose, onCreated }: { kind: 'policy' | 'sop
       <Form onSubmit={(e) => { e.preventDefault(); if (title.trim()) void submit(); }}>
         <TextField label="Title" value={title} onChange={setTitle} isRequired autoFocus description={title ? `Key: ${slugify(title)}` : 'For example “Acceptable Use of IT”.'} />
       </Form>
-      <label className="check-row"><input type="checkbox" checked={controlled} onChange={(e) => setControlled(e.target.checked)} /> <span><strong>Controlled</strong> — always needs an independent review before publishing</span></label>
+      <label className="check-row"><input type="checkbox" checked={controlled} onChange={(e) => setControlled(e.target.checked)} /> <span><strong>Controlled</strong><small>Always needs an independent review before it can be published.</small></span></label>
     </FormDialog>
   );
 }

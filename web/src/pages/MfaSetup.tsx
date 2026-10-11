@@ -37,7 +37,7 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
       const r = await api<{ recovery_codes: string[] }>('/api/v1/me/mfa/totp/confirm', { method: 'POST', body: { code: code.trim() } });
       setCodes(r.recovery_codes);
       setStep('codes');
-    } catch (e) { setError(e instanceof ApiError && e.code === 'invalid_code' ? 'That code didn’t match. Codes change every 30 seconds — try the current one.' : e instanceof Error ? e.message : 'Could not confirm.'); }
+    } catch (e) { setError(e instanceof ApiError && e.code === 'invalid_code' ? 'That code didn’t match. Codes change every 30 seconds, so enter the one showing now.' : e instanceof Error ? e.message : 'Could not confirm.'); }
   };
   const download = () => {
     const blob = new Blob([`Procera recovery codes\n\n${codes.join('\n')}\n\nEach code works once.\n`], { type: 'text/plain' });
@@ -89,13 +89,13 @@ export function MfaSetup({ workspaceName }: { workspaceName: string }) {
     <>
       <span className="mfa-badge mfa-badge-done"><Check aria-hidden="true" size={20} /></span>
       <h1>Save your recovery codes</h1>
-      <p className="lede">If you lose your phone, each of these codes lets you sign in once. Keep them somewhere safe — you won’t see them again.</p>
+      <p className="lede">If you lose your phone, each of these codes lets you sign in once. Store them somewhere safe. You won’t see them again.</p>
       <ul className="recovery" aria-label="Recovery codes">{codes.map((c) => <li key={c}><code>{c}</code></li>)}</ul>
       <div className="actions" style={{ marginBottom: 12 }}>
         <Button variant="secondary" onPress={download}><Download aria-hidden="true" size={15} /> Download</Button>
         <Button variant="secondary" onPress={() => void navigator.clipboard?.writeText(codes.join('\n'))}><Copy aria-hidden="true" size={15} /> Copy</Button>
       </div>
-      <Button className="btn-block" onPress={async () => { await signOut(); navigate('/sign-in?mfa=on', { replace: true }); }}>I’ve saved them — sign in again</Button>
+      <Button className="btn-block" onPress={async () => { await signOut(); navigate('/sign-in?mfa=on', { replace: true }); }}>Done, sign in again</Button>
     </>
   );
 }

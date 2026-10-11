@@ -1,5 +1,6 @@
 /* Base styles: calm, editorial, flat (docs/05 §7.0). No gradients, glass or card-grid decoration. */
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 @import './tokens.css';
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -20,7 +21,7 @@ h3 { font-size: var(--font-size-lg); }
 .app h1 { font-size: 22px; line-height: 28px; letter-spacing: -0.02em; }
 .app h2 { font-size: 14px; line-height: 20px; letter-spacing: -0.006em; }
 .app h3 { font-size: 13px; }
-body { -webkit-font-smoothing: antialiased; font-feature-settings: 'cv11', 'ss01'; }
+body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 p { margin: 0 0 var(--space-4); max-width: var(--measure); }
 /* Links are ink with a quiet underline; brand red is reserved for the logo, focus and active states (docs/05 §7.1.1). */
 a { color: var(--color-text); text-decoration-color: var(--color-border-strong); text-underline-offset: 3px; text-decoration-thickness: 1px; }

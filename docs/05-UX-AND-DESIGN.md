@@ -103,10 +103,22 @@ It is visually distinct: a dark chrome and a "SYSTEM" label in the header. It ha
 - Results are scoped to the active workspace and permission-filtered on the server.
 - Recent and frequent items show first. Fuzzy matching. Each result shows its type icon and shortcut.
 - Full search page: type facets (process, SOP, request, case, file, person), filters, and highlighted snippets. Restricted fields are never indexed.
+- **As built (R1, BPMS-031):**
+  - A "Search ⌘K" field sits under the workspace switcher; on narrow screens it becomes an icon button.
+  - Empty query: **Recent** (documents opened in this browser, per workspace, at most 6), **Go to** (the same permission-shaped list as the sidebar) and **Create** (New policy, New SOP, New announcement, New campaign, Invite people, each only with its permission).
+  - Typing: server results (`GET /api/v1/search`, documents and people) come first, with the matched words highlighted in the snippet. Up to 5 matching commands follow. Command matching is loose on labels ("gtm" finds "Go to Members") and exact on keywords.
+  - Keyboard: ↑/↓ move, Enter opens, Esc closes. The input is a combobox over a listbox (`aria-activedescendant`), and a polite live region announces the result count.
+  - A person opens Members filtered to that person until a member detail page exists.
 
 ## 3. Screen specifications
 
 For each screen: **Purpose · User · Components · States · Interactions · Mobile**. States always include *empty*, *loading* (skeletons, never spinners for layout), *error* (retry plus error id), *partial* (some sections unavailable) and *no-permission* (explanation plus "Request access" to the owner).
+
+**State kit as built (`web/src/ui/States.tsx`, UX-005):**
+- `Skeleton` comes in list, table and document shapes that match the final layout.
+- `Empty` has an icon, one line saying what the area is, one line saying how it fills, and at most one action. A filtered list that is empty offers "Clear filters" instead of the first-run copy.
+- `LoadError` replaces the content (never an empty list) and shows what happened plus "Try again". A 403 says who can help instead of offering a retry.
+- Copy rules: plain functional sentences, no em-dashes, sentence case. An empty cell stays blank, or names the absence ("No owner").
 
 ### 3.1 Home
 - **Purpose:** what needs me today.
@@ -264,6 +276,12 @@ DataGrid with columns: name, email, department, roles, MFA, last active, status.
 - **Directory:** department tree with drag-free moves (a "Move to…" menu), groups, positions, a manager chain viewer, CSV import with dry-run, and cycle detection errors.
 - **Settings:** sectioned forms with a sticky save bar showing unsaved changes. Platform-floor-locked fields show "Set by system admin". Branding includes accent colour with a live contrast check, blocking save below 4.5:1.
 - **Calendars:** year view of holidays, working hours per weekday, iCal import, and versions (only edits after publish create a new version).
+- **Settings as built (R1):**
+  - One page at `/admin/settings`: a section index on the left, and areas (Security and sign-in, Access, Documents and reviews, Campaigns, Announcements, Notifications, Directory, Branding, Language and region, Files, Requests) grouped by key prefix. The API does not return the catalogue `group`.
+  - Each setting is one row: a plain label and hint, the effective value, and its source when it isn't the product default.
+  - It is edited in place, one at a time, instead of through a page-wide save bar, because security keys need their own reason and step-up. The control follows the kind: switch, number, number plus unit, segmented choice (≤ 4 values) or select, chip set (with "Everyone" for `*`), one item per line, colour.
+  - "Why this value" opens the explainer (`GET /settings/effective?key=`): every layer, the one in effect, and a clamped note.
+  - Immediate (security) keys ask for a reason up front. Step-up keys open "Confirm it’s you" and retry. Keys without `editable_with` show "Set by the platform".
 
 ### 3.17 Admin · Files
 DataGrid of all workspace files with columns: name, type, size, owner, linked object, scan status, retention class, legal hold, last accessed.
@@ -292,6 +310,13 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
   - `Export signed bundle`
   - "Pin to investigation" is available from any audit row, file or request.
 - **Alerts:** a rule list (condition, threshold, recipients) with a "matches in the last 30 days" preview while editing, an alert inbox with acknowledgement, and anomaly signals (rule-based) linking to their events.
+- **Audit log as built (R1, `/admin/audit`, read-only):**
+  - A chain badge (`/audit/verify`).
+  - A filter bar (category, result, person, action, date range). Selects apply at once; text and dates apply with "Apply".
+  - 50 rows per page, with "Load older events" for keyset paging.
+  - A row expands in place to the full record: action key, reason, object, IP and agent, policies, trace, sequence and hash, and the redacted diff.
+  - The object cell opens that object's timeline in a side drawer.
+  - With only `audit:view_own`, a note says the list is limited to the member's own activity.
 
 ### 3.20 System Admin console
 - **Workspaces:** DataGrid with columns name, status, tier, members, active instances, storage, created, owner contact. Actions: create, suspend (read-only / locked), restore, schedule deletion (typed-confirmation plus grace period), change quotas.
@@ -319,6 +344,15 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
 - **States:** empty ("Start from a policy template": Code of Conduct, Acceptable Use, Leave…); superseded versions watermarked and read-only.
 - **Mobile:** fully readable and acknowledgeable at 360 px.
 - **Scale:** startup mode shows a flat list. MNC mode adds applicability by entity and location, localised variants (one policy, several language versions linked) and per-region effective dates.
+- **As built (R1, BPMS-043/044/045):**
+  - **Policies** (`/policies`) is in the sidebar for everyone with `policy:view`. It lists the published policies that apply to me (`GET /me/policies`), with a search box and category chips. The chips come from the unfiltered list so they don't vanish while filtering.
+  - Each row shows verified, "Updated" (v2 and later published in the last 30 days) and review-overdue tags. A "What changed in vN" box gives the counts and change reason and links to the comparison.
+  - **Document properties** add Review (status tag, next date, schedule, with "Recertify" and "Change schedule" for publishers), Verified ("Verify" or "Remove verification" for approvers; controlled documents ask to confirm identity) and, for policies, Applies to (audience summary, category, "Only they can see it").
+  - A due or overdue review also shows a callout with "Recertify now" to publishers.
+  - **Applies to** is edited in a dialog with category, the shared audience picker, and "Only these people can see it" (only with a specific audience).
+  - **Suggested changes** sit under the document. Anyone who can read it can "Suggest a change" (title, optional details). Publishers can Accept, Decline (reason required) or Mark implemented (pick the version). The state is shown as a tag; members never see resolve actions.
+  - **Compare** (`/library/:id/compare?from=&to=`, version numbers) is linked as "Compare with vN" from the version history. It shows the newer version as a document: added blocks tinted green with an underline, removed blocks red and struck through, and word-level `<ins>`/`<del>` inside changed blocks (a left rule marks the block).
+  - The compare page also has a summary line, the change reason and two version pickers. Changes are named for screen readers, so colour is never the only signal.
 
 ### 3.22 Document signing (Documents)
 - **Purpose:** send any document (PDF/DOCX; DOCX converted to PDF at send time and frozen) to employees or external people for e-signature.
@@ -354,6 +388,12 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
 - **Read receipts:** the sender sees viewed and acknowledged counts. Individual read lists are visible only to `announcement:view_receipts` holders (privacy).
 - **Campaign dashboard:** the shared tracker (§3.24) shows completion % by department and an overdue list.
 - **Scale:** startup mode is "post to everyone". MNC mode adds location and entity targeting, localised versions and approval before publishing for company-wide posts (configurable).
+- **As built (R1):**
+  - The feed shows a two-line preview, an unread dot with heavier weight, and the acknowledgement at the end of the expanded post. `?open=<id>` deep-links from Home.
+  - **Manage announcements** (`/admin/announcements`, Administration) has status tabs and an Attio-style table: title, status, audience, author, reach, updated.
+  - A row opens a side drawer with what happens next, properties, receipts (read and acknowledged %, by department) and the message. Actions depend on state and permission: Edit, Publish now or Schedule, Send for approval, Request changes, Approve and publish, Archive (reason).
+  - When a direct publish needs approval, the drawer explains why and offers "Send for approval".
+  - The composer has a title, a message (the same light markup as documents), the audience picker (Everyone, or departments, groups and roles as toggle chips), and options: acknowledgement, critical, pin, publish at, expires on. It always saves a draft first.
 
 ### 3.24 Acknowledgement & Signature campaigns (shared engine)
 One engine powers SOP and policy re-acknowledgement, announcement acknowledgement, attestations and bulk signing. The UX is therefore identical everywhere.
@@ -374,6 +414,13 @@ One engine powers SOP and policy re-acknowledgement, announcement acknowledgemen
     - Export the evidence (who / when / which version / method), signed (CMP-03).
 - **States:** a draft campaign shows the audience preview. A closed campaign is frozen as evidence.
 - **Scale:** the same screens serve 10 people or 50,000. At volume, the department table becomes a drill-down tree (entity › department › team).
+- **As built (R1):**
+  - **Campaigns** (`/admin/campaigns`) lists campaign, document and version, status, an acknowledged meter ("3 of 7"), overdue, audience and due date.
+  - **New campaign** offers a list of published documents (the current published version is used), a name prefilled from the document, the shared audience picker and an optional due date.
+  - The campaign page:
+    - Draft: shows the audience preview ("N people will be asked to acknowledge") and the statement, then Launch or Cancel.
+    - Active: a progress bar, four figures (acknowledged, pending, overdue, launched), an acknowledged-by-department table computed from recipients, and a people table with All, Pending, Overdue and Done filters.
+    - Actions: Remind pending, Close (reason), and the evidence CSV.
 
 ## 4. Shared DataGrid specification (FR-V01–V09)
 
@@ -485,8 +532,8 @@ These values are **normative**: components consume tokens only, and CI lint bloc
 
 | Token | Value | Standard |
 |---|---|---|
-| Font stack (default) | `"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif`; mono `"IBM Plex Mono", ui-monospace, monospace` | Inter, IBM Plex and Source Sans 3 are all **SIL OFL 1.1** (self-hosted, no CDN). Noto covers non-Latin scripts. Verify in SP-07. |
-| Vetted workspace font choices | Inter · IBM Plex Sans · Source Sans 3 · System UI | Only these (metrics tested for layout and scripts) |
+| Font stack (default) | `"Geist", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif`; mono `"Geist Mono", ui-monospace, monospace` | Geist and Geist Mono (2026-10-11, replacing Inter: Inter read as a generic default), Inter, IBM Plex and Source Sans 3 are all **SIL OFL 1.1** (self-hosted via `@fontsource-variable`, no CDN). Noto covers non-Latin scripts. Verify in SP-07. |
+| Vetted workspace font choices | Geist · Inter · IBM Plex Sans · Source Sans 3 · System UI | Only these (metrics tested for layout and scripts) |
 | Type scale (px) | 12 · 14 · **16** · 18 · 20 · 24 · 30 · 36 | Modular, ~1.125–1.25 |
 | Body default | **16px**, line-height **1.5** | Readability; WCAG 1.4.12 tolerance |
 | Dense tables | 14px, line-height 1.43 (20px), only in DataGrid compact density and with a user toggle back to 16 | — |

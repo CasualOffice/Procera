@@ -1,14 +1,22 @@
 import { useEffect } from 'react';
-import { match, navigate, useRoute } from './lib/router';
+import { Compass } from 'lucide-react';
+import { Link, match, navigate, useRoute } from './lib/router';
 import { useSession } from './lib/session';
 import { AppShell, PlainShell } from './ui/AppShell';
+import { Empty, Skeleton } from './ui/States';
 import { ChooseWorkspace } from './pages/ChooseWorkspace';
 import { DesignGallery } from './pages/DesignGallery';
 import { Home } from './pages/Home';
 import { Notifications } from './pages/Notifications';
 import { Library } from './pages/Library';
 import { LibraryDoc } from './pages/LibraryDoc';
+import { Compare } from './pages/Compare';
+import { Policies } from './pages/Policies';
 import { Announcements } from './pages/Announcements';
+import { ManageAnnouncements } from './pages/ManageAnnouncements';
+import { CampaignDetail, Campaigns } from './pages/Campaigns';
+import { Settings } from './pages/Settings';
+import { Audit } from './pages/Audit';
 import { Members } from './pages/Members';
 import { AdminOverview } from './pages/AdminOverview';
 import { AdminPeople } from './pages/AdminPeople';
@@ -19,13 +27,15 @@ function Redirect({ to }: { to: string }) {
   return null;
 }
 
+const ADMIN = 'Administration';
+
 export function App() {
   const { path } = useRoute();
   const { status } = useSession();
 
   // Public pages.
   if (path === '/design') return <AppShellPublic><DesignGallery /></AppShellPublic>;
-  if (status === 'loading') return <PlainShell><p className="muted" role="status">Loading…</p></PlainShell>;
+  if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   if (status === 'signed_out') {
     if (path !== '/sign-in') return <Redirect to={`/sign-in`} />;
     return <PlainShell><SignIn /></PlainShell>;
@@ -36,15 +46,25 @@ export function App() {
   if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/policies') return <AppShell current="policies" crumbs={['Policies']}><Policies /></AppShell>;
+  const cmp = match('/library/:id/compare', path);
+  if (cmp) return <AppShell current="library" crumbs={[['Library', '/library'], 'Compare']}><Compare id={cmp.id!} /></AppShell>;
   const doc = match('/library/:id', path);
-  if (doc) return <AppShell current="library" crumbs={['Library', 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
+  if (doc) return <AppShell current="library" crumbs={[['Library', '/library'], 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
-  if (path === '/admin/overview') return <AppShell current="overview" crumbs={['Administration', 'Overview']}><AdminOverview /></AppShell>;
-  if (path === '/admin/people') return <AppShell current="people" crumbs={['Administration', 'People & access']}><AdminPeople /></AppShell>;
-  if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={['Administration', 'Members']}><Members /></AppShell>;
+  if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
+  if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
+  if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
+  if (path === '/admin/announcements') return <AppShell current="manage-announcements" crumbs={[ADMIN, 'Manage announcements']}><ManageAnnouncements /></AppShell>;
+  if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;
+  const camp = match('/admin/campaigns/:id', path);
+  if (camp) return <AppShell current="campaigns" crumbs={[ADMIN, ['Campaigns', '/admin/campaigns'], 'Campaign']}><CampaignDetail id={camp.id!} /></AppShell>;
+  if (path === '/admin/settings') return <AppShell current="settings" crumbs={[ADMIN, 'Settings']}><Settings /></AppShell>;
+  if (path === '/admin/audit') return <AppShell current="audit" crumbs={[ADMIN, 'Audit log']}><Audit /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>
-      <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist or you don’t have access to it.</p></div></div>
+      <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist, or you don’t have access to it.</p></div></div>
+      <Empty icon={Compass} title="Nothing here" action={<Link className="btn btn-secondary link-btn" to="/">Back to Home</Link>}>Check the address, or press {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K'} to search.</Empty>
     </AppShell>
   );
 }

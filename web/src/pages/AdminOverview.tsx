@@ -77,7 +77,7 @@ export function AdminOverview() {
 function OverviewBody({ data }: { data: Overview }) {
   const s = data.summary;
   const parts: React.ReactNode[] = [];
-  if (s.overdue_acknowledgements) parts.push(<Link key="a" to="/campaigns">{plural(s.overdue_acknowledgements, 'overdue acknowledgement')}</Link>);
+  if (s.overdue_acknowledgements) parts.push(<Link key="a" to="/admin/campaigns">{plural(s.overdue_acknowledgements, 'overdue acknowledgement')}</Link>);
   if (s.overdue_reviews) parts.push(<Link key="r" to="/library?review=overdue">{plural(s.overdue_reviews, 'document')} past review</Link>);
   if (s.pending_reviews) parts.push(<Link key="p" to="/library?state=in_review">{plural(s.pending_reviews, 'draft')} waiting for review</Link>);
   if (s.pending_announcements) parts.push(<Link key="n" to="/announcements">{plural(s.pending_announcements, 'announcement')} to approve</Link>);
