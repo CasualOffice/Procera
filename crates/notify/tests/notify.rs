@@ -126,3 +126,44 @@ async fn workspace_terms_reach_notifications() -> anyhow::Result<()> {
     assert!(mail[0].text.contains("submitted the work instruction Lockout") && !mail[0].html.contains("SOP"));
     Ok(())
 }
+
+/// OQ-15 / A-39: recovery emails go to the system queue (never a tenant's), sealed, readable only in
+/// the system scope, and are skipped for an address that bounced.
+#[tokio::test]
+async fn system_emails_are_sealed_in_the_system_queue() -> anyhow::Result<()> {
+    let Some(t) = test_support::fresh().await else { return Ok(()) };
+    let t = t?;
+    let keys = Arc::new(LocalKey::from_base64(&LocalKey::generate_base64())?);
+    let n = Notify::new(t.db.clone(), keys, Arc::new(SystemClock), Arc::new(UuidV7Gen));
+    let vars =
+        json!({"name": "Ann", "link": "https://app.test/reset-password?token=reset-secret", "minutes": 30});
+    assert!(n.queue_system_email("password_reset", "Ann@Acme.test", &vars, "password_reset:1").await?);
+    assert!(
+        !n.queue_system_email("password_reset", "ann@acme.test", &vars, "password_reset:1").await?,
+        "deduplicated"
+    );
+
+    let system = WsCtx { workspace_id: procera_db::SYSTEM_WORKSPACE };
+    let mail = n.emails_to(system, "ann@acme.test").await?;
+    assert_eq!(mail.len(), 1);
+    assert_eq!((mail[0].kind.as_str(), mail[0].state.as_str()), ("password_reset", "queued"));
+    assert!(mail[0].text.contains("reset-password?token=reset-secret"));
+    let mut tx = t.db.begin_ws(system).await?;
+    let raw: Vec<u8> =
+        sqlx::query_scalar("SELECT body_sealed FROM email_messages").fetch_one(tx.conn()).await?;
+    tx.rollback().await?;
+    assert!(!String::from_utf8_lossy(&raw).contains("reset-secret"), "the link is sealed at rest");
+    // A tenant workspace never sees it.
+    assert!(n.emails_to(WsCtx { workspace_id: Uuid::now_v7() }, "ann@acme.test").await?.is_empty());
+
+    let mut admin = <sqlx::PgConnection as sqlx::Connection>::connect(&t.admin_url).await?;
+    sqlx::query("INSERT INTO email_suppressions (email, reason, created_at) VALUES ('gone@acme.test', 'bounced', now())")
+        .execute(&mut admin)
+        .await?;
+    let notice = json!({"name": "Gone", "how": "reset"});
+    assert!(
+        !n.queue_system_email("password_changed", "gone@acme.test", &notice, "password_changed:1").await?
+    );
+    assert!(n.emails_to(system, "gone@acme.test").await?.is_empty());
+    Ok(())
+}

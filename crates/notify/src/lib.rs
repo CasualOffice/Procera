@@ -198,6 +198,33 @@ impl Notify {
         Ok(n == 1)
     }
 
+    /// Queues a system email (account recovery and security notices, docs/06 §3.6.1, A-39): it goes to
+    /// the system workspace's queue, never a tenant's, sealed under the system workspace's KEK and
+    /// delivered by [`Notify::send_due`] like any other. Rendered with the product's default terms.
+    /// Addresses suppressed after a permanent bounce are skipped. Returns `false` when nothing was queued.
+    pub async fn queue_system_email(
+        &self,
+        kind: &str,
+        to: &str,
+        ctx: &Value,
+        dedupe_key: &str,
+    ) -> Result<bool, NotifyError> {
+        let mut tx = self.db.begin_system().await?;
+        let suppressed: bool =
+            sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM email_suppressions WHERE email = $1)")
+                .bind(to.trim().to_lowercase())
+                .fetch_one(tx.conn())
+                .await?;
+        if suppressed {
+            tracing::info!(kind, "system email not queued: address suppressed after a permanent bounce");
+            return Ok(false);
+        }
+        let ctx = templates::with_terms(ctx, &Value::Null);
+        let queued = self.queue_email(&mut tx, kind, to, &ctx, dedupe_key).await?;
+        tx.commit().await?;
+        Ok(queued)
+    }
+
     /// Adds an in-app notification for a member in the caller's transaction (idempotent on `dedupe_key`).
     #[allow(clippy::too_many_arguments)]
     pub async fn notify_member(
