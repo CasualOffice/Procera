@@ -1,7 +1,8 @@
 //! A compiled IR indexed for execution.
 
+use procera_expr::{CheckedExpr, Schema};
 use procera_ir::model::{IrDocument, Node, NodeKind};
-use procera_ir::{COMPILER_VERSION, Compiled};
+use procera_ir::{COMPILER_VERSION, Compiled, CompiledExpressions, compile_expressions};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Why an IR document cannot be executed. A document that compiled cleanly never fails these
@@ -31,19 +32,27 @@ pub struct Program {
     nodes: BTreeMap<String, usize>,
     edges: BTreeMap<(String, String), String>,
     start: String,
+    expressions: CompiledExpressions,
 }
 
 impl Program {
     /// From a successful compile (the normal path).
     pub fn from_compiled(compiled: &Compiled) -> Result<Self, ProgramError> {
-        let mut p = Self::new(compiled.ir.clone())?;
+        let mut p = Self::index(compiled.ir.clone(), compiled.expressions.clone())?;
         p.checksum = Some(compiled.checksum.clone());
         Ok(p)
     }
 
     /// From an IR document. It should be the compiler's normal form; this re-checks only what
-    /// execution relies on (one start, endpoints exist, one edge per outcome, joins exist).
+    /// execution relies on (one start, endpoints exist, one edge per outcome, joins exist) and
+    /// type-checks its expressions. An expression that does not compile is left out, and
+    /// evaluating it raises an incident.
     pub fn new(ir: IrDocument) -> Result<Self, ProgramError> {
+        let (expressions, _) = compile_expressions(&ir);
+        Self::index(ir, expressions)
+    }
+
+    fn index(ir: IrDocument, expressions: CompiledExpressions) -> Result<Self, ProgramError> {
         if ir.schema_version != procera_ir::model::SCHEMA_VERSION {
             return Err(ProgramError::SchemaVersion(ir.schema_version));
         }
@@ -76,7 +85,7 @@ impl Program {
                 return Err(ProgramError::Join { split: n.id.clone() });
             }
         }
-        Ok(Self { ir, checksum: None, nodes, edges, start })
+        Ok(Self { ir, checksum: None, nodes, edges, start, expressions })
     }
 
     pub fn ir(&self) -> &IrDocument {
@@ -109,6 +118,16 @@ impl Program {
     /// Whether `name` is a declared variable.
     pub fn declares(&self, name: &str) -> bool {
         self.ir.variables.iter().any(|v| v.name == name)
+    }
+
+    /// The checked expression at `field` of node `node` (docs/11 §14 *Expressions*).
+    pub fn expression(&self, node: &str, field: &str) -> Option<&CheckedExpr> {
+        self.expressions.get(node, field)
+    }
+
+    /// The schema expressions were checked against.
+    pub fn schema(&self) -> &Schema {
+        &self.expressions.schema
     }
 
     /// The default business calendar (`refs.calendars.default`).

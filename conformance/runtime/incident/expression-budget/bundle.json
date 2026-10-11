@@ -1,0 +1,8 @@
+{
+  "evaluators": [
+    "cel"
+  ],
+  "expr_budget": {
+    "max_steps": 2
+  }
+}

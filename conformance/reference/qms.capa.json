@@ -60,7 +60,7 @@
         "en": "Compute risk score"
       },
       "assign": {
-        "risk_score": "expr:feel: (if severity = \"critical\" then 5 else if severity = \"major\" then 3 else 1) * occurrence"
+        "risk_score": "expr:cel: occurrence != null ? (severity == \"critical\" ? 5 : severity == \"major\" ? 3 : 1) * occurrence : 0"
       }
     },
     {
@@ -130,7 +130,7 @@
       "branches": [
         {
           "name": "yes",
-          "when": "expr:feel: needs_doc_change"
+          "when": "expr:cel: needs_doc_change == true"
         }
       ]
     },

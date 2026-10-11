@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "conf.expr-type", "version": 1, "name": { "en": "Expression type mismatch" } },
+  "variables": [
+    { "name": "amount", "type": "decimal", "classification": "internal", "required": true },
+    { "name": "note", "type": "string", "classification": "internal" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start" },
+    { "id": "calc", "kind": "set", "assign": { "note": "expr:cel: amount * 2" } },
+    { "id": "route", "kind": "decision", "branches": [{ "name": "big", "when": "expr:cel: amount + 1" }] },
+    { "id": "done", "kind": "end" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "calc" },
+    { "id": "e2", "from": "calc", "to": "route" },
+    { "id": "e3", "from": "route", "to": "done", "on": "big" },
+    { "id": "e4", "from": "route", "to": "done", "on": "default" }
+  ]
+}

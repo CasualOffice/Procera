@@ -18,11 +18,12 @@
 //! - **Budgeted.** Each advance runs at most [`Budget::max_steps`] node executions and yields with
 //!   [`Command::ContinueAdvance`]; a node entered too often raises incident `IR-R004`.
 //!
-//! Expressions are evaluated through the [`Evaluator`] port (BPMS-081 implements it).
+//! Expressions are evaluated through the [`Evaluator`] port. [`CelEvaluator`] is the production
+//! implementation (procera-expr); it evaluates the compiler's checked forms without parsing.
 //!
 //! ```
 //! use procera_ir::{CompileContext, compile};
-//! use procera_runtime::{Event, Interpreter, Program, Stimulus, testkit::MiniEvaluator};
+//! use procera_runtime::{CelEvaluator, Event, Interpreter, Program, Stimulus};
 //! let source = serde_json::json!({
 //!     "schemaVersion": 1,
 //!     "process": { "key": "hello", "version": 1, "name": { "en": "Hello" } },
@@ -32,7 +33,7 @@
 //! });
 //! let compiled = compile(&source, &CompileContext::default()).compiled.unwrap();
 //! let program = Program::from_compiled(&compiled).unwrap();
-//! let eval = MiniEvaluator::default();
+//! let eval = CelEvaluator::default();
 //! let start = Stimulus {
 //!     at: time::macros::datetime!(2026-10-11 09:00 UTC),
 //!     event: Event::Start { instance_id: uuid::Uuid::nil(), initiator: serde_json::json!({}), variables: Default::default() },
@@ -41,6 +42,7 @@
 //! assert_eq!(step.state.status, procera_runtime::InstanceStatus::Completed);
 //! ```
 
+mod cel;
 mod command;
 mod event;
 mod interp;
@@ -49,10 +51,12 @@ mod program;
 mod state;
 pub mod testkit;
 
+pub use cel::CelEvaluator;
 pub use command::{Command, InstanceResult, TimerDue, TimerPurpose, WorkKind};
 pub use event::{Event, Stimulus};
 pub use interp::{Budget, EventError, Interpreter, ReplayError, Step};
 pub use port::{EvalError, Evaluator, Scope};
+pub use procera_expr::Budget as ExprBudget;
 pub use program::{Program, ProgramError};
 pub use state::{
     Frame, Incident, IncidentCode, InstanceState, InstanceStatus, Split, SplitId, Token, TokenId, TokenState,

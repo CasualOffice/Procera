@@ -2,9 +2,9 @@
 #![allow(dead_code, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 use procera_ir::{CompileContext, Severity, compile};
-use procera_runtime::testkit::MiniEvaluator;
 use procera_runtime::{
-    Budget, Command, Event, EventError, InstanceState, Interpreter, Program, Stimulus, TraceEvent, WaitKind,
+    Budget, CelEvaluator, Command, Evaluator, Event, EventError, InstanceState, Interpreter, Program,
+    Stimulus, TraceEvent, WaitKind,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -31,9 +31,11 @@ pub fn program(source: &Value) -> Program {
     Program::from_compiled(&out.compiled.unwrap()).unwrap()
 }
 
-/// A process document from nodes, edges and variable names (all `boolean` unless given a type).
+/// A process document from nodes, edges and typed variable names. The variables are
+/// `required`, so expressions may use them without null guards (docs/11 §6.1).
 pub fn process(nodes: Value, edges: Value, vars: &[(&str, &str)]) -> Value {
-    let variables: Vec<Value> = vars.iter().map(|(n, t)| json!({ "name": n, "type": t })).collect();
+    let variables: Vec<Value> =
+        vars.iter().map(|(n, t)| json!({ "name": n, "type": t, "required": true })).collect();
     json!({
         "schemaVersion": 1,
         "process": { "key": "test.process", "version": 1, "name": { "en": "Test" } },
@@ -63,7 +65,7 @@ pub fn vars(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
 #[derive(Debug)]
 pub struct Harness {
     pub program: Program,
-    pub eval: MiniEvaluator,
+    pub eval: Box<dyn Evaluator>,
     pub budget: Budget,
     pub now: OffsetDateTime,
     pub state: Option<InstanceState>,
@@ -74,13 +76,14 @@ pub struct Harness {
 
 impl Harness {
     pub fn new(source: &Value) -> Self {
-        Self::with(program(source), MiniEvaluator::default())
+        Self::with(program(source), CelEvaluator::default())
     }
 
-    pub fn with(program: Program, eval: MiniEvaluator) -> Self {
+    /// With a specific evaluator. [`Harness::new`] uses the production [`CelEvaluator`].
+    pub fn with(program: Program, eval: impl Evaluator + 'static) -> Self {
         Self {
             program,
-            eval,
+            eval: Box::new(eval),
             budget: Budget::default(),
             now: T0,
             state: None,
@@ -95,7 +98,7 @@ impl Harness {
     }
 
     pub fn interp(&self) -> Interpreter<'_> {
-        Interpreter::new(&self.program, &self.eval).with_budget(self.budget)
+        Interpreter::new(&self.program, self.eval.as_ref()).with_budget(self.budget)
     }
 
     /// Applies an event; on success records it and returns the new commands.

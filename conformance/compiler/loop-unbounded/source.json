@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "process": { "key": "conf.loop", "version": 1, "name": { "en": "Unbounded loop" } },
-  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal" }],
+  "variables": [{ "name": "amount", "type": "decimal", "classification": "internal", "required": true }],
   "nodes": [
     { "id": "start", "kind": "start" },
     { "id": "bump", "kind": "set", "assign": { "amount": "expr:cel: amount + 1" } },

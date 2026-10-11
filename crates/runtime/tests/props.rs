@@ -1,6 +1,8 @@
 //! Property tests (docs/15 §5) over generated block-structured processes driven by random
 //! event sequences: determinism and replay equality, budget termination and equivalence,
-//! join correctness, terminate kills every token, and activation bookkeeping.
+//! join correctness, terminate kills every token, and activation bookkeeping. Runs use the
+//! production CEL evaluator; the stand-in must agree with it, and compiled-then-evaluated CEL
+//! expressions are deterministic (docs/04 §4.5).
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
 mod common;
@@ -8,8 +10,8 @@ mod common;
 use common::*;
 use procera_runtime::testkit::MiniEvaluator;
 use procera_runtime::{
-    Budget, Command, Event, EventError, InstanceState, InstanceStatus, SplitId, Stimulus, TraceEvent,
-    WaitKind,
+    Budget, CelEvaluator, Command, Evaluator, Event, EventError, InstanceState, InstanceStatus, Scope,
+    SplitId, Stimulus, TraceEvent, WaitKind,
 };
 use proptest::prelude::*;
 use serde_json::{Value, json};
@@ -229,7 +231,23 @@ fn start_vars(flags: usize, seed: u64) -> BTreeMap<String, Value> {
 /// Runs a script. With `roundtrip`, the state goes through JSON between events. `Continue` is
 /// sent whenever an advance yields.
 fn run(doc: &Value, flags: usize, seed: u64, script: &[Choice], budget: Budget, roundtrip: bool) -> Harness {
-    let mut h = Harness::with(program(doc), MiniEvaluator::default());
+    run_with(doc, flags, seed, script, budget, roundtrip, true)
+}
+
+fn run_with(
+    doc: &Value,
+    flags: usize,
+    seed: u64,
+    script: &[Choice],
+    budget: Budget,
+    roundtrip: bool,
+    cel: bool,
+) -> Harness {
+    let mut h = if cel {
+        Harness::with(program(doc), CelEvaluator::default())
+    } else {
+        Harness::with(program(doc), MiniEvaluator::default())
+    };
     h.budget = budget;
     h.start(start_vars(flags, seed));
     let mut pending: Vec<Choice> = script.to_vec();
@@ -348,6 +366,10 @@ proptest! {
         a.assert_replays();
         let c = run(&doc, flags, seed, &script, Budget::default(), true);
         prop_assert_eq!(a.state(), c.state());
+        // The stand-in evaluator agrees with CEL on these expressions.
+        let m = run_with(&doc, flags, seed, &script, Budget::default(), false, false);
+        prop_assert_eq!(a.state(), m.state());
+        prop_assert_eq!(&a.commands, &m.commands);
         prop_assert!(a.state().incidents().next().is_none(), "{:?}", a.state().incidents().collect::<Vec<_>>());
         assert_bookkeeping(&a);
         assert_joins(a.state());
@@ -396,5 +418,93 @@ proptest! {
         }
         assert_bookkeeping(&h);
         assert_joins(s);
+    }
+}
+
+/// Expression templates over `a`, `b` (integers), `d` (decimal) and `s` (string), each wrapped in
+/// `string(...)` so it can be assigned to the string variable `out`.
+const TEMPLATES: &[&str] = &[
+    "a + b * 2",
+    "a / (b == 0 ? 1 : b)",
+    "a % (b == 0 ? 7 : b)",
+    "max(a, b) - min(a, b)",
+    "d * 3.5 + decimal(a)",
+    "round(d / 3, 2)",
+    "a > b && size(s) > 2",
+    "s + string(a)",
+    "s.upper().contains('A') || a == b",
+    "sum([a, b, a + b].filter(x, x > 0))",
+    "[a, b].exists(x, x > 100)",
+    "now() + duration('PT1H') > instance.started_at",
+];
+
+fn expr_doc(template: &str) -> Value {
+    process(
+        json!([
+            { "id": "start", "kind": "start" },
+            { "id": "calc", "kind": "set", "assign": { "out": format!("expr:cel: string({template})") } },
+            { "id": "route", "kind": "decision", "branches": [
+                { "name": "long", "when": "expr:cel: size(out) > 3" }
+            ]},
+            { "id": "done", "kind": "end" }
+        ]),
+        json!([
+            edge("e1", "start", "calc", "next"),
+            edge("e2", "calc", "route", "next"),
+            edge("e3", "route", "done", "long"),
+            edge("e4", "route", "done", "default"),
+        ]),
+        &[("a", "integer"), ("b", "integer"), ("d", "decimal"), ("s", "string"), ("out", "string")],
+    )
+}
+
+proptest! {
+    #![proptest_config(ProptestConfig { cases: 128, ..ProptestConfig::default() })]
+
+    /// Compiling twice gives the same checked forms (also after a JSON round trip), and
+    /// evaluating them gives the same result, path and commands every time.
+    #[test]
+    fn compiled_cel_expressions_evaluate_deterministically(
+        t in 0..TEMPLATES.len(),
+        a in -1_000i64..1_000,
+        b in -1_000i64..1_000,
+        cents in -100_000i64..100_000,
+        s in "[a-zA-Z ]{0,12}",
+    ) {
+        let doc = expr_doc(TEMPLATES[t]);
+        let start = vars(&[
+            ("a", json!(a)),
+            ("b", json!(b)),
+            ("d", json!(format!("{}.{:02}", cents / 100, (cents % 100).abs()))),
+            ("s", json!(s)),
+        ]);
+        let mut x = Harness::new(&doc);
+        x.start(start.clone());
+        let mut y = Harness::new(&doc);
+        y.start(start);
+        prop_assert_eq!(x.state(), y.state());
+        prop_assert_eq!(&x.commands, &y.commands);
+        prop_assert!(x.state().incidents().next().is_none(), "{:?}", x.state().incidents().collect::<Vec<_>>());
+        x.assert_replays();
+
+        let compiled = procera_ir::compile(&doc, &procera_ir::CompileContext::default()).compiled.unwrap();
+        let wire: procera_ir::CompiledExpressions =
+            serde_json::from_str(&serde_json::to_string(&compiled.expressions).unwrap()).unwrap();
+        prop_assert_eq!(&wire, &compiled.expressions);
+        let state = x.state();
+        let scope = Scope {
+            variables: &state.variables,
+            instance: &state.instance,
+            initiator: &state.initiator,
+            now: T0,
+            schema: &compiled.expressions.schema,
+        };
+        let eval = CelEvaluator::default();
+        let expr = procera_ir::model::Expr(String::new());
+        for (node, field, checked) in compiled.expressions.iter() {
+            let first = eval.eval(&expr, Some(checked), &scope);
+            let again = eval.eval(&expr, wire.get(node, field), &scope);
+            prop_assert_eq!(first, again);
+        }
     }
 }

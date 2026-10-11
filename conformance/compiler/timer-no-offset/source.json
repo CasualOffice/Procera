@@ -4,7 +4,7 @@
   "variables": [],
   "nodes": [
     { "id": "start", "kind": "start" },
-    { "id": "wait", "kind": "wait.timer", "at": "expr:cel: timestamp(\"2027-01-04T09:00:00\")" },
+    { "id": "wait", "kind": "wait.timer", "at": "expr:cel: datetime(\"2027-01-04T09:00:00\")" },
     { "id": "done", "kind": "end" }
   ],
   "edges": [

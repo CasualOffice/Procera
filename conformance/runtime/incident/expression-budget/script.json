@@ -1,0 +1,4 @@
+[
+  {"start": {"variables": {"amount": 10, "vip": false}}},
+  {"reject": {"continue": {}}}
+]

@@ -290,8 +290,9 @@ impl Run<'_> {
         self.incident(id, code, e.to_string());
     }
 
-    fn eval(&self, expr: &Expr) -> Result<Value, EvalError> {
-        self.it.evaluator.eval(expr, &self.scope())
+    /// Evaluates the expression at `field` of `node`, with the compiler's checked form.
+    fn eval(&self, node: &str, field: &str, expr: &Expr) -> Result<Value, EvalError> {
+        self.it.evaluator.eval(expr, self.it.program.expression(node, field), &self.scope())
     }
 
     fn scope(&self) -> Scope<'_> {
@@ -300,6 +301,7 @@ impl Run<'_> {
             instance: &self.st.instance,
             initiator: &self.st.initiator,
             now: self.at,
+            schema: self.it.program.schema(),
         }
     }
 

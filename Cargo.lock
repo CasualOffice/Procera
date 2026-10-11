@@ -2644,6 +2644,7 @@ dependencies = [
  "anyhow",
  "jsonschema",
  "procera-conformance",
+ "procera-expr",
  "proptest",
  "serde",
  "serde_jcs",
@@ -2774,6 +2775,7 @@ name = "procera-runtime"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "procera-expr",
  "procera-ir",
  "procera-kernel",
  "proptest",

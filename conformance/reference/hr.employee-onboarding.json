@@ -61,7 +61,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee.manager"
+            "ref": "expr:cel: employee.manager"
           }
         ],
         "fallback": {
@@ -136,7 +136,7 @@
       "name": {
         "en": "Wait for laptop delivery"
       },
-      "correlation": "expr:feel: employee_id",
+      "correlation": "expr:cel: employee_id",
       "timeout": "P10D"
     },
     {
@@ -185,7 +185,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee"
+            "ref": "expr:cel: employee"
           }
         ]
       },
@@ -203,7 +203,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee"
+            "ref": "expr:cel: employee"
           }
         ]
       },
@@ -224,7 +224,7 @@
       "name": {
         "en": "Wait for start date"
       },
-      "at": "expr:feel: date and time(start_date, time(\"09:00:00\"))",
+      "at": "expr:cel: datetime(start_date) + duration(\"PT9H\")",
       "calendar": "default"
     },
     {
@@ -241,11 +241,11 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: employee"
+            "ref": "expr:cel: employee"
           },
           {
             "type": "user",
-            "ref": "expr:feel: employee.manager"
+            "ref": "expr:cel: employee.manager"
           }
         ]
       },

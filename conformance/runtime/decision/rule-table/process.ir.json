@@ -10,7 +10,8 @@
   "variables": [
     {
       "name": "tier",
-      "type": "string"
+      "type": "string",
+      "required": true
     }
   ],
   "nodes": [

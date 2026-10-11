@@ -10,11 +10,13 @@
   "variables": [
     {
       "name": "amount",
-      "type": "integer"
+      "type": "integer",
+      "required": true
     },
     {
       "name": "vip",
-      "type": "boolean"
+      "type": "boolean",
+      "required": true
     }
   ],
   "nodes": [

@@ -5,7 +5,9 @@ mod common;
 
 use common::*;
 use procera_runtime::testkit::MiniEvaluator;
-use procera_runtime::{Command, InstanceResult, InstanceStatus, TimerDue, WaitKind, WorkKind};
+use procera_runtime::{
+    CelEvaluator, Command, ExprBudget, InstanceResult, InstanceStatus, TimerDue, WaitKind, WorkKind,
+};
 use serde_json::json;
 
 fn seq(nodes: serde_json::Value, edges: serde_json::Value) -> Harness {
@@ -95,13 +97,20 @@ fn decision_falls_back_to_default() {
 
 #[test]
 fn decision_non_boolean_condition_is_an_incident() {
-    let mut h = Harness::new(&decision_process());
-    // `flag` is unset (null) and `n` is small, so `flag` yields null.
+    // The compiler proves CEL conditions boolean, so only a stand-in evaluator can return
+    // anything else: `flag` is unset (null) and `n` is small, so `flag` yields null.
+    let mut h = Harness::with(program(&decision_process()), MiniEvaluator::default());
     h.start(vars(&[("n", json!(5))]));
     let (_, incident) = h.state().incidents().next().unwrap();
     assert_eq!(incident.code.as_str(), "IR-R002");
     assert_eq!(h.state().status, InstanceStatus::Running);
     assert!(commands_named(&h.last, "raise_incident").len() == 1);
+    // With CEL, reading the required but unset `flag` is EXPR-R015: IR-R001.
+    let mut h = Harness::new(&decision_process());
+    h.start(vars(&[("n", json!(5))]));
+    let (_, incident) = h.state().incidents().next().unwrap();
+    assert_eq!(incident.code.as_str(), "IR-R001");
+    assert!(incident.message.contains("EXPR-R015"), "{}", incident.message);
 }
 
 #[test]
@@ -115,6 +124,12 @@ fn decision_evaluation_failures_are_incidents() {
     let mut h = Harness::with(program(&decision_process()), eval);
     h.start(vars(&[("n", json!(5))]));
     assert_eq!(h.state().incidents().next().unwrap().1.code.as_str(), "IR-R010");
+    let budget = ExprBudget { max_steps: 1, ..ExprBudget::default() };
+    let mut h = Harness::with(program(&decision_process()), CelEvaluator::default().with_budget(budget));
+    h.start(vars(&[("n", json!(5)), ("flag", json!(false))]));
+    let (_, incident) = h.state().incidents().next().unwrap();
+    assert_eq!(incident.code.as_str(), "IR-R010");
+    assert!(incident.message.contains("EXPR-R001"), "{}", incident.message);
 }
 
 #[test]
@@ -127,11 +142,23 @@ fn rule_table_decision_takes_the_branch_named_by_the_output() {
         let mut h = Harness::with(program(&source), eval);
         h.start(vars(&[("approval_level", json!(level))]));
         assert_eq!(h.waiting_at(), [expected], "{level}");
+        if level == "nope" {
+            continue; // not a value of the `approval_level` enum, so CEL refuses to bind it
+        }
+        let p = program(&source);
+        let eval = CelEvaluator::default().with_rule("approver", "approval_level", p.schema()).unwrap();
+        let mut h = Harness::with(p, eval);
+        h.start(vars(&[("approval_level", json!(level))]));
+        assert_eq!(h.waiting_at(), [expected], "{level} (CEL)");
     }
     // No rule row (null) takes the default branch.
-    let mut h = Harness::new(&source);
+    let mut h = Harness::with(program(&source), MiniEvaluator::default());
     h.start(vars(&[]));
     assert_eq!(h.waiting_at(), ["finance_approval"]);
+    // A rule table the evaluator cannot provide is an incident, never a silent default.
+    let mut h = Harness::new(&source);
+    h.start(vars(&[]));
+    assert_eq!(h.state().incidents().next().unwrap().1.code.as_str(), "IR-R001");
 }
 
 fn parallel_process() -> serde_json::Value {
@@ -352,8 +379,13 @@ fn wait_timer_business_and_absolute_forms() {
             .any(|c| matches!(c, Command::ScheduleTimer { due: TimerDue::At { at: a }, .. } if *a == at))
     );
 
-    // A value that is not an instant is an incident, not a panic.
+    // A value that is not an instant is an incident, not a panic. CEL rejects it while binding
+    // (IR-R001); an evaluator that returns it anyway gets IR-R006.
     let mut h = Harness::new(&timer_process(json!({ "at": "expr:cel: when" })));
+    h.start(vars(&[("when", json!("tomorrow"))]));
+    assert_eq!(h.state().incidents().next().unwrap().1.code.as_str(), "IR-R001");
+    let mut h =
+        Harness::with(program(&timer_process(json!({ "at": "expr:cel: when" }))), MiniEvaluator::default());
     h.start(vars(&[("when", json!("tomorrow"))]));
     assert_eq!(h.state().incidents().next().unwrap().1.code.as_str(), "IR-R006");
 }
@@ -444,7 +476,7 @@ fn service_call_emits_a_connector_command_and_routes_results() {
         h.assert_replays();
     }
     let mut h = Harness::new(&service_process());
-    h.start(vars(&[]));
+    h.start(vars(&[("user", json!("u-1"))]));
     let key = h.key("call");
     let bad = h.send(procera_runtime::Event::ServiceCompleted {
         key,

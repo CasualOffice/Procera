@@ -69,7 +69,7 @@
       "branches": [
         {
           "name": "high",
-          "when": "expr:feel: sensitivity = \"high\""
+          "when": "expr:cel: sensitivity == \"high\""
         }
       ]
     },
@@ -83,7 +83,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: beneficiary.manager"
+            "ref": "expr:cel: beneficiary.manager"
           }
         ],
         "excludeInitiator": true,
@@ -166,11 +166,11 @@
       "connector": "provisioning",
       "action": "grant_access",
       "input": {
-        "system": "expr:feel: system",
-        "role": "expr:feel: access_role",
-        "user": "expr:feel: beneficiary.id"
+        "system": "expr:cel: system",
+        "role": "expr:cel: access_role",
+        "user": "expr:cel: beneficiary.id"
       },
-      "idempotencyKey": "expr:feel: instance.id + \":grant\""
+      "idempotencyKey": "expr:cel: instance.id + \":grant\""
     },
     {
       "id": "manual_provision",
@@ -202,7 +202,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: beneficiary"
+            "ref": "expr:cel: beneficiary"
           }
         ]
       },
@@ -222,7 +222,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator"
+            "ref": "expr:cel: initiator"
           }
         ]
       },
@@ -242,7 +242,7 @@
         "candidates": [
           {
             "type": "user",
-            "ref": "expr:feel: initiator"
+            "ref": "expr:cel: initiator"
           }
         ]
       },

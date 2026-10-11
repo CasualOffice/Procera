@@ -1,15 +1,23 @@
-//! The five BPMS-002 reference processes run end to end with scripted events (BPMS-082).
+//! The five BPMS-002 reference processes run end to end with scripted events (BPMS-082), with
+//! every expression evaluated by the production CEL engine (BPMS-081).
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 mod common;
 
 use common::*;
-use procera_runtime::testkit::MiniEvaluator;
-use procera_runtime::{Command, InstanceStatus, TimerDue, WaitKind, WorkKind};
+use procera_runtime::{CelEvaluator, Command, InstanceStatus, TimerDue, WaitKind, WorkKind};
 use serde_json::json;
 
-fn harness(name: &str, eval: MiniEvaluator) -> Harness {
+fn harness(name: &str, eval: CelEvaluator) -> Harness {
     Harness::with(program(&reference(name)), eval)
+}
+
+/// The purchase requisition's `approver` rule table is a stand-in until BPMS-087: the decision
+/// output is the `approval_level` variable.
+fn requisition() -> Harness {
+    let p = program(&reference("fin.purchase-requisition"));
+    let eval = CelEvaluator::default().with_rule("approver", "approval_level", p.schema()).unwrap();
+    Harness::with(p, eval)
 }
 
 fn notified(h: &Harness) -> Vec<String> {
@@ -24,8 +32,7 @@ fn notified(h: &Harness) -> Vec<String> {
 
 #[test]
 fn purchase_requisition_revise_then_finance_approves() {
-    let eval = MiniEvaluator::default().with_rule("approver", "approval_level");
-    let mut h = harness("fin.purchase-requisition", eval);
+    let mut h = requisition();
     h.start(vars(&[
         ("amount", json!({ "amount": "1200.00", "currency": "INR" })),
         ("approval_level", json!("manager")),
@@ -56,8 +63,7 @@ fn purchase_requisition_revise_then_finance_approves() {
 
 #[test]
 fn purchase_requisition_cfo_rejects() {
-    let eval = MiniEvaluator::default().with_rule("approver", "approval_level");
-    let mut h = harness("fin.purchase-requisition", eval);
+    let mut h = requisition();
     h.start(vars(&[("approval_level", json!("cfo"))]));
     h.complete("cfo_approval", "rejected");
     assert_eq!(h.state().status, InstanceStatus::Completed);
@@ -66,7 +72,7 @@ fn purchase_requisition_cfo_rejects() {
 
 #[test]
 fn policy_acknowledgement_on_time_and_overdue() {
-    let mut h = harness("grc.policy-acknowledgement", MiniEvaluator::default());
+    let mut h = harness("grc.policy-acknowledgement", CelEvaluator::default());
     let cmds = h.start(vars(&[("employee", json!({ "id": "u-9" }))]));
     assert!(cmds.iter().any(|c| matches!(c, Command::CreateWorkItem { kind: WorkKind::Acknowledge, .. })));
     h.complete("acknowledge", "acknowledged");
@@ -74,18 +80,16 @@ fn policy_acknowledgement_on_time_and_overdue() {
     assert!(h.path().ends_with(&["end_ack".to_owned()]));
 
     // An `outcome`/deadline escalation completes the work item as `expired` (BPMS-085).
-    let mut h = harness("grc.policy-acknowledgement", MiniEvaluator::default());
+    let mut h = harness("grc.policy-acknowledgement", CelEvaluator::default());
     h.start(vars(&[]));
     h.complete("acknowledge", "expired");
     assert!(h.path().ends_with(&["notify_manager".to_owned(), "end_overdue".to_owned()]));
     h.assert_replays();
 }
 
-fn onboarding_eval() -> MiniEvaluator {
-    MiniEvaluator::default().with_override(
-        "expr:feel: date and time(start_date, time(\"09:00:00\"))",
-        json!("2026-11-02T09:00:00+05:30"),
-    )
+/// `datetime(start_date) + duration("PT9H")`: midnight at the injected offset, plus nine hours.
+fn onboarding_eval() -> CelEvaluator {
+    CelEvaluator::default().with_tz(time::macros::offset!(+5:30))
 }
 
 #[test]
@@ -136,14 +140,20 @@ fn employee_onboarding_declined_offer_terminates_every_branch() {
     h.assert_replays();
 }
 
+/// A complete access request: every required variable the expressions read is set.
+fn request(sensitivity: &str) -> std::collections::BTreeMap<String, serde_json::Value> {
+    vars(&[
+        ("sensitivity", json!(sensitivity)),
+        ("system", json!("erp")),
+        ("access_role", json!("approver")),
+        ("beneficiary", json!({ "id": "u-5", "manager": "u-6" })),
+    ])
+}
+
 #[test]
 fn access_request_high_sensitivity_is_provisioned() {
-    let mut h = harness("it.access-request", MiniEvaluator::default());
-    h.start(vars(&[
-        ("sensitivity", json!("high")),
-        ("system", json!("erp")),
-        ("beneficiary", json!({ "id": "u-5" })),
-    ]));
+    let mut h = harness("it.access-request", CelEvaluator::default());
+    h.start(request("high"));
     h.complete("owner_approval", "approved");
     h.complete("security_approval", "approved");
     let Some(Command::CallConnector { connector_key, input, .. }) =
@@ -161,8 +171,8 @@ fn access_request_high_sensitivity_is_provisioned() {
 
 #[test]
 fn access_request_manager_timeout_boundary_expires_it() {
-    let mut h = harness("it.access-request", MiniEvaluator::default());
-    h.start(vars(&[("sensitivity", json!("low"))]));
+    let mut h = harness("it.access-request", CelEvaluator::default());
+    h.start(request("standard"));
     assert_eq!(h.waiting_at(), ["manager_approval"]);
     h.fire_boundary("manager_approval", 0);
     assert_eq!(h.state().status, InstanceStatus::Completed);
@@ -172,19 +182,16 @@ fn access_request_manager_timeout_boundary_expires_it() {
 
 #[test]
 fn access_request_connector_error_falls_back_to_manual() {
-    let mut h = harness("it.access-request", MiniEvaluator::default());
-    h.start(vars(&[("sensitivity", json!("low"))]));
+    let mut h = harness("it.access-request", CelEvaluator::default());
+    h.start(request("standard"));
     h.complete("manager_approval", "approved");
     h.service("provision", "error");
     h.complete("manual_provision", "submitted");
     assert_eq!(h.state().status, InstanceStatus::Completed);
 }
 
-fn capa_eval() -> MiniEvaluator {
-    MiniEvaluator::default().with_override(
-        "expr:feel: (if severity = \"critical\" then 5 else if severity = \"major\" then 3 else 1) * occurrence",
-        json!(15),
-    )
+fn capa_eval() -> CelEvaluator {
+    CelEvaluator::default()
 }
 
 #[test]

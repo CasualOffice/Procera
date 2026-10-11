@@ -4,18 +4,15 @@
 use super::Index;
 use crate::diag::{Code, Diagnostic, escape_pointer};
 use crate::env::{Environment, Resolution};
-use crate::expr::ExpressionChecker;
-use crate::model::{
-    Assignment, CandidateType, Criticality, EscalationAction, Expr, Node, NodeKind, ScalarType, VarType,
-};
+use crate::expr::{CompiledExpressions, compile_expressions};
+use crate::model::{CandidateType, Criticality, EscalationAction, Expr, Node, NodeKind, ScalarType, VarType};
 use std::collections::BTreeMap;
 
 pub(super) fn check(
     ix: &Index<'_>,
-    expressions: &dyn ExpressionChecker,
     env: Option<&dyn Environment>,
     out: &mut Vec<Diagnostic>,
-) {
+) -> CompiledExpressions {
     for (i, n) in ix.doc.nodes.iter().enumerate() {
         required(i, n, out);
         boundaries(i, n, out);
@@ -24,7 +21,7 @@ pub(super) fn check(
         timers(ix, i, n, out);
         escalations(ix, i, n, out);
     }
-    expressions_and_classification(ix, expressions, out);
+    let expressions = expressions(ix, out);
     slas(ix, out);
     variables(ix, out);
     match env {
@@ -35,6 +32,7 @@ pub(super) fn check(
             "compiled without a workspace environment: refs, connectors and directory names were not checked",
         )),
     }
+    expressions
 }
 
 /// Fields the spec makes mandatory per kind (docs/11 §3, §13.1-§13.3).
@@ -326,105 +324,15 @@ fn escalations(ix: &Index<'_>, i: usize, n: &Node, out: &mut Vec<Diagnostic>) {
     }
 }
 
-/// Every expression in the document with its pointer and whether it is event-facing.
-fn expression_sites<'a>(ix: &Index<'a>) -> Vec<(String, Expr, bool, &'a str)> {
-    let mut sites = Vec::new();
-    for (i, n) in ix.doc.nodes.iter().enumerate() {
-        let notify = n.kind == NodeKind::Notify;
-        let mut push = |ptr: String, e: &Expr, facing: bool| {
-            sites.push((ptr, e.clone(), facing || notify, n.id.as_str()))
-        };
-        if let Some(e) = &n.at {
-            push(format!("/nodes/{i}/at"), e, false);
-        }
-        // Correlation keys and idempotency keys are recorded in events and job rows.
-        if let Some(e) = &n.correlation {
-            push(format!("/nodes/{i}/correlation"), e, true);
-        }
-        if let Some(e) = &n.idempotency_key {
-            push(format!("/nodes/{i}/idempotencyKey"), e, true);
-        }
-        for (field, map) in [("input", &n.input), ("assign", &n.assign)] {
-            for (k, e) in map.iter().flatten() {
-                push(format!("/nodes/{i}/{field}/{}", escape_pointer(k)), e, false);
-            }
-        }
-        for (b, br) in n.branches.iter().flatten().enumerate() {
-            if let Some(e) = &br.when {
-                push(format!("/nodes/{i}/branches/{b}/when"), e, false);
-            }
-        }
-        let mut candidate_exprs = |base: String, a: &Assignment| {
-            for (c, cand) in a.candidates.iter().enumerate() {
-                if let Some(e) = cand.reference.as_expr() {
-                    push(format!("{base}/candidates/{c}/ref"), &e, false);
-                }
-            }
-            if let Some(e) = a.fallback.as_ref().and_then(|f| f.reference.as_expr()) {
-                push(format!("{base}/fallback/ref"), &e, false);
-            }
-        };
-        for (field, a) in n.assignments() {
-            candidate_exprs(format!("/nodes/{i}/{field}"), a);
-        }
-        for (k, esc) in n.escalations.iter().flatten().enumerate() {
-            if let Some(e) = esc.to.as_ref().and_then(|t| t.reference.as_expr()) {
-                push(format!("/nodes/{i}/escalations/{k}/to/ref"), &e, false);
-            }
-        }
-    }
-    sites
-}
-
-fn expressions_and_classification(
-    ix: &Index<'_>,
-    checker: &dyn ExpressionChecker,
-    out: &mut Vec<Diagnostic>,
-) {
-    let vars: BTreeMap<&str, &crate::model::Variable> =
-        ix.doc.variables.iter().map(|v| (v.name.as_str(), v)).collect();
-    for (ptr, expr, facing, node) in expression_sites(ix) {
-        let Some((lang, body)) = expr.parse() else {
-            out.push(
-                Diagnostic::new(
-                    Code::E019,
-                    ptr,
-                    format!("'{}' is not `expr:feel: …` or `expr:cel: …`", expr.0),
-                )
-                .at_node(node),
-            );
-            continue;
-        };
-        let analysis = match checker.analyse(lang, body) {
-            Ok(a) => a,
-            Err(e) => {
-                out.push(
-                    Diagnostic::new(Code::E019, ptr, format!("expression does not parse: {e}")).at_node(node),
-                );
-                continue;
-            }
-        };
-        for name in &analysis.references {
-            match vars.get(name.as_str()) {
-                None => out.push(
-                    Diagnostic::new(Code::E020, ptr.clone(), format!("'{name}' is not a declared variable"))
-                        .at_node(node),
-                ),
-                Some(v) if facing && v.is_restricted() => out.push(
-                    Diagnostic::new(
-                        Code::E021,
-                        ptr.clone(),
-                        format!("restricted variable '{name}' must not reach notifications or events"),
-                    )
-                    .at_node(node),
-                ),
-                Some(_) => {}
-            }
-        }
-    }
+/// Check 7: every expression parses and type-checks (procera-expr), restricted variables stay
+/// out of event-facing fields, and `set` assigns only declared variables.
+fn expressions(ix: &Index<'_>, out: &mut Vec<Diagnostic>) -> CompiledExpressions {
+    let (compiled, diags) = compile_expressions(ix.doc);
+    out.extend(diags);
+    let vars: std::collections::BTreeSet<&str> = ix.doc.variables.iter().map(|v| v.name.as_str()).collect();
     for (i, n) in ix.doc.nodes.iter().enumerate() {
         for key in n.assign.iter().flat_map(BTreeMap::keys) {
-            if !vars.contains_key(key.as_str()) {
+            if !vars.contains(key.as_str()) {
                 out.push(
                     Diagnostic::new(
                         Code::E020,
@@ -436,6 +344,7 @@ fn expressions_and_classification(
             }
         }
     }
+    compiled
 }
 
 fn slas(ix: &Index<'_>, out: &mut Vec<Diagnostic>) {

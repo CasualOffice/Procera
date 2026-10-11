@@ -1,0 +1,6 @@
+{"kind":"instance_started"}
+{"kind":"variables_set","names":["amount","divisor","vip"]}
+{"kind":"node_entered","node":"start","token":1}
+{"kind":"node_left","node":"start","outcome":"next","token":1}
+{"kind":"node_entered","node":"d","token":1}
+{"code":"IR-R001","kind":"incident_raised","node":"d","token":1}

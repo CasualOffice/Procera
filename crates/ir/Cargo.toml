@@ -1,6 +1,6 @@
 [package]
 name = "procera-ir"
-description = "Workflow IR v1 model, compiler (docs/11 §11 checks, stable diagnostics), canonical form + checksum, semantic diff (BPMS-080, ADR-0003)."
+description = "Workflow IR v1 model, compiler (docs/11 §11 checks incl. CEL type checking, stable diagnostics), canonical form + checksum, semantic diff (BPMS-080, ADR-0003)."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 jsonschema = { version = "0.58", default-features = false }
+procera-expr.workspace = true
 serde.workspace = true
 serde_jcs = "0.2"
 serde_json.workspace = true
