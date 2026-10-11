@@ -26,6 +26,7 @@ pub fn router() -> Router<AppState> {
         .route("/invitations/token", get(invitation_token))
         .route("/session/backdate", post(backdate_session))
         .route("/mail", get(mail))
+        .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
 }
 
@@ -401,5 +402,36 @@ async fn mail(State(s): State<AppState>, Query(q): Query<MailQuery>) -> Response
     match n.emails_to(procera_db::WsCtx { workspace_id: q.workspace }, &q.to).await {
         Ok(items) => Json(serde_json::json!({ "items": items })).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SettingReq {
+    workspace: uuid::Uuid,
+    key: String,
+    value: serde_json::Value,
+}
+
+/// Writes a workspace setting directly (validated against the catalogue). For demos and test set-up
+/// only — e.g. a demo workspace that doesn't require MFA, which no member could otherwise enter to change.
+async fn set_workspace_setting(State(s): State<AppState>, Json(r): Json<SettingReq>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let value = match procera_settings::def(&r.key).and_then(|d| procera_settings::validate(d, &r.value)) {
+        Ok(v) => v,
+        Err(e) => return super::error::ApiError::from(e).into_response(),
+    };
+    let res: Result<(), String> = async {
+        let mut tx = db.begin_ws(procera_db::WsCtx { workspace_id: r.workspace }).await.map_err(|e| e.to_string())?;
+        sqlx::query("INSERT INTO workspace_settings (workspace_id, key, value) VALUES ($1, $2, $3) ON CONFLICT (workspace_id, key) DO UPDATE SET value = EXCLUDED.value, revision = workspace_settings.revision + 1")
+            .bind(r.workspace).bind(&r.key).bind(&value).execute(tx.conn()).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())
+    }
+    .await;
+    match res {
+        Ok(()) => StatusCode::NO_CONTENT.into_response(),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }

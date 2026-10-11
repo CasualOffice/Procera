@@ -51,9 +51,14 @@ await call('POST', '/sysapi/v1/bootstrap', { body: { token: boot, email: 'root@a
 const sys = await mfaLogin('root@acme.test');
 
 const ws = await call('POST', '/sysapi/v1/workspaces', { token: sys.token, body: { name: 'Acme', slug: 'acme', profile: 'standard', owner_email: 'olivia@acme.test' } });
+// Demo convenience: nobody needs an authenticator app in the demo workspace. The platform floor is
+// lowered on this instance only and the workspace setting cleared — production defaults are untouched.
+await call('PUT', '/sysapi/v1/settings/auth.mfa.required_roles', { token: sys.token, body: { value: [], reason: 'local demo: password-only sign-in' } });
+await call('POST', '/__test/settings', { body: { workspace: ws.id, key: 'auth.mfa.required_roles', value: [] } });
 const ownerInvite = (await call('GET', `/__test/invitations/token?workspace=${ws.id}&email=olivia%40acme.test`)).token;
 await call('POST', '/api/v1/invitations/register', { body: { token: ownerInvite, display_name: 'Olivia Owner', password: PW } });
-const owner = await mfaLogin('olivia@acme.test');
+const owner = await call('POST', '/api/v1/auth/login', { body: { email: 'olivia@acme.test', password: PW }, headers: CSRF });
+owner.token = owner.access_token;
 const sw = await call('POST', '/api/v1/session/workspace', { token: owner.token, body: { workspace_id: ws.id } });
 const o = sw.access_token;
 
@@ -131,4 +136,4 @@ const a2 = await call('POST', '/api/v1/announcements', { token: o, body: { title
 await call('POST', `/api/v1/announcements/${a2.id}/publish`, { token: o });
 await call('POST', '/__test/drain');
 
-console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, recovery_codes: owner.recovery, system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test' }, null, 2));
+console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, note: 'Password only — the demo workspace does not require two-step verification.', system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test' }, null, 2));
