@@ -1,6 +1,7 @@
 //! The docs/11 §11 checks over a parsed document. Pointers refer to source positions.
 
 mod graph;
+mod semantic;
 
 use crate::diag::Diagnostic;
 use crate::env::Environment;
@@ -85,6 +86,6 @@ pub(crate) fn run(
     let ix = Index::new(doc);
     let mut out = Vec::new();
     graph::check(&ix, &mut out);
-    let _ = (expressions, env); // semantic checks land in the next slice
+    semantic::check(&ix, expressions, env, &mut out);
     out
 }
