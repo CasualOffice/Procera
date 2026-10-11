@@ -128,6 +128,11 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/versions/{id}/retire', () => own.post(`/api/v1/versions/${sop.version.id}/retire`, { headers: oh, data: { reason: 'drill' } }));
   await step('POST', '/api/v1/artifacts/{id}/versions', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/versions`, { headers: oh }));
 
+  // Audit explorer: saved queries, and an export (step-up: the owner's MFA sign-in above is recent).
+  const sq = await (await step('POST', '/api/v1/audit/saved-queries', () => own.post('/api/v1/audit/saved-queries', { headers: oh, data: { name: 'Library changes', filters: { action: 'version.' } } }))).json();
+  await step('DELETE', '/api/v1/audit/saved-queries/{id}', () => own.delete(`/api/v1/audit/saved-queries/${sq.id}`, { headers: oh }));
+  await step('POST', '/api/v1/audit/exports', () => own.post('/api/v1/audit/exports', { headers: oh, data: { format: 'jsonl', filters: { category: 'content' } } }));
+
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
 
   // Notifications (exempt: personal read state). Adam's join put a notification in the owner's inbox.

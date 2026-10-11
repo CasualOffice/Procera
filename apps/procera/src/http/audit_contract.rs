@@ -116,6 +116,10 @@ pub const CONTRACT: &[Entry] = &[
     emits("PATCH", "/api/v1/members/{id}", &[&["member.directory_updated"], &[]]),
     // mode=plan rolls back (nothing appended); mode=apply records one event listing created departments.
     emits("POST", "/api/v1/members/import", &[&["member.directory_imported"], &[]]),
+    // Audit explorer (reads are not logged per query; exports always are, FR-T01).
+    emits("POST", "/api/v1/audit/saved-queries", &[&["audit.query_saved"]]),
+    emits("DELETE", "/api/v1/audit/saved-queries/{id}", &[&["audit.query_deleted"]]),
+    emits("POST", "/api/v1/audit/exports", &[&["audit.exported"]]),
 ];
 
 #[cfg(test)]
@@ -132,6 +136,8 @@ mod tests {
             ("/api/v1", include_str!("directory.rs")),
             ("/api/v1", include_str!("notifications.rs")),
             ("/api/v1", include_str!("library.rs")),
+            ("/api/v1", include_str!("search.rs")),
+            ("/api/v1", include_str!("audit.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];
