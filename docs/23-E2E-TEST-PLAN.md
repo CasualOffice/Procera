@@ -170,6 +170,9 @@ Implemented in `e2e/packs/r1/notifications.api.spec.ts` (mail is read through `/
 | E2E-R1-LIB-08 | A passed review date reads `overdue` immediately; the worker flags it once (two drains) and the owner receives one `review_overdue` notification linking the document; recertifying clears the flag and starts a new period; both are audited | BPMS-044, FR-G07, FX-G01 |
 | E2E-R1-LIB-09 | Verification lasts `governance.verification.validity` (90 d) and expires on its own; members cannot verify (403); removing it twice → 409 | BPMS-044, FX-G02 |
 | E2E-R1-LIB-10 | Change requests: a member proposes (blank title 422) but cannot resolve (403); declining needs a reason; accepted → implemented by a version of the same artifact (another artifact's version 422); resolved requests are final (409); list filters by state | BPMS-044, FR-G05 |
+| E2E-R1-POL-01 | Readers never see drafts: absent from lists, reads and search until published; a later draft stays hidden (version 404, diff 404, versions list shows v1 only); authors see drafts in search | BPMS-045, A-14 |
+| E2E-R1-POL-02 | Applicability: empty audience or restricted without one → 422; members cannot set it (403); a restricted policy is hidden from members outside its group in lists, reads, search, the portal and change requests (404), and shown to those inside; an unrestricted one is listed for everyone but only "applicable" to its audience | BPMS-045, FR-PL01/PL02 |
+| E2E-R1-POL-03 | The portal lists published policies that apply to the member (no drafts), ordered by category, with what changed since the previous version (added/changed counts, reason) and text/category filters | BPMS-045, FR-PL02 |
 
 Implemented in `e2e/packs/r1/library.api.spec.ts`.
 

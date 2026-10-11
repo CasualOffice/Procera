@@ -203,6 +203,7 @@ CREATE TABLE artifacts (workspace_id uuid NOT NULL, id uuid NOT NULL,
   review_cadence_days int, next_review_at timestamptz, last_reviewed_at timestamptz, -- BPMS-044 (0016): NULL cadence = workspace default
   review_overdue_at timestamptz, verified_at timestamptz, verified_by uuid, verification_expires_at timestamptz,
   template_ref text,                                                               -- 'tpl:fin.purchase-requisition@1.2.0'
+  category text, restricted boolean NOT NULL DEFAULT false,                       -- BPMS-045 (0017); applicability = Audience jsonb
   current_published_version_id uuid, state text NOT NULL,                          -- denormalised for lists
   tsv tsvector, PRIMARY KEY (workspace_id, id), UNIQUE (workspace_id, kind, key));
 
