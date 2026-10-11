@@ -43,6 +43,12 @@ pub enum Kind {
     },
     /// `#RRGGBB`.
     Colour,
+    /// Ascending list of distinct durations in seconds (e.g. a reminder ladder).
+    DurationList {
+        min: i64,
+        max: i64,
+        max_items: usize,
+    },
 }
 
 /// How "stricter" is decided for a floor-bound key (docs/20 §1 rule 2).
@@ -308,6 +314,39 @@ pub const CATALOGUE: &[Def] = &[
         Some(SETTINGS),
         || json!(7 * DAY),
     ),
+    // 2.14 Acknowledgement campaigns (copied onto each campaign when it is created)
+    def(
+        "campaign.audience.snapshot",
+        "campaigns",
+        Kind::Enum { values: &["at_launch", "dynamic"] },
+        Some(SETTINGS),
+        || json!("dynamic"),
+    ),
+    def(
+        "campaign.reminders.cadence",
+        "campaigns",
+        Kind::DurationList { min: HOUR, max: 365 * DAY, max_items: 10 },
+        Some(SETTINGS),
+        || json!([3 * DAY, 7 * DAY]),
+    ),
+    // 0 = off.
+    def(
+        "campaign.escalation.to_manager_after",
+        "campaigns",
+        Kind::Duration { min: 0, max: 365 * DAY },
+        Some(SETTINGS),
+        || json!(14 * DAY),
+    ),
+    def(
+        "campaign.default_due",
+        "campaigns",
+        Kind::Duration { min: DAY, max: 365 * DAY },
+        Some(SETTINGS),
+        || json!(14 * DAY),
+    ),
+    def("campaign.ack_text", "campaigns", Kind::Text { max_len: 500 }, Some(SETTINGS), || {
+        json!("I have read and understood this document and will follow it.")
+    }),
     // 2.15 Policies
     def("policies.attest_on_join", "policies", Kind::Bool, Some(SETTINGS), || json!(true)),
     def("policies.numbering_pattern", "policies", Kind::Text { max_len: 40 }, Some(SETTINGS), || {
@@ -383,5 +422,17 @@ mod tests {
             }
         }
         assert!(profile("nope").is_none());
+    }
+
+    #[test]
+    fn duration_lists_are_sorted_distinct_and_bounded() {
+        let d = get("campaign.reminders.cadence").expect("key");
+        assert_eq!(
+            crate::validate(d, &json!([7 * DAY, 3 * DAY, 3 * DAY])).ok(),
+            Some(json!([3 * DAY, 7 * DAY]))
+        );
+        assert!(crate::validate(d, &json!([60])).is_err(), "below the minimum");
+        assert!(crate::validate(d, &json!(["3d"])).is_err());
+        assert!(crate::validate(d, &json!(3 * DAY)).is_err());
     }
 }

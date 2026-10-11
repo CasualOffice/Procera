@@ -2290,6 +2290,7 @@ dependencies = [
  "procera-access",
  "procera-audit",
  "procera-cache",
+ "procera-campaigns",
  "procera-crypto",
  "procera-db",
  "procera-identity",
@@ -2354,6 +2355,30 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "procera-campaigns"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "csv",
+ "procera-access",
+ "procera-audit",
+ "procera-crypto",
+ "procera-db",
+ "procera-identity",
+ "procera-kernel",
+ "procera-library",
+ "procera-members",
+ "procera-notify",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
  "uuid",
 ]
 

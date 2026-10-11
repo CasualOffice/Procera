@@ -60,6 +60,7 @@ Purpose: to make sure **nothing turns into a wild card**. Every uncertainty that
 | A-12 | Customers accept PostgreSQL as a hard requirement (no MariaDB) | Interviews; install guide | Offer the managed-Postgres guide; not negotiable (ADR-0002) |
 | A-09 | AI is optional and off by default; the product is complete without it | Pilot | — |
 | A-10 | 3 UI languages at GA are enough | Pipeline | More locales post-GA |
+| A-13 | Campaign timing (BPMS-046): reminder offsets and `campaign.escalation.to_manager_after` both count from each member's assignment; escalation happens once; settings are copied onto a campaign at creation; joiners keep the campaign's due window; policy acknowledgements need `policy:view` (no `policy:acknowledge` in the catalogue) | Product-owner review of docs/04 §2.7 "As built"; pilot feedback | Count escalation from the due date; add `policy:acknowledge` to docs/12 §5 |
 
 ## 4. External dependencies
 

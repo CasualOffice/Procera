@@ -253,6 +253,8 @@ One engine powers SOP re-acks, policy attestations, announcement acks and docume
 | `campaign.ack.reauth` | `none \| stepup` | none (stepup in Regulated) | workspace:settings.manage | – | ✓ | P1 |
 | `campaign.exemptions.allowed` | bool + approver role | true, Compliance Officer | workspace:settings.manage | – | ✓ | P1 |
 
+As built (BPMS-046): the catalogue holds `campaign.audience.snapshot`, `campaign.reminders.cadence` (ascending list of seconds after assignment), `campaign.escalation.to_manager_after` (seconds after assignment; `0` = off), `campaign.default_due` (seconds) and `campaign.ack_text`. Their values are copied onto each campaign when it is created; the per-campaign override (Ovr ✓) is the create request (`audience_snapshot`, `due_at`, `ack_text`). Dimensions beyond department, group and role, and the P1 keys, arrive with their features.
+
 ### 2.15 Policies (policy library)
 
 Policies follow the same governed lifecycle as SOPs (Draft → In review → Approved → Scheduled → Published → Deprecated → Retired) and are attested through campaigns.

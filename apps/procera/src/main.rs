@@ -193,10 +193,11 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
-            // Scheduler role: publish scheduled library versions when their effective date arrives.
-            let scheduler = match (&state.library, all) {
-                (Some(l), true) => {
-                    let l = l.clone();
+            // Scheduler role: publish scheduled library versions when their effective date arrives,
+            // and send due campaign reminders and manager escalations.
+            let scheduler = match (&state.library, &state.campaigns, all) {
+                (Some(l), Some(c), true) => {
+                    let (l, c) = (l.clone(), c.clone());
                     let mut rx = stop_rx.clone();
                     Some(tokio::spawn(async move {
                         loop {
@@ -204,6 +205,15 @@ async fn main() -> anyhow::Result<()> {
                                 Ok(0) => {}
                                 Ok(n) => tracing::info!(published = n, "scheduled versions published"),
                                 Err(e) => tracing::error!(error = %e, "scheduled publication pass failed"),
+                            }
+                            match c.run_due().await {
+                                Ok(p) if p.reminders + p.escalations == 0 => {}
+                                Ok(p) => tracing::info!(
+                                    reminders = p.reminders,
+                                    escalations = p.escalations,
+                                    "campaign reminders sent"
+                                ),
+                                Err(e) => tracing::error!(error = %e, "campaign reminder pass failed"),
                             }
                             tokio::select! {
                                 _ = rx.wait_for(|stop| *stop) => return,

@@ -91,6 +91,14 @@ pub const CONTRACT: &[Entry] = &[
     ),
     emits("POST", "/api/v1/versions/{id}/publish", &[&["version.published"], &["version.scheduled"]]),
     emits("POST", "/api/v1/versions/{id}/retire", &[&["version.retired"]]),
+    // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
+    // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).
+    emits("POST", "/api/v1/campaigns", &[&["campaign.created"]]),
+    emits("POST", "/api/v1/campaigns/{id}/activate", &[&["campaign.activated"]]),
+    emits("POST", "/api/v1/campaigns/{id}/close", &[&["campaign.closed"]]),
+    emits("POST", "/api/v1/campaigns/{id}/cancel", &[&["campaign.cancelled"]]),
+    emits("POST", "/api/v1/campaigns/{id}/remind", &[&["campaign.reminded"]]),
+    emits("POST", "/api/v1/acknowledgements/{id}/complete", &[&["acknowledgement.completed"]]),
     // Notifications: personal read state only.
     exempt(
         "POST",
@@ -132,6 +140,7 @@ mod tests {
             ("/api/v1", include_str!("directory.rs")),
             ("/api/v1", include_str!("notifications.rs")),
             ("/api/v1", include_str!("library.rs")),
+            ("/api/v1", include_str!("campaigns.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("", include_str!("../http.rs")),
         ];

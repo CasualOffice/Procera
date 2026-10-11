@@ -1,7 +1,8 @@
 //! The in-process event bus (BPMS-029 consumers): turns outbox events into notifications
-//! (BPMS-048). Each consumer records the message in the inbox in the same transaction as its effect,
+//! (BPMS-048) and enrols new joiners in dynamic campaigns (BPMS-046). Each consumer records the message in the inbox in the same transaction as its effect,
 //! so redelivery is harmless.
 
+use procera_campaigns::Campaigns;
 use procera_db::dispatch::{Bus, Message};
 use procera_db::outbox::mark_consumed;
 use procera_db::{Db, WsCtx};
@@ -11,12 +12,14 @@ use serde_json::json;
 use uuid::Uuid;
 
 const CONSUMER: &str = "notify";
+const CAMPAIGNS: &str = "campaigns";
 
 #[derive(Clone)]
 pub struct AppBus {
     pub db: Db,
     pub members: Members,
     pub notify: Notify,
+    pub campaigns: Campaigns,
     /// Public base URL for links in emails, without a trailing slash.
     pub public_url: String,
 }
@@ -81,6 +84,12 @@ impl AppBus {
                         )
                         .await
                         .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())?;
+                // New joiners receive the dynamic campaigns whose audience they match (FR-AK03).
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CAMPAIGNS, m.id).await.map_err(|e| e.to_string())? {
+                    self.campaigns.enroll_joiner(&mut tx, membership).await.map_err(|e| e.to_string())?;
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }

@@ -48,6 +48,47 @@ const TEMPLATES: &[(&str, &str)] = &[
     ),
     ("member_joined.title", "{{ name }} joined {{ workspace }}"),
     ("member_joined.body", "{{ name }} accepted your invitation."),
+    // Acknowledgement campaigns (BPMS-046). Vars: title, version, due, link (+ name for escalations).
+    ("campaign_assigned.title", "Please acknowledge {{ title }}"),
+    ("campaign_assigned.body", "Read version {{ version }} and acknowledge it by {{ due }}."),
+    ("campaign_assigned.subject", "Please acknowledge {{ title }} by {{ due }}"),
+    (
+        "campaign_assigned.text",
+        "You are asked to read and acknowledge {{ title }} (version {{ version }}) by {{ due }}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "campaign_assigned.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">You are asked to read and acknowledge <strong>{{ title }}</strong> (version {{ version }}) by <strong>{{ due }}</strong>.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Read and acknowledge</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you are in the audience of an acknowledgement campaign.{% endblock %}"#,
+    ),
+    ("campaign_reminder.title", "Reminder: acknowledge {{ title }}"),
+    ("campaign_reminder.body", "Version {{ version }} is waiting for your acknowledgement (due {{ due }})."),
+    ("campaign_reminder.subject", "Reminder: acknowledge {{ title }} (due {{ due }})"),
+    (
+        "campaign_reminder.text",
+        "{{ title }} (version {{ version }}) is still waiting for your acknowledgement. It is due {{ due }}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "campaign_reminder.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ title }}</strong> (version {{ version }}) is still waiting for your acknowledgement. It is due <strong>{{ due }}</strong>.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Read and acknowledge</a></p>{% endblock %}
+{% block footer %}You receive this because an acknowledgement assigned to you is open.{% endblock %}"#,
+    ),
+    ("campaign_escalated.title", "{{ name }} has not acknowledged {{ title }}"),
+    ("campaign_escalated.body", "Version {{ version }} was due {{ due }}. You are their manager."),
+    ("campaign_escalated.subject", "{{ name }} has not acknowledged {{ title }}"),
+    (
+        "campaign_escalated.text",
+        "{{ name }} has not yet acknowledged {{ title }} (version {{ version }}), due {{ due }}. You receive this as their manager.\n\n{{ link }}\n",
+    ),
+    (
+        "campaign_escalated.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ name }}</strong> has not yet acknowledged <strong>{{ title }}</strong> (version {{ version }}), due {{ due }}.</p>
+<p style="margin:0">You receive this as their manager. <a href="{{ link }}">Open in Procera</a></p>{% endblock %}
+{% block footer %}Escalation from an acknowledgement campaign.{% endblock %}"#,
+    ),
 ];
 
 fn env() -> Result<Environment<'static>, NotifyError> {
@@ -95,6 +136,20 @@ mod tests {
         assert!(r.text.contains("https://x.test/invite?token=abc"));
         assert!(r.html.contains("Ann &lt;script&gt;") && r.html.contains("Acme &amp; Co"));
         assert!(!r.html.contains("<script>"));
+    }
+
+    #[test]
+    fn campaign_templates_render_in_app_and_email() {
+        let ctx = json!({"title": "Code <of> conduct", "version": 3, "due": "25 Oct 2026", "link": "https://x.test/a", "name": "Ben"});
+        for kind in ["campaign_assigned", "campaign_reminder", "campaign_escalated"] {
+            let r = email(kind, &ctx).expect("renders");
+            assert!(r.subject.contains("Code <of> conduct"), "{kind}");
+            assert!(
+                r.html.contains("Code &lt;of&gt; conduct") && r.text.contains("https://x.test/a"),
+                "{kind}"
+            );
+            assert!(!in_app(kind, &ctx).expect("renders").title.is_empty());
+        }
     }
 
     #[test]
