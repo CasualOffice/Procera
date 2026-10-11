@@ -23,6 +23,7 @@ pub fn router() -> Router<AppState> {
         .route("/session/workspace", post(switch_workspace))
         .route("/session/step-up", post(step_up))
         .route("/session/step-up/webauthn/options", post(step_up_passkey_options))
+        .route("/invitations/preview", get(preview))
         .route("/invitations/accept", post(accept))
         .route("/invitations/register", post(register))
         .route("/permission-catalog", get(permission_catalog))
@@ -318,6 +319,16 @@ async fn step_up_passkey_options(
 #[serde(deny_unknown_fields)]
 struct TokenReq {
     token: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct PreviewQuery {
+    token: String,
+}
+
+/// Public: what the invitation page shows to the holder of the link (A-24).
+async fn preview(State(s): State<AppState>, Query(q): Query<PreviewQuery>) -> Result<Response, ApiError> {
+    Ok(Json(members(&s)?.invitation_preview(&q.token).await?).into_response())
 }
 
 async fn accept(

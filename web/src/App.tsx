@@ -25,6 +25,8 @@ import { Retention } from './pages/Retention';
 import { Encryption } from './pages/Encryption';
 import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
+import { Invite } from './pages/Invite';
+import { AckLink } from './pages/AckLink';
 import { SystemAudit } from './pages/system/SystemAudit';
 import { SystemHealth } from './pages/system/SystemHealth';
 import { SystemQuotas } from './pages/system/SystemQuotas';
@@ -58,12 +60,19 @@ export function App() {
   // Public pages.
   if (path === '/design') return <AppShellPublic><DesignGallery /></AppShellPublic>;
   if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
+  // The invitation link works signed in or out (it creates the account or joins with one click).
+  if (path === '/invite') return <PlainShell><Invite /></PlainShell>;
   if (status === 'signed_out') {
-    if (path !== '/sign-in') return <Redirect to={isSystemPath(path) ? `/sign-in?next=${encodeURIComponent(path)}` : '/sign-in'} />;
+    if (path !== '/sign-in') {
+      const here = path + window.location.search;
+      return <Redirect to={path === '/' ? '/sign-in' : `/sign-in?next=${encodeURIComponent(here)}`} />;
+    }
     return <PlainShell><SignIn /></PlainShell>;
   }
   const next = query.get('next');
-  if (path === '/sign-in' && next && isSystemPath(next)) return <Redirect to={next} />;
+  // Back to the page that asked for sign-in (same-origin paths only).
+  const safeNext = next && next.startsWith('/') && !next.startsWith('//') && !next.startsWith('/sign-in') ? next : null;
+  if (path === '/sign-in' && safeNext && (isSystemPath(safeNext) || safeNext.startsWith('/invite?') || status === 'ready')) return <Redirect to={safeNext} />;
   if (isSystemPath(path)) return <SystemRoutes path={path} />;
   if (status === 'choose_workspace') return <PlainShell><ChooseWorkspace /></PlainShell>;
   if (path === '/sign-in') return <Redirect to="/" />;
@@ -77,6 +86,10 @@ export function App() {
   if (cmp) return <AppShell current="library" crumbs={[['Library', '/library'], 'Compare']}><Compare id={cmp.id!} /></AppShell>;
   const doc = match('/library/:id', path);
   if (doc) return <AppShell current="library" crumbs={[['Library', '/library'], 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
+  const post = match('/announcements/:id', path);
+  if (post) return <Redirect to={`/announcements?open=${post.id}`} />;
+  const ack = match('/acknowledgements/:id', path);
+  if (ack) return <AppShell current="home" crumbs={['Home']}><AckLink id={ack.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;

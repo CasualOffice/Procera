@@ -25,6 +25,17 @@ use uuid::Uuid;
 
 const INVITE_TTL_DAYS: i64 = 7;
 
+/// The public face of a pending invitation, for the invitation page.
+#[derive(Debug, Clone, Serialize)]
+pub struct InvitationPreview {
+    pub email: String,
+    pub workspace: String,
+    pub inviter: Option<String>,
+    #[serde(with = "time::serde::rfc3339")]
+    pub expires_at: OffsetDateTime,
+    pub account_exists: bool,
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum MembersError {
     #[error("invitation invalid, expired, revoked or already used")]
@@ -392,6 +403,28 @@ impl Members {
             .bind(hash_token(token)).bind(self.clock.now()).fetch_optional(tx.conn()).await?;
         tx.rollback().await?;
         email.ok_or(MembersError::InvitationInvalid)
+    }
+
+    /// What the invitation page shows to whoever holds the link (docs/22 A-24): the invited email,
+    /// the workspace, who invited them, when the link expires and whether that email already has an
+    /// account (sign in and accept) or not (create one). The token is the credential.
+    pub async fn invitation_preview(&self, token: &str) -> Result<InvitationPreview, MembersError> {
+        let ctx = self.invitation_ctx(token).await?;
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let row: Option<(String, String, Option<String>, OffsetDateTime, bool)> = sqlx::query_as(
+            "SELECT i.email::text, w.name, u.display_name, i.expires_at,
+                    EXISTS (SELECT 1 FROM users x WHERE x.email = i.email AND x.status = 'active')
+             FROM invitations i JOIN workspaces w ON w.id = i.workspace_id LEFT JOIN users u ON u.id = i.invited_by
+             WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > $2",
+        )
+        .bind(hash_token(token))
+        .bind(self.clock.now())
+        .fetch_optional(tx.conn())
+        .await?;
+        tx.rollback().await?;
+        let (email, workspace, inviter, expires_at, account_exists) =
+            row.ok_or(MembersError::InvitationInvalid)?;
+        Ok(InvitationPreview { email, workspace, inviter, expires_at, account_exists })
     }
 
     /// Accepts an invitation for an existing, signed-in user. Returns (workspace, membership).

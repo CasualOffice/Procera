@@ -120,7 +120,7 @@ async fn overview(
         attention.push(json!({"kind": "pending_review", "severity": "medium", "count": 1, "title": format!("{title} v{no} is waiting for review"), "link": format!("/library/{artifact}")}));
     }
     for (id, title) in &pending_announcements {
-        attention.push(json!({"kind": "pending_announcement", "severity": "low", "count": 1, "title": format!("{title} is waiting for approval"), "link": format!("/announcements/{id}")}));
+        attention.push(json!({"kind": "pending_announcement", "severity": "low", "count": 1, "title": format!("{title} is waiting for approval"), "link": format!("/admin/announcements?id={id}")}));
     }
 
     // Metrics in range ------------------------------------------------------------------------

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api, authPost, refresh, setAccessToken } from './api';
 import { getPasskey } from './passkey';
+import { navigate } from './router';
 
 export interface User {
   id: string;
@@ -154,6 +155,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setPermissions(new Set());
         setEntryError(null);
         autoSelected.current = false;
+        // A deliberate sign-out doesn't come back to this page afterwards.
+        navigate('/sign-in', { replace: true });
         setStatus('signed_out');
       },
       reload: load,
