@@ -26,6 +26,7 @@ import { Encryption } from './pages/Encryption';
 import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
 import { Invite } from './pages/Invite';
+import { Setup } from './pages/Setup';
 import { AckLink } from './pages/AckLink';
 import { Person } from './pages/Person';
 import { SystemAudit } from './pages/system/SystemAudit';
@@ -63,6 +64,8 @@ export function App() {
   if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   // The invitation link works signed in or out (it creates the account or joins with one click).
   if (path === '/invite') return <PlainShell><Invite /></PlainShell>;
+  // First-run setup (FR-S01): the one-time bootstrap token creates the first system owner.
+  if (path === '/setup') return <PlainShell><Setup /></PlainShell>;
   if (status === 'signed_out') {
     if (path !== '/sign-in') {
       const here = path + window.location.search;

@@ -13,9 +13,10 @@ import { MfaSetup } from './MfaSetup';
 export function ChooseWorkspace() {
   const { workspaces, selectWorkspace, signOut, user, entryError } = useSession();
   const [error, setError] = useState<string | null>(null);
-  // System administrators also get a way into the system console (it answers 404 to everyone else).
+  // System administrators also get a way into the system console (it answers 404 to everyone else;
+  // one without two-step verification yet is sent there to turn it on).
   const [system, setSystem] = useState(false);
-  useEffect(() => { api('/sysapi/v1/me').then(() => setSystem(true)).catch(() => undefined); }, []);
+  useEffect(() => { api('/sysapi/v1/me').then(() => setSystem(true)).catch((e: unknown) => { if (e instanceof ApiError && e.code === 'mfa_required') setSystem(true); }); }, []);
   const [needsMfa, setNeedsMfa] = useState<string | null>(entryError === 'mfa_required' && workspaces.length === 1 ? workspaces[0]!.name : null);
   if (needsMfa && !user?.mfa_enabled) return <MfaSetup workspaceName={needsMfa} />;
   return (
