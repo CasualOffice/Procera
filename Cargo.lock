@@ -2488,6 +2488,8 @@ dependencies = [
  "procera-audit",
  "procera-db",
  "procera-kernel",
+ "procera-settings",
+ "proptest",
  "serde",
  "serde_jcs",
  "serde_json",

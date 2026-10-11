@@ -91,6 +91,13 @@ pub const CONTRACT: &[Entry] = &[
     ),
     emits("POST", "/api/v1/versions/{id}/publish", &[&["version.published"], &["version.scheduled"]]),
     emits("POST", "/api/v1/versions/{id}/retire", &[&["version.retired"]]),
+    // Library governance (BPMS-044).
+    emits("PUT", "/api/v1/artifacts/{id}/review-cadence", &[&["artifact.review_cadence_set"]]),
+    emits("POST", "/api/v1/artifacts/{id}/recertify", &[&["artifact.recertified"]]),
+    emits("POST", "/api/v1/artifacts/{id}/verification", &[&["artifact.verified"]]),
+    emits("DELETE", "/api/v1/artifacts/{id}/verification", &[&["artifact.verification_removed"]]),
+    emits("POST", "/api/v1/artifacts/{id}/change-requests", &[&["change_request.opened"]]),
+    emits("POST", "/api/v1/change-requests/{id}/resolve", &[&["change_request.resolved"]]),
     // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
     // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).
     emits("POST", "/api/v1/campaigns", &[&["campaign.created"]]),

@@ -174,3 +174,31 @@ async fn lifecycle_sod_immutability_supersede_and_schedule() -> anyhow::Result<(
     assert!(report.checked >= 15, "every transition is audited ({})", report.checked);
     Ok(())
 }
+
+mod diff_props {
+    use procera_library::diff::{BlockOp, apply, diff};
+    use proptest::prelude::*;
+    use serde_json::{Value, json};
+
+    fn block() -> impl Strategy<Value = Value> {
+        prop_oneof![
+            "[a-c ]{0,12}".prop_map(|t| json!({"type": "paragraph", "text": t})),
+            "[a-c]{1,6}".prop_map(|t| json!({"type": "heading", "level": 2, "text": t})),
+            proptest::collection::vec("[a-c]{1,4}", 0..4)
+                .prop_map(|items| json!({"type": "list", "items": items})),
+        ]
+    }
+
+    proptest! {
+        #![proptest_config(ProptestConfig { cases: 256, failure_persistence: None, ..ProptestConfig::default() })]
+        /// Applying a diff always rebuilds the target exactly, and identical inputs diff to all-same.
+        #[test]
+        fn diff_rebuilds_the_target(a in proptest::collection::vec(block(), 0..8), b in proptest::collection::vec(block(), 0..8)) {
+            let (ca, cb) = (json!({"blocks": a}), json!({"blocks": b.clone()}));
+            let d = diff(&ca, &cb);
+            prop_assert_eq!(apply(&d), b);
+            let same = diff(&ca, &ca).ops.iter().all(|o| matches!(o, BlockOp::Same { .. }));
+            prop_assert!(same, "identical inputs must diff to all-same");
+        }
+    }
+}

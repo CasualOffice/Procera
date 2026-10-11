@@ -142,6 +142,36 @@ impl AppBus {
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }
+            // BPMS-044: the owner of an artifact whose review date passed is asked to recertify it.
+            "artifact.review_overdue.v1" => {
+                let id = uuid_field(m, "artifact_id")?;
+                let owner = m
+                    .payload
+                    .get("owner_membership_id")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<Uuid>().ok());
+                let title =
+                    m.payload.get("title").and_then(|v| v.as_str()).unwrap_or("A document").to_owned();
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CONSUMER, m.id).await.map_err(|e| e.to_string())?
+                    && let Some(owner) = owner
+                {
+                    let link = format!("/library/{id}");
+                    self.notify
+                        .notify_member(
+                            &mut tx,
+                            owner,
+                            "review_overdue",
+                            &json!({"title": title}),
+                            Some(&link),
+                            Some(("artifact", id)),
+                            &format!("review_overdue:{}", m.id),
+                        )
+                        .await
+                        .map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
             _ => Ok(()), // no consumer for this topic yet
         }
     }

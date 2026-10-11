@@ -11,6 +11,9 @@
 //!
 //! Permissions and step-up are checked by the caller (HTTP layer); this crate enforces the lifecycle.
 
+pub mod diff;
+pub mod governance;
+
 use std::sync::Arc;
 
 use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
@@ -51,6 +54,11 @@ impl From<sqlx::Error> for LibraryError {
         Self::Internal(e.to_string())
     }
 }
+impl From<procera_settings::SettingsError> for LibraryError {
+    fn from(e: procera_settings::SettingsError) -> Self {
+        Self::Internal(e.to_string())
+    }
+}
 impl From<procera_audit::AuditError> for LibraryError {
     fn from(e: procera_audit::AuditError) -> Self {
         Self::Internal(e.to_string())
@@ -61,7 +69,8 @@ impl From<procera_audit::AuditError> for LibraryError {
 pub const AUTHORABLE: &[&str] = &["sop", "policy"];
 
 /// The permission for `action` on `kind` (docs/12 §5). Submitting uses `edit_draft` and retiring
-/// uses `publish` for document kinds, which have no separate permissions.
+/// uses `publish` for document kinds, which have no separate permissions; so do the BPMS-044
+/// governance actions (see below).
 pub fn permission(kind: &str, action: &str) -> Result<&'static str, LibraryError> {
     Ok(match (kind, action) {
         ("sop", "view") => "sop:view",
@@ -76,6 +85,14 @@ pub fn permission(kind: &str, action: &str) -> Result<&'static str, LibraryError
         ("policy", "review") => "policy:review",
         ("policy", "approve") => "policy:approve",
         ("policy", "publish" | "retire") => "policy:publish",
+        // BPMS-044: readers may propose changes; owners/publishers recertify and resolve them;
+        // approvers verify.
+        ("sop", "propose_change") => "sop:view",
+        ("policy", "propose_change") => "policy:view",
+        ("sop", "recertify" | "resolve_change") => "sop:publish",
+        ("policy", "recertify" | "resolve_change") => "policy:publish",
+        ("sop", "verify") => "sop:approve",
+        ("policy", "verify") => "policy:approve",
         _ => return Err(LibraryError::Invalid(format!("kind must be one of {}", AUTHORABLE.join(", ")))),
     })
 }
@@ -124,7 +141,34 @@ pub struct Artifact {
     pub revision: i64,
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    /// Review cadence, recertification and verification (BPMS-044).
+    pub governance: Governance,
 }
+
+/// Recertification and verification state of an artifact (BPMS-044, FR-G07, FX-G01/G02).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Governance {
+    /// Per-artifact override in days; `None` uses the workspace default for its criticality.
+    pub review_cadence_days: Option<i32>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub next_review_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub last_reviewed_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub review_overdue_at: Option<OffsetDateTime>,
+    /// `none` (never published), `current`, `due_soon` (within 30 days) or `overdue`.
+    pub review_status: &'static str,
+    /// True while a verification is in force.
+    pub verified: bool,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub verified_at: Option<OffsetDateTime>,
+    pub verified_by: Option<Uuid>,
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub verification_expires_at: Option<OffsetDateTime>,
+}
+
+/// How close to its review date an artifact counts as "due soon".
+pub const DUE_SOON: time::Duration = time::Duration::days(30);
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ReviewRecord {
@@ -199,22 +243,62 @@ type VersionRow = (
 );
 const VERSION_COLS: &str = "id, artifact_id, version_no, lifecycle, content, content_hash, change_reason, effective_at, created_by, created_at, published_at, review_round, revision";
 
-type ArtifactRow =
-    (Uuid, String, String, String, Option<Uuid>, String, String, Option<Uuid>, i64, OffsetDateTime);
-const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at";
+#[derive(sqlx::FromRow)]
+struct ArtifactRow {
+    id: Uuid,
+    kind: String,
+    key: String,
+    title: String,
+    owner_membership_id: Option<Uuid>,
+    criticality: String,
+    state: String,
+    current_published_version_id: Option<Uuid>,
+    revision: i64,
+    created_at: OffsetDateTime,
+    review_cadence_days: Option<i32>,
+    next_review_at: Option<OffsetDateTime>,
+    last_reviewed_at: Option<OffsetDateTime>,
+    review_overdue_at: Option<OffsetDateTime>,
+    verified_at: Option<OffsetDateTime>,
+    verified_by: Option<Uuid>,
+    verification_expires_at: Option<OffsetDateTime>,
+}
+const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at, review_cadence_days, next_review_at, last_reviewed_at, review_overdue_at, verified_at, verified_by, verification_expires_at";
 
-fn artifact(r: ArtifactRow) -> Artifact {
+/// Review status at `now`: overdue once the review date has passed (whether or not the worker has
+/// flagged it yet), due soon within [`DUE_SOON`].
+pub fn review_status(next_review_at: Option<OffsetDateTime>, now: OffsetDateTime) -> &'static str {
+    match next_review_at {
+        None => "none",
+        Some(t) if t <= now => "overdue",
+        Some(t) if t - now <= DUE_SOON => "due_soon",
+        Some(_) => "current",
+    }
+}
+
+fn artifact(r: ArtifactRow, now: OffsetDateTime) -> Artifact {
     Artifact {
-        id: r.0,
-        kind: r.1,
-        key: r.2,
-        title: r.3,
-        owner_membership_id: r.4,
-        criticality: r.5,
-        state: r.6,
-        current_published_version_id: r.7,
-        revision: r.8,
-        created_at: r.9,
+        id: r.id,
+        kind: r.kind,
+        key: r.key,
+        title: r.title,
+        owner_membership_id: r.owner_membership_id,
+        criticality: r.criticality,
+        state: r.state,
+        current_published_version_id: r.current_published_version_id,
+        revision: r.revision,
+        created_at: r.created_at,
+        governance: Governance {
+            review_cadence_days: r.review_cadence_days,
+            review_status: review_status(r.next_review_at, now),
+            next_review_at: r.next_review_at,
+            last_reviewed_at: r.last_reviewed_at,
+            review_overdue_at: r.review_overdue_at,
+            verified: r.verification_expires_at.is_some_and(|t| t > now),
+            verified_at: r.verified_at,
+            verified_by: r.verified_by,
+            verification_expires_at: r.verification_expires_at,
+        },
     }
 }
 
@@ -223,6 +307,7 @@ pub struct Library {
     db: Db,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
+    settings: procera_settings::Settings,
 }
 
 impl std::fmt::Debug for Library {
@@ -233,7 +318,8 @@ impl std::fmt::Debug for Library {
 
 impl Library {
     pub fn new(db: Db, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>) -> Self {
-        Self { db, clock, ids }
+        let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
+        Self { db, clock, ids, settings }
     }
 
     async fn audit(
@@ -272,7 +358,8 @@ impl Library {
                 .bind(id)
                 .fetch_optional(tx.conn())
                 .await?;
-        r.map(artifact).ok_or(LibraryError::NotFound)
+        let now = self.clock.now();
+        r.map(|r| artifact(r, now)).ok_or(LibraryError::NotFound)
     }
 
     pub async fn list(
@@ -284,7 +371,8 @@ impl Library {
         let kinds: Vec<String> = kinds.iter().map(|k| (*k).to_owned()).collect();
         let rows: Vec<ArtifactRow> = sqlx::query_as(&format!("SELECT {ARTIFACT_COLS} FROM artifacts WHERE kind = ANY($1) AND ($2::text IS NULL OR state = $2) ORDER BY lower(title)"))
             .bind(&kinds).bind(state).fetch_all(tx.conn()).await?;
-        Ok(rows.into_iter().map(artifact).collect())
+        let now = self.clock.now();
+        Ok(rows.into_iter().map(|r| artifact(r, now)).collect())
     }
 
     /// Versions of an artifact, newest first (without reviews).
@@ -643,13 +731,14 @@ impl Library {
         sqlx::query("UPDATE artifact_versions SET lifecycle = 'published', published_at = $2, published_by = $3, revision = revision + 1 WHERE id = $1")
             .bind(id).bind(now).bind(actor.map(|a| a.membership)).execute(tx.conn()).await?;
         Self::refresh_state(tx, artifact_id).await?;
+        let next_review = self.schedule_review(tx, artifact_id, now).await?;
         let (no, hash): (i32, Option<Vec<u8>>) =
             sqlx::query_as("SELECT version_no, content_hash FROM artifact_versions WHERE id = $1")
                 .bind(id)
                 .fetch_one(tx.conn())
                 .await?;
         outbox::enqueue(tx, OutboxEvent { topic: "artifact.published.v1", aggregate_type: "artifact", aggregate_id: artifact_id, aggregate_revision: i64::from(no), payload: json!({"artifact_id": artifact_id, "version_id": id, "version_no": no, "superseded_version_id": previous}), trace_id: None }).await?;
-        self.audit(tx, actor, "version.published", id, json!({"version_no": no, "content_hash": hash.as_deref().map(bytes_to_hex), "superseded_version_id": previous}), None).await?;
+        self.audit(tx, actor, "version.published", id, json!({"version_no": no, "content_hash": hash.as_deref().map(bytes_to_hex), "superseded_version_id": previous, "next_review_at": next_review.unix_timestamp()}), None).await?;
         Ok(())
     }
 

@@ -108,6 +108,12 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}You received this because you are in the announcement's audience.{% endblock %}"#,
     ),
+    // BPMS-044: an artifact's review date passed. Vars: title.
+    ("review_overdue.title", "{{ title }} is due for review"),
+    (
+        "review_overdue.body",
+        "Its review date has passed. Confirm it is still correct, or start a new version.",
+    ),
 ];
 
 fn env() -> Result<Environment<'static>, NotifyError> {

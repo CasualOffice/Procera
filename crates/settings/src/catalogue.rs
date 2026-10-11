@@ -260,6 +260,29 @@ pub const CATALOGUE: &[Def] = &[
         || json!(14 * DAY),
     ),
     def("governance.reason_for_change.required", "governance", Kind::Bool, Some(SETTINGS), || json!(true)),
+    // BPMS-044: how long a published artifact stays current before it must be recertified, and how
+    // long a verification badge lasts.
+    def(
+        "governance.review_cadence.default",
+        "governance",
+        Kind::Duration { min: 7 * DAY, max: 3 * 365 * DAY },
+        Some(SETTINGS),
+        || json!(365 * DAY),
+    ),
+    def(
+        "governance.review_cadence.controlled",
+        "governance",
+        Kind::Duration { min: 7 * DAY, max: 3 * 365 * DAY },
+        Some(SETTINGS),
+        || json!(180 * DAY),
+    ),
+    def(
+        "governance.verification.validity",
+        "governance",
+        Kind::Duration { min: DAY, max: 365 * DAY },
+        Some(SETTINGS),
+        || json!(90 * DAY),
+    ),
     // 2.7 Execution
     def("exec.request_id_pattern", "execution", Kind::Text { max_len: 40 }, Some(SETTINGS), || {
         json!("REQ-{yyyy}-{seq:6}")

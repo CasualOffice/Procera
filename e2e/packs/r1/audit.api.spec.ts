@@ -120,6 +120,13 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PATCH', '/api/v1/versions/{id}', () => own.patch(`/api/v1/versions/${sop.version.id}`, { headers: oh, data: { content: { blocks: [{ type: 'paragraph', text: 'v1.1' }] } } }));
   await step('POST', '/api/v1/versions/{id}/submit', () => own.post(`/api/v1/versions/${sop.version.id}/submit`, { headers: oh }));
   await step('POST', '/api/v1/versions/{id}/publish', () => own.post(`/api/v1/versions/${sop.version.id}/publish`, { headers: oh, data: {} }));
+  // Library governance (BPMS-044): cadence, recertification, verification, change requests.
+  await step('PUT', '/api/v1/artifacts/{id}/review-cadence', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/review-cadence`, { headers: oh, data: { days: 90 } }));
+  await step('POST', '/api/v1/artifacts/{id}/recertify', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/recertify`, { headers: oh, data: { comment: 'still right' } }));
+  await step('POST', '/api/v1/artifacts/{id}/verification', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
+  await step('DELETE', '/api/v1/artifacts/{id}/verification', () => own.delete(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
+  const cr = await (await step('POST', '/api/v1/artifacts/{id}/change-requests', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/change-requests`, { headers: oh, data: { title: 'Add a step' } }))).json();
+  await step('POST', '/api/v1/change-requests/{id}/resolve', () => own.post(`/api/v1/change-requests/${cr.id}/resolve`, { headers: oh, data: { decision: 'accepted' } }));
   // Campaigns: everyone acknowledges the published SOP; Adam (member) completes his assignment.
   const cmp = await (await step('POST', '/api/v1/campaigns', () => own.post('/api/v1/campaigns', { headers: oh, data: { version_id: sop.version.id, audience: { all: true } } }))).json();
   await step('POST', '/api/v1/campaigns/{id}/activate', () => own.post(`/api/v1/campaigns/${cmp.id}/activate`, { headers: oh }));

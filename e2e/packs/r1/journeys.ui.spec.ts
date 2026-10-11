@@ -22,7 +22,8 @@ test.describe('journeys @r1 @ui', () => {
     await signIn(page, ownerEmail, owner.recovery![0]!);
     await nav(page, 'Library');
     await expect(page.getByRole('heading', { level: 1, name: 'Library' })).toBeVisible();
-    await page.getByRole('button', { name: 'New document' }).click();
+    // The page header always offers it; an empty library repeats it in the empty state.
+    await page.getByRole('button', { name: 'New document' }).first().click();
     const dialog = page.getByRole('dialog', { name: 'New document' });
     await dialog.getByLabel('Title').fill('Remote work');
     await axe(page);

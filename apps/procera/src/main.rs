@@ -193,7 +193,8 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
-            // Scheduler role: publish scheduled library versions and announcements when due, and send
+            // Scheduler role: publish scheduled library versions and announcements when due, flag artifacts
+            // whose review date has passed, and send
             // due campaign reminders and manager escalations.
             let scheduler = match (&state.library, &state.campaigns, &state.announcements, all) {
                 (Some(l), Some(c), Some(a), true) => {
@@ -205,6 +206,11 @@ async fn main() -> anyhow::Result<()> {
                                 Ok(0) => {}
                                 Ok(n) => tracing::info!(published = n, "scheduled versions published"),
                                 Err(e) => tracing::error!(error = %e, "scheduled publication pass failed"),
+                            }
+                            match l.flag_overdue().await {
+                                Ok(0) => {}
+                                Ok(n) => tracing::info!(flagged = n, "artifacts flagged for overdue review"),
+                                Err(e) => tracing::error!(error = %e, "overdue review pass failed"),
                             }
                             match c.run_due().await {
                                 Ok(p) if p.reminders + p.escalations == 0 => {}

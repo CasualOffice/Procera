@@ -5,7 +5,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
 use procera_db::WsTx;
@@ -25,6 +25,13 @@ pub fn router() -> Router<AppState> {
         .route("/artifacts/{id}", get(get_artifact))
         .route("/artifacts/{id}/versions", post(new_version))
         .route("/versions/{id}", get(get_version).patch(edit))
+        .route("/versions/{a}/diff/{b}", get(diff_versions))
+        .route("/artifacts/{id}/review-cadence", put(set_cadence))
+        .route("/artifacts/{id}/recertify", post(recertify))
+        .route("/artifacts/{id}/verification", post(verify).delete(unverify))
+        .route("/artifacts/{id}/change-requests", get(list_change_requests).post(open_change_request))
+        .route("/change-requests/{id}", get(get_change_request))
+        .route("/change-requests/{id}/resolve", post(resolve_change_request))
         .route("/versions/{id}/submit", post(submit))
         .route("/versions/{id}/withdraw", post(withdraw))
         .route("/versions/{id}/reviews", post(review))
@@ -237,6 +244,33 @@ async fn get_version(
     Ok(etag(Json(v).into_response(), rev))
 }
 
+/// Semantic diff between two versions of the same artifact (BPMS-043, FR-G05): block-level
+/// added/removed/changed with word-level changes inside changed blocks.
+async fn diff_versions(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path((a, b)): Path<(Uuid, Uuid)>,
+) -> Result<Json<Value>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_version(&s, &me, &mut tx, a, "view").await?;
+    let lib = library(&s)?;
+    let (va, _) = lib.version(&mut tx, a, None).await?;
+    let (vb, _) = lib.version(&mut tx, b, None).await?;
+    tx.rollback().await.map_err(internal)?;
+    if va.artifact_id != vb.artifact_id {
+        return Err(ApiError::new(422, "validation_failed", "Validation failed")
+            .detail("both versions must belong to the same artifact"));
+    }
+    let d = procera_library::diff::diff(&va.content, &vb.content);
+    Ok(Json(json!({
+        "artifact_id": va.artifact_id,
+        "from": {"id": va.id, "version_no": va.version_no},
+        "to": {"id": vb.id, "version_no": vb.version_no},
+        "summary": {"added": d.added, "removed": d.removed, "changed": d.changed},
+        "ops": d.ops,
+    })))
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct EditReq {
@@ -361,4 +395,186 @@ async fn retire(
     let v = library(&s)?.retire(&mut tx, &actor(&me, &headers), id, &r.reason).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(v).into_response())
+}
+
+// ---- BPMS-044: recertification, verification, change requests ----
+
+/// Loads the artifact and checks `action` on its kind.
+async fn authorize_artifact(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut WsTx<'_>,
+    id: Uuid,
+    action: &str,
+) -> Result<procera_library::Artifact, ApiError> {
+    let a = library(s)?.artifact(tx, id).await?;
+    me.require(members(s)?, tx, permission(&a.kind, action)?, Resource::Workspace).await?;
+    Ok(a)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CadenceReq {
+    /// Days, or `null` to use the workspace default.
+    days: Option<i32>,
+}
+
+async fn set_cadence(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<CadenceReq>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "recertify").await?;
+    let a = library(&s)?.set_cadence(&mut tx, &actor(&me, &headers), id, r.days).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecertifyReq {
+    comment: Option<String>,
+}
+
+async fn recertify(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    body: Option<Json<RecertifyReq>>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let r = body.map(|Json(b)| b).unwrap_or_default();
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "recertify").await?;
+    let a = library(&s)?.recertify(&mut tx, &actor(&me, &headers), id, r.comment.as_deref()).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+/// Verifying a controlled artifact needs a recent authentication, like approving it.
+async fn verify(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let a = authorize_artifact(&s, &me, &mut tx, id, "verify").await?;
+    if a.criticality == "controlled" {
+        me.require_step_up(&s, &mut tx).await?;
+    }
+    let a = library(&s)?.verify(&mut tx, &actor(&me, &headers), id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+async fn unverify(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "verify").await?;
+    let a = library(&s)?.unverify(&mut tx, &actor(&me, &headers), id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+#[derive(Debug, Deserialize)]
+struct CrListQuery {
+    state: Option<String>,
+}
+
+async fn list_change_requests(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Query(q): Query<CrListQuery>,
+) -> Result<Json<Value>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "view").await?;
+    let items = library(&s)?.change_requests(&mut tx, id, q.state.as_deref()).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OpenCrReq {
+    title: String,
+    #[serde(default)]
+    body: String,
+}
+
+async fn open_change_request(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<OpenCrReq>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "propose_change").await?;
+    let cr = library(&s)?.open_change_request(&mut tx, &actor(&me, &headers), id, &r.title, &r.body).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok((StatusCode::CREATED, Json(cr)).into_response())
+}
+
+/// Kind check for a change request: through its artifact.
+async fn change_request_artifact(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut WsTx<'_>,
+    id: Uuid,
+    action: &str,
+) -> Result<procera_library::governance::ChangeRequest, ApiError> {
+    let cr = library(s)?.change_request(tx, id).await?;
+    authorize_artifact(s, me, tx, cr.artifact_id, action).await?;
+    Ok(cr)
+}
+
+async fn get_change_request(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Json<procera_library::governance::ChangeRequest>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let cr = change_request_artifact(&s, &me, &mut tx, id, "view").await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(cr))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ResolveCrReq {
+    decision: String,
+    resolution: Option<String>,
+    version_id: Option<Uuid>,
+}
+
+async fn resolve_change_request(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<ResolveCrReq>,
+) -> Result<Json<procera_library::governance::ChangeRequest>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    change_request_artifact(&s, &me, &mut tx, id, "resolve_change").await?;
+    let cr = library(&s)?
+        .resolve_change_request(
+            &mut tx,
+            &actor(&me, &headers),
+            id,
+            &r.decision,
+            r.resolution.as_deref(),
+            r.version_id,
+        )
+        .await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(cr))
 }
