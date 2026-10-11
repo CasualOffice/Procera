@@ -661,6 +661,67 @@ Each advance runs at most 200 node executions and yields with `continue_advance`
 - Business durations: `due = calendar.add(start, duration)`. It is computed from the calendar version pinned at creation and stored together with `source_tz` and `rule`, so it can be recomputed in an audit.
 - Timer lateness (`now() - due_at` at fire) is exported as a histogram. The SLO is 99.99 % within 60 s (06).
 
+**As built (BPMS-083).** The crate `crates/engine` (`procera-engine`) wraps the pure interpreter (§4.2) with persistence, jobs, timers, calendars and SLA clocks. Migration `0031_runtime.sql` adds the tables below. Each has `workspace_id`, composite primary and foreign keys, and forced RLS.
+
+| Table | Differences from §2.5 / §2.12 |
+|---|---|
+| `process_instances` | Stores `state jsonb` (the interpreter's `InstanceState`) and `revision`. `status` uses the §4.1 values, with runtime `terminated` stored as `cancelled` and runtime `waiting` stored as `running` plus a derived `waiting` flag. `process_key`, `process_version` and `program_checksum` hold the place of the artifact, version and bundle ids that BPMS-084 adds (expand step). `display_id` is the instance id |
+| `instance_events` | The append-only **stimulus log**: one row per accepted stimulus, `seq` = the revision it produced, `payload` = the stamped `Stimulus`. The app role cannot update or delete it, and a trigger blocks everyone else. It is not partitioned yet (A-28) |
+| `instance_effects` | New. Every command, recorded once per `(key, command)`, `applied` or `pending` (A-28) |
+| `jobs` | As §2.5, plus `created_at` and `finished_at`. `idempotency_key` is required |
+| `timers` | `timer_key` (the command key, unique), `purpose` adds `signal_timeout`, and `fired_at` records lateness. There is no lease or fence: a timer fires under a row lock in one transaction (A-28) |
+| `calendar_versions` | Adds `calendar_ref` (the IR reference, unique). `timezone` is a fixed offset (A-27). Rows are immutable |
+| `sla_clocks` | Adds `clock_key`, `target_text` and `breach` (the SLA's breach actions) |
+
+`discovery.runtime_due_workspaces(due_by, max)` returns only the ids of workspaces that have a due timer, a due job or an expired lease.
+
+**Advance** (`Engine::start`, `Engine::advance(ws, instance, event, expected_revision)`, `Engine::apply_in`). The following steps run in one transaction:
+1. Lock the instance row and check the optimistic revision. A mismatch is `Conflict`.
+2. Run the interpreter with the program's `CelEvaluator` and budget.
+3. Save the state and append the stimulus.
+4. Record each command, then apply it:
+   - `schedule_timer` inserts a timer. A business due date is computed from the pinned calendar version, and the version id, `source_tz` and `rule` are stored.
+   - `cancel_timer` cancels the timer.
+   - `continue_advance` enqueues an `advance` job.
+   - `emit_event` writes the outbox event `<topic>.v1`.
+   - Every other command stays `pending` for its item.
+5. Move the SLA clocks.
+6. Append one runtime audit record (`instance.started`, `advanced`, `completed`, `cancelled` or `failed`).
+
+A rejected stimulus (stale or duplicate) is `EngineError::Rejected` and changes nothing. `Engine::replay` rebuilds the state from the log, and integration tests check that it equals the stored state. Programs come from the `ProgramSource` port; `StaticPrograms` serves them until release bundles exist (BPMS-084). A program that declares a `restricted` variable is refused until instance data is encrypted at rest (A-28).
+
+**Jobs** (`jobs`, rules in `lease`):
+- A claim is `FOR UPDATE SKIP LOCKED`. It sets `fence = fence + 1`, `attempts + 1` and a 30 s lease. The claim commits before the job runs.
+- A job runs in one transaction with its fenced completion (`WHERE fence = $claimed AND state = 'leased'`). A stale holder's completion is refused and its effect rolls back, so the effect commits at most once.
+- A failure is retried after 2^n s (at most 1 h). After `max_attempts` (10) the job is `dead`. A job whose last allowed attempt loses its lease is also dead-lettered.
+- Idempotency keys: `fired:<timer key>` for timers, and the `continue_advance` key for continuations.
+
+**Scheduler** (`Scheduler::run_once`, injected `Clock`). For each workspace that discovery returns, it does two things:
+1. It fires due timers (`due_at <= now`, batches of 500, `SKIP LOCKED`). Each timer becomes an `advance` job carrying `timer_fired`, or an SLA breach.
+2. It claims and runs due jobs.
+
+Lateness goes to `Lateness`, a histogram with buckets of 0.1, 1, 5, 15, 60 and 300 s and a within-60 s counter (`Scheduler::lateness()`). `Scheduler::drain` repeats passes until one makes no progress, for tests and `/__test/drain`.
+
+**Calendars** (`calendar`, `store::put_calendar`, `calendar_by_ref`, `calendar_by_id`):
+- `Calendar::add(start, BusinessDuration)` treats the date part as working days and the time part as working time (A-27).
+- `working_between(a, b)` returns the working time in `[a, b)`.
+- Property tests show that adding zero is the identity, that results are monotonic in the start and in each part, that working time skips non-working time, and that working days land on working days.
+
+**SLA clocks** (`sla`, A-29):
+- They are level-triggered from the state after each stimulus: an instance SLA runs while the instance is not final, a node SLA runs while a token sits on the node, and either pauses while a token sits on a `pauseWhile` node.
+- Each transition updates `sla_clocks`, arms or cancels the breach timer (`<clock key>/breach`) and emits `sla.{started,paused,resumed,stopped}`. On resume, the due date moves by the paused working time (business) or the paused wall time.
+- A breach fires once. It emits `sla.breached`, records the breach actions as a pending `sla_breach` effect, and appends an `sla.breached` audit record.
+
+**Not yet:**
+- HTTP API and UI (BPMS-084/085+).
+- Wiring into the `procera` scheduler loop.
+- Executing pending effects (BPMS-085 work items, connectors, BPMS-088 incidents).
+- Envelope encryption of restricted variables.
+- `instance_events` partitions.
+- IANA time zones.
+- An at-risk SLA state.
+- The `today()` offset from the calendar (A-26 (6)). The `ProgramSource` sets the evaluator's offset.
+
 ### 4.5 Expression evaluation
 
 - Source is compiled at publish into a typed AST stored in `compiled`.

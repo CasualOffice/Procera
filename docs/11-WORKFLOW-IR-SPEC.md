@@ -658,9 +658,9 @@ The runner (`crates/runtime/tests/conformance.rs`) runs every case with `CelEval
 **Gaps against the spec.**
 - Inclusive (OR) and event-based gateways are not in v1 (§1.4, §10), so the interpreter has none.
 - Assignment resolution, quorum, delegation, escalations and the work-item lifecycle belong to BPMS-085. `CreateWorkItem` carries the node's fields, and an escalation `outcome` comes back as a `work_item_completed`.
-- Business-calendar arithmetic, timer persistence and firing, and SLA clocks belong to BPMS-083.
+- Business-calendar arithmetic, timer persistence and firing, and SLA clocks are in `procera-engine` (BPMS-083, docs/04 §4.4 *As built*, A-27, A-29).
 - The incident lifecycle (retry, skip) and suspend/resume belong to BPMS-088.
 - `cancel` boundaries are not triggered. Compensation is P2.
 - Start-form validation and `required` variables belong to BPMS-101. A variable's value is checked against its type only when an expression reads it (a mismatch is IR-R001).
-- Persistence, the instance lock and the outbox belong to BPMS-083 and BPMS-084. The trace stays in the state until persistence moves it into `instance_events`.
+- Persistence, the instance lock, the stimulus log and the outbox are in `procera-engine` (BPMS-083); release bundles are BPMS-084. `instance_events` stores the stimuli, and the trace stays in the stored state (A-28).
 - Child-instance variable mapping for `subprocess.call` is not specified.
