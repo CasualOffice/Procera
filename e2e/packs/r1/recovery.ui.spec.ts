@@ -34,8 +34,8 @@ async function resetLink(request: APIRequestContext, to: string): Promise<string
 
 async function passwordSignIn(page: Page, email: string, password: string) {
   await page.goto(`${WEB}/sign-in`);
-  await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByRole('textbox', { name: 'Work email' }).fill(email);
+  await page.getByRole('textbox', { name: 'Password', exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
@@ -54,7 +54,7 @@ test.describe('account recovery @r1 @ui', () => {
     await page.getByRole('link', { name: 'Forgot password?' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Reset your password' })).toBeVisible();
     await axe(page);
-    await page.getByLabel('Work email').fill(m.email);
+    await page.getByRole('textbox', { name: 'Work email' }).fill(m.email);
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Check your email' })).toBeVisible();
 
@@ -62,8 +62,8 @@ test.describe('account recovery @r1 @ui', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Choose a new password' })).toBeVisible();
     await expect(page).not.toHaveURL(/token=/); // the token leaves the address bar
     await axe(page);
-    await page.getByLabel('New password', { exact: true }).fill(NEW_PW);
-    await page.getByLabel('Confirm new password').fill(NEW_PW);
+    await page.getByRole('textbox', { name: 'New password', exact: true }).fill(NEW_PW);
+    await page.getByRole('textbox', { name: 'Confirm new password' }).fill(NEW_PW);
     await page.getByRole('button', { name: 'Set new password' }).click();
     await expect(page.getByText('Your password is changed')).toBeVisible();
 
@@ -81,12 +81,12 @@ test.describe('account recovery @r1 @ui', () => {
     await page.goto(`${WEB}/account/security`);
     await page.getByRole('button', { name: 'Change password' }).click();
     const dialog = page.getByRole('dialog', { name: 'Change password' });
-    await dialog.getByLabel('Current password').fill('not my password at all');
-    await dialog.getByLabel('New password', { exact: true }).fill(NEW_PW);
-    await dialog.getByLabel('Confirm new password').fill(NEW_PW);
+    await dialog.getByRole('textbox', { name: 'Current password' }).fill('not my password at all');
+    await dialog.getByRole('textbox', { name: 'New password', exact: true }).fill(NEW_PW);
+    await dialog.getByRole('textbox', { name: 'Confirm new password' }).fill(NEW_PW);
     await dialog.getByRole('button', { name: 'Update password' }).click();
     await expect(dialog.getByText('That isn’t your current password.')).toBeVisible();
-    await dialog.getByLabel('Current password').fill(PW);
+    await dialog.getByRole('textbox', { name: 'Current password' }).fill(PW);
     await dialog.getByRole('button', { name: 'Update password' }).click();
     await expect(page.getByText(/Your password is changed/)).toBeVisible();
     await axe(page);
@@ -103,7 +103,7 @@ test.describe('account recovery @r1 @ui', () => {
     const actions = page.getByRole('list', { name: 'Account security actions' });
     await actions.getByRole('button', { name: 'Require password change' }).click();
     const dialog = page.getByRole('dialog', { name: 'Require Ravi to change their password?' });
-    await dialog.getByLabel('Reason').fill('Shared on a sticky note');
+    await dialog.getByRole('textbox', { name: 'Reason' }).fill('Shared on a sticky note');
     await dialog.getByRole('button', { name: 'Require password change' }).click();
     await expect(page.getByText('Ravi will choose a new password at their next sign-in.')).toBeVisible();
     await axe(page);
@@ -111,8 +111,8 @@ test.describe('account recovery @r1 @ui', () => {
     const ravi = await (await browser.newContext()).newPage();
     await passwordSignIn(ravi, m.email, PW);
     await expect(ravi.getByRole('heading', { level: 1, name: 'Choose a new password' })).toBeVisible();
-    await ravi.getByLabel('New password', { exact: true }).fill(NEW_PW);
-    await ravi.getByLabel('Confirm new password').fill(NEW_PW);
+    await ravi.getByRole('textbox', { name: 'New password', exact: true }).fill(NEW_PW);
+    await ravi.getByRole('textbox', { name: 'Confirm new password' }).fill(NEW_PW);
     await ravi.getByRole('button', { name: 'Save and continue' }).click();
     await home(ravi);
   });

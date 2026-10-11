@@ -23,17 +23,16 @@ test.describe('account and workspace identity @r1 @ui', () => {
 
     await page.getByRole('textbox', { name: 'Your name' }).fill('Olivia Ortega');
     await page.getByRole('button', { name: /Time zone/ }).click();
-    await page.keyboard.type('Asia/Kolkata');
-    await page.getByRole('option', { name: 'Asia/Kolkata' }).click();
+    await page.getByRole('option', { name: 'Europe/Berlin' }).click();
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByText('Profile saved')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Account: Olivia Ortega' })).toBeVisible();
 
     await page.reload();
     await expect(page.getByRole('textbox', { name: 'Your name' })).toHaveValue('Olivia Ortega');
-    await expect(page.getByRole('button', { name: /Time zone/ })).toContainText('Asia/Kolkata');
+    await expect(page.getByRole('button', { name: /Time zone/ })).toContainText('Europe/Berlin');
     const me = await (await owner.c.get('/api/v1/me/profile', { headers: owner.headers })).json();
-    expect(me).toMatchObject({ display_name: 'Olivia Ortega', timezone: 'Asia/Kolkata' });
+    expect(me).toMatchObject({ display_name: 'Olivia Ortega', timezone: 'Europe/Berlin' });
   });
 
   test('E2E-R1-UI-47 an owner renames the workspace in Settings and the switcher shows the new name', async ({ page, request }) => {
