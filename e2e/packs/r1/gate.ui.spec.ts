@@ -587,7 +587,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await hd.getByRole('button', { name: 'Grant role' }).click();
     const grant = page.getByRole('dialog', { name: 'Grant a role' });
     await grant.getByRole('button', { name: /Person$/ }).click();
-    await page.getByRole('option', { name: 'nina', exact: true }).click();
+    await page.getByRole('option', { name: `nina (${nina.email})`, exact: true }).click();
     await grant.getByText('A collection', { exact: true }).click();
     await grant.getByRole('button', { name: /Collection$/ }).click();
     await page.getByRole('option', { name: 'HR', exact: true }).click();
