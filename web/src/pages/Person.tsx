@@ -5,7 +5,7 @@ import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
-import { type Member, useItems } from '../lib/data';
+import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate } from '../lib/format';
 import { Link } from '../lib/router';
 import { Avatar } from '../ui/Avatar';
@@ -23,6 +23,10 @@ export function Person({ id }: { id: string }) {
   const [members, reload, error] = useItems<Member>('/api/v1/members');
   const m = members?.find((x) => x.id === id) ?? null;
   const { can, user } = useSession();
+  const [dir] = useResource<{ title: string | null; department_id: string | null; location: string | null; resolved_manager: { membership_id: string | null; via: string } }>(can('directory:view') ? `/api/v1/members/${id}/directory` : null, [members]);
+  const [departments] = useItems<{ id: string; name: string }>(can('directory:view') ? '/api/v1/departments' : null);
+  const dept = departments?.find((d) => d.id === dir?.department_id)?.name;
+  const manager = members?.find((x) => x.id === dir?.resolved_manager.membership_id);
   const [confirming, setConfirming] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
   const deactivate = async () => {
@@ -58,6 +62,11 @@ export function Person({ id }: { id: string }) {
       <dl className="props">
         <dt><Mail aria-hidden="true" size="0.9375rem" /> Email</dt>
         <dd><a href={`mailto:${m.email}`}>{m.email}</a></dd>
+        {dir && <>
+          <dt>Department</dt><dd>{dept ?? <span className="muted">None</span>}</dd>
+          <dt>Manager</dt><dd>{manager ? <Link to={`/members/${manager.id}`}>{manager.display_name}</Link> : <span className="muted">None</span>}{manager && dir.resolved_manager.via === 'department_head' && <span className="muted"> (department head)</span>}</dd>
+          <dt>Location</dt><dd>{dir.location ?? <span className="muted">None</span>}</dd>
+        </>}
         <dt>Roles</dt>
         <dd style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>{m.roles.map((r) => <Tag key={r}>{roleLabel(r)}</Tag>)}</dd>
         <dt>Joined</dt>

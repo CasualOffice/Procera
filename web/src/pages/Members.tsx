@@ -1,4 +1,4 @@
-import { MailPlus } from 'lucide-react';
+import { FileUp, MailPlus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
@@ -14,6 +14,7 @@ import { TextField } from '../ui/components/TextField';
 import { Tag, type TagColor } from '../ui/Tag';
 import { LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
+import { DirectoryImport } from './DirectoryImport';
 
 interface PersonRow { id: string; name: string; email: string; roles: string[]; title: string | null; status: string; date: string; invite: boolean }
 interface Invitation { id: string; email: string; role_keys: string[]; expires_at: string }
@@ -27,6 +28,8 @@ export function Members() {
   const [members, reload, loadError] = useItems<Member>('/api/v1/members');
   const [invites, reloadInvites] = useItems<Invitation>(can('member:invite') ? '/api/v1/members/invitations' : null);
   const [inviting, setInviting] = useState(query.get('invite') === '1');
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState(false);
   useEffect(() => { if (query.get('invite') === '1') setInviting(true); }, [query]);
   const people = useMemo<PersonRow[]>(() => [
     ...(members ?? []).map((m) => ({ id: m.id, name: m.display_name, email: m.email, roles: m.roles, title: m.title, status: m.status === 'active' ? 'Active' : 'Deactivated', date: m.joined_at, invite: false })),
@@ -38,8 +41,13 @@ export function Members() {
     <>
       <div className="page-head">
         <div><h1>Members</h1><p>{members ? `${active} active ${active === 1 ? 'member' : 'members'}${invites?.length ? ` · ${invites.length} pending invitation${invites.length === 1 ? '' : 's'}` : ''}` : 'People in this workspace'}</p></div>
-        {can('member:invite') && <Button onPress={() => setInviting(true)}><MailPlus aria-hidden="true" size="1rem" /> Invite people</Button>}
+        <div className="actions">
+          {can('directory:manage') && <Button variant="secondary" onPress={() => setImporting(true)}><FileUp aria-hidden="true" size="1rem" /> Import directory</Button>}
+          {can('member:invite') && <Button onPress={() => setInviting(true)}><MailPlus aria-hidden="true" size="1rem" /> Invite people</Button>}
+        </div>
       </div>
+      {imported && <Notice tone="success" title="Directory updated." />}
+      <DirectoryImport isOpen={importing} onClose={() => setImporting(false)} onApplied={() => { setImported(true); reload(); }} />
       {loadError ? <LoadError error={loadError} onRetry={reload} what="members" /> : members === null ? <Skeleton variant="table" rows={6} label="Loading members" /> : (
         <DataGrid<PersonRow> caption="Members" showCaption={false} list="members" data={people} initialSearch={query.get('q') ?? ''} initialSort={[{ id: 'name', desc: false }]}
           columns={[

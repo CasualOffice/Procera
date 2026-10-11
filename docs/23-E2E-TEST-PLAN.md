@@ -299,7 +299,7 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R1-01 | Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01 |
 | E2E-R1-02 | System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01 |
 | E2E-R1-03 | Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override ("Request" → "Ticket") shows in UI and email | FR-W04, 05 §7 |
-| E2E-R1-04 | Directory CSV import (departments, managers); a manager cycle is rejected with a clear error | FR-W02 |
+| E2E-R1-04 | Directory CSV import (departments, managers); a manager cycle is rejected with a clear error (browser: Members › Import directory › Check shows each row; cycle and unknown member refused; Apply saves the rest; person pages show department, manager and location) | FR-W02 |
 | E2E-R1-05 | Clone "Process Designer" → "HR Designer" scoped to the HR collection; preview count is correct; the scope is enforced on UI and API; adding a permission the editor lacks is refused | FR-W03, J6 |
 | E2E-R1-06 | Policy authored → submitted → self-approval blocked (SoD) → reviewer approves with step-up → scheduled → published at effective date (test clock) → old version watermarked as superseded in PDF | FR-G04/G05/G10, FR-PL01 |
 | E2E-R1-07 | Major version publish triggers a re-ack campaign; 50 employees ack (10 at mobile viewport); evidence export lists version hash and auth method | FR-PL03, FR-AK01–04 |

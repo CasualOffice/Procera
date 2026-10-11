@@ -130,4 +130,43 @@ test.describe('R1 gate @r1 @ui', () => {
     const progress = await (await owner.c.get(`/api/v1/campaigns/${camp.id}`, { headers: owner.headers })).json();
     expect(progress.progress.acknowledged).toBe(1);
   });
+
+  test('E2E-R1-04 directory CSV import: check shows each row, a manager cycle and an unknown person are refused with clear reasons, the rest applies', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const ana = await member(request, owner, ws.id, 'ana');
+    const raj = await member(request, owner, ws.id, 'raj');
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Members');
+    await page.getByRole('button', { name: 'Import directory' }).click();
+    const dlg = page.getByRole('dialog', { name: 'Import directory' });
+    const csv = [
+      'email,department,title,manager_email,location',
+      `${ana.email},Finance,Accountant,${ownerEmail},Bangalore`,
+      `${raj.email},Finance,Analyst,${ana.email},Bangalore`,
+      `${ownerEmail},,,${raj.email},`, // owner → raj → ana → owner: a reporting cycle
+      'nobody@acme.test,Finance,,,',
+    ].join('\n');
+    await dlg.locator('#dir-csv').setInputFiles({ name: 'directory.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+    await dlg.getByRole('button', { name: 'Check file' }).click();
+    const rows = dlg.getByRole('table', { name: 'Rows' });
+    await expect(rows.getByRole('row', { name: new RegExp(ana.email) }).getByText('Update')).toBeVisible();
+    await expect(rows.getByRole('row', { name: new RegExp(ownerEmail) })).toContainText('cycle');
+    await expect(rows.getByRole('row', { name: /nobody@acme\.test/ }).getByText('Error')).toBeVisible();
+    await expect(dlg.getByText('Rows with errors are skipped')).toBeVisible();
+    await axe(page);
+    // Nothing changed yet.
+    const before = await (await owner.c.get(`/api/v1/members/${ana.id}/directory`, { headers: owner.headers })).json();
+    expect(before.title).toBeNull();
+    await dlg.getByRole('button', { name: 'Apply 2 rows' }).click();
+    await expect(page.getByText('Directory updated.')).toBeVisible();
+
+    await page.goto(`${WEB}/members/${raj.id}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    const props = page.locator('dl.props');
+    await expect(props).toContainText('Finance');
+    await expect(props).toContainText('Bangalore');
+    await props.getByRole('link').first().click(); // their manager
+    await expect(page.locator('dl.props')).toContainText('Olivia');
+  });
 });
