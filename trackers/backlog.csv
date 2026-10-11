@@ -22,7 +22,7 @@ BPMS-025,SEC,Forced RLS + repository WsCtx + CI cross-workspace sweep,P0,R1,Plat
 BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01, AUD-01/07",Every mutating route emits 1 event,M,BPMS-025,Done
 BPMS-027,CFG,"Settings layering, floors, profiles, explainer",P0,R1,Platform,"FR-S05, FR-W04/W06, CFG-001..003",Never looser than floor,M,BPMS-020,In progress
 BPMS-028,UX,"Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)",P0,R1,FE,FR-V01–V09,Used by Members & Workspaces,L,BPMS-010,Not started
-BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,In progress
+BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,Done
 BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,In progress
 BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,Not started
 BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,Not started

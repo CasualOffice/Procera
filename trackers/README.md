@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  17/109 epics done  (16%)
-Partial   █████░░░░░░░░░░░░░░░░░░░░░░░░░  18% counting in-progress epics as half done
-Tests     45 automated E2E scenarios · 60 Rust tests (incl. property tests)
-Status    done 17 · in review 0 · in progress 5 · blocked 0 · not started 87 · deferred 0
+Overall   █████░░░░░░░░░░░░░░░░░░░░░░░░░  18/109 epics done  (17%)
+Partial   ██████░░░░░░░░░░░░░░░░░░░░░░░░  18% counting in-progress epics as half done
+Tests     45 automated E2E scenarios · 62 Rust tests (incl. property tests)
+Status    done 18 · in review 0 · in progress 4 · blocked 0 · not started 87 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `███░░░░░░░░░` | 7/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `███░░░░░░░░░` | 8/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `░░░░░░░░░░░░` | 0/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -32,12 +32,14 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 |---|---|---|---|
 | BPMS-022 | MFA TOTP + WebAuthn, recovery codes, step-up | **In progress** | TOTP (RFC 6238, replay-protected, sealed secrets) + 10 recovery codes + MFA login (E2E-R1-AUTH-06). Step-up: POST /session/step-up (TOTP code, or password without MFA) re-issues the token with a fresh auth_time; enforced against auth.stepup.window (401 step_up_required) for step-up settings, role create/edit and grant/revoke (E2E-R1-CFG-03). MFA required by role (auth.mfa.required_roles) enforced at workspace entry, 403 mfa_required (E2E-R1-MEM-10). Remaining: WebAuthn/passkeys |
 | BPMS-027 | Settings layering, floors, profiles, explainer | **In progress** | procera-settings: catalogue in code (P0 subset, 38 keys) with comparators; platform floors + workspace values + append-only revisions (migration 0007, RLS); 4 configuration profiles applied at workspace creation; resolution with clamping when a floor is raised; explainer; /api/v1/settings (list, explainer, PUT per key with If-Match, history) and /sysapi/v1/settings floors; reasons for ⚡ keys, step-up = MFA session (interim); audited (setting.changed, platform.floor_changed); property test (512 cases, never looser than floor); E2E-R1-CFG-01..05. Remaining: department/collection overrides (needs directory), profile switch plan/apply (CFG-017), settings cache invalidation (CFG-004) |
-| BPMS-029 | Outbox + dispatcher + inbox dedup + idempotency keys | **In progress** | Outbox/inbox/idempotency tables + helpers with tests (disjoint SKIP LOCKED claims, replay/conflict). Remaining: dispatcher loop (LISTEN/NOTIFY + Bus trait) |
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
 
 ## Recently shipped (last 12 commits on main)
 
+- `93e4b83` feat(worker): run the outbox dispatcher in serve --all; /__test/drain drains for real (BPMS-029)
+- `d4b0106` feat(outbox): [protected] dispatcher with per-aggregate order, backoff, hold-back and NOTIFY wake-ups (BPMS-029)
+- `33db515` docs: step-up API and E2E scenarios; tracker BPMS-022
 - `9b56bf4` feat(api): [protected] step-up endpoint and enforcement, MFA required by role at workspace entry; E2E-R1-CFG-03, E2E-R1-MEM-10 (BPMS-022)
 - `771ba5f` feat(identity): [protected] step-up re-authentication with fresh auth_time (BPMS-022)
 - `6a54a7d` docs: E2E-R1-MEM-09; tracker marks BPMS-024 done
@@ -47,9 +49,6 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - `3acf31c` feat(api): directory APIs and E2E-R1-DIR-01..04; directory routes in the audit contract (BPMS-023)
 - `09fd4a6` feat(directory): [protected] department tree, groups, positions, manager links and CSV import (BPMS-023)
 - `84008cf` chore(tracker): refresh dashboard
-- `12aff51` feat(api): workspace settings and platform floor APIs, profiles at workspace creation; E2E-R1-CFG-01..05 (BPMS-027)
-- `18036bf` feat(settings): [protected] settings catalogue, platform floors, profiles and effective resolution (BPMS-027)
-- `b5d66a3` chore(tracker): dashboard shows partial progress, test counts and recently shipped commits; BPMS-027 in progress
 
 ## Done
 
@@ -69,6 +68,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-024** Permission catalogue, role templates, custom roles, grants, scopes, preview → Cedar — procera-access: permission catalogue + 12 role templates; custom roles (no escalation on create/edit/grant/revoke, built-ins immutable, clone lineage); grants to members or static groups (migration 0009), scoped (workspace/department/collection/process/case) with expiry, compiled to Cedar; members inherit their department subtree so department-scoped admins reach only it; invariants (workspace isolation, active members only); last-owner protection; role change preview; access_revisions cache; all changes audited. Property tests: no escalation (64 cases) and preview matches effect (48 cases), both against Postgres. E2E-R1-MEM-04,08,09
 - [x] **BPMS-025** Forced RLS + repository WsCtx + CI cross-workspace sweep — procera-db: migrations (0001-0003), roles bootstrap (app/migrator/discovery), WsTx with tx-local set_config, procera_enable_workspace_rls() with NULLIF, procera_rls_violations guard (tested + enforced at startup), discovery.* functions with column grants; 6 DB tests
 - [x] **BPMS-026** Audit chain append + coverage contract test — procera-audit: JCS/SHA-256 per-workspace chain in the business tx, batched sealer, verifier, monthly partitions with forced RLS, append-only grants + trigger; tamper test. Route audit contract (audit_contract.rs): a unit test fails on any mutating route without an entry; E2E-R1-AUD-01 checks every route's appended events against it. Gaps closed: TOTP enrolment start, workspace selection, role/grant changes. data_access events follow with restricted data (BPMS-040+)
+- [x] **BPMS-029** Outbox + dispatcher + inbox dedup + idempotency keys — Outbox/inbox/idempotency tables + helpers (SKIP LOCKED claims, replay/conflict). Dispatcher (procera_db::dispatch, migration 0010): due-workspace discovery, per-workspace advisory lock, per-aggregate ordered delivery to a Bus, at-least-once with exponential backoff (max 5 min) and hold-back behind a failed event, NOTIFY trigger wake-ups + 1 s polling; runs in serve --all; /__test/drain really drains. Tests: order/backoff/hold-back/workspaces + NOTIFY wake-up; E2E-R1-MEM-07. Consumers (mailer) arrive with BPMS-048
 - [x] **BPMS-033** Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback — procera-cache: memory + Valkey/Redis (redis 1.7, BSD-3) with ws:/sys: key namespacing, TTL-only writes, Lua fixed-window rate limit with in-process fallback, degraded health; wired into procera (/readyz), CI Valkey service
 
 ## Release checklists
@@ -98,7 +98,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 7/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 8/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -111,7 +111,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [x] **BPMS-026** (P0, M) Audit chain append + coverage contract test
 - [ ] **BPMS-027** (P0, M) Settings layering, floors, profiles, explainer **[In progress]**
 - [ ] **BPMS-028** (P0, L) Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)
-- [ ] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys **[In progress]**
+- [x] **BPMS-029** (P0, M) Outbox + dispatcher + inbox dedup + idempotency keys
 - [ ] **BPMS-030** (P0, M) Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK **[In progress]**
 - [ ] **BPMS-031** (P0, M) App shell, workspace switcher, system console shell, ⌘K
 - [ ] **BPMS-032** (P0, L) E2E-R1 pack (R1-01…19 + ISO)
