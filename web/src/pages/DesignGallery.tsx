@@ -6,8 +6,7 @@ import { TextField } from '../ui/components/TextField';
 import { Select } from '../ui/components/Select';
 import { ConfirmDialog } from '../ui/components/Dialog';
 import { Tabs } from '../ui/components/Tabs';
-import { DataGrid } from '../ui/components/DataGrid';
-import type { ColumnDef } from '@tanstack/react-table';
+import { DataGrid, type GridColumn } from '../ui/components/DataGrid';
 
 interface RequestRow { id: string; title: string; process: string; assignee: string; due: string; status: string }
 const ROWS: RequestRow[] = [
@@ -17,13 +16,13 @@ const ROWS: RequestRow[] = [
   { id: 'PR-2026-000124', title: 'Conference travel', process: 'Purchase requisition', assignee: 'Finance approvers', due: '2026-10-18', status: 'Awaiting approval' },
   { id: 'QA-2026-000007', title: 'Deviation in batch 42', process: 'CAPA', assignee: 'Quality', due: '2026-11-02', status: 'Root-cause analysis' },
 ];
-const COLUMNS: ColumnDef<RequestRow, unknown>[] = [
-  { accessorKey: 'id', header: 'Request' },
-  { accessorKey: 'title', header: 'Title' },
-  { accessorKey: 'process', header: 'Process' },
-  { accessorKey: 'assignee', header: 'Current owner' },
-  { accessorKey: 'due', header: 'Due' },
-  { accessorKey: 'status', header: 'Status' },
+const COLUMNS: GridColumn<RequestRow>[] = [
+  { id: 'id', header: 'Request', value: (r) => r.id },
+  { id: 'title', header: 'Title', value: (r) => r.title },
+  { id: 'process', header: 'Process', value: (r) => r.process, type: 'enum' },
+  { id: 'assignee', header: 'Current owner', value: (r) => r.assignee },
+  { id: 'due', header: 'Due', value: (r) => r.due, type: 'date' },
+  { id: 'status', header: 'Status', value: (r) => r.status, type: 'enum' },
 ];
 import tokens from '../ui/tokens.json';
 

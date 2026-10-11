@@ -27,6 +27,7 @@ pub mod system;
 pub mod system_console;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
+pub mod views;
 pub mod workspace;
 
 /// Shared application state. Grows as adapters (Postgres, object store, cache) arrive.
@@ -265,6 +266,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", retention::router())
         .nest("/api/v1", encryption::router())
         .nest("/api/v1", files::router())
+        .nest("/api/v1", views::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]

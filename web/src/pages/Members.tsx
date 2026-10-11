@@ -1,6 +1,6 @@
-import { MailPlus, Search } from 'lucide-react';
+import { MailPlus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Form, Input, SearchField } from 'react-aria-components';
+import { Form } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
 import { type Member, useItems } from '../lib/data';
 import { shortDate } from '../lib/format';
@@ -12,9 +12,10 @@ import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { Tag, type TagColor } from '../ui/Tag';
-import { Empty, LoadError, Skeleton } from '../ui/States';
-import { SearchX } from 'lucide-react';
+import { LoadError, Skeleton } from '../ui/States';
+import { DataGrid } from '../ui/components/DataGrid';
 
+interface PersonRow { id: string; name: string; email: string; roles: string[]; title: string | null; status: string; date: string; invite: boolean }
 interface Invitation { id: string; email: string; role_keys: string[]; expires_at: string }
 const ROLE_COLOR: Record<string, TagColor> = { 'workspace.owner': 'red', 'workspace.admin': 'orange', reviewer: 'blue', 'compliance.officer': 'purple', member: 'gray' };
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
@@ -25,11 +26,12 @@ export function Members() {
   const { query } = useRoute();
   const [members, reload, loadError] = useItems<Member>('/api/v1/members');
   const [invites, reloadInvites] = useItems<Invitation>(can('member:invite') ? '/api/v1/members/invitations' : null);
-  const [q, setQ] = useState(query.get('q') ?? '');
-  useEffect(() => { const v = query.get('q'); if (v !== null) setQ(v); }, [query]);
   const [inviting, setInviting] = useState(query.get('invite') === '1');
   useEffect(() => { if (query.get('invite') === '1') setInviting(true); }, [query]);
-  const rows = useMemo(() => (members ?? []).filter((m) => !q || `${m.display_name} ${m.email}`.toLowerCase().includes(q.toLowerCase())), [members, q]);
+  const people = useMemo<PersonRow[]>(() => [
+    ...(members ?? []).map((m) => ({ id: m.id, name: m.display_name, email: m.email, roles: m.roles, title: m.title, status: m.status === 'active' ? 'Active' : 'Deactivated', date: m.joined_at, invite: false })),
+    ...(invites ?? []).map((i) => ({ id: i.id, name: i.email, email: i.email, roles: i.role_keys, title: null, status: 'Invited', date: i.expires_at, invite: true })),
+  ], [members, invites]);
   const active = (members ?? []).filter((m) => m.status === 'active').length;
 
   return (
@@ -38,39 +40,15 @@ export function Members() {
         <div><h1>Members</h1><p>{members ? `${active} active ${active === 1 ? 'member' : 'members'}${invites?.length ? ` · ${invites.length} pending invitation${invites.length === 1 ? '' : 's'}` : ''}` : 'People in this workspace'}</p></div>
         {can('member:invite') && <Button onPress={() => setInviting(true)}><MailPlus aria-hidden="true" size="1rem" /> Invite people</Button>}
       </div>
-      <div className="toolbar">
-        <SearchField className="search-input" aria-label="Filter members" value={q} onChange={setQ}>
-          <Search aria-hidden="true" size="0.9375rem" /><Input placeholder="Search by name or email…" />
-        </SearchField>
-      </div>
-      {loadError ? <LoadError error={loadError} onRetry={reload} what="members" /> : members === null ? <Skeleton variant="table" rows={6} label="Loading members" /> : rows.length === 0 && q ? (
-        <Empty icon={SearchX} title="No one matches" action={<Button variant="secondary" onPress={() => setQ('')}>Clear search</Button>}>Nobody here matches “{q}”.</Empty>
-      ) : (
-        <div className="table-wrap">
-          <table className="table" aria-label="Members">
-            <thead><tr><th>Name</th><th>Roles</th><th className="col-optional">Title</th><th>Status</th><th className="col-optional">Joined</th></tr></thead>
-            <tbody>
-              {rows.map((m) => (
-                <tr key={m.id}>
-                  <td><span className="cell-entity"><Avatar name={m.display_name} size="1.75rem" /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{m.display_name}</span><span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{m.email}</span></span></span></td>
-                  <td><span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}>{m.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
-                  <td className="cell-muted col-optional">{m.title ?? ''}</td>
-                  <td>{m.status === 'active' ? <Tag color="green" dot>Active</Tag> : <Tag color="gray" dot>Deactivated</Tag>}</td>
-                  <td className="cell-muted col-optional">{shortDate(m.joined_at)}</td>
-                </tr>
-              ))}
-              {(invites ?? []).map((i) => (
-                <tr key={i.id}>
-                  <td><span className="cell-entity"><Avatar name={i.email} size="1.75rem" tone="neutral" /><span>{i.email}</span></span></td>
-                  <td><span style={{ display: 'inline-flex', gap: '0.25rem' }}>{i.role_keys.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span></td>
-                  <td className="cell-muted col-optional" />
-                  <td><Tag color="yellow" dot>Invited</Tag></td>
-                  <td className="cell-muted col-optional">expires {shortDate(i.expires_at)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {loadError ? <LoadError error={loadError} onRetry={reload} what="members" /> : members === null ? <Skeleton variant="table" rows={6} label="Loading members" /> : (
+        <DataGrid<PersonRow> caption="Members" showCaption={false} list="members" data={people} initialSearch={query.get('q') ?? ''} initialSort={[{ id: 'name', desc: false }]}
+          columns={[
+            { id: 'name', header: 'Name', value: (p) => `${p.name} ${p.email}`, cell: (p) => <span className="cell-entity"><Avatar name={p.name} size="1.75rem" tone={p.invite ? 'neutral' : 'person'} /><span style={{ minWidth: 0 }}><span style={{ display: 'block' }}>{p.name}</span>{!p.invite && <span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{p.email}</span>}</span></span> },
+            { id: 'roles', header: 'Roles', type: 'enum', options: [...new Set(people.flatMap((p) => p.roles.map(roleLabel)))].sort(), value: (p) => p.roles.map(roleLabel).join(', '), cell: (p) => <span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}>{p.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span> },
+            { id: 'title', header: 'Title', optional: true, value: (p) => p.title ?? '' },
+            { id: 'status', header: 'Status', type: 'enum', value: (p) => p.status, cell: (p) => <Tag color={p.status === 'Active' ? 'green' : p.status === 'Invited' ? 'yellow' : 'gray'} dot>{p.status}</Tag> },
+            { id: 'date', header: 'Joined', type: 'date', optional: true, value: (p) => p.date, cell: (p) => <span className="cell-muted">{p.invite ? `expires ${shortDate(p.date)}` : shortDate(p.date)}</span> },
+          ]} />
       )}
       <InviteDialog isOpen={inviting} onClose={() => { setInviting(false); if (query.get('invite')) navigate('/admin/members', { replace: true }); }} onInvited={() => { reload(); reloadInvites(); }} />
     </>

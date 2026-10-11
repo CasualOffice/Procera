@@ -1,6 +1,6 @@
-import { FileText, Plus, ScrollText, Search } from 'lucide-react';
+import { FileText, Plus, ScrollText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { Form, Input, SearchField } from 'react-aria-components';
+import { Form } from 'react-aria-components';
 import { ApiError, api, download } from '../lib/api';
 import { type Artifact, type Member, memberMap, useItems } from '../lib/data';
 import { shortDate, slugify } from '../lib/format';
@@ -13,7 +13,8 @@ import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { Empty, LoadError, Skeleton } from '../ui/States';
-import { BookOpen, Download, SearchX } from 'lucide-react';
+import { DataGrid } from '../ui/components/DataGrid';
+import { BookOpen, Download } from 'lucide-react';
 import { type CollectionItem, collectionPath } from './docOrganisation';
 import { CollectionTree } from './libraryCollections';
 
@@ -24,7 +25,6 @@ export function Library() {
   const { can } = useSession();
   const { query } = useRoute();
   const [filter, setFilter] = useState<Filter>('all');
-  const [q, setQ] = useState('');
   const collection = query.get('collection');
   const [docs, reload, loadError] = useItems<Artifact>(collection ? `/api/v1/artifacts?collection=${collection}` : '/api/v1/artifacts');
   const [tree, setTree] = useState<{ items: CollectionItem[]; can_manage: boolean } | null>(null);
@@ -38,7 +38,7 @@ export function Library() {
   const [creating, setCreating] = useState<'policy' | 'sop' | null>(newKind === 'policy' || newKind === 'sop' ? newKind : null);
   useEffect(() => { if (newKind === 'policy' || newKind === 'sop') setCreating(newKind); }, [newKind]);
 
-  const rows = useMemo(() => (docs ?? []).filter((d) => (filter === 'all' || d.kind === filter) && (!q || `${d.title} ${d.key}`.toLowerCase().includes(q.toLowerCase()))), [docs, filter, q]);
+  const rows = useMemo(() => (docs ?? []).filter((d) => filter === 'all' || d.kind === filter), [docs, filter]);
   const counts = { all: docs?.length ?? 0, policy: docs?.filter((d) => d.kind === 'policy').length ?? 0, sop: docs?.filter((d) => d.kind === 'sop').length ?? 0 };
   const canCreate = can('policy:create') || can('sop:create');
 
@@ -67,41 +67,22 @@ export function Library() {
             </button>
           ))}
         </div>
-        <SearchField className="search-input" aria-label="Filter documents" value={q} onChange={setQ}>
-          <Search aria-hidden="true" size="0.9375rem" />
-          <Input placeholder="Filter by name…" />
-        </SearchField>
       </div>
 
-      {loadError ? <LoadError error={loadError} onRetry={reload} what="the library" /> : docs === null ? <Skeleton variant="table" rows={5} label="Loading documents" /> : rows.length === 0 ? (
-        docs.length ? (
-          <Empty icon={SearchX} title="No documents match" action={<Button variant="secondary" onPress={() => { setQ(''); setFilter('all'); }}>Clear filters</Button>}>Nothing matches {q ? `“${q}”` : 'this filter'}.</Empty>
-        ) : (
-          <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
-        )
+      {loadError ? <LoadError error={loadError} onRetry={reload} what="the library" /> : docs === null ? <Skeleton variant="table" rows={5} label="Loading documents" /> : docs.length === 0 ? (
+        <Empty icon={BookOpen} title="Your library is empty" action={canCreate ? <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> Create your first document</Button> : undefined}>Start with a policy such as a Code of Conduct, or an SOP your team already follows.</Empty>
       ) : (
-        <div className="table-wrap">
-          <table className="table" aria-label="Documents">
-            <thead><tr><th>Name</th><th className="col-optional">Type</th><th>Status</th><th className="col-optional">Owner</th><th className="col-optional">Criticality</th><th className="col-optional">Created</th></tr></thead>
-            <tbody>
-              {rows.map((d) => {
-                const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined;
-                return (
-                  <tr key={d.id}>
-                    <td><span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.875rem" /> : <FileText aria-hidden="true" size="0.875rem" />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span></td>
-                    <td className="col-optional"><Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag></td>
-                    <td><Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag></td>
-                    <td className="col-optional">{o ? <span className="person"><Avatar name={o.display_name} size="1.25rem" />{o.display_name}</span> : <span className="cell-muted">No owner</span>}</td>
-                    <td className="col-optional">{d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>}</td>
-                    <td className="cell-muted col-optional">{shortDate(d.created_at)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataGrid<Artifact> caption="Documents" showCaption={false} list="library.documents" data={rows} rowHref={(d) => `/library/${d.id}`} initialSort={[{ id: 'title', desc: false }]}
+          columns={[
+            { id: 'title', header: 'Name', value: (d) => d.title, cell: (d) => <span className="cell-entity"><span className={`doc-icon tag-${KIND_TAG[d.kind]?.color ?? 'gray'}`}>{d.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.875rem" /> : <FileText aria-hidden="true" size="0.875rem" />}</span><Link to={`/library/${d.id}`}>{d.title}</Link></span> },
+            { id: 'kind', header: 'Type', type: 'enum', optional: true, value: (d) => KIND_TAG[d.kind]?.label ?? d.kind, cell: (d) => <Tag color={KIND_TAG[d.kind]?.color}>{KIND_TAG[d.kind]?.label ?? d.kind}</Tag> },
+            { id: 'state', header: 'Status', type: 'enum', value: (d) => STATE_TAG[d.state]?.label ?? d.state, cell: (d) => <Tag color={STATE_TAG[d.state]?.color} dot>{STATE_TAG[d.state]?.label ?? d.state}</Tag> },
+            { id: 'owner', header: 'Owner', optional: true, value: (d) => (d.owner_membership_id ? people.get(d.owner_membership_id)?.display_name ?? '' : ''), cell: (d) => { const o = d.owner_membership_id ? people.get(d.owner_membership_id) : undefined; return o ? <span className="person"><Avatar name={o.display_name} size="1.25rem" />{o.display_name}</span> : <span className="cell-muted">No owner</span>; } },
+            { id: 'criticality', header: 'Criticality', type: 'enum', optional: true, value: (d) => (d.criticality === 'controlled' ? 'Controlled' : 'Standard'), cell: (d) => (d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : <span className="cell-muted">Standard</span>) },
+            { id: 'key', header: 'Key', hidden: true, value: (d) => d.key },
+            { id: 'created', header: 'Created', type: 'date', optional: true, value: (d) => d.created_at, cell: (d) => <span className="cell-muted">{shortDate(d.created_at)}</span> },
+          ]} />
       )}
-
       </div>
       </div>
 

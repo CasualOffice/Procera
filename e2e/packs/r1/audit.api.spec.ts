@@ -153,6 +153,11 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PUT', '/api/v1/artifacts/{id}/owner', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/owner`, { headers: oh, data: { membership_id: joined.membership_id } }));
   await step('PUT', '/api/v1/artifacts/{id}/raci', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/raci`, { headers: oh, data: { accountable: [{ membership_id: joined.membership_id }] } }));
   await step('POST', '/api/v1/security/encryption/rotate', () => own.post('/api/v1/security/encryption/rotate', { headers: oh, data: { reason: 'drill' } }));
+  // Saved views and exports (BPMS-028).
+  const vw = await (await step('POST', '/api/v1/views', () => own.post('/api/v1/views', { headers: oh, data: { list: 'library.documents', name: 'Audit view', state: { q: '' } } }))).json();
+  await step('PATCH', '/api/v1/views/{id}', () => own.patch(`/api/v1/views/${vw.id}`, { headers: oh, data: { name: 'Audit view 2' } }));
+  await step('DELETE', '/api/v1/views/{id}', () => own.delete(`/api/v1/views/${vw.id}`, { headers: oh }));
+  await step('POST', '/api/v1/exports', () => own.post('/api/v1/exports', { headers: oh, data: { list: 'library.documents', format: 'csv', rows: 1, columns: ['title'] } }));
   // Files (BPMS-060/062).
   const fc = await (await step('POST', '/api/v1/files', () => own.post('/api/v1/files', { headers: oh, data: { name: 'a.txt', size: 5 } }))).json();
   await step('PUT', '/api/v1/files/{id}/content', () => own.put(`/api/v1/files/${fc.file.id}/content?offset=0`, { headers: { ...oh, 'content-type': 'application/octet-stream' }, data: Buffer.from('hello') }));
