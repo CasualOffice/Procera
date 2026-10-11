@@ -30,7 +30,7 @@ BPMS-033,OPS,"Valkey cache port (rate limit, session cache, policy/settings cach
 BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,In progress
 BPMS-040,LIB,"Artifacts, versions, lifecycle state machine, immutability trigger, SoD",P0,R1,Backend,"FR-G04, T07",T07 passes,L,"BPMS-024,026",Done
 BPMS-041,LIB,"Landscape, collections, owners, RACI, visibility",P0,R1,Fullstack,FR-G01/G02,Search authorized-only,M,BPMS-040,Done
-BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,Not started
+BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,In progress
 BPMS-043,LIB,Semantic diff across artifact kinds,P0,R1,Fullstack,FR-G05,Diff covers bundle artifacts,M,BPMS-040,Done
 BPMS-044,LIB,"Reviews, change requests, effective-date scheduling, renewal date, verification badge",P0,R1,Fullstack,"FR-G05/G07, FX-G01/G02",Expired flagged,M,BPMS-040,Done
 BPMS-045,LIB,Policy library + employee policy portal + applicability,P0,R1,Fullstack,FR-PL01–PL03,Applicability enforced,M,BPMS-042,Done

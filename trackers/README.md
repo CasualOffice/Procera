@@ -7,9 +7,9 @@
 
 ```text
 Overall   █████████░░░░░░░░░░░░░░░░░░░░░  32/109 epics done  (29%)
-Partial   █████████░░░░░░░░░░░░░░░░░░░░░  31% counting in-progress epics as half done
-Tests     138 automated E2E scenarios · 112 Rust tests (incl. property tests)
-Status    done 32 · in review 0 · in progress 4 · blocked 0 · not started 73 · deferred 0
+Partial   █████████░░░░░░░░░░░░░░░░░░░░░  32% counting in-progress epics as half done
+Tests     140 automated E2E scenarios · 114 Rust tests (incl. property tests)
+Status    done 32 · in review 0 · in progress 5 · blocked 0 · not started 72 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -33,6 +33,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-030 | Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK | **In progress** | procera-crypto: LocalKey (env root key, HMAC-derived purpose keys), AES-256-GCM seal/open bound to context, token helpers, procera keygen. Remaining: KMS/OpenBao adapters, per-workspace KEKs, rotation |
 | BPMS-031 | App shell, workspace switcher, system console shell, ⌘K | **In progress** | Web app on the Notion/Attio direction (owner choice): warm paper palette in tokens (contrast-checked), full-bleed pages with a warm icon sidebar, workspace + account menus (persisted theme), action-first Home (acknowledgements, reviews, announcements with inline actions, library table, activity, people), Library (filters, Attio-style table, New document dialog), document reading view with properties, lifecycle actions (edit, submit, approve, request changes, publish with step-up, new version), acknowledgement callout, Announcements feed with read/ack, Members with invite dialog; split sign-in with product preview; single-flight token refresh. E2E-R1-UI-01..10 with axe. Remaining: ⌘K command palette (search API is ready), system console shell, mobile bottom bar Second UI pass: Geist type, state kit (skeletons, empty states, load errors with retry), ⌘K palette over search + commands (E2E-R1-UI-12..13), admin screens: Manage announcements, Campaigns, Settings, Audit log, Overview, People & access (E2E-R1-UI-14..17, 23); Policies portal and document governance (E2E-R1-UI-18..22). Remaining: system console shell, keyboard nav audit |
 | BPMS-034 | Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search | **In progress** | Raster assets + brand guide merged; SVG masters and trademark search pending |
+| BPMS-042 | SOP/policy block editor + renderer (web/PDF) | **In progress** | Block editor (TipTap core, MIT; U-10 closed): headings, bold/italic/links, bullet and numbered lists, callouts, tables, accessible single-tab-stop toolbar, markdown shortcuts; block model validated server-side (ADR-0013 as built); shared renderer; HTML (print to tagged PDF in the browser) and Markdown export with a superseded banner, audited. E2E-R1-LIB-14, E2E-R1-UI-07, 28. Remaining: deterministic server-side tagged PDF, DOCX export/import, images and variables blocks. |
 | BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
 
 ## Done
@@ -118,7 +119,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-034** (P0, S) Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search **[In progress]**
 - [x] **BPMS-040** (P0, L) Artifacts, versions, lifecycle state machine, immutability trigger, SoD
 - [x] **BPMS-041** (P0, M) Landscape, collections, owners, RACI, visibility
-- [ ] **BPMS-042** (P0, L) SOP/policy block editor + renderer (web/PDF)
+- [ ] **BPMS-042** (P0, L) SOP/policy block editor + renderer (web/PDF) **[In progress]**
 - [x] **BPMS-043** (P0, M) Semantic diff across artifact kinds
 - [x] **BPMS-044** (P0, M) Reviews, change requests, effective-date scheduling, renewal date, verification badge
 - [x] **BPMS-045** (P0, M) Policy library + employee policy portal + applicability
@@ -256,7 +257,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 214 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 216 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 14 / 16 / 20 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
