@@ -33,6 +33,28 @@ export interface QuotaDefaults extends Quotas { profile: string; revision: numbe
 
 export interface SystemMe { user_id: string; roles: string[] }
 
+export type TlsMode = 'starttls_required' | 'implicit_tls' | 'none';
+export interface EmailConfig {
+  host: string; port: number; tls_mode: TlsMode; username: string | null; password_set: boolean;
+  from_address: string; from_name: string | null; reply_to: string | null; revision: number; updated_at: string;
+}
+/** `GET /sysapi/v1/email`: where delivery comes from, the stored settings (never the password), the queue. */
+export interface EmailView {
+  source: 'environment' | 'database' | 'none';
+  config: EmailConfig | null;
+  environment: { from: string } | null;
+  queue: { queued: number; failed: number };
+}
+export interface EmailTestResult { sent: boolean; error?: { kind: string; message: string } }
+/** `GET /sysapi/v1/platform`: read-only deployment facts. */
+export interface PlatformBasics {
+  public_url: string;
+  public_url_source: 'environment' | 'command_line' | 'default';
+  sender_name: string | null;
+  storage: { kind: 'local'; path: string; source: 'environment' | 'temporary'; s3_available: boolean };
+  scanning: { kind: 'clamd' | 'eicar_only'; address: string | null };
+}
+
 export const STATE: Record<string, { label: string; color: TagColor }> = {
   provisioning: { label: 'Provisioning', color: 'blue' },
   active: { label: 'Active', color: 'green' },
@@ -62,8 +84,8 @@ export function bytes(n: number | null): string {
 }
 
 /** Can this set of system roles do it? Mirrors `platform::authz` (docs/12 §4.1). */
-export function sysCan(roles: string[], action: 'workspace.write' | 'audit.read' | 'platform.config'): boolean {
+export function sysCan(roles: string[], action: 'workspace.write' | 'audit.read' | 'platform.config' | 'platform.read'): boolean {
   const admin = roles.some((r) => r === 'system.owner' || r === 'system.admin');
-  if (action === 'audit.read') return admin || roles.includes('system.auditor');
+  if (action === 'audit.read' || action === 'platform.read') return admin || roles.includes('system.auditor');
   return admin;
 }
