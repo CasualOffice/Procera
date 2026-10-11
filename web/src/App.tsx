@@ -27,6 +27,7 @@ import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
 import { Invite } from './pages/Invite';
 import { AckLink } from './pages/AckLink';
+import { Person } from './pages/Person';
 import { SystemAudit } from './pages/system/SystemAudit';
 import { SystemHealth } from './pages/system/SystemHealth';
 import { SystemQuotas } from './pages/system/SystemQuotas';
@@ -97,6 +98,8 @@ export function App() {
   if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
+  const person = match('/members/:id', path);
+  if (person) return <AppShell current="home" crumbs={[['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
   if (path === '/admin/announcements') return <AppShell current="manage-announcements" crumbs={[ADMIN, 'Manage announcements']}><ManageAnnouncements /></AppShell>;
   if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;

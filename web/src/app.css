@@ -708,3 +708,9 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .audit-exports ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
 .audit-exports li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; padding: 0.375rem 0; border-bottom: 1px solid var(--line); font-size: 0.8125rem; }
 .audit-exports .prop-link { display: inline-flex; align-items: center; gap: 0.25rem; margin-left: auto; }
+
+/* Person (/members/{id}) */
+.person { max-width: 42rem; }
+.person-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.person-head h1 { margin: 0; }
+.person-head p { margin: 0.25rem 0 0; }

@@ -95,6 +95,11 @@ test.describe('complete flows @r1 @ui', () => {
     await page.reload();
     const row = page.getByRole('row', { name: /Nina Hire/ });
     await expect(row.getByText('Active')).toBeVisible();
+    // Their person page (where manager escalations link) shows how to reach them.
+    await row.getByRole('link', { name: 'Nina Hire' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Nina Hire' })).toBeVisible();
+    await expect(page.getByRole('link', { name: email })).toHaveAttribute('href', `mailto:${email}`);
+    await axe(page);
   });
 
   test('E2E-R1-FLOW-02 someone with an account signs in from the invitation and joins with one click', async ({ page, browser, request }) => {
