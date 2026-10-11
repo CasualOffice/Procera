@@ -1,5 +1,5 @@
 import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
-import { PW, hasDatabase, passwordSession, seedUser } from '../../fixtures/accounts';
+import { PW, hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
@@ -308,7 +308,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await places.getByRole('button', { name: /Bangalore/ }).click();
     await expect(dlg.getByText('Sends to:')).toContainText('Bangalore');
     await dlg.getByText('Ask people to confirm they’ve read it').click();
-    const due = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const due = new Date((await serverNow(request)) + 3 * 86_400_000).toISOString().slice(0, 10); // the test server keeps its own clock
     await dlg.getByLabel(/^Confirm by/).fill(due);
     await axe(page);
     await dlg.getByRole('button', { name: 'Save draft' }).click();
