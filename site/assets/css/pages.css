@@ -1,0 +1,101 @@
+/* Inner pages, plus all scroll motion. Motion rules only apply under html.motion, which
+   motion.js sets when JS runs and the visitor hasn't asked for reduced motion; without it
+   every element sits in its final state. */
+
+/* Page heads with an illustration */
+.page-head.has-art .wrap:first-child { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: center; }
+.page-head .head-art { max-width: 24rem; justify-self: end; width: 100%; }
+@media (max-width: 63.99rem) {
+  .page-head.has-art .wrap:first-child { grid-template-columns: minmax(0, 1fr); }
+  .page-head .head-art { justify-self: start; max-width: 18rem; }
+}
+
+/* Features: pillar header with its illustration; sticky pillar nav */
+.group-head { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: 2rem; align-items: center; max-width: none !important; }
+.group-head > div:first-child { display: grid; gap: .75rem; max-width: 44rem; }
+.group-art { max-width: 20rem; justify-self: end; width: 100%; }
+@media (max-width: 47.99rem) { .group-head { grid-template-columns: minmax(0, 1fr); } .group-art { justify-self: start; max-width: 15rem; } }
+.pillar-nav.sticky { display: block; position: sticky; top: 4rem; z-index: 10; background: color-mix(in srgb, var(--bg) 94%, transparent); padding: .625rem 0; margin-top: 0; border-bottom: 1px solid var(--border); }
+.pillar-nav.sticky .wrap { display: flex; flex-wrap: wrap; gap: .5rem; }
+.diagram + p, .chain-inline .chain { margin-top: 1.5rem; }
+.chain-inline .chain { position: static; }
+.pillar-nav a[aria-current='true'] { border-color: var(--text); color: var(--text); box-shadow: inset 0 -2px 0 var(--brand); }
+
+/* Security diagram */
+.diagram { margin: 1.5rem 0 0; max-width: 26rem; }
+.diagram figcaption { font-size: .8125rem; color: var(--text-3); margin-top: .5rem; }
+
+/* 404 */
+.lost { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 3rem; align-items: center; padding-block: clamp(3rem, 8vw, 6rem); }
+.lost .cta-row { margin-top: 1.5rem; }
+@media (max-width: 47.99rem) { .lost { grid-template-columns: minmax(0, 1fr); } }
+
+/* Header reading progress (scroll-driven, no JS) */
+.site-header { position: sticky; }
+.site-header::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--brand); transform: scaleX(0); transform-origin: left; opacity: 0; }
+
+/* ---------------------------------------------------------------- motion */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+  @supports (animation-timeline: scroll()) {
+    .site-header::after { opacity: 1; animation: grow-x linear both; animation-timeline: scroll(root); }
+  }
+  /* hover depth */
+  .pillar2, .ppanel, .chain, .browser, .shot .frame, .node, .ptab, .btn { transition: transform .25s cubic-bezier(.2, .8, .2, 1), box-shadow .25s ease, background-color .15s, border-color .15s, color .15s; }
+  .pillar2:hover { transform: translate(-.125rem, -.125rem); box-shadow: .5rem .5rem 0 var(--il-shadow); }
+  .shot .frame:hover { transform: translateY(-.1875rem); }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: none; }
+  .loop-steps li:hover .node { transform: translate(-.125rem, -.125rem); box-shadow: .375rem .375rem 0 var(--il-shadow); }
+}
+@keyframes grow-x { to { transform: scaleX(1); } }
+
+/* reveals */
+.motion .rv { transition: opacity .7s ease, transform .8s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--i, 0) * 90ms); }
+.motion .rv:not(.in) { opacity: 0; transform: translateY(1.5rem); }
+.motion .pillar2.rv:not(.in) { transform: translateY(2rem) scale(.98); }
+
+/* the core loop draws itself: scrubbed by scroll where supported, otherwise once on reveal */
+.motion .loop-path { stroke-dasharray: 1 1; stroke-dashoffset: 1; }
+.motion .loop-back, .motion .loop-note { opacity: 0; transition: opacity .6s ease 1.2s; }
+.motion .loop.in .loop-back, .motion .loop.in .loop-note { opacity: 1; }
+@supports not (animation-timeline: view()) {
+  .motion .loop-path { transition: stroke-dashoffset 1.8s cubic-bezier(.4, 0, .2, 1); }
+  .motion .loop.in .loop-path { stroke-dashoffset: 0; }
+}
+@supports (animation-timeline: view()) {
+  .motion .loop { view-timeline: --loop block; }
+  .motion .loop-path { animation: draw linear both; animation-timeline: --loop; animation-range: entry 10% contain 35%; }
+}
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+/* tour frame swaps */
+.motion .layer { transition: opacity .5s ease, transform .7s cubic-bezier(.2, .8, .2, 1); }
+.motion .tour-dots li { transition: background-color .3s; }
+.motion .url b { transition: opacity .2s; }
+
+/* persona panels */
+.motion .ppanel.on { animation: panel-in .45s cubic-bezier(.2, .8, .2, 1); }
+.motion .ppanel.on .ppanel-art { animation: panel-in .6s cubic-bezier(.2, .8, .2, 1) .05s both; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(.75rem); } }
+
+/* timelines and bars fill on reveal */
+.motion .timeline::before { transform: scaleX(0); transition: transform 1.4s cubic-bezier(.4, 0, .2, 1); }
+.motion .timeline.in::before { transform: none; }
+.motion .tl-bar i, .motion .bar i { transform: scaleX(0); transform-origin: left; transition: transform 1s cubic-bezier(.4, 0, .2, 1) .3s; }
+.motion .in .tl-bar i, .motion .in .bar i, .motion .bar.in i { transform: none; }
+
+/* flows: steps arrive one by one */
+.motion .steps.rv li { transition: opacity .5s ease, transform .6s cubic-bezier(.2, .8, .2, 1); }
+.motion .steps.rv:not(.in) li { opacity: 0; transform: translateX(-.75rem); }
+.motion .steps.rv:not(.in) { opacity: 1; transform: none; }
+.motion .steps li:nth-child(2) { transition-delay: .08s; } .motion .steps li:nth-child(3) { transition-delay: .16s; }
+.motion .steps li:nth-child(4) { transition-delay: .24s; } .motion .steps li:nth-child(5) { transition-delay: .32s; }
+.motion .steps li:nth-child(6) { transition-delay: .4s; }
+
+@media print {
+  .motion .rv:not(.in) { opacity: 1; transform: none; }
+  .tour-frame, .story-bar { display: none; }
+}
+html:has(.pillar-nav.sticky) { scroll-padding-top: 8.5rem; }
+.lost-h { font-size: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem); margin: .875rem 0 1rem; letter-spacing: -0.035em; }
