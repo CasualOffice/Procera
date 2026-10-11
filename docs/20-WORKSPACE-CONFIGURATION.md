@@ -108,6 +108,14 @@ Column key:
 
 Users may override locale/timezone in their profile. Terminology overrides apply to UI, emails and exports, but **never** to API field names.
 
+**As built (CFG-008, FR-W04):** `terminology.overrides` is a `terms` kind holding only the renamed terms, as `{"request": {"singular": "Ticket", "plural": "Tickets"}}`. Allowed terms are `request`, `process`, `step`, `sop`, `case` and `work`. Each label is 1–40 characters, trimmed, with no control characters; unknown terms or fields are rejected (422). The value is `en` only for now, not per locale (A-36). Product defaults: Request/Requests, Process/Processes, Step/Steps, SOP/SOPs, Case/Cases, Work/Work. The key needs `workspace:settings.manage`, sits in the `locale` group and is not department-scopable.
+- **Delivery:** `GET /branding` (every member) returns `terms`: every term mapped to its effective `{singular, plural}`.
+- **UI:** the web reads the terms through `useTerms()` / `term('sop', {plural, capitalised})`. Today that covers the SOP term in the library (kind tags, the type filter, the New document dialog), Home tasks and quick actions, campaign copy, the command palette, the *New SOP* action and role-area names (SOPs, Requests, Cases, Processes, Work).
+- **Settings:** *Language, region and terms › Terminology* edits a Term / Singular / Plural table, with *Reset* per term and *Clear all*.
+- **Emails:** every notification template sees `terms.<term>.singular`, `.plural`, `.lower` and `.lower_plural`. The review-requested and review-decided emails and notifications name an SOP with the workspace term.
+- **Exports:** the HTML and DOCX meta line uses the workspace term for SOPs.
+- **Not yet renamed:** "request", "process", "step", "case" and "work" have no screens or emails yet. Their templates and screens will read the same `terms` when they ship.
+
 ### 2.3 Identity and security (⚡ = applies immediately)
 
 | Key | Type | Default | Perm | Floor | Ph |
