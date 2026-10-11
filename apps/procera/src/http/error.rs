@@ -75,6 +75,17 @@ impl From<IdentityError> for ApiError {
             IdentityError::NoPendingEnrolment => {
                 Self::new(409, "no_pending_enrolment", "Start MFA enrolment first")
             }
+            IdentityError::PasskeyRejected(reason) => {
+                Self::new(401, "passkey_rejected", "The passkey could not be verified").detail(reason)
+            }
+            IdentityError::PasskeyInvalid(reason) => {
+                Self::new(422, "passkey_invalid", "The passkey could not be registered").detail(reason)
+            }
+            IdentityError::PasskeyExists => {
+                Self::new(409, "passkey_exists", "This passkey is already registered")
+            }
+            IdentityError::NotFound => Self::not_found(),
+            IdentityError::Invalid(m) => Self::new(422, "validation_failed", "Validation failed").detail(m),
             IdentityError::Internal(msg) => {
                 tracing::error!(error = %msg, "identity internal error");
                 Self::new(500, "internal", "Internal error")

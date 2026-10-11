@@ -117,10 +117,9 @@ async fn login(
     }
     match identity(&s)?.login(&req.email, &req.password, &client).await? {
         LoginOutcome::Authenticated(t) => Ok(token_response(&s, *t)),
-        LoginOutcome::MfaRequired { mfa_token } => Ok(Json(
-            json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": ["totp", "recovery_code"]}),
-        )
-        .into_response()),
+        LoginOutcome::MfaRequired { mfa_token, methods } => {
+            Ok(Json(json!({"status": "mfa_required", "mfa_token": mfa_token, "methods": methods})).into_response())
+        }
     }
 }
 

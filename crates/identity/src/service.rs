@@ -16,6 +16,10 @@ use uuid::Uuid;
 use crate::jwt::{AUDIENCE, Claims, ISSUER, JwtKeys};
 use crate::password::{self, HashCost, PolicyError};
 use crate::totp;
+use crate::webauthn::{CredentialJson, RelyingParty};
+
+mod passkeys;
+pub use passkeys::Passkey;
 
 const SECRETS: &str = "secrets";
 const MAX_FAILURES_BEFORE_BACKOFF: i32 = 5;
@@ -29,6 +33,8 @@ pub struct IdentityConfig {
     pub mfa_ttl: Duration,
     pub refresh_ttl: Duration,
     pub family_ttl: Duration,
+    /// WebAuthn relying party (RP ID and allowed origins), derived from the public URL.
+    pub relying_party: RelyingParty,
 }
 
 impl Default for IdentityConfig {
@@ -40,6 +46,7 @@ impl Default for IdentityConfig {
             mfa_ttl: Duration::from_secs(5 * 60),
             refresh_ttl: Duration::from_secs(12 * 3600),
             family_ttl: Duration::from_secs(30 * 86400),
+            relying_party: RelyingParty::default(),
         }
     }
 }
@@ -62,6 +69,18 @@ pub enum IdentityError {
     RefreshReused,
     #[error("no pending MFA enrolment")]
     NoPendingEnrolment,
+    /// A passkey assertion (sign-in or step-up) did not verify. The reason is safe to show.
+    #[error("passkey rejected: {0}")]
+    PasskeyRejected(String),
+    /// A passkey registration response did not verify.
+    #[error("passkey registration rejected: {0}")]
+    PasskeyInvalid(String),
+    #[error("this passkey is already registered")]
+    PasskeyExists,
+    #[error("not found")]
+    NotFound,
+    #[error("invalid input: {0}")]
+    Invalid(String),
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -98,6 +117,8 @@ pub struct User {
     #[serde(skip)]
     pub token_version: i32,
     pub mfa_enabled: bool,
+    /// Enrolled second factors: `totp`, `webauthn`.
+    pub mfa_methods: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -114,7 +135,21 @@ pub struct Tokens {
 #[derive(Debug)]
 pub enum LoginOutcome {
     Authenticated(Box<Tokens>),
-    MfaRequired { mfa_token: String },
+    /// `methods`: what the account can answer with (`totp`, `webauthn`, `recovery_code`).
+    MfaRequired {
+        mfa_token: String,
+        methods: Vec<&'static str>,
+    },
+}
+
+/// A second factor presented at sign-in or step-up.
+#[derive(Debug, Clone, Copy)]
+pub enum Factor<'a> {
+    /// A TOTP code (or, at sign-in only, a recovery code).
+    Code(&'a str),
+    Passkey(&'a CredentialJson),
+    /// Step-up for accounts without MFA.
+    Password(&'a str),
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -187,9 +222,18 @@ impl Identity {
         let Some((id, email, display_name, status, subject_ref, token_version)) = row else {
             return Ok(None);
         };
-        let mfa: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM user_credentials WHERE user_id = $1 AND kind = 'totp' AND confirmed)")
-            .bind(id).fetch_one(tx.conn()).await?;
-        Ok(Some(User { id, email, display_name, status, subject_ref, token_version, mfa_enabled: mfa }))
+        let methods: Vec<String> = sqlx::query_scalar("SELECT DISTINCT kind FROM user_credentials WHERE user_id = $1 AND kind IN ('totp', 'webauthn') AND confirmed ORDER BY kind")
+            .bind(id).fetch_all(tx.conn()).await?;
+        Ok(Some(User {
+            id,
+            email,
+            display_name,
+            status,
+            subject_ref,
+            token_version,
+            mfa_enabled: !methods.is_empty(),
+            mfa_methods: methods,
+        }))
     }
 
     /// Creates a user with a password (bootstrap, invites, admin creation).
@@ -341,8 +385,9 @@ impl Identity {
                 None,
             )
             .await?;
+            let methods = self.mfa_methods(&mut tx, &user).await?;
             tx.commit().await?;
-            return Ok(LoginOutcome::MfaRequired { mfa_token });
+            return Ok(LoginOutcome::MfaRequired { mfa_token, methods });
         }
         let tokens =
             self.issue(&mut tx, &user, None, "workspace", None, &["pwd"], self.now(), client).await?;
@@ -359,6 +404,16 @@ impl Identity {
         code: &str,
         client: &ClientInfo,
     ) -> Result<Tokens, IdentityError> {
+        self.complete_mfa_with(mfa_token, Factor::Code(code), client).await
+    }
+
+    /// Second factor at sign-in: a code, or a passkey assertion (amr `hwk`).
+    pub async fn complete_mfa_with(
+        &self,
+        mfa_token: &str,
+        factor: Factor<'_>,
+        client: &ClientInfo,
+    ) -> Result<Tokens, IdentityError> {
         let claims = self.jwt.verify(mfa_token, "mfa").ok_or(IdentityError::InvalidToken)?;
         let keys = vec![format!("mfa:{}", claims.sub)];
         let mut tx = self.db.begin_system().await?;
@@ -369,22 +424,51 @@ impl Identity {
         if user.status != "active" || user.token_version != claims.tv {
             return Err(IdentityError::InvalidToken);
         }
-        let used = self.check_totp(&mut tx, user.id, code).await?
-            || self.use_recovery_code(&mut tx, user.id, code).await?;
-        if !used {
-            self.audit(&mut tx, Some(user.subject_ref), "mfa.failed", Outcome::Denied, client, None).await?;
+        let (failure, method) = match factor {
+            Factor::Code(code) => {
+                let ok = self.check_totp(&mut tx, user.id, code).await?
+                    || self.use_recovery_code(&mut tx, user.id, code).await?;
+                ((!ok).then(|| "code".to_owned()), "otp")
+            }
+            Factor::Passkey(cred) => (self.check_passkey(&mut tx, user.id, "mfa", cred).await?, "hwk"),
+            Factor::Password(_) => (Some("password is not a second factor".to_owned()), "pwd"),
+        };
+        if let Some(reason) = failure {
+            self.audit(&mut tx, Some(user.subject_ref), "mfa.failed", Outcome::Denied, client, Some(&reason))
+                .await?;
             tx.commit().await?;
             self.record_failure(&keys).await?;
-            return Err(IdentityError::InvalidCode);
+            return Err(if method == "hwk" {
+                IdentityError::PasskeyRejected(reason)
+            } else {
+                IdentityError::InvalidCode
+            });
         }
         self.clear_failures(&mut tx, &keys).await?;
         let auth_time = OffsetDateTime::from_unix_timestamp(claims.auth_time).unwrap_or_else(|_| self.now());
         let tokens =
-            self.issue(&mut tx, &user, None, "workspace", None, &["pwd", "otp"], auth_time, client).await?;
+            self.issue(&mut tx, &user, None, "workspace", None, &["pwd", method], auth_time, client).await?;
         self.audit(&mut tx, Some(user.subject_ref), "login.succeeded", Outcome::Allowed, client, Some("mfa"))
             .await?;
         tx.commit().await?;
         Ok(tokens)
+    }
+
+    /// The second factors an account can answer with at sign-in.
+    async fn mfa_methods(&self, tx: &mut WsTx<'_>, user: &User) -> Result<Vec<&'static str>, IdentityError> {
+        let mut m: Vec<&'static str> = Vec::new();
+        if user.mfa_methods.iter().any(|k| k == "totp") {
+            m.push("totp");
+        }
+        if user.mfa_methods.iter().any(|k| k == "webauthn") {
+            m.push("webauthn");
+        }
+        let codes: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM user_credentials WHERE user_id = $1 AND kind = 'recovery_code' AND used_at IS NULL)")
+            .bind(user.id).fetch_one(tx.conn()).await?;
+        if codes {
+            m.push("recovery_code");
+        }
+        Ok(m)
     }
 
     async fn check_totp(&self, tx: &mut WsTx<'_>, user: Uuid, code: &str) -> Result<bool, IdentityError> {
@@ -642,13 +726,28 @@ impl Identity {
     }
 
     /// Step-up (docs/12 §11): re-verifies the signed-in user and re-issues the access token with a fresh
-    /// `auth_time`. Users with TOTP must give a current code (recovery codes are for sign-in only);
-    /// users without MFA give their password. Throttled like sign-in.
+    /// `auth_time`. Users with MFA must give a current TOTP code or a passkey (recovery codes are for
+    /// sign-in only); users without MFA give their password. Throttled like sign-in.
     pub async fn step_up(
         &self,
         claims: &Claims,
         code: Option<&str>,
         password: Option<&str>,
+        client: &ClientInfo,
+    ) -> Result<(String, u64), IdentityError> {
+        let factor = match (code, password) {
+            (Some(c), _) => Some(Factor::Code(c)),
+            (None, Some(p)) => Some(Factor::Password(p)),
+            (None, None) => None,
+        };
+        self.step_up_with(claims, factor, client).await
+    }
+
+    /// Step-up with any factor, including a passkey assertion (amr `hwk`).
+    pub async fn step_up_with(
+        &self,
+        claims: &Claims,
+        factor: Option<Factor<'_>>,
         client: &ClientInfo,
     ) -> Result<(String, u64), IdentityError> {
         let keys = vec![format!("stepup:{}", claims.sub)];
@@ -660,49 +759,50 @@ impl Identity {
         if user.status != "active" || user.token_version != claims.tv {
             return Err(IdentityError::InvalidToken);
         }
-        let (ok, method) = if user.mfa_enabled {
-            (
-                match code {
-                    Some(c) => self.check_totp(&mut tx, user.id, c).await?,
-                    None => false,
-                },
-                "otp",
-            )
-        } else {
-            let phc: Option<Vec<u8>> = sqlx::query_scalar(
-                "SELECT secret FROM user_credentials WHERE user_id = $1 AND kind = 'password'",
-            )
-            .bind(user.id)
-            .fetch_optional(tx.conn())
-            .await?;
-            let ok = match (password, phc) {
-                (Some(pw), Some(phc)) => {
-                    password::verify(pw, &String::from_utf8(phc).unwrap_or_default(), self.cfg.cost).0
-                }
-                (Some(pw), None) => {
-                    password::dummy_verify(pw, self.cfg.cost);
-                    false
-                }
-                _ => false,
-            };
-            (ok, "pwd")
+        let (failure, method) = match (user.mfa_enabled, factor) {
+            (true, Some(Factor::Code(c))) => {
+                ((!self.check_totp(&mut tx, user.id, c).await?).then(|| "code".to_owned()), "otp")
+            }
+            (true, Some(Factor::Passkey(cred))) => {
+                (self.check_passkey(&mut tx, user.id, "step_up", cred).await?, "hwk")
+            }
+            (true, _) => (Some("a second factor is required".to_owned()), "otp"),
+            (false, factor) => {
+                let phc: Option<Vec<u8>> = sqlx::query_scalar(
+                    "SELECT secret FROM user_credentials WHERE user_id = $1 AND kind = 'password'",
+                )
+                .bind(user.id)
+                .fetch_optional(tx.conn())
+                .await?;
+                let ok = match (factor, phc) {
+                    (Some(Factor::Password(pw)), Some(phc)) => {
+                        password::verify(pw, &String::from_utf8(phc).unwrap_or_default(), self.cfg.cost).0
+                    }
+                    (Some(Factor::Password(pw)), None) => {
+                        password::dummy_verify(pw, self.cfg.cost);
+                        false
+                    }
+                    _ => false,
+                };
+                ((!ok).then(|| "password".to_owned()), "pwd")
+            }
         };
-        if !ok {
+        if let Some(reason) = failure {
             self.audit(
                 &mut tx,
                 Some(user.subject_ref),
                 "session.step_up_failed",
                 Outcome::Denied,
                 client,
-                Some(method),
+                Some(&format!("{method}: {reason}")),
             )
             .await?;
             tx.commit().await?;
             self.record_failure(&keys).await?;
-            return Err(if method == "otp" {
-                IdentityError::InvalidCode
-            } else {
-                IdentityError::InvalidCredentials
+            return Err(match method {
+                "hwk" => IdentityError::PasskeyRejected(reason),
+                "otp" => IdentityError::InvalidCode,
+                _ => IdentityError::InvalidCredentials,
             });
         }
         self.clear_failures(&mut tx, &keys).await?;
@@ -747,6 +847,7 @@ impl Identity {
             subject_ref: Uuid::nil(),
             token_version: claims.tv,
             mfa_enabled: false,
+            mfa_methods: Vec::new(),
         };
         let amr: Vec<&str> = claims.amr.iter().map(String::as_str).collect();
         self.sign(&user, claims.sid, &claims.plane, claims.ws, &amr, auth_time, "access", self.cfg.access_ttl)
@@ -825,6 +926,23 @@ impl Identity {
             .bind(step)
             .execute(tx.conn())
             .await?;
+        let codes = self.issue_recovery_codes(&mut tx, user_id).await?;
+        let subject = self.load_user(&mut tx, user_id).await?.map(|u| u.subject_ref);
+        self.audit(&mut tx, subject, "mfa.totp_enabled", Outcome::Allowed, client, None).await?;
+        tx.commit().await?;
+        Ok(codes)
+    }
+
+    /// Replaces the account's recovery codes with 10 new single-use codes (stored hashed).
+    async fn issue_recovery_codes(
+        &self,
+        tx: &mut WsTx<'_>,
+        user_id: Uuid,
+    ) -> Result<Vec<String>, IdentityError> {
+        sqlx::query("DELETE FROM user_credentials WHERE user_id = $1 AND kind = 'recovery_code'")
+            .bind(user_id)
+            .execute(tx.conn())
+            .await?;
         let mut codes = Vec::with_capacity(10);
         for _ in 0..10 {
             let raw = data_encoding::BASE32_NOPAD.encode(&procera_crypto::random_bytes::<5>()).to_lowercase();
@@ -833,9 +951,6 @@ impl Identity {
                 .bind(self.ids.new_id()).bind(user_id).bind(Sha256::digest(code.as_bytes()).to_vec()).execute(tx.conn()).await?;
             codes.push(code);
         }
-        let subject = self.load_user(&mut tx, user_id).await?.map(|u| u.subject_ref);
-        self.audit(&mut tx, subject, "mfa.totp_enabled", Outcome::Allowed, client, None).await?;
-        tx.commit().await?;
         Ok(codes)
     }
 }
