@@ -1,10 +1,70 @@
-//! Saved views shared with a role (A-35, E2E-R1-13).
+//! Saved views shared with a role (A-35, E2E-R1-13) and XLSX grid exports (FR-V07).
 
+use std::io::Cursor;
+
+use calamine::{Data, Reader, Xlsx, open_workbook_from_rs};
 use procera_db::{WsCtx, WsTx, test_support};
+use serde_json::{Value, json};
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use super::{check_audience, next_audience, row_by_id, visible_rows};
+use super::{check_audience, next_audience, row_by_id, visible_rows, xlsx};
+
+fn read(bytes: Vec<u8>) -> (calamine::Range<Data>, calamine::Range<String>) {
+    let mut wb: Xlsx<_> = open_workbook_from_rs(Cursor::new(bytes)).expect("a readable workbook");
+    let cells = wb.worksheet_range("Export").expect("the Export sheet");
+    let formulas = wb.worksheet_formula("Export").expect("formulas");
+    (cells, formulas)
+}
+
+#[test]
+fn xlsx_has_exactly_the_cells_in_order_and_no_formulas() {
+    let header = vec!["Title".to_owned(), "Owner".to_owned(), "Version".to_owned(), "Published".to_owned()];
+    let cells = vec![
+        vec![json!("=HYPERLINK(\"http://x\")"), json!("Ana"), json!(3), json!(true)],
+        vec![json!("-1+2"), Value::Null, json!(1.5), json!(false)],
+        vec![json!("Plain"), json!("@Ben"), json!(-4), Value::Null],
+    ];
+    let bytes = xlsx::workbook(&header, &cells, 4, 3).expect("built");
+    let (got, formulas) = read(bytes);
+    assert_eq!(got.get_size(), (4, 4));
+    let at = |r: u32, c: u32| got.get_value((r, c)).cloned().unwrap_or(Data::Empty);
+    assert_eq!(at(0, 0), Data::String("Title".into()));
+    assert_eq!(at(0, 3), Data::String("Published".into()));
+    assert_eq!(at(1, 0), Data::String("=HYPERLINK(\"http://x\")".into()), "formula-like text stays text");
+    assert_eq!(at(1, 2), Data::Float(3.0));
+    assert_eq!(at(1, 3), Data::Bool(true));
+    assert_eq!(at(2, 0), Data::String("-1+2".into()));
+    assert_eq!(at(2, 1), Data::Empty);
+    assert_eq!(at(2, 2), Data::Float(1.5));
+    assert_eq!(at(3, 1), Data::String("@Ben".into()));
+    assert_eq!(at(3, 2), Data::Float(-4.0));
+    assert!(formulas.used_cells().all(|(_, _, f)| f.is_empty()), "no cell is a formula");
+}
+
+#[test]
+fn xlsx_marks_formula_like_text_with_the_quote_prefix() {
+    let bytes =
+        xlsx::workbook(&["=A".to_owned()], &[vec![json!("+1")], vec![json!("ok")]], 1, 2).expect("built");
+    let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).expect("zip");
+    let mut styles = String::new();
+    std::io::Read::read_to_string(&mut zip.by_name("xl/styles.xml").expect("styles"), &mut styles)
+        .expect("utf-8");
+    assert!(styles.contains("quotePrefix=\"1\""), "a quote-prefix style exists");
+}
+
+#[test]
+fn xlsx_rejects_a_request_that_is_not_the_grid() {
+    let h = vec!["A".to_owned()];
+    assert!(xlsx::workbook(&h, &[vec![json!(1)]], 2, 1).is_err(), "header must match the columns");
+    assert!(xlsx::workbook(&h, &[vec![json!(1)]], 1, 2).is_err(), "rows must match the cells");
+    assert!(xlsx::workbook(&h, &[vec![json!(1), json!(2)]], 1, 1).is_err(), "one value per column");
+    assert!(xlsx::workbook(&h, &[vec![json!({"x": 1})]], 1, 1).is_err(), "objects are not cells");
+    assert!(xlsx::workbook(&h, &[vec![json!("x".repeat(40_000))]], 1, 1).is_err(), "cell size");
+    let many = vec![vec![json!(1)]; xlsx::MAX_ROWS + 1];
+    assert!(xlsx::workbook(&h, &many, 1, u32::try_from(many.len()).unwrap_or(0)).is_err(), "row cap");
+    assert!(xlsx::workbook(&[], &[], 0, 0).is_err(), "at least one column");
+}
 
 #[test]
 fn patching_the_audience() {

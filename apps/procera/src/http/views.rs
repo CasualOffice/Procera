@@ -1,9 +1,10 @@
 //! Saved DataGrid views (BPMS-028; FR-V04, docs/05 §4, docs/08 "Views") and grid exports. Views are
 //! personal unless shared with the workspace (`shared`) or with the holders of one role
 //! (`shared_role`, A-35); only their owner changes them. `state` is opaque to the server (search,
-//! sort, filters and filter groups, columns, density). Client-side exports are recorded here.
+//! sort, filters and filter groups, columns, density). Exports: CSV is built in the browser and only
+//! recorded here; XLSX is built here from exactly the cells the grid shows (FR-V07, A-35).
 
-use axum::extract::{Path, Query, State};
+use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, patch, post};
@@ -17,12 +18,14 @@ use super::AppState;
 use super::error::ApiError;
 use super::workspace::{WsMember, members};
 
+mod xlsx;
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/views", get(list).post(create))
         .route("/views/roles", get(share_roles))
         .route("/views/{id}", patch(update).delete(remove))
-        .route("/exports", post(record_export))
+        .route("/exports", post(record_export).layer(DefaultBodyLimit::max(xlsx::BODY_MAX)))
 }
 
 fn internal(e: impl std::fmt::Display) -> ApiError {
@@ -382,27 +385,58 @@ struct ExportReq {
     columns: Vec<String>,
     #[serde(default)]
     filters: Value,
+    /// The grid's AND/OR filter groups, when it has any (recorded with the filters).
+    #[serde(default)]
+    groups: Value,
+    /// XLSX only: the visible column headers, in order.
+    #[serde(default)]
+    header: Vec<String>,
+    /// XLSX only: the visible rows in order, one value per visible column (the same values as CSV).
+    #[serde(default)]
+    cells: Vec<Vec<Value>>,
 }
 
-/// Records that the member exported a grid view (the browser builds the file from rows it was
-/// already allowed to see; FR-V06: "the download is audited").
+/// Records that the member exported a grid view (FR-V07: "the download is audited"). CSV: the
+/// browser builds the file from rows it was already allowed to see, and gets 204. XLSX: the browser
+/// sends exactly those cells and gets the workbook back; text cells stay text (no formulas).
 async fn record_export(
     State(s): State<AppState>,
     headers: HeaderMap,
     me: WsMember,
     Json(r): Json<ExportReq>,
-) -> Result<StatusCode, ApiError> {
+) -> Result<Response, ApiError> {
     check_list(&r.list)?;
-    if r.format != "csv" {
-        return Err(invalid("format must be csv"));
-    }
     if r.columns.len() > 100 {
         return Err(invalid("at most 100 columns"));
     }
+    let file = match r.format.as_str() {
+        "csv" => None,
+        "xlsx" => {
+            Some(xlsx::workbook(&r.header, &r.cells, r.columns.len(), r.rows).map_err(|e| invalid(&e))?)
+        }
+        _ => return Err(invalid("format must be csv or xlsx")),
+    };
+    let mut diff = json!({"list": r.list, "format": r.format, "rows": r.rows, "columns": r.columns, "filters": r.filters});
+    if !r.groups.is_null() {
+        diff["groups"] = r.groups;
+    }
     let mut tx = me.tx(members(&s)?).await?;
-    members(&s)?.audit_object(&mut tx, Some(me.actor.subject_ref), "data.exported", "list", Uuid::nil(), json!({"list": r.list, "format": r.format, "rows": r.rows, "columns": r.columns, "filters": r.filters}), &super::auth::client_info(&headers)).await?;
+    members(&s)?
+        .audit_object(
+            &mut tx,
+            Some(me.actor.subject_ref),
+            "data.exported",
+            "list",
+            Uuid::nil(),
+            diff,
+            &super::auth::client_info(&headers),
+        )
+        .await?;
     tx.commit().await.map_err(internal)?;
-    Ok(StatusCode::NO_CONTENT)
+    Ok(match file {
+        None => StatusCode::NO_CONTENT.into_response(),
+        Some(bytes) => xlsx::response(&r.list, bytes),
+    })
 }
 
 #[cfg(test)]
