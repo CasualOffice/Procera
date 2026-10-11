@@ -332,7 +332,7 @@ People-scoring and behaviour-based routing are **not configurable at all** (AI-0
 | Area | Settings | Ph |
 |---|---|---|
 | **Workspace lifecycle** | create (name, slug, region, isolation tier, first owner, plan/quotas), suspend (`read_only`/`locked` + banner message), schedule deletion (grace 7–90 d, default 30), restore, permanent delete (crypto-shred, certificate) | P0 |
-| **Quotas & plans** | named plans (quota bundles), per-workspace overrides, soft-limit %, hard-limit behaviour | P0 |
+| **Quotas & plans** | named plans (quota bundles), per-workspace overrides, soft-limit %, hard-limit behaviour. As built (BPMS-065): one default bundle per configuration profile (`platform_quota_defaults`, editable with step-up and audited), copied into the workspace at creation; per-workspace overrides; the member limit is a hard limit at invite time (members + open invitations, 429 `quota_exceeded`). Soft-limit notifications and named plans beyond the four profiles are not built yet | P0 |
 | **Policy floors** | every key marked Floor in §2: MFA minimums, password, session, step-up window, file deny list, scan required, max file size, audit minimums, token TTLs, allowed locales | P0 |
 | **Email** | SMTP host/port/TLS mode (STARTTLS required or implicit TLS), auth secret ref, from-address, DKIM guidance, test send | P0 |
 | **Object storage** | endpoint, bucket(s), region, credentials ref, SSE mode, object-lock availability | P0 |

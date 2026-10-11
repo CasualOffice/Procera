@@ -325,6 +325,18 @@ DataGrid of all workspace files with columns: name, type, size, owner, linked ob
 - **Template gallery management:** draft → lint/fixtures status → publish / deprecate, version history, install counts.
 - **Platform health:** job backlog, timer lateness, outbox lag, error rates, DB/storage capacity, per-workspace hot spots.
 - **System audit:** the same explorer component, scoped to system-plane events.
+- **As built (BPMS-065, R1 subset).** `/system` in the web app, behind sign-in (`/sign-in?next=/system` returns there). The shell gates on the system API: people without a system role see "Page not found", system users without two-step verification are asked to turn it on. The top bar says "Metadata only. Workspace content isn't visible here."
+  - *Workspaces:* columns workspace (name, slug), state, profile, members (seats used of the limit, with a meter), storage ("Not tracked yet" until files ship), last activity, created. State chips with counts, a profile filter and search. A row opens a drawer: facts, usage, actions and the lifecycle history from the system chain. Actions: make read-only, lock, reactivate, schedule deletion (reason, grace 7–90 days, type the slug to confirm), edit quotas (member and storage limits, profile default shown). Each asks to confirm identity when the sign-in is older than 5 minutes.
+  - *Quotas & usage:* workspaces ranked by seat use with "Near limit" (≥ 80 %) and "At limit" tags; defaults per profile with an edit dialog.
+  - *Platform health:* a one-line summary, then one row per dependency (database, cache, event delivery, email queue, schema) with status as icon plus text.
+  - *System audit:* the shared audit explorer on the system chain.
+  - Not yet: template gallery, platform settings screen, break-glass, system admins, usage graphs.
+- **As built (BPMS-065, R1 subset).** `/system` in the web app, behind sign-in (`/sign-in?next=/system` returns there). The shell gates on the system API: people without a system role see "Page not found", system users without two-step verification are asked to turn it on. The top bar says "Metadata only. Workspace content isn't visible here."
+  - *Workspaces:* columns workspace (name, slug), state, profile, members (seats used of the limit, with a meter), storage ("Not tracked yet" until files ship), last activity, created. State chips with counts, a profile filter and search. A row opens a drawer: facts, usage, actions and the lifecycle history from the system chain. Actions: make read-only, lock, reactivate, schedule deletion (reason, grace 7–90 days, type the slug to confirm), edit quotas (member and storage limits, profile default shown). Each asks to confirm identity when the sign-in is older than 5 minutes.
+  - *Quotas & usage:* workspaces ranked by seat use with "Near limit" (≥ 80 %) and "At limit" tags; defaults per profile with an edit dialog.
+  - *Platform health:* a one-line summary, then one row per dependency (database, cache, event delivery, email queue, schema) with status as icon plus text.
+  - *System audit:* the shared audit explorer on the system chain.
+  - Not yet: template gallery, platform settings screen, break-glass, system admins, usage graphs.
 - **Break-glass:**
   - Request form: workspace, reason, ticket, duration ≤ 4 h, read-only default.
   - The approval status is shown.

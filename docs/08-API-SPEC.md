@@ -94,8 +94,23 @@ Content-Type: application/problem+json
 
 `POST /bootstrap` (one-time), `GET /me`, `GET/POST /workspaces`, `GET/PATCH /workspaces/{id}`, `POST /workspaces/{id}/suspend|restore|schedule-deletion`,
 `PUT /workspaces/{id}/quotas`, `POST /workspaces/{id}/owners`, `GET /usage`, `GET /settings` (items carry `group`), `PUT /settings/{key}` `{value, reason}` (platform floors),
-`GET/POST /templates`, `POST /templates/{key}/versions`, `:deprecate`, `GET /health`, `GET /system-audit/query`,
+`GET/POST /templates`, `POST /templates/{key}/versions`, `:deprecate`, `GET /health`, `GET /system-audit/events`,
 `POST /break-glass` → `POST /break-glass/{id}/approve|revoke`, `GET/POST /system-admins`.
+
+As built (BPMS-065, system console). The system plane returns workspace metadata, counts and health only, never workspace content (docs/12 §1).
+
+| Endpoint | Behaviour | System roles |
+|---|---|---|
+| `GET /workspaces?state=&profile=&q=` | Workspaces that are not deleted, newest first (≤ 500). `q` matches name or slug, case-insensitive. Each item is the workspace (id, slug, name, profile, state, isolation_tier, region, owner_invite_email, suspended_reason, deletion_due_at, revision, created_at, quotas) plus `usage {members, invited, storage_bytes (null until files ship), last_activity_at}`. Unknown parameters → 400 | any |
+| `GET /workspaces/{id}` | The same row; `ETag` = revision | any |
+| `POST /workspaces/{id}/suspend {mode: read_only\|locked, reason}`, `/restore`, `/schedule-deletion {grace_days 7–90, reason}` | `If-Match` optional (stale → 412), invalid transition → 409, empty reason → 422. Step-up required (5 min, else 401 `step_up_required`). Answers with the console row. Audited on the system chain with the state change and reason | owner, admin |
+| `PUT /workspaces/{id}/quotas` | Full quota bundle (`null` = unlimited). Step-up. Audited `workspace.quotas_changed` | owner, admin |
+| `GET /quota-defaults`, `PUT /quota-defaults/{profile}` | The bundle each configuration profile starts with (`{profile, max_members, max_active_instances, max_storage_bytes, api_rpm, ai_tokens_month, revision, updated_at}`). `PUT` takes the five limits, `If-Match` (stale → 412), step-up; limits must be positive or null (422). New workspaces copy it; existing workspaces keep theirs. Audited `platform.quota_defaults_changed` | read: any; write: owner, admin |
+| `GET /health` | `{status: ok\|degraded\|down, checked_at, version, database {status, latency_ms}, cache {status, backend}, outbox {status, pending, retrying, oldest_at, lag_seconds, dispatcher}, mail {status, queued, failed, oldest_age_seconds}, migrations {status, applied, latest, expected, expected_latest}}`. Degraded when the oldest pending event or queued email is older than 5 min, any email failed, the cache is degraded, no dispatcher runs or migrations are missing | any |
+| `GET /system-audit/events?from&to&actor&action (prefix)&category&object_type&object_id&result&page[size]&page[cursor]` | The system chain through the shared explorer, newest first, keyset on `seq`; actor names are resolved for system administrators only | owner, admin, auditor |
+| `GET /system-audit/verify` | `{ok, checked, first_broken}` for the system chain | owner, admin, auditor |
+
+The member quota is enforced at invite time on the workspace plane: `POST /api/v1/members/invitations` answers 429 `quota_exceeded` when active members plus open invitations reach `max_members` (re-inviting the same address needs no extra seat). `GET /usage` is not built yet: the workspace list carries usage until storage and instance usage exist.
 
 ## 6. Event envelope (outbox → bus → webhooks)
 
