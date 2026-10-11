@@ -8,6 +8,6 @@ pub mod totp;
 pub mod webauthn;
 
 pub use service::{
-    ClientInfo, Factor, Identity, IdentityConfig, IdentityError, LoginOutcome, Passkey, Tokens,
-    TotpEnrollment, User,
+    AccountNotice, CHANGE_TOKEN_TTL, ClientInfo, Factor, Identity, IdentityConfig, IdentityError,
+    LoginOutcome, Passkey, RESET_TTL, RESETS_PER_HOUR, ResetLink, Tokens, TotpEnrollment, User,
 };
