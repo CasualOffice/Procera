@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { hasDatabase, passwordSession, seedUser, uniqueEmail } from '../../fixtures/accounts';
 import { enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-MEM-01..09 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
+// E2E-R1-MEM-01..10 — onboarding, members, roles and grants (BPMS-023/024; docs/23).
 
 test.describe('members and access @r1 @members', () => {
   test.beforeEach(async ({ request }) => {
@@ -40,9 +40,11 @@ test.describe('members and access @r1 @members', () => {
   test('E2E-R1-MEM-03 workspace isolation: a non-member cannot switch into or read another workspace', async ({ request }) => {
     const a = await workspaceWithOwner(request);
     const b = await workspaceWithOwner(request);
-    const { c, token } = await passwordSession(a.ownerEmail);
-    expect((await c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${token}` }, data: { workspace_id: b.ws.id } })).status()).toBe(404);
-    const noWs = await c.get('/api/v1/members', { headers: { authorization: `Bearer ${token}` } });
+    const { c, headers } = a.owner;
+    expect((await c.post('/api/v1/session/workspace', { headers, data: { workspace_id: b.ws.id } })).status()).toBe(404);
+    // Leave the workspace (home view): workspace APIs then need a selection.
+    const home = await (await c.post('/api/v1/session/workspace', { headers, data: { workspace_id: null } })).json();
+    const noWs = await c.get('/api/v1/members', { headers: { authorization: `Bearer ${home.access_token}` } });
     expect(noWs.status()).toBe(400);
     expect((await noWs.json()).code).toBe('no_workspace');
   });
@@ -193,5 +195,23 @@ test.describe('members and access @r1 @members', () => {
     const bossS = await enter(boss.email, ws.id);
     expect((await bossS.c.post(`/api/v1/members/${inApac.id}/deactivate`, { headers: bossS.headers })).status()).toBe(403);
     expect((await bossS.c.post(`/api/v1/members/${inUk.id}/deactivate`, { headers: bossS.headers })).status()).toBe(204);
+  });
+
+  test('E2E-R1-MEM-10 MFA is required by role: an admin without MFA is refused at workspace entry, a member is not', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const join = async (tag: string, role: string) => {
+      const email = await seedUser(request, tag);
+      await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: [role] } });
+      const token = await inviteToken(request, ws.id, email);
+      const pw = await passwordSession(email);
+      await pw.c.post('/api/v1/invitations/accept', { headers: { authorization: `Bearer ${pw.token}` }, data: { token } });
+      const sw = await (await pw.c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${pw.token}` }, data: { workspace_id: ws.id } })).json();
+      return { c: pw.c, headers: { authorization: `Bearer ${sw.access_token}` } };
+    };
+    const admin = await join('nomfa-admin', 'workspace.admin');
+    const res = await admin.c.get('/api/v1/members', { headers: admin.headers });
+    expect([res.status(), (await res.json()).code]).toEqual([403, 'mfa_required']);
+    const plain = await join('nomfa-member', 'member');
+    expect((await plain.c.get('/api/v1/members', { headers: plain.headers })).status()).toBe(200);
   });
 });

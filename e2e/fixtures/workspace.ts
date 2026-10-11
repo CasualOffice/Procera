@@ -1,9 +1,9 @@
 import { type APIRequestContext, expect } from '@playwright/test';
-import { PW, client, mfaSession, passwordSession, seedUser, uniqueEmail } from './accounts';
+import { PW, client, mfaSession, seedUser, uniqueEmail } from './accounts';
 
 // Workspace onboarding helpers shared by the R1 packs.
 
-export type Session = { c: APIRequestContext; headers: Record<string, string> };
+export type Session = { c: APIRequestContext; headers: Record<string, string>; secret?: string };
 
 export async function sysAdmin(request: APIRequestContext) {
   const email = await seedUser(request, 'sysadmin');
@@ -17,12 +17,15 @@ export async function inviteToken(request: APIRequestContext, workspace: string,
   return (await res.json()).token as string;
 }
 
-/** Signs in and switches to `workspace`; returns a session whose bearer is workspace-scoped. */
-export async function enter(email: string, workspace: string): Promise<Session> {
-  const { c, token } = await passwordSession(email);
-  const sw = await c.post('/api/v1/session/workspace', { headers: { authorization: `Bearer ${token}` }, data: { workspace_id: workspace } });
+/**
+ * Signs in with MFA (enrolling TOTP; call once per user per test) and switches to `workspace`.
+ * Returns a session whose bearer is workspace-scoped, plus the TOTP secret for step-up.
+ */
+export async function enter(email: string, workspace: string): Promise<Session & { secret: string }> {
+  const { c, headers, secret } = await mfaSession(email);
+  const sw = await c.post('/api/v1/session/workspace', { headers, data: { workspace_id: workspace } });
   expect(sw.status()).toBe(200);
-  return { c, headers: { authorization: `Bearer ${(await sw.json()).access_token}` } };
+  return { c, headers: { authorization: `Bearer ${(await sw.json()).access_token}` }, secret };
 }
 
 /** System admin creates a workspace; the owner registers via the invitation and signs into it. */

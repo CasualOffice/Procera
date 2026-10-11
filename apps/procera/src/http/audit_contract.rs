@@ -58,6 +58,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/sysapi/v1/settings/{key}", &[&["platform.floor_changed"]]),
     // Workspace plane.
     emits("POST", "/api/v1/session/workspace", &[&["session.workspace_selected"]]),
+    emits("POST", "/api/v1/session/step-up", &[&["session.stepped_up"]]),
     emits("POST", "/api/v1/invitations/accept", &[&["member.joined"]]),
     emits("POST", "/api/v1/invitations/register", &[&["member.joined", "user.created"]]),
     emits("POST", "/api/v1/members/invitations", &[&["member.invited"]]),

@@ -21,6 +21,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/me/workspaces", get(my_workspaces))
         .route("/session/workspace", post(switch_workspace))
+        .route("/session/step-up", post(step_up))
         .route("/invitations/accept", post(accept))
         .route("/invitations/register", post(register))
         .route("/permission-catalog", get(permission_catalog))
@@ -109,8 +110,8 @@ pub struct WsMember {
     pub ctx: WsCtx,
     pub actor: Actor,
     pub user_id: Uuid,
-    /// Authentication methods of this session (step-up checks).
-    pub amr: Vec<String>,
+    /// When the user last authenticated (sign-in or step-up), unix seconds.
+    pub auth_time: i64,
 }
 
 impl FromRequestParts<AppState> for WsMember {
@@ -131,13 +132,40 @@ impl FromRequestParts<AppState> for WsMember {
             .await
             .map_err(|e| MembersError::Internal(e.to_string()))?;
         let membership = m.membership(&mut tx, claims.sub).await?;
-        tx.rollback().await.map_err(|e| MembersError::Internal(e.to_string()))?;
         let (Some(state), Some((membership, status, subject_ref))) = (state, membership) else {
             return Err(ApiError::not_found());
         };
         if status != "active" {
             return Err(ApiError::not_found());
         }
+        // MFA required by role (docs/20 §2.3 auth.mfa.required_roles, ⚡: read from the database).
+        let has_mfa = claims.amr.iter().any(|a| a == "otp" || a == "hwk");
+        if !has_mfa {
+            let required =
+                super::settings::settings(s)?.effective(&mut tx, "auth.mfa.required_roles").await?.value;
+            let required: Vec<&str> = required
+                .as_array()
+                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+                .unwrap_or_default();
+            let roles: Vec<String> = sqlx::query_scalar(
+                "SELECT DISTINCT r.key FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+                 WHERE (g.membership_id = $1 OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = $1))
+                   AND (g.expires_at IS NULL OR g.expires_at > now())",
+            )
+            .bind(membership)
+            .fetch_all(tx.conn())
+            .await
+            .map_err(|e| MembersError::Internal(e.to_string()))?;
+            if required.contains(&"*") || roles.iter().any(|r| required.contains(&r.as_str())) {
+                return Err(ApiError::new(
+                    403,
+                    "mfa_required",
+                    "This workspace requires multi-factor authentication for your role",
+                )
+                .detail("Enrol at POST /api/v1/me/mfa/totp, then sign in again."));
+            }
+        }
+        tx.rollback().await.map_err(|e| MembersError::Internal(e.to_string()))?;
         let write = parts.method != Method::GET && parts.method != Method::HEAD;
         match state.as_str() {
             "suspended_locked" | "pending_deletion" | "deleted" => {
@@ -150,13 +178,35 @@ impl FromRequestParts<AppState> for WsMember {
             }
             _ => {}
         }
-        Ok(Self { ctx, actor: Actor { membership, subject_ref }, user_id: claims.sub, amr: claims.amr })
+        Ok(Self {
+            ctx,
+            actor: Actor { membership, subject_ref },
+            user_id: claims.sub,
+            auth_time: claims.auth_time,
+        })
     }
 }
 
 impl WsMember {
     pub async fn tx(&self, m: &Members) -> Result<WsTx<'static>, ApiError> {
         m.db().begin_ws(self.ctx).await.map_err(|e| MembersError::Internal(e.to_string()).into())
+    }
+
+    /// Requires a recent authentication (docs/12 §11) within the workspace's `auth.stepup.window`.
+    pub async fn require_step_up(&self, s: &AppState, tx: &mut WsTx<'_>) -> Result<(), ApiError> {
+        let window = super::settings::settings(s)?
+            .effective(tx, "auth.stepup.window")
+            .await?
+            .value
+            .as_i64()
+            .unwrap_or(300);
+        let age = s.clock.now().unix_timestamp() - self.auth_time;
+        if (0..=window).contains(&age) {
+            Ok(())
+        } else {
+            Err(ApiError::new(401, "step_up_required", "Confirm it's you to continue")
+                .detail(format!("POST /api/v1/session/step-up; this action needs authentication within the last {window} seconds")))
+        }
     }
 
     /// Authorizes through Cedar. Denials return 403 with the action (the member can see the workspace).
@@ -209,6 +259,28 @@ async fn switch_workspace(
     let id = s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
     let (token, ttl) = id.issue_workspace_token(&c, r.workspace_id, &client_info(&headers)).await?;
     Ok(Json(json!({"access_token": token, "token_type": "Bearer", "expires_in": ttl, "workspace_id": r.workspace_id})).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StepUpReq {
+    #[serde(default)]
+    code: Option<String>,
+    #[serde(default)]
+    password: Option<String>,
+}
+
+/// Re-authenticates within the current sign-in and returns an access token with a fresh `auth_time`.
+async fn step_up(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    AuthUser(c): AuthUser,
+    Json(r): Json<StepUpReq>,
+) -> Result<Response, ApiError> {
+    let id = s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
+    let (token, ttl) =
+        id.step_up(&c, r.code.as_deref(), r.password.as_deref(), &client_info(&headers)).await?;
+    Ok(Json(json!({"access_token": token, "token_type": "Bearer", "expires_in": ttl})).into_response())
 }
 
 #[derive(Debug, Deserialize)]
@@ -355,6 +427,7 @@ async fn create_role(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "role:manage", Resource::Workspace).await?;
+    me.require_step_up(&s, &mut tx).await?;
     let role = m
         .access()
         .create_role(
@@ -396,6 +469,7 @@ async fn update_role(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "role:manage", Resource::Role(id)).await?;
+    me.require_step_up(&s, &mut tx).await?;
     let preview = m.access().preview_role_change(&mut tx, id, &r.permissions).await?;
     m.access().update_role(&mut tx, Some(me.actor.membership), id, &r.permissions).await?;
     m.audit_object(&mut tx, Some(me.actor.subject_ref), "role.updated", "role", id, json!({"added": preview.added, "removed": preview.removed, "affected_members": preview.affected_members.len()}), &client_info(&headers)).await?;
@@ -472,12 +546,14 @@ async fn create_grant(
     let id = match (r.membership_id, r.group_id) {
         (Some(member), None) => {
             me.require(m, &mut tx, "member:manage_roles", Resource::Member(member)).await?;
+            me.require_step_up(&s, &mut tx).await?;
             m.access()
                 .grant(&mut tx, actor, member, &r.role_key, scope, r.expires_at, r.reason.as_deref())
                 .await?
         }
         (None, Some(group)) => {
             me.require(m, &mut tx, "member:manage_roles", Resource::Workspace).await?;
+            me.require_step_up(&s, &mut tx).await?;
             m.access()
                 .grant_to_group(&mut tx, actor, group, &r.role_key, scope, r.expires_at, r.reason.as_deref())
                 .await?
@@ -501,6 +577,7 @@ async fn revoke_grant(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "member:manage_roles", Resource::Workspace).await?;
+    me.require_step_up(&s, &mut tx).await?;
     m.access().revoke_grant(&mut tx, Some(me.actor.membership), id).await?;
     m.audit_object(
         &mut tx,

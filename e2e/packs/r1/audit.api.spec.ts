@@ -72,7 +72,14 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const anon = await ctx();
   await step('POST', '/api/v1/invitations/register', async () => anon.post('/api/v1/invitations/register', { data: { token: await tokenFor(ownerEmail), display_name: 'Owner', password: PW } }));
   const own = await ctx();
-  const ownLogin = await login(own, ownerEmail);
+  await login(own, ownerEmail);
+  // Owners must use MFA (auth.mfa.required_roles): enrol and sign in again (not contract steps).
+  const ownPw = await (await own.post('/api/v1/auth/login', { data: { email: ownerEmail, password: PW } })).json();
+  const ownEnr = await (await own.post('/api/v1/me/mfa/totp', { headers: bearer(ownPw.access_token) })).json();
+  const ownNow = await serverNow(own);
+  await own.post('/api/v1/me/mfa/totp/confirm', { headers: bearer(ownPw.access_token), data: { code: totp(ownEnr.secret, ownNow) } });
+  const ownStep1 = await (await own.post('/api/v1/auth/login', { data: { email: ownerEmail, password: PW } })).json();
+  const ownLogin = await (await own.post('/api/v1/auth/mfa', { data: { mfa_token: ownStep1.mfa_token, code: totp(ownEnr.secret, ownNow, 1) } })).json();
   const sw = await (await step('POST', '/api/v1/session/workspace', () => own.post('/api/v1/session/workspace', { headers: bearer(ownLogin.access_token), data: { workspace_id: ws.id } }))).json();
   const oh = bearer(sw.access_token);
 
@@ -81,6 +88,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/members/invitations', () => own.post('/api/v1/members/invitations', { headers: oh, data: { email: adamEmail, roles: ['member'] } }));
   const adam = await ctx();
   const adamLogin = await login(adam, adamEmail);
+  await step('POST', '/api/v1/session/step-up', () => adam.post('/api/v1/session/step-up', { headers: bearer(adamLogin.access_token), data: { password: PW } }));
   const joined = await (await step('POST', '/api/v1/invitations/accept', async () => adam.post('/api/v1/invitations/accept', { headers: bearer(adamLogin.access_token), data: { token: await tokenFor(adamEmail) } }))).json();
   const role = await (await step('POST', '/api/v1/roles', () => own.post('/api/v1/roles', { headers: oh, data: { key: 'audit.viewer', name: 'Audit viewer', permissions: ['role:view'] } }))).json();
   const grant = await (await step('POST', '/api/v1/role-grants', () => own.post('/api/v1/role-grants', { headers: oh, data: { membership_id: joined.membership_id, role_key: 'audit.viewer', reason: 'drill' } }))).json();

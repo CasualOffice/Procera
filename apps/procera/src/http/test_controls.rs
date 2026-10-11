@@ -24,6 +24,7 @@ pub fn router() -> Router<AppState> {
         .route("/bootstrap-token", post(bootstrap_token))
         .route("/system-roles", post(grant_system_role))
         .route("/invitations/token", get(invitation_token))
+        .route("/session/backdate", post(backdate_session))
 }
 
 /// Issues a bootstrap token if the platform is not bootstrapped yet (E2E only; prod prints it to the log).
@@ -284,4 +285,27 @@ async fn audit_events(State(s): State<AppState>, Query(q): Query<EventsQuery>) -
         }
     }
     Json(serde_json::json!({ "items": out })).into_response()
+}
+
+#[derive(Debug, Deserialize)]
+struct Backdate {
+    seconds: i64,
+}
+
+/// Re-signs the caller's access token with `auth_time` moved `seconds` into the past, so step-up
+/// expiry can be tested without moving the shared clock.
+async fn backdate_session(
+    State(s): State<AppState>,
+    super::auth::AuthUser(c): super::auth::AuthUser,
+    Json(b): Json<Backdate>,
+) -> Response {
+    let Some(id) = s.identity.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let at = time::OffsetDateTime::from_unix_timestamp(c.auth_time - b.seconds)
+        .unwrap_or(time::OffsetDateTime::UNIX_EPOCH);
+    match id.resign_with_auth_time(&c, at) {
+        Ok(token) => Json(serde_json::json!({ "access_token": token })).into_response(),
+        Err(e) => super::error::ApiError::from(e).into_response(),
+    }
 }

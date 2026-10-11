@@ -144,11 +144,8 @@ async fn update(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, perm, Resource::Workspace).await?;
-    // Step-up: until the step-up endpoint ships (BPMS-022), an MFA-verified session is required.
-    if d.step_up && !me.amr.iter().any(|a| a == "otp" || a == "hwk") {
-        return Err(
-            ApiError::new(403, "step_up_required", "Verify with MFA to change this setting").detail(key)
-        );
+    if d.step_up {
+        me.require_step_up(&s, &mut tx).await?;
     }
     let expected = headers
         .get(header::IF_MATCH)

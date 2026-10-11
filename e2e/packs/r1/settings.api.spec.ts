@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { hasDatabase, passwordSession, seedUser } from '../../fixtures/accounts';
+import { hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
+import { totp } from '../../fixtures/totp';
 import { enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-CFG-01..05 — layered settings, floors and the explainer (BPMS-027; docs/20 §0-§2).
@@ -44,11 +45,22 @@ test.describe('settings @r1 @settings', () => {
     expect(history.items[0]).toMatchObject({ layer: 'workspace', after: 900, reason: 'security review' });
   });
 
-  test('E2E-R1-CFG-03 step-up keys need an MFA-verified session', async ({ request }) => {
+  test('E2E-R1-CFG-03 step-up keys need a recent authentication; POST /session/step-up refreshes it', async ({ request }) => {
     const { owner } = await workspaceWithOwner(request);
-    const res = await owner.c.put('/api/v1/settings/auth.mfa.required_roles', { headers: owner.headers, data: { value: ['*'], reason: 'everyone' } });
-    expect(res.status()).toBe(403);
-    expect((await res.json()).code).toBe('step_up_required');
+    const key = '/api/v1/settings/auth.mfa.required_roles';
+    // Simulate a sign-in 10 minutes ago (beyond the default 5-minute window) without moving the shared clock.
+    const old = await (await owner.c.post('/__test/session/backdate', { headers: owner.headers, data: { seconds: 600 } })).json();
+    const stale = { authorization: `Bearer ${old.access_token}` };
+    const denied = await owner.c.put(key, { headers: stale, data: { value: ['*'], reason: 'everyone' } });
+    expect([denied.status(), (await denied.json()).code]).toEqual([401, 'step_up_required']);
+    expect((await owner.c.post('/api/v1/session/step-up', { headers: stale, data: { code: '000000' } })).status()).toBe(401);
+    // TOTP codes are single-use per 30 s step and sign-in used the next step: advance, then use the step after.
+    await request.post('/__test/clock', { data: { advance: 'PT30S' } });
+    const now = await serverNow(owner.c);
+    const up = await owner.c.post('/api/v1/session/step-up', { headers: stale, data: { code: totp(owner.secret, now, 1) } });
+    expect(up.status()).toBe(200);
+    const fresh = { authorization: `Bearer ${(await up.json()).access_token}` };
+    expect((await owner.c.put(key, { headers: fresh, data: { value: ['*'], reason: 'everyone' } })).status()).toBe(200);
   });
 
   test('E2E-R1-CFG-04 members without settings permissions can neither view nor change settings', async ({ request }) => {
