@@ -125,6 +125,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/artifacts/{id}/recertify', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/recertify`, { headers: oh, data: { comment: 'still right' } }));
   await step('POST', '/api/v1/artifacts/{id}/verification', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
   await step('DELETE', '/api/v1/artifacts/{id}/verification', () => own.delete(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
+  await step('PUT', '/api/v1/artifacts/{id}/applicability', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/applicability`, { headers: oh, data: { category: 'Audit' } }));
   const cr = await (await step('POST', '/api/v1/artifacts/{id}/change-requests', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/change-requests`, { headers: oh, data: { title: 'Add a step' } }))).json();
   await step('POST', '/api/v1/change-requests/{id}/resolve', () => own.post(`/api/v1/change-requests/${cr.id}/resolve`, { headers: oh, data: { decision: 'accepted' } }));
   // Campaigns: everyone acknowledges the published SOP; Adam (member) completes his assignment.

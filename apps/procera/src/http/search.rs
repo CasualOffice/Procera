@@ -75,7 +75,21 @@ async fn search(
             allowed.push(kind);
         }
     }
-    let items = run(&mut tx, &r.q, &allowed, r.limit.unwrap_or(20)).await?;
+    let mut items = run(&mut tx, &r.q, &allowed, r.limit.unwrap_or(20)).await?;
+    // Artifacts the caller may not see (drafts, restricted policies outside their applicability;
+    // A-14) are dropped from the page.
+    let artifact_ids: Vec<uuid::Uuid> = items
+        .iter()
+        .filter(|h| procera_library::AUTHORABLE.contains(&h.kind.as_str()))
+        .map(|h| h.id)
+        .collect();
+    if !artifact_ids.is_empty() {
+        let full = super::library::full_kinds(&s, &me, &mut tx).await?;
+        let reader = procera_library::Reader { membership: me.actor.membership, full_kinds: &full };
+        let lib = s.library.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
+        let visible = lib.visible_ids(&mut tx, &artifact_ids, &reader).await?;
+        items.retain(|h| !procera_library::AUTHORABLE.contains(&h.kind.as_str()) || visible.contains(&h.id));
+    }
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": items, "types": allowed })).into_response())
 }

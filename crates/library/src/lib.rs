@@ -13,6 +13,7 @@
 
 pub mod diff;
 pub mod governance;
+pub mod portal;
 
 use std::sync::Arc;
 
@@ -143,6 +144,12 @@ pub struct Artifact {
     pub created_at: OffsetDateTime,
     /// Review cadence, recertification and verification (BPMS-044).
     pub governance: Governance,
+    /// Policy category (BPMS-045), free text.
+    pub category: Option<String>,
+    /// Who the artifact applies to (an audience; `None` = everyone).
+    pub applicability: Option<Value>,
+    /// Hidden from readers outside `applicability` (A-14).
+    pub restricted: bool,
 }
 
 /// Recertification and verification state of an artifact (BPMS-044, FR-G07, FX-G01/G02).
@@ -262,8 +269,30 @@ struct ArtifactRow {
     verified_at: Option<OffsetDateTime>,
     verified_by: Option<Uuid>,
     verification_expires_at: Option<OffsetDateTime>,
+    category: Option<String>,
+    applicability: Option<Value>,
+    restricted: bool,
 }
-const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at, review_cadence_days, next_review_at, last_reviewed_at, review_overdue_at, verified_at, verified_by, verification_expires_at";
+const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at, review_cadence_days, next_review_at, last_reviewed_at, review_overdue_at, verified_at, verified_by, verification_expires_at, category, applicability, restricted";
+
+/// Who is reading (A-14): their membership and the kinds they hold an authoring permission on.
+#[derive(Debug, Clone, Copy)]
+pub struct Reader<'a> {
+    pub membership: Uuid,
+    pub full_kinds: &'a [&'a str],
+}
+
+impl Reader<'_> {
+    pub fn full(&self, kind: &str) -> bool {
+        self.full_kinds.contains(&kind)
+    }
+}
+
+/// Lifecycles a reader without authoring permissions may open.
+pub const PUBLISHED_HISTORY: &[&str] = &["published", "deprecated", "retired"];
+
+/// SQL: artifact `a` is visible to a view-only reader (membership is `$4`).
+pub(crate) const READER_VISIBLE: &str = "(a.current_published_version_id IS NOT NULL AND (NOT a.restricted OR a.applicability IS NULL OR procera_audience_contains(a.applicability, $4)))";
 
 /// Review status at `now`: overdue once the review date has passed (whether or not the worker has
 /// flagged it yet), due soon within [`DUE_SOON`].
@@ -299,6 +328,9 @@ fn artifact(r: ArtifactRow, now: OffsetDateTime) -> Artifact {
             verified_by: r.verified_by,
             verification_expires_at: r.verification_expires_at,
         },
+        category: r.category,
+        applicability: r.applicability,
+        restricted: r.restricted,
     }
 }
 
@@ -362,15 +394,20 @@ impl Library {
         r.map(|r| artifact(r, now)).ok_or(LibraryError::NotFound)
     }
 
+    /// Artifacts of `kinds`, as `reader` may see them (A-14): kinds in `reader.full_kinds` show
+    /// everything; other kinds show only published artifacts, minus restricted ones the reader is
+    /// outside of.
     pub async fn list(
         &self,
         tx: &mut WsTx<'_>,
         kinds: &[&str],
         state: Option<&str>,
+        reader: &Reader<'_>,
     ) -> Result<Vec<Artifact>, LibraryError> {
         let kinds: Vec<String> = kinds.iter().map(|k| (*k).to_owned()).collect();
-        let rows: Vec<ArtifactRow> = sqlx::query_as(&format!("SELECT {ARTIFACT_COLS} FROM artifacts WHERE kind = ANY($1) AND ($2::text IS NULL OR state = $2) ORDER BY lower(title)"))
-            .bind(&kinds).bind(state).fetch_all(tx.conn()).await?;
+        let full: Vec<String> = reader.full_kinds.iter().map(|k| (*k).to_owned()).collect();
+        let rows: Vec<ArtifactRow> = sqlx::query_as(&format!("SELECT {ARTIFACT_COLS} FROM artifacts a WHERE kind = ANY($1) AND ($2::text IS NULL OR state = $2) AND (kind = ANY($3) OR {READER_VISIBLE}) ORDER BY lower(title)"))
+            .bind(&kinds).bind(state).bind(&full).bind(reader.membership).fetch_all(tx.conn()).await?;
         let now = self.clock.now();
         Ok(rows.into_iter().map(|r| artifact(r, now)).collect())
     }

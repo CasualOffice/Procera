@@ -45,7 +45,7 @@ pub struct ChangeRequest {
 const CR_COLS: &str = "id, artifact_id, title, body, state, requested_by, requested_at, resolved_by, resolved_at, resolution, version_id, revision";
 
 impl Library {
-    async fn audit_artifact(
+    pub(crate) async fn audit_artifact(
         &self,
         tx: &mut WsTx<'_>,
         actor: Option<&Actor>,

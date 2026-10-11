@@ -54,8 +54,11 @@ test.describe('library governance @r1 @library', () => {
     expect((await (await owner.c.get(`/api/v1/versions/${v2.id}/diff/${version.id}`, { headers: h })).json()).summary).toEqual({ added: 0, removed: 1, changed: 1 });
     const other = await publishedSop(owner, 'sec.other', [p('x')]);
     expect((await owner.c.get(`/api/v1/versions/${version.id}/diff/${other.version.id}`, { headers: h })).status()).toBe(422);
-    // Readers may compare; other workspaces cannot see the versions at all.
+    // Readers may compare published history only (A-14): the draft is hidden until it is published.
     const member = await joinAs(request, owner, ws.id, 'diffreader', 'member', false);
+    expect((await member.c.get(`/api/v1/versions/${version.id}/diff/${v2.id}`, { headers: member.headers })).status()).toBe(404);
+    await owner.c.post(`/api/v1/versions/${v2.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${v2.id}/publish`, { headers: h, data: { change_reason: 'Escorts' } });
     expect((await member.c.get(`/api/v1/versions/${version.id}/diff/${v2.id}`, { headers: member.headers })).status()).toBe(200);
     const stranger = await workspaceWithOwner(request);
     expect((await stranger.owner.c.get(`/api/v1/versions/${version.id}/diff/${v2.id}`, { headers: stranger.owner.headers })).status()).toBe(404);

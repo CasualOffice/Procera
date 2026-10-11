@@ -9,7 +9,7 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
 use procera_db::WsTx;
-use procera_library::{AUTHORABLE, Actor, Library, LibraryError, ReviewPolicy, permission};
+use procera_library::{AUTHORABLE, Actor, Library, LibraryError, Reader, ReviewPolicy, permission};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use uuid::Uuid;
@@ -32,6 +32,8 @@ pub fn router() -> Router<AppState> {
         .route("/artifacts/{id}/change-requests", get(list_change_requests).post(open_change_request))
         .route("/change-requests/{id}", get(get_change_request))
         .route("/change-requests/{id}/resolve", post(resolve_change_request))
+        .route("/artifacts/{id}/applicability", put(set_applicability))
+        .route("/me/policies", get(portal))
         .route("/versions/{id}/submit", post(submit))
         .route("/versions/{id}/withdraw", post(withdraw))
         .route("/versions/{id}/reviews", post(review))
@@ -112,7 +114,32 @@ async fn review_policy(s: &AppState, tx: &mut WsTx<'_>) -> Result<ReviewPolicy, 
     Ok(ReviewPolicy { required_for, min_reviewers, reason_for_change_required: reason })
 }
 
-/// Kind of a version's artifact, after checking `action` on it.
+/// Artifact kinds on which the member holds an authoring permission: they see drafts and
+/// restricted artifacts of those kinds (A-14).
+pub(crate) async fn full_kinds(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut WsTx<'_>,
+) -> Result<Vec<&'static str>, ApiError> {
+    let m = members(s)?;
+    let mut out = vec![];
+    for kind in AUTHORABLE {
+        for action in ["create", "edit_draft", "review", "approve", "publish"] {
+            if m.access()
+                .check(tx, me.actor.membership, permission(kind, action)?, &Resource::Workspace)
+                .await?
+                .allowed
+            {
+                out.push(*kind);
+                break;
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// Kind of a version's artifact, after checking `action` on it and that the member may see the
+/// artifact and this version (hidden → 404).
 async fn authorize_version(
     s: &AppState,
     me: &WsMember,
@@ -120,10 +147,23 @@ async fn authorize_version(
     id: Uuid,
     action: &str,
 ) -> Result<(String, String), ApiError> {
-    let (kind, criticality): (String, String) = sqlx::query_as("SELECT a.kind, a.criticality FROM artifact_versions v JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id WHERE v.id = $1")
-        .bind(id).fetch_optional(tx.conn()).await.map_err(internal)?.ok_or_else(ApiError::not_found)?;
-    me.require(members(s)?, tx, permission(&kind, action)?, Resource::Workspace).await?;
-    Ok((kind, criticality))
+    let (artifact_id, lifecycle): (Uuid, String) =
+        sqlx::query_as("SELECT artifact_id, lifecycle FROM artifact_versions WHERE id = $1")
+            .bind(id)
+            .fetch_optional(tx.conn())
+            .await
+            .map_err(internal)?
+            .ok_or_else(ApiError::not_found)?;
+    let a = authorize_artifact(s, me, tx, artifact_id, action).await?;
+    let full = full_kinds(s, me, tx).await?;
+    if !Library::version_visible(
+        &a.kind,
+        &lifecycle,
+        &Reader { membership: me.actor.membership, full_kinds: &full },
+    ) {
+        return Err(ApiError::not_found());
+    }
+    Ok((a.kind, a.criticality))
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,7 +196,9 @@ async fn list(
             kinds.push(k);
         }
     }
-    let items = library(&s)?.list(&mut tx, &kinds, q.state.as_deref()).await?;
+    let full = full_kinds(&s, &me, &mut tx).await?;
+    let reader = Reader { membership: me.actor.membership, full_kinds: &full };
+    let items = library(&s)?.list(&mut tx, &kinds, q.state.as_deref(), &reader).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": items })).into_response())
 }
@@ -205,9 +247,11 @@ async fn get_artifact(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let lib = library(&s)?;
-    let a = lib.artifact(&mut tx, id).await?;
-    me.require(m, &mut tx, permission(&a.kind, "view")?, Resource::Workspace).await?;
+    let a = authorize_artifact(&s, &me, &mut tx, id, "view").await?;
+    let full = full_kinds(&s, &me, &mut tx).await?;
+    let reader = Reader { membership: me.actor.membership, full_kinds: &full };
     let versions: Vec<Value> = lib.versions(&mut tx, id).await?.into_iter()
+        .filter(|v| Library::version_visible(&a.kind, &v.lifecycle, &reader))
         .map(|v| json!({"id": v.id, "version_no": v.version_no, "lifecycle": v.lifecycle, "content_hash": v.content_hash, "effective_at": v.effective_at, "published_at": v.published_at, "change_reason": v.change_reason}))
         .collect();
     tx.rollback().await.map_err(internal)?;
@@ -253,6 +297,7 @@ async fn diff_versions(
 ) -> Result<Json<Value>, ApiError> {
     let mut tx = me.tx(members(&s)?).await?;
     authorize_version(&s, &me, &mut tx, a, "view").await?;
+    authorize_version(&s, &me, &mut tx, b, "view").await?;
     let lib = library(&s)?;
     let (va, _) = lib.version(&mut tx, a, None).await?;
     let (vb, _) = lib.version(&mut tx, b, None).await?;
@@ -399,7 +444,7 @@ async fn retire(
 
 // ---- BPMS-044: recertification, verification, change requests ----
 
-/// Loads the artifact and checks `action` on its kind.
+/// Loads the artifact, checks `action` on its kind and that the member may see it (hidden → 404).
 async fn authorize_artifact(
     s: &AppState,
     me: &WsMember,
@@ -407,8 +452,13 @@ async fn authorize_artifact(
     id: Uuid,
     action: &str,
 ) -> Result<procera_library::Artifact, ApiError> {
-    let a = library(s)?.artifact(tx, id).await?;
+    let lib = library(s)?;
+    let a = lib.artifact(tx, id).await?;
     me.require(members(s)?, tx, permission(&a.kind, action)?, Resource::Workspace).await?;
+    let full = full_kinds(s, me, tx).await?;
+    if !lib.visible(tx, &a, &Reader { membership: me.actor.membership, full_kinds: &full }).await? {
+        return Err(ApiError::not_found());
+    }
     Ok(a)
 }
 
@@ -577,4 +627,70 @@ async fn resolve_change_request(
         .await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(cr))
+}
+
+// ---- BPMS-045: applicability and the employee policy portal ----
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ApplicabilityReq {
+    category: Option<String>,
+    /// An audience (`{all, departments, groups, roles}`); `null` = applies to everyone.
+    applicability: Option<procera_members::audience::Audience>,
+    #[serde(default)]
+    restricted: bool,
+}
+
+async fn set_applicability(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<ApplicabilityReq>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let aud = match r.applicability {
+        Some(a) if a.is_empty() => {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("applicability must name at least one audience, or be null for everyone"));
+        }
+        Some(a) => Some(serde_json::to_value(a).map_err(internal)?),
+        None => None,
+    };
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "publish").await?;
+    let a = library(&s)?
+        .set_applicability(
+            &mut tx,
+            &actor(&me, &headers),
+            id,
+            r.category.as_deref(),
+            aud.as_ref(),
+            r.restricted,
+        )
+        .await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+#[derive(Debug, Deserialize)]
+struct PortalQuery {
+    q: Option<String>,
+    category: Option<String>,
+}
+
+/// The policies that apply to the caller (FR-PL02), with what changed since the previous version.
+async fn portal(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<PortalQuery>,
+) -> Result<Json<Value>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "policy:view", Resource::Workspace).await?;
+    let items =
+        library(&s)?.portal(&mut tx, me.actor.membership, q.q.as_deref(), q.category.as_deref()).await?;
+    tx.rollback().await.map_err(internal)?;
+    let mut categories: Vec<&str> = items.iter().filter_map(|p| p.category.as_deref()).collect();
+    categories.dedup();
+    Ok(Json(json!({ "items": items, "categories": categories })))
 }
