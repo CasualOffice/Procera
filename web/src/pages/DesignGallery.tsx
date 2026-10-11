@@ -94,7 +94,7 @@ export function DesignGallery() {
         <h2 id="type">Type scale</h2>
         <ul className="plain">
           {Object.entries(tokens.font.size).map(([k, v]) => (
-            <li key={k} style={{ fontSize: v }}>{k} · {v} — Turn processes into progress.</li>
+            <li key={k} style={{ fontSize: v }}>{k} · {v}: Turn processes into progress.</li>
           ))}
         </ul>
       </section>

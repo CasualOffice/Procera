@@ -1,6 +1,8 @@
 import { Bell, BookOpenCheck, Check, CheckCheck, Megaphone, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { type LoadFailure, toFailure } from '../lib/data';
+import { Empty, LoadError, Skeleton } from '../ui/States';
 import { timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
 import { Button } from '../ui/components/Button';
@@ -18,7 +20,8 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
 /** The member's inbox (FR-N01): opening an item marks it read. */
 export function Notifications() {
   const [items, setItems] = useState<Notification[] | null>(null);
-  const load = useCallback(() => api<{ items: Notification[] }>('/api/v1/notifications').then((r) => setItems(r.items)), []);
+  const [error, setError] = useState<LoadFailure | null>(null);
+  const load = useCallback(() => api<{ items: Notification[] }>('/api/v1/notifications').then((r) => { setItems(r.items); setError(null); }).catch((e: unknown) => setError(toFailure(e))), []);
   useEffect(() => { void load(); }, [load]);
   const unread = items?.filter((n) => !n.read_at).length ?? 0;
   const markRead = async (id: string) => { await api(`/api/v1/notifications/${id}/read`, { method: 'POST' }); await load(); };
@@ -35,8 +38,11 @@ export function Notifications() {
           </Button>
         )}
       </div>
+      {error ? <LoadError error={error} onRetry={() => void load()} what="notifications" /> : items === null ? <Skeleton rows={5} label="Loading notifications" /> : items.length === 0 ? (
+        <Empty icon={Bell} title="No notifications yet">You’ll hear here when something needs you: a document to acknowledge, a review, or a new announcement.</Empty>
+      ) : (
       <section className="card" aria-label="Notifications">
-        {items === null ? <div className="card-empty">Loading…</div> : items.length === 0 ? <div className="card-empty">No notifications yet.</div> : (
+        {(
           <ul className="rows">
             {items.map((n) => {
               const k = KIND[n.kind] ?? { icon: Bell, tone: 'gray' };
@@ -64,6 +70,7 @@ export function Notifications() {
           </ul>
         )}
       </section>
+      )}
     </>
   );
 }

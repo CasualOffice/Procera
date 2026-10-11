@@ -97,7 +97,7 @@ svg.lucide { stroke-width: 1.75; }
   .app { grid-template-columns: minmax(0, 1fr); }
   .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 8px; gap: 8px; border-bottom: 1px solid var(--color-border); }
   .sidebar .ws-switcher { width: auto; flex: 1; }
-  .search-btn, .nav-group-label, .user-btn-text { display: none; }
+  .nav-group-label, .user-btn-text { display: none; }
   .user-btn { width: auto; }
   .nav { flex-basis: 100%; order: 3; flex-direction: row; overflow-x: auto; gap: 2px; }
   .nav ul { flex-direction: row; }
@@ -116,3 +116,58 @@ svg.lucide { stroke-width: 1.75; }
 /* The sidebar sits on the shell background: secondary text uses text-on-tinted (AA). */
 .sidebar .ws-switcher-meta, .sidebar .nav-group-label, .sidebar .ws-switcher-chev, .sidebar .user-btn-email, .sidebar .nav a svg { color: var(--color-text-on-tinted); }
 .sidebar .nav a[aria-current='page'] svg { color: var(--color-text); }
+/* Search trigger: reads as a field, opens the palette. */
+.search-btn { display: flex; align-items: center; gap: 8px; height: 32px; margin: -6px 0 -4px; padding: 0 8px 0 9px; font: inherit; font-size: 13px; color: var(--color-text-on-tinted); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; box-shadow: var(--shadow-xs); transition: border-color 120ms, color 120ms; }
+.search-btn[data-hovered] { border-color: color-mix(in srgb, var(--color-text) 18%, transparent); color: var(--color-text); }
+.search-btn[data-focus-visible] { outline: none; box-shadow: 0 0 0 2px var(--frame), 0 0 0 4px var(--color-focus); }
+.search-btn span { flex: 1; text-align: left; }
+.search-btn kbd, .cmd kbd { font: inherit; font-family: var(--font-mono); font-size: 11px; line-height: 18px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); background: var(--fill-hover); color: var(--color-text-on-tinted); }
+
+/* Breadcrumb links */
+.crumbs a { color: var(--color-text-secondary); text-decoration: none; border-radius: 4px; padding: 2px 4px; margin: -2px -4px; }
+.crumbs a:hover { color: var(--color-text); background: var(--fill-hover); }
+
+/* Command palette: a quick, quiet sheet near the top of the screen. */
+.cmd-overlay { position: fixed; inset: 0; z-index: 120; background: rgb(25 23 20 / .28); display: flex; justify-content: center; align-items: flex-start; padding: 12vh 16px 16px; }
+.cmd-overlay[data-entering] { animation: fade-in 120ms var(--ease-out); }
+@keyframes fade-in { from { opacity: 0; } }
+.cmd-modal { width: min(640px, 100%); outline: none; }
+.cmd-modal[data-entering] { animation: pop-in 160ms var(--ease-out); }
+.cmd { display: flex; flex-direction: column; max-height: min(560px, 76vh); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; outline: none; font-size: 14px; }
+.cmd-input-row { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--line-subtle); }
+.cmd-input-icon { flex: none; color: var(--color-text-secondary); }
+.cmd-input { flex: 1; min-width: 0; height: 52px; border: 0; outline: none; background: transparent; font: inherit; font-size: 15.5px; color: var(--color-text); }
+.cmd-input::placeholder { color: var(--color-text-secondary); }
+.cmd-esc { flex: none; }
+.cmd-list { flex: 1; overflow-y: auto; padding: 6px; scroll-padding: 8px; }
+.cmd-group + .cmd-group { margin-top: 6px; }
+.cmd-group-label { padding: 8px 10px 4px; font-size: 12px; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); }
+.cmd-option { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 6px 10px; border-radius: 8px; cursor: pointer; color: var(--color-text); }
+.cmd-option[aria-selected='true'] { background: var(--fill-active); }
+.cmd-option-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; background: var(--fill-hover); color: var(--color-text-on-tinted); }
+.cmd-option-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cmd-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--font-weight-medium); }
+.cmd-snippet { font-size: 12.5px; color: var(--color-text-on-tinted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-snippet mark { background: color-mix(in srgb, #F5C542 38%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.cmd-option-hint { flex: none; font-size: 12px; color: var(--color-text-on-tinted); max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-enter { flex: none; color: var(--color-text-secondary); }
+.cmd-empty { padding: 28px 16px 32px; text-align: center; color: var(--color-text-secondary); font-size: 13px; }
+.cmd-empty p { margin: 0 auto; }
+.cmd-empty-title { color: var(--color-text); font-weight: var(--font-weight-medium); font-size: 14px; margin-bottom: 4px !important; }
+.cmd-foot { display: flex; gap: 16px; padding: 8px 14px; border-top: 1px solid var(--line-subtle); background: var(--color-bg); font-size: 12px; color: var(--color-text-secondary); }
+.cmd-foot span { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 640px) { .cmd-overlay { padding-top: 8px; } .cmd-foot { display: none; } .cmd { max-height: 80vh; } }
+
+/* The sidebar colour runs the full height of long pages (its content stays sticky). */
+@media (min-width: 861px) {
+  .app { background: linear-gradient(to right, var(--frame) calc(var(--sidebar-w) - 1px), var(--line-subtle) calc(var(--sidebar-w) - 1px) var(--sidebar-w), var(--panel) var(--sidebar-w)); }
+  .sidebar { border-right: 0; }
+}
+/* Mobile: the scrolling nav fades at its edge so it reads as "more to the right". */
+@media (max-width: 860px) {
+  .nav { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); padding-right: 24px; scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .search-btn { margin: 0; height: 36px; width: 36px; justify-content: center; padding: 0; order: 1; }
+  .user-btn { order: 2; }
+  .search-btn span, .search-btn kbd { display: none; }
+}

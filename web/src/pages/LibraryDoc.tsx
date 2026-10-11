@@ -13,6 +13,8 @@ import { TextField } from '../ui/components/TextField';
 import { DocBody } from '../ui/Doc';
 import { StepUpDialog } from '../ui/StepUp';
 import { setCrumb } from '../ui/AppShell';
+import { rememberRecent } from '../lib/recent';
+import { LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 
 interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
@@ -48,7 +50,14 @@ export function LibraryDoc({ id }: { id: string }) {
     }
   }, [id]);
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => { if (data) { setCrumb(data.artifact.title); document.title = `${data.artifact.title} · Procera`; } return () => setCrumb(null); }, [data]);
+  useEffect(() => {
+    if (data) {
+      setCrumb(data.artifact.title);
+      document.title = `${data.artifact.title} · Procera`;
+      rememberRecent(workspace?.workspace_id, { kind: data.artifact.kind, id: data.artifact.id, title: data.artifact.title, to: `/library/${data.artifact.id}` });
+    }
+    return () => setCrumb(null);
+  }, [data, workspace?.workspace_id]);
 
   /** Runs an action; on `step_up_required` asks to verify and retries once. */
   const act = async (fn: () => Promise<unknown>, done: string) => {
@@ -62,7 +71,8 @@ export function LibraryDoc({ id }: { id: string }) {
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t); }, [toast]);
 
   if (notFound) return <div className="page-head"><div><h1>Document not found</h1><p>It doesn’t exist or you don’t have access to it.</p></div></div>;
-  if (!data || !version) return <div className="doc"><div className="skeleton-list"><span /><span /><span /></div></div>;
+  if (!data && error) return <div className="doc"><LoadError error={{ message: error }} onRetry={() => { setError(null); void load(); }} what="this document" /></div>;
+  if (!data || !version) return <div className="doc"><Skeleton variant="doc" label="Loading document" /></div>;
 
   const a = data.artifact;
   const kind = KIND_TAG[a.kind];
@@ -85,7 +95,7 @@ export function LibraryDoc({ id }: { id: string }) {
       <dl className="props">
         <dt><CircleDot aria-hidden="true" size={15} /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
         <dt><GitBranch aria-hidden="true" size={15} /> Version</dt><dd>v{v.version_no}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
-        <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : '—'}</dd>
+        <dt><User aria-hidden="true" size={15} /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size={20} />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
         {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size={15} /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={people.get(r.reviewer_membership_id)?.display_name ?? '?'} size={20} /></span>)}</dd></>}
         {v.content_hash && <><dt><Hash aria-hidden="true" size={15} /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
       </dl>
@@ -100,6 +110,7 @@ export function LibraryDoc({ id }: { id: string }) {
       )}
 
       {/* Lifecycle actions for this version */}
+      {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} />}
       <div className="doc-actions">
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setDraft(blocksToText(blocks)); setEditing(true); }}><Pencil aria-hidden="true" size={15} /> Edit</Button>}
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button onPress={() => void act(() => api(`/api/v1/versions/${v.id}/submit`, { method: 'POST' }), 'Submitted.')} isDisabled={!blocks.length}><Send aria-hidden="true" size={15} /> Submit for review</Button>}
@@ -144,5 +155,37 @@ export function LibraryDoc({ id }: { id: string }) {
       <StepUpDialog isOpen={stepUp !== null} onClose={() => setStepUp(null)} onDone={() => { const f = stepUp; setStepUp(null); void f?.(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}
     </article>
+  );
+}
+
+const STEPS = [['draft', 'Draft'], ['in_review', 'In review'], ['approved', 'Approved'], ['published', 'Published']] as const;
+
+/**
+ * Where this version is in its lifecycle and what happens next, in one sentence (docs/05 §6).
+ * The stepper marks the current step with weight and finished steps with a check, not colour alone.
+ */
+function Lifecycle({ state, hasContent, approvals, required, canReview, canEdit, canPublish, publishedAt }: { state: string; hasContent: boolean; approvals: number; required: number; canReview: boolean; canEdit: boolean; canPublish: boolean; publishedAt: string | null }) {
+  const at = STEPS.findIndex(([k]) => k === state);
+  const next: Record<string, string> = {
+    draft: !hasContent ? 'This draft is empty. Add the content, then submit it for review.' : canEdit ? 'Only editors can see this draft. Submit it for review when it reads well.' : 'This draft is still being written.',
+    in_review: `Waiting for review: ${approvals} of ${required} ${required === 1 ? 'approval' : 'approvals'} so far.${canReview ? ' You can approve it or ask for changes.' : ''}`,
+    approved: canPublish ? 'Approved. Publish it to make it the version everyone reads.' : 'Approved and waiting to be published.',
+    published: `Published${publishedAt ? ` on ${shortDate(publishedAt)}` : ''}. This is the version everyone reads.`,
+    deprecated: 'A newer version replaced this one. It stays here for the record.',
+    retired: 'This document was retired. It stays here for the record.',
+  };
+  return (
+    <div className="lifecycle">
+      {at >= 0 && (
+        <ol className="lifecycle-steps" aria-label="Lifecycle">
+          {STEPS.map(([k, label], i) => (
+            <li key={k} className={i < at ? 'done' : i === at ? 'current' : ''} aria-current={i === at ? 'step' : undefined}>
+              <span className="lifecycle-mark" aria-hidden="true">{i < at || (i === at && state === 'published') ? <Check size={11} strokeWidth={3} /> : null}</span>{label}
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="lifecycle-next">{next[state] ?? ''}</p>
+    </div>
   );
 }

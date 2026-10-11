@@ -1,14 +1,18 @@
-import { Bell, BookOpen, Check, ChevronsUpDown, House, LogOut, Megaphone, Monitor, Moon, Sun, Users } from 'lucide-react';
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Search, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
 import { Avatar } from './Avatar';
+import { CommandPalette, shortcutLabel } from './CommandPalette';
+import { type NavKey, navGroups } from './nav';
 import './shell.css';
 
-export type NavKey = 'home' | 'inbox' | 'library' | 'announcements' | 'members' | 'none';
+export type { NavKey } from './nav';
 type Theme = 'auto' | 'light' | 'dark';
+/** A breadcrumb: a plain label (current page) or `[label, to]` for a link back. */
+export type Crumb = string | [string, string];
 
 function applyTheme(t: Theme) {
   if (t === 'auto') document.documentElement.removeAttribute('data-theme');
@@ -20,21 +24,15 @@ function applyTheme(t: Theme) {
   }
 }
 
-/** Workspace app shell (docs/05 §2.1): workspace switcher, permission-shaped navigation, account menu. */
-export function AppShell({
-  children,
-  current = 'home',
-  crumbs = [],
-  actions,
-}: {
-  children: React.ReactNode;
-  current?: NavKey;
-  crumbs?: string[];
-  actions?: React.ReactNode;
-}) {
+/**
+ * Workspace app shell (docs/05 §2.1): workspace switcher, search (⌘K), permission-shaped
+ * navigation in two groups, account menu, and linked breadcrumbs so every page has a way back.
+ */
+export function AppShell({ children, current = 'home', crumbs = [], actions }: { children: React.ReactNode; current?: NavKey; crumbs?: Crumb[]; actions?: React.ReactNode }) {
   const { user, workspace, workspaces, can, selectWorkspace, signOut } = useSession();
   const [unread, setUnread] = useState(0);
   const [memberCount, setMemberCount] = useState<number | null>(null);
+  const [palette, setPalette] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       return (localStorage.getItem('procera.theme') as Theme) || 'auto';
@@ -44,12 +42,22 @@ export function AppShell({
   });
   useEffect(() => applyTheme(theme), [theme]);
   const [crumbOverride, setCrumbOverride] = useState<string | null>(null);
+  const crumbKey = crumbs.map((c) => (typeof c === 'string' ? c : c[0])).join('/');
   useEffect(() => {
     const on = (e: Event) => setCrumbOverride((e as CustomEvent<string | null>).detail);
     window.addEventListener('procera:crumb', on);
     return () => window.removeEventListener('procera:crumb', on);
   }, []);
-  useEffect(() => setCrumbOverride(null), [current, crumbs.join('/')]);
+  useEffect(() => setCrumbOverride(null), [current, crumbKey]);
+
+  // ⌘K / Ctrl K opens search from anywhere in the app.
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); setPalette((o) => !o); }
+    };
+    window.addEventListener('keydown', on);
+    return () => window.removeEventListener('keydown', on);
+  }, []);
 
   useEffect(() => {
     if (!workspace) return;
@@ -61,18 +69,7 @@ export function AppShell({
   }, [workspace, can]);
 
   if (!workspace || !user) return null;
-
-  const work = [
-    { key: 'home' as const, label: 'Home', to: '/', icon: House, show: true },
-    { key: 'inbox' as const, label: 'Notifications', to: '/notifications', icon: Bell, show: true, count: unread },
-    { key: 'library' as const, label: 'Library', to: '/library', icon: BookOpen, show: can('policy:view') || can('sop:view') },
-    { key: 'announcements' as const, label: 'Announcements', to: '/announcements', icon: Megaphone, show: can('announcement:view') },
-  ];
-  const admin = [{ key: 'members' as const, label: 'Members', to: '/admin/members', icon: Users, show: can('member:invite') || can('role:view') }];
-  const groups = [
-    { label: 'Workspace', items: work.filter((i) => i.show) },
-    { label: 'Administration', items: admin.filter((i) => i.show) },
-  ].filter((g) => g.items.length);
+  const groups = navGroups(can);
 
   return (
     <div className="app">
@@ -117,20 +114,29 @@ export function AppShell({
           </Popover>
         </MenuTrigger>
 
+        <AriaButton className="search-btn" onPress={() => setPalette(true)} aria-keyshortcuts={shortcutLabel() === '⌘K' ? 'Meta+K' : 'Control+K'}>
+          <Search aria-hidden="true" size={15} />
+          <span>Search</span>
+          <kbd aria-hidden="true">{shortcutLabel()}</kbd>
+        </AriaButton>
+
         <nav className="nav" aria-label="Main">
           {groups.map((g) => (
             <div key={g.label}>
               <p className="nav-group-label">{g.label}</p>
               <ul>
-                {g.items.map((i) => (
-                  <li key={i.key}>
-                    <Link to={i.to} aria-current={i.key === current ? 'page' : undefined} aria-label={'count' in i && i.count ? `${i.label}, ${i.count} unread` : undefined}>
-                      <i.icon aria-hidden="true" size={16} />
-                      <span>{i.label}</span>
-                      {'count' in i && i.count ? <span className="nav-count" aria-hidden="true">{i.count > 99 ? '99+' : i.count}</span> : null}
-                    </Link>
-                  </li>
-                ))}
+                {g.items.map((i) => {
+                  const count = i.key === 'inbox' ? unread : 0;
+                  return (
+                    <li key={i.key}>
+                      <Link to={i.to} aria-current={i.key === current ? 'page' : undefined} aria-label={count ? `${i.label}, ${count} unread` : undefined}>
+                        <i.icon aria-hidden="true" size={16} />
+                        <span>{i.label}</span>
+                        {count ? <span className="nav-count" aria-hidden="true">{count > 99 ? '99+' : count}</span> : null}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           ))}
@@ -178,13 +184,18 @@ export function AppShell({
       <div className="panel">
         <header className="topbar">
           <ol className="crumbs" aria-label="Breadcrumb">
-            <li>{workspace.name}</li>
-            {crumbs.map((c, i) => <li key={c}>{i === crumbs.length - 1 && crumbOverride ? crumbOverride : c}</li>)}
+            {crumbs.map((c, i) => {
+              const last = i === crumbs.length - 1;
+              const label = typeof c === 'string' ? c : c[0];
+              const text = last && crumbOverride ? crumbOverride : label;
+              return <li key={label}>{typeof c !== 'string' && !last ? <Link to={c[1]}>{text}</Link> : <span aria-current={last ? 'page' : undefined}>{text}</span>}</li>;
+            })}
           </ol>
           <div className="topbar-actions">{actions}</div>
         </header>
         <main id="main" className="page" tabIndex={-1}>{children}</main>
       </div>
+      <CommandPalette isOpen={palette} onOpenChange={setPalette} />
     </div>
   );
 }

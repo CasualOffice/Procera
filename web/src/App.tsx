@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
-import { match, navigate, useRoute } from './lib/router';
+import { Compass } from 'lucide-react';
+import { Link, match, navigate, useRoute } from './lib/router';
 import { useSession } from './lib/session';
 import { AppShell, PlainShell } from './ui/AppShell';
+import { Empty, Skeleton } from './ui/States';
 import { ChooseWorkspace } from './pages/ChooseWorkspace';
 import { DesignGallery } from './pages/DesignGallery';
 import { Home } from './pages/Home';
@@ -17,13 +19,15 @@ function Redirect({ to }: { to: string }) {
   return null;
 }
 
+const ADMIN = 'Administration';
+
 export function App() {
   const { path } = useRoute();
   const { status } = useSession();
 
   // Public pages.
   if (path === '/design') return <AppShellPublic><DesignGallery /></AppShellPublic>;
-  if (status === 'loading') return <PlainShell><p className="muted" role="status">Loading…</p></PlainShell>;
+  if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   if (status === 'signed_out') {
     if (path !== '/sign-in') return <Redirect to={`/sign-in`} />;
     return <PlainShell><SignIn /></PlainShell>;
@@ -35,12 +39,13 @@ export function App() {
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
   const doc = match('/library/:id', path);
-  if (doc) return <AppShell current="library" crumbs={['Library', 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
+  if (doc) return <AppShell current="library" crumbs={[['Library', '/library'], 'Document']}><LibraryDoc id={doc.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
-  if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={['Administration', 'Members']}><Members /></AppShell>;
+  if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
   return (
     <AppShell current="none" crumbs={['Not found']}>
-      <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist or you don’t have access to it.</p></div></div>
+      <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist, or you don’t have access to it.</p></div></div>
+      <Empty icon={Compass} title="Nothing here" action={<Link className="btn btn-secondary link-btn" to="/">Back to Home</Link>}>Check the address, or press {navigator.platform.includes('Mac') ? '⌘K' : 'Ctrl K'} to search.</Empty>
     </AppShell>
   );
 }

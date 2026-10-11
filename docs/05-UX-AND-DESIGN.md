@@ -103,10 +103,22 @@ It is visually distinct: a dark chrome and a "SYSTEM" label in the header. It ha
 - Results are scoped to the active workspace and permission-filtered on the server.
 - Recent and frequent items show first. Fuzzy matching. Each result shows its type icon and shortcut.
 - Full search page: type facets (process, SOP, request, case, file, person), filters, and highlighted snippets. Restricted fields are never indexed.
+- **As built (R1, BPMS-031):**
+  - A "Search ⌘K" field sits under the workspace switcher; on narrow screens it becomes an icon button.
+  - Empty query: **Recent** (documents opened in this browser, per workspace, at most 6), **Go to** (the same permission-shaped list as the sidebar) and **Create** (New policy, New SOP, New announcement, New campaign, Invite people, each only with its permission).
+  - Typing: server results (`GET /api/v1/search`, documents and people) come first, with the matched words highlighted in the snippet. Up to 5 matching commands follow. Command matching is loose on labels ("gtm" finds "Go to Members") and exact on keywords.
+  - Keyboard: ↑/↓ move, Enter opens, Esc closes. The input is a combobox over a listbox (`aria-activedescendant`), and a polite live region announces the result count.
+  - A person opens Members filtered to that person until a member detail page exists.
 
 ## 3. Screen specifications
 
 For each screen: **Purpose · User · Components · States · Interactions · Mobile**. States always include *empty*, *loading* (skeletons, never spinners for layout), *error* (retry plus error id), *partial* (some sections unavailable) and *no-permission* (explanation plus "Request access" to the owner).
+
+**State kit as built (`web/src/ui/States.tsx`, UX-005):**
+- `Skeleton` comes in list, table and document shapes that match the final layout.
+- `Empty` has an icon, one line saying what the area is, one line saying how it fills, and at most one action. A filtered list that is empty offers "Clear filters" instead of the first-run copy.
+- `LoadError` replaces the content (never an empty list) and shows what happened plus "Try again". A 403 says who can help instead of offering a retry.
+- Copy rules: plain functional sentences, no em-dashes, sentence case. An empty cell stays blank, or names the absence ("No owner").
 
 ### 3.1 Home
 - **Purpose:** what needs me today.
@@ -485,8 +497,8 @@ These values are **normative**: components consume tokens only, and CI lint bloc
 
 | Token | Value | Standard |
 |---|---|---|
-| Font stack (default) | `"Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif`; mono `"IBM Plex Mono", ui-monospace, monospace` | Inter, IBM Plex and Source Sans 3 are all **SIL OFL 1.1** (self-hosted, no CDN). Noto covers non-Latin scripts. Verify in SP-07. |
-| Vetted workspace font choices | Inter · IBM Plex Sans · Source Sans 3 · System UI | Only these (metrics tested for layout and scripts) |
+| Font stack (default) | `"Geist", system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif`; mono `"Geist Mono", ui-monospace, monospace` | Geist and Geist Mono (2026-10-11, replacing Inter: Inter read as a generic default), Inter, IBM Plex and Source Sans 3 are all **SIL OFL 1.1** (self-hosted via `@fontsource-variable`, no CDN). Noto covers non-Latin scripts. Verify in SP-07. |
+| Vetted workspace font choices | Geist · Inter · IBM Plex Sans · Source Sans 3 · System UI | Only these (metrics tested for layout and scripts) |
 | Type scale (px) | 12 · 14 · **16** · 18 · 20 · 24 · 30 · 36 | Modular, ~1.125–1.25 |
 | Body default | **16px**, line-height **1.5** | Readability; WCAG 1.4.12 tolerance |
 | Dense tables | 14px, line-height 1.43 (20px), only in DataGrid compact density and with a user toggle back to 16 | — |

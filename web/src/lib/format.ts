@@ -9,7 +9,7 @@ export function timeAgo(iso: string | null | undefined): string {
 }
 
 export function shortDate(iso: string | null | undefined): string {
-  return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+  return iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 }
 
 export function slugify(s: string): string {
