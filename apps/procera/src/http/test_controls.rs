@@ -127,8 +127,31 @@ struct Drained {
 
 /// Waits until outbox, jobs and timers are idle. Nothing is asynchronous yet, so
 /// this is immediately idle; BPMS-029 and BPMS-083 wire the real queues in.
-async fn drain() -> Json<Drained> {
-    Json(Drained { idle: true, pending_jobs: 0, pending_timers: 0, pending_outbox: 0 })
+/// Drains the outbox (jobs and timers arrive with the runtime) and reports what is still pending.
+async fn drain(State(s): State<AppState>) -> Response {
+    let Some(d) = s.dispatcher.as_ref() else {
+        return Json(Drained { idle: true, pending_jobs: 0, pending_timers: 0, pending_outbox: 0 })
+            .into_response();
+    };
+    // Parallel tests keep writing events; retry a few passes before reporting what is left.
+    let mut pending = Ok(0);
+    for _ in 0..5 {
+        pending = match d.drain().await {
+            Ok(_) => d.pending().await,
+            Err(e) => Err(e),
+        };
+        if matches!(pending, Ok(0) | Err(_)) {
+            break;
+        }
+    }
+    match pending {
+        Ok(n) => {
+            let n = n as u64;
+            Json(Drained { idle: n == 0, pending_jobs: 0, pending_timers: 0, pending_outbox: n })
+                .into_response()
+        }
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string())),
+    }
 }
 
 /// Fault injection arrives with the runtime (BPMS-089).

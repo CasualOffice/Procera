@@ -138,7 +138,27 @@ async fn main() -> anyhow::Result<()> {
             {
                 tracing::warn!(bootstrap_token = %token, "platform not bootstrapped: POST /sysapi/v1/bootstrap with this one-time token (valid 24 h)");
             }
+            // Worker role (docs/03 §3): the outbox dispatcher runs in-process with `--all`.
+            let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+            let worker = match (&state.dispatcher, all) {
+                (Some(d), true) => {
+                    let d = d.clone();
+                    let mut rx = stop_rx.clone();
+                    tracing::info!("outbox dispatcher started");
+                    Some(tokio::spawn(async move {
+                        d.run(async move {
+                            let _ = rx.wait_for(|stop| *stop).await;
+                        })
+                        .await
+                    }))
+                }
+                _ => None,
+            };
             axum::serve(listener, http::router(state)).with_graceful_shutdown(shutdown_signal()).await?;
+            let _ = stop_tx.send(true);
+            if let Some(w) = worker {
+                let _ = w.await;
+            }
         }
     }
     Ok(())

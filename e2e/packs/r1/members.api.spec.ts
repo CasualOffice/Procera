@@ -109,7 +109,7 @@ test.describe('members and access @r1 @members', () => {
     expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email: uniqueEmail('y'), roles: ['member'] } })).status()).toBe(201);
   });
 
-  test('E2E-R1-MEM-07 pending invitations: list, revoke kills the token, resend issues a new one', async ({ request }) => {
+  test('E2E-R1-MEM-07 pending invitations: list, revoke kills the token, resend issues a new one; events are dispatched', async ({ request }) => {
     const { ws, owner } = await workspaceWithOwner(request);
     const email = await seedUser(request, 'carol');
     await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['member'] } });
@@ -127,6 +127,9 @@ test.describe('members and access @r1 @members', () => {
     const second = await inviteToken(request, ws.id, email);
     expect(second).not.toBe(first);
     expect((await carol.c.post('/api/v1/invitations/accept', { headers: auth, data: { token: second } })).status()).toBe(200);
+    // Invitation events reach the bus: draining the outbox leaves nothing deliverable.
+    const drained = await (await request.post('/__test/drain')).json();
+    expect(drained).toMatchObject({ idle: true, pending_outbox: 0 });
   });
 
   test('E2E-R1-MEM-08 admins cannot strip the owner; last owner is kept; role preview; access changes are audited', async ({ request }) => {

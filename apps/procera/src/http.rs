@@ -27,6 +27,8 @@ pub struct AppState {
     pub identity: Option<procera_identity::Identity>,
     pub platform: Option<procera_platform::Platform>,
     pub members: Option<procera_members::Members>,
+    /// Outbox dispatcher (BPMS-029); runs in the worker role (`serve --all`).
+    pub dispatcher: Option<Arc<procera_db::dispatch::Dispatcher<procera_db::dispatch::NullBus>>>,
     /// `__Host-` prefixed Secure cookies (default). Disable only for local HTTP development and E2E.
     pub secure_cookies: bool,
     /// Per-IP login attempts per minute, in front of the per-account backoff (default 30).
@@ -71,6 +73,10 @@ impl AppState {
                 ids,
             ));
             self.members = Some(members);
+            self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(
+                db.clone(),
+                procera_db::dispatch::NullBus,
+            )));
         }
         self
     }
@@ -85,6 +91,7 @@ impl AppState {
             identity: None,
             platform: None,
             members: None,
+            dispatcher: None,
             secure_cookies: true,
             login_rate_per_min: 30,
         }
@@ -108,6 +115,7 @@ impl AppState {
             identity: None,
             platform: None,
             members: None,
+            dispatcher: None,
             secure_cookies: true,
             login_rate_per_min: 30,
         }
