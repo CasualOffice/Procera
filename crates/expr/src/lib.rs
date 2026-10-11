@@ -12,9 +12,13 @@
 
 mod diag;
 mod types;
+mod value;
 
 pub use diag::{Code, Diagnostic, Span};
 pub use types::{Classification, Schema, Type, VarDecl};
+pub use value::{
+    Value, format_date, format_datetime, format_duration, parse_date, parse_datetime, parse_duration,
+};
 
 /// Longest accepted source, in bytes (SP-08: ≤ 4 KB).
 pub const MAX_SOURCE_LEN: usize = 4096;
