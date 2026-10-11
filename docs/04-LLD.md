@@ -354,6 +354,19 @@ CREATE TABLE announcements (workspace_id uuid NOT NULL, id uuid NOT NULL, title 
   category text, urgent boolean NOT NULL DEFAULT false, audience_rule jsonb NOT NULL, audience_snapshot_count int,
   publish_at timestamptz, expires_at timestamptz, pinned boolean NOT NULL DEFAULT false, comments_enabled boolean,
   campaign_id uuid, state text NOT NULL, author_membership_id uuid NOT NULL, PRIMARY KEY (workspace_id, id));
+-- As built (0014, BPMS-047, crate `procera-announcements`): `announcements` (title, `content` jsonb block document
+-- as in the library, `content_hash` frozen at publication, `audience` = members::audience::Audience, priority
+-- normal|critical, pinned, require_ack, publish_at, expires_at NOT NULL, state draft|pending_approval|scheduled|
+-- published|archived, approval_required decided at submission, channels resolved when publication is requested,
+-- decided_by/at/comment, published_by (NULL = scheduler), recipient_count, archived_*); a trigger freezes title,
+-- content, audience and require_ack once out of draft and forbids deletes. `announcement_recipients` is the
+-- audience snapshot taken at publication and holds the receipts (read_at; acked_at + ack_ip + ack_user_agent).
+-- Approval: `announcements.approval_required` off | for_workspace_wide (audience.all) | always; author ≠ approver
+-- when it applies. Expiry is derived (published and expires_at ≤ now → hidden from feeds, `expired: true`), not
+-- a state change. Scheduled publication: `discovery.announcements_due_workspaces(as_of)` + scheduler/`__test/drain`.
+-- Delivery: `announcement.published.v1` → notify consumer → in-app and/or email per channels (critical adds email),
+-- deduplicated per announcement and recipient. Category, comments, reactions, quiz, deadline/reminders/manager
+-- escalation and the campaign link (`campaign_id`) are not built yet.
 
 CREATE TABLE envelopes (workspace_id uuid NOT NULL, id uuid NOT NULL, campaign_id uuid, instance_id uuid,
   source_file_id uuid NOT NULL, rendered_file_id uuid NOT NULL, rendered_hash bytea NOT NULL,
