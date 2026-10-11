@@ -2,6 +2,12 @@
 //! `conformance/runtime/<group>/<case>/` compiles its `process.ir.json`, applies `script.json`,
 //! and must reproduce `expected.trace.jsonl` and `expected.final.json` exactly.
 //!
+//! Every case runs with the production [`CelEvaluator`] and with the [`MiniEvaluator`] stand-in,
+//! and both must give the same goldens. A `bundle.json` may narrow that with
+//! `"evaluators": ["cel"]` or `["mini"]` (a behaviour only one of them can show), set rule-table
+//! stand-ins (`rules`, a CEL expression per rule), the interpreter step budget (`budget`) and the
+//! expression budget for CEL (`expr_budget`).
+//!
 //! `PROCERA_BLESS=1 cargo test -p procera-runtime --test conformance` rewrites the expected
 //! files; review the diff before committing it.
 #![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -10,7 +16,9 @@ mod common;
 
 use common::*;
 use procera_runtime::testkit::MiniEvaluator;
-use procera_runtime::{Budget, Command, Event, InstanceState, TimerPurpose, TokenState};
+use procera_runtime::{
+    Budget, CelEvaluator, Command, Event, ExprBudget, InstanceState, TimerPurpose, TokenState,
+};
 use serde_json::{Map, Value, json};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -39,24 +47,46 @@ fn read_json(path: &Path) -> Value {
         .unwrap_or_else(|e| panic!("{}: {e}", path.display()))
 }
 
-fn harness(case: &Path) -> Harness {
-    let mut eval = MiniEvaluator::default();
-    let mut budget = Budget::default();
-    let bundle_path = case.join("bundle.json");
-    if bundle_path.exists() {
-        let bundle = read_json(&bundle_path);
-        for (k, v) in bundle["rules"].as_object().into_iter().flatten() {
-            eval.rules.insert(k.clone(), v.as_str().unwrap().to_owned());
-        }
-        for (k, v) in bundle["expressions"].as_object().into_iter().flatten() {
-            eval.overrides.insert(k.clone(), v.clone());
-        }
-        if let Some(n) = bundle["budget"]["max_steps"].as_u64() {
-            budget.max_steps = u32::try_from(n).unwrap();
-        }
+fn bundle(case: &Path) -> Value {
+    let path = case.join("bundle.json");
+    if path.exists() { read_json(&path) } else { json!({}) }
+}
+
+/// The evaluators a case runs with: both unless its bundle narrows them.
+fn evaluators(case: &Path) -> Vec<String> {
+    match bundle(case)["evaluators"].as_array() {
+        Some(list) => list.iter().map(|v| v.as_str().unwrap().to_owned()).collect(),
+        None => vec!["cel".to_owned(), "mini".to_owned()],
     }
-    let mut h = Harness::with(program(&read_json(&case.join("process.ir.json"))), eval);
-    h.budget = budget;
+}
+
+fn harness(case: &Path, evaluator: &str) -> Harness {
+    let bundle = bundle(case);
+    let program = program(&read_json(&case.join("process.ir.json")));
+    let rules = bundle["rules"].as_object().cloned().unwrap_or_default();
+    let mut h = match evaluator {
+        "cel" => {
+            let mut eval = CelEvaluator::default();
+            for (k, v) in &rules {
+                eval = eval.with_rule(k, v.as_str().unwrap(), program.schema()).unwrap();
+            }
+            if let Some(n) = bundle["expr_budget"]["max_steps"].as_u64() {
+                eval = eval.with_budget(ExprBudget { max_steps: n, ..ExprBudget::default() });
+            }
+            Harness::with(program, eval)
+        }
+        "mini" => {
+            let mut eval = MiniEvaluator::default();
+            for (k, v) in &rules {
+                eval.rules.insert(k.clone(), v.as_str().unwrap().to_owned());
+            }
+            Harness::with(program, eval)
+        }
+        other => panic!("unknown evaluator {other}"),
+    };
+    if let Some(n) = bundle["budget"]["max_steps"].as_u64() {
+        h.budget = Budget { max_steps: u32::try_from(n).unwrap(), ..Budget::default() };
+    }
     h
 }
 
@@ -210,34 +240,37 @@ fn runtime_conformance_suite() {
     assert!(all.len() >= 20, "expected the BPMS-082 fixture set, found {}", all.len());
     let mut failures = Vec::new();
     for case in &all {
-        let name = case.strip_prefix(repo_root().join("conformance/runtime")).unwrap().display().to_string();
-        let mut h = harness(case);
-        let script = read_json(&case.join("script.json"));
-        for (i, s) in script.as_array().unwrap().iter().enumerate() {
-            if let Err(e) = step(&mut h, s) {
-                panic!("{name}: step {i} {s}: {e}");
+        let base = case.strip_prefix(repo_root().join("conformance/runtime")).unwrap().display().to_string();
+        for (n, evaluator) in evaluators(case).iter().enumerate() {
+            let name = format!("{base} [{evaluator}]");
+            let mut h = harness(case, evaluator);
+            let script = read_json(&case.join("script.json"));
+            for (i, s) in script.as_array().unwrap().iter().enumerate() {
+                if let Err(e) = step(&mut h, s) {
+                    panic!("{name}: step {i} {s}: {e}");
+                }
             }
-        }
-        h.assert_replays();
-        let trace = trace_lines(h.state());
-        let fin = serde_json::to_string_pretty(&final_json(&h)).unwrap() + "\n";
-        let (tp, fp) = (case.join("expected.trace.jsonl"), case.join("expected.final.json"));
-        if bless {
-            std::fs::write(&tp, &trace).unwrap();
-            std::fs::write(&fp, &fin).unwrap();
-            continue;
-        }
-        // Compared as JSON values line by line: key order depends on serde_json features that other
-        // workspace crates may switch on (preserve_order), and is not part of the contract.
-        let lines =
-            |t: &str| t.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).collect::<Vec<_>>();
-        if std::fs::read_to_string(&tp).ok().map(|t| lines(&t)) != Some(lines(&trace)) {
-            failures.push(format!("{name}: trace differs:\n{trace}"));
-        }
-        if std::fs::read_to_string(&fp).ok().map(|t| serde_json::from_str::<Value>(&t).unwrap())
-            != Some(final_json(&h))
-        {
-            failures.push(format!("{name}: final state differs:\n{fin}"));
+            h.assert_replays();
+            let trace = trace_lines(h.state());
+            let fin = serde_json::to_string_pretty(&final_json(&h)).unwrap() + "\n";
+            let (tp, fp) = (case.join("expected.trace.jsonl"), case.join("expected.final.json"));
+            if bless && n == 0 {
+                std::fs::write(&tp, &trace).unwrap();
+                std::fs::write(&fp, &fin).unwrap();
+                continue;
+            }
+            // Compared as JSON values line by line: key order depends on serde_json features that
+            // other workspace crates may switch on (preserve_order), and is not part of the contract.
+            let lines =
+                |t: &str| t.lines().map(|l| serde_json::from_str::<Value>(l).unwrap()).collect::<Vec<_>>();
+            if std::fs::read_to_string(&tp).ok().map(|t| lines(&t)) != Some(lines(&trace)) {
+                failures.push(format!("{name}: trace differs:\n{trace}"));
+            }
+            if std::fs::read_to_string(&fp).ok().map(|t| serde_json::from_str::<Value>(&t).unwrap())
+                != Some(final_json(&h))
+            {
+                failures.push(format!("{name}: final state differs:\n{fin}"));
+            }
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));

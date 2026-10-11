@@ -1,0 +1,28 @@
+{
+  "commands": [
+    {
+      "command": "emit_event",
+      "topic": "instance.started"
+    },
+    {
+      "code": "IR-R001",
+      "command": "raise_incident",
+      "node": "d"
+    }
+  ],
+  "open_splits": 0,
+  "revision": 1,
+  "status": "running",
+  "tokens": [
+    {
+      "code": "IR-R001",
+      "node": "d",
+      "state": "incident"
+    }
+  ],
+  "variables": {
+    "amount": 10,
+    "divisor": 0,
+    "vip": false
+  }
+}
