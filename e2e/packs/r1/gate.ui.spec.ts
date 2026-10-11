@@ -345,7 +345,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const shade = (await note.locator('code').innerText()).trim();
     expect(shade).toMatch(/^#[0-9A-F]{6}$/);
     await axe(page);
-    await row.getByLabel('Reason for the change').fill('Company yellow');
+    await expect(row.getByLabel('Reason for the change')).toHaveCount(0); // branding needs no reason
     await row.getByRole('button', { name: 'Save' }).click();
     await expect(row.getByText('#FFE14D')).toBeVisible();
 
