@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 PGBIN=$(dirname "$(command -v initdb || echo /opt/homebrew/opt/postgresql@16/bin/initdb)")
 PGTMP=$(mktemp -d /tmp/procera-demo.XXXX); PORT=16599
-cleanup() { kill "${API_PID:-}" "${WEB_PID:-}" 2>/dev/null || true; "$PGBIN/pg_ctl" -D "$PGTMP" stop -m fast >/dev/null 2>&1 || true; rm -rf "$PGTMP"; }
+cleanup() { kill "${API_PID:-}" "${WEB_PID:-}" "${TICK_PID:-}" 2>/dev/null || true; "$PGBIN/pg_ctl" -D "$PGTMP" stop -m fast >/dev/null 2>&1 || true; rm -rf "$PGTMP"; }
 trap cleanup EXIT
 "$PGBIN/initdb" -D "$PGTMP" -U postgres --auth=trust -E UTF8 >/dev/null
 "$PGBIN/pg_ctl" -D "$PGTMP" -o "-p $PORT -c unix_socket_directories='' -c listen_addresses=127.0.0.1" -l "$PGTMP/log" start >/dev/null
@@ -17,6 +17,8 @@ PROCERA_DATABASE_URL="postgres://procera_app@127.0.0.1:$PORT/postgres" PROCERA_M
   PROCERA_INSECURE_COOKIES=true PROCERA_PUBLIC_URL=http://127.0.0.1:5173 PROCERA_BIND=127.0.0.1:18500 \
   target/debug/procera serve --all >/tmp/procera-demo.log 2>&1 & API_PID=$!
 until curl -fs -o /dev/null http://127.0.0.1:18500/healthz; do sleep 0.2; done
+# The e2e build has a test clock that stands still; keep it in step with real time for the demo.
+(while sleep 15; do curl -fs -o /dev/null -X POST -H 'content-type: application/json' -d '{"advance":"PT15S"}' http://127.0.0.1:18500/__test/clock || exit 0; done) & TICK_PID=$!
 API=http://127.0.0.1:18500 node scripts/demo-seed.mjs | tee /tmp/procera-demo-credentials.json
 (cd web && PROCERA_API_URL=http://127.0.0.1:18500 exec ./node_modules/.bin/vite --port 5173 --strictPort --host 127.0.0.1 >/tmp/procera-demo-web.log 2>&1) & WEB_PID=$!
 until curl -fs -o /dev/null http://127.0.0.1:5173/; do sleep 0.2; done

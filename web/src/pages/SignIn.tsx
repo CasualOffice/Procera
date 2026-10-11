@@ -42,13 +42,13 @@ export function SignIn() {
     return (
       <>
         <h1>Two-step verification</h1>
-        <p className="lede">Enter the 6-digit code from your authenticator app, or one of your recovery codes.</p>
+        <p className="lede">Enter the 6-digit code from your authenticator app, or a recovery code.</p>
         {error && <Notice tone="danger" title={error} />}
         <Form className="stack" onSubmit={(e) => { e.preventDefault(); void run(() => completeMfa(mfaToken, code)); }}>
           <TextField label="Code" value={code} onChange={setCode} isRequired autoComplete="one-time-code" autoFocus />
           <div className="actions">
-            <Button type="submit" isDisabled={busy}>Verify</Button>
-            <Button variant="secondary" onPress={() => { setMfaToken(null); setCode(''); setError(null); }}>Back</Button>
+            <Button type="submit" className="btn-block" isDisabled={busy}>Verify</Button>
+            <Button variant="ghost" onPress={() => { setMfaToken(null); setCode(''); setError(null); }}>Use a different account</Button>
           </div>
         </Form>
       </>
@@ -58,7 +58,7 @@ export function SignIn() {
   return (
     <>
       <h1>Sign in to Procera</h1>
-      <p className="lede">Turn processes into progress.</p>
+      <p className="lede">Welcome back. Sign in with your work account.</p>
       {error && <Notice tone="danger" title={error} />}
       <Form
         className="stack"
@@ -73,9 +73,10 @@ export function SignIn() {
         <TextField label="Work email" type="email" value={email} onChange={setEmail} isRequired autoComplete="username" autoFocus />
         <TextField label="Password" type="password" value={password} onChange={setPassword} isRequired autoComplete="current-password" />
         <div className="actions">
-          <Button type="submit" isDisabled={busy}>Sign in</Button>
+          <Button type="submit" className="btn-block" isDisabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
         </div>
       </Form>
+      <p className="auth-foot">Protected by two-step verification. Lost access? Ask your workspace admin.</p>
     </>
   );
 }

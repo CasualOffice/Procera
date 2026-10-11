@@ -27,13 +27,12 @@ export function App() {
   if (status === 'choose_workspace') return <PlainShell><ChooseWorkspace /></PlainShell>;
   if (path === '/sign-in') return <Redirect to="/" />;
 
-  if (path === '/') return <AppShell current="home"><Home /></AppShell>;
-  if (path === '/notifications') return <AppShell current="none"><Notifications /></AppShell>;
+  if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
+  if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (match('/x/:never', path)) return null;
   return (
-    <AppShell current="none">
-      <h1>Page not found</h1>
-      <p className="lede">This page doesn’t exist or you don’t have access to it.</p>
+    <AppShell current="none" crumbs={['Not found']}>
+      <div className="page-head"><div><h1>Page not found</h1><p>This page doesn’t exist or you don’t have access to it.</p></div></div>
     </AppShell>
   );
 }
@@ -45,12 +44,10 @@ function AppShellPublic({ children }: { children: React.ReactNode }) {
 
 function PlainShellWide({ children }: { children: React.ReactNode }) {
   return (
-    <>
+    <div className="gallery">
       <a className="skip-link" href="#main">Skip to main content</a>
-      <header className="shell-header">
-        <span className="shell-brand"><img src="/procera-symbol.png" alt="" width={24} height={24} /><span>Procera</span></span>
-      </header>
-      <main id="main" className="shell-main" tabIndex={-1}>{children}</main>
-    </>
+      <header className="gallery-head"><img src="/procera-symbol.png" alt="" width={24} height={24} /><span>Procera</span></header>
+      <main id="main" className="gallery-main" tabIndex={-1}>{children}</main>
+    </div>
   );
 }

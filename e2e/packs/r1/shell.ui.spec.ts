@@ -26,6 +26,7 @@ async function signIn(page: Page, email: string, recovery: string) {
 
 test.describe('app shell @r1 @ui', () => {
   test.beforeEach(async ({ request }) => {
+    test.slow(); // each scenario provisions workspaces and signs in through the browser
     test.skip(!(await hasDatabase(request)), 'needs a database-backed e2e build');
   });
 
@@ -39,9 +40,10 @@ test.describe('app shell @r1 @ui', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Library' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Admin' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Members' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Get started' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Set up Acme' })).toBeVisible();
+    await expect(page.getByRole('region', { name: 'Summary' })).toBeVisible();
     await axe(page);
     // The session survives a reload (refresh cookie, access token only in memory).
     await page.reload();
@@ -79,11 +81,11 @@ test.describe('app shell @r1 @ui', () => {
     await page.getByRole('button', { name: 'Beta Corp' }).click();
     await expect(page.getByRole('button', { name: /Workspace: Beta Corp/ })).toBeVisible();
     // A plain member of Beta sees no Admin.
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin' })).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toHaveCount(0);
     await page.getByRole('button', { name: /Workspace: Beta Corp/ }).click();
     await page.getByRole('menuitem', { name: 'Acme' }).click();
     await expect(page.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toBeVisible();
   });
 
   test('E2E-R1-UI-04 the bell shows unread notifications; the inbox marks them read', async ({ page, request }) => {
@@ -96,7 +98,7 @@ test.describe('app shell @r1 @ui', () => {
     await request.post('/__test/drain');
 
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    const bell = page.getByRole('link', { name: /Notifications, \d+ unread/ });
+    const bell = page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /Notifications, \d+ unread/ });
     await expect(bell).toBeVisible();
     await bell.click();
     await expect(page.getByRole('heading', { level: 1, name: 'Notifications' })).toBeVisible();
@@ -106,13 +108,25 @@ test.describe('app shell @r1 @ui', () => {
     await expect(page.getByText('All caught up')).toBeVisible();
   });
 
-  test('E2E-R1-UI-05 sign out ends the session; reloading stays signed out', async ({ page, request }) => {
+  test('E2E-R1-UI-05 sign out from the account menu ends the session; reloading stays signed out; theme choice persists', async ({ page, request }) => {
     const { ownerEmail, owner } = await workspaceWithOwner(request);
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await page.getByRole('button', { name: /Workspace: Acme/ }).click();
+    await page.getByRole('button', { name: /Account:/ }).click();
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Sign in to Procera' })).toBeVisible();
     await page.reload();
     await expect(page).toHaveURL(/\/sign-in$/);
+  });
+
+  test('E2E-R1-UI-06 theme can be switched from the account menu and survives a reload; dark theme is accessible', async ({ page, request }) => {
+    const { ownerEmail, owner } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await page.getByRole('button', { name: /Account:/ }).click();
+    await page.getByRole('menuitem', { name: 'Dark' }).click();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await axe(page);
   });
 });

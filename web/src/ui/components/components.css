@@ -80,3 +80,25 @@
 .tab[data-focus-visible] { outline: var(--focus-width) solid var(--color-focus); outline-offset: -2px; }
 .tabpanel { outline: none; }
 .tabpanel[data-focus-visible] { outline: var(--focus-width) solid var(--color-focus); outline-offset: var(--focus-offset); }
+
+/* Compact controls in the app frame (research spec: 32px default, 6px radius; targets ≥ 24px, WCAG 2.5.8). */
+.app .btn, .auth .btn { min-height: 32px; min-width: 32px; padding: 0 12px; font-size: 13px; font-weight: var(--font-weight-medium); border-radius: 6px; gap: 6px; transition: background-color 120ms, box-shadow 120ms, transform 80ms; }
+.app .btn[data-pressed], .auth .btn[data-pressed] { transform: scale(.98); }
+.app .btn-sm { min-height: 28px; padding: 0 10px; font-size: 12px; }
+.auth .btn { min-height: 40px; font-size: 14px; }
+.auth .btn-block { width: 100%; }
+.app .btn-primary, .auth .btn-primary { box-shadow: var(--highlight), var(--shadow-sm); }
+.app .btn-secondary, .auth .btn-secondary { background: var(--color-surface); border-color: var(--line); box-shadow: var(--shadow-xs); }
+.app .btn-secondary[data-hovered], .auth .btn-secondary[data-hovered] { background: var(--color-surface); border-color: color-mix(in srgb, var(--color-text) 18%, transparent); }
+.app .btn-ghost, .auth .btn-ghost { color: var(--color-text-secondary); text-decoration: none; }
+.app .btn-ghost[data-hovered], .auth .btn-ghost[data-hovered] { background: var(--fill-hover); color: var(--color-text); }
+/* Focus: a ring with a gap in the background colour reads as intentional, never as an error. */
+.app .btn[data-focus-visible], .auth .btn[data-focus-visible], .nav a:focus-visible, .ws-switcher[data-focus-visible], .user-btn[data-focus-visible] { outline: none; box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--color-focus); }
+.app .field, .auth .field { max-width: none; gap: 6px; }
+.app .field-label, .auth .field-label { font-size: 13px; font-weight: var(--font-weight-medium); }
+.app .field-input, .auth .field-input { min-height: 36px; padding: 0 10px; border-radius: 6px; border-color: var(--color-border-strong); font-size: 14px; box-shadow: var(--shadow-xs); transition: border-color 120ms, box-shadow 120ms; }
+.auth .field-input { min-height: 40px; }
+.app .field-input[data-hovered], .auth .field-input[data-hovered] { border-color: color-mix(in srgb, var(--color-text) 55%, var(--color-border-strong)); }
+.app .field-input[data-focused], .auth .field-input[data-focused] { outline: none; border-color: var(--color-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 12%, transparent); }
+.app .field-input[data-focus-visible], .auth .field-input[data-focus-visible] { outline: none; }
+.app .notice, .auth .notice { border-radius: 8px; border-left-width: 3px; font-size: 13px; margin-bottom: var(--space-4); }
