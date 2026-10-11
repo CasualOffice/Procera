@@ -63,6 +63,8 @@ svg.lucide { stroke-width: 1.75; }
 .auth-card .stack { gap: 16px; }
 .auth-card .actions { margin-top: 4px; }
 .auth-foot { margin: 24px 0 0; padding-top: 20px; border-top: 1px solid var(--line-subtle); font-size: 12.5px; color: var(--color-text-secondary); text-align: center; }
+.auth-or { display: flex; align-items: center; gap: 0.75rem; margin: 1.25rem 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--line-subtle); }
 .auth-legal { margin: 0; text-align: center; font-size: 12.5px; color: var(--color-text-secondary); }
 @media (max-width: 480px) { .auth { padding: 32px 16px; place-items: start center; } .auth-card { padding: 28px 22px 24px; border-radius: 12px; } }
 
