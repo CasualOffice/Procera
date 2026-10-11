@@ -2674,6 +2674,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "procera-runtime"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-ir",
+ "procera-kernel",
+ "proptest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "uuid",
+]
+
+[[package]]
 name = "procera-search"
 version = "0.0.0"
 dependencies = [

@@ -5,7 +5,7 @@ resolver = "3"
 members = ["crates/kernel", "crates/crypto", "crates/cache", "crates/db", "crates/audit", "crates/identity", "crates/access", "crates/members",
     "crates/settings",
     "crates/notify", "crates/keys", "crates/files",
-    "crates/library", "crates/ir", "crates/campaigns", "crates/announcements", "crates/search", "crates/platform", "apps/procera", "conformance"]
+    "crates/library", "crates/ir", "crates/runtime", "crates/campaigns", "crates/announcements", "crates/search", "crates/platform", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
 
@@ -45,6 +45,7 @@ procera-keys = { path = "crates/keys" }
 procera-files = { path = "crates/files" }
 procera-library = { path = "crates/library" }
 procera-ir = { path = "crates/ir" }
+procera-runtime = { path = "crates/runtime" }
 procera-campaigns = { path = "crates/campaigns" }
 procera-announcements = { path = "crates/announcements" }
 procera-search = { path = "crates/search" }
