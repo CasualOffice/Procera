@@ -80,6 +80,14 @@ Documents, Announcements and Cases are **modules** that a workspace can switch o
 - **(+) New** is contextual: Request, Process (template or blank), SOP, Case.
 - Mobile (≤ 640 px): bottom bar with Home · My Work · Requests · Search · More.
 
+**Approved redesign (owner, 2026-10-12; research in docs/design/ia-competitive-analysis.md, audit in docs/design/ia-audit.md).** The as-built R1 sidebar listed up to 17 items for an owner, in two flat groups, the same for every job. It is replaced by:
+- **Everyday sidebar, permission-shaped, 3–6 items:** Home · Library · Announcements for everyone; **My documents** for people who can create documents; **Campaigns** for people who can run or view them; **Admin** for anyone with an admin permission. The bell (Notifications, with the unread count) sits beside Search. Templates leave the sidebar: they are a starting point (Library "Start from a template", the New menu and ⌘K).
+- **Library tabs:** All documents · Applies to me (the policy portal; `/policies` opens this tab) · My documents (documents I own).
+- **Announcements tabs:** Feed · Manage (with compose or approve permission; `/admin/announcements` opens this tab).
+- **Admin mode:** `/admin` is a hub. On any admin page the sidebar switches to the admin groups, with "Back to workspace" at the top: **Overview** · **People** (Members, Departments, Groups, Roles & access, People & access) · **Content & communication** (Templates) · **Data & security** (Audit log, Files, Retention, Encryption) · **Workspace** (Settings). Members who only have `audit:view_own` reach their own history from the account menu ("My activity"), not from Admin.
+- **Home:** "Needs you" first (acknowledgements, reviews, announcements to confirm), grouped Overdue / This week / Later; then role cards. Owners and admins see a **Set up your workspace** checklist until it is complete (§3.1).
+- Old URLs keep working.
+
 ### 2.2 Workspace Admin console (`/admin`)
 
 ```
@@ -127,6 +135,11 @@ For each screen: **Purpose · User · Components · States · Interactions · Mo
 - **Role-aware sections:** process owners see SLA risk for their processes; admins see a link to Overview.
 - **Empty:** the first-run checklist. For a workspace admin it is: install a template → invite people → publish. For members it is: "Browse the library".
 - **Mobile:** single column, action cards first.
+
+- **Workspace onboarding (approved 2026-10-12, UX-037 subset):**
+  - **Setup checklist** on Home for people with `workspace:settings.manage`, each step ticked from real data, never from clicks: name and brand the workspace (accent or logo set, or name changed from the default) · add departments (≥ 1) · invite people (≥ 1 other member or open invitation) · give out roles (a grant beyond Member) · publish a first policy or install a starter pack (≥ 1 published document) · ask everyone to acknowledge (≥ 1 campaign) · require two-step verification for admins (`auth.mfa.required_roles` includes admins). It can be hidden per person (browser storage) and reopened from the account menu; it disappears once complete.
+  - **Guided setup (`/welcome`)**, opened from the checklist: 1 Name, logo, colour and time zone · 2 Starting point (install the starter template packs) · 3 Departments (one per line) · 4 Invite people (emails with a role). Every step can be skipped and saves as it goes; it ends on Home. No forced redirect: deep links and invitations still land where they point.
+  - **Role welcomes** for people without admin rights: authors get "create → send for review → publish"; everyone else a single card saying where their tasks appear.
 
 ### 3.2 Library
 - **Purpose:** find and understand processes and SOPs. This is the employee "process portal".
