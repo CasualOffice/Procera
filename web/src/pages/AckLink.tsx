@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { Empty, Skeleton } from '../ui/States';
 
-interface Ack { id: string; subject: { artifact_id: string } }
+interface Ack { id: string; subject: { artifact_id?: string; link?: string } }
 
 /**
  * `/acknowledgements/{id}`, the link in acknowledgement emails and notifications (BPMS-046): opens
@@ -16,7 +16,7 @@ export function AckLink({ id }: { id: string }) {
     api<{ items: Ack[] }>('/api/v1/me/acknowledgements')
       .then((r) => {
         const a = r.items.find((x) => x.id === id);
-        if (a) navigate(`/library/${a.subject.artifact_id}`, { replace: true });
+        if (a) navigate(a.subject.link ?? `/library/${a.subject.artifact_id}`, { replace: true });
         else setMissing(true);
       })
       .catch(() => setMissing(true));

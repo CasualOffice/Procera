@@ -8,7 +8,7 @@ import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag } from '../ui/Tag';
 
-interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; acknowledged_at: string | null; subject: { artifact_id: string; kind: string; title: string; version_no: number } }
+interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; acknowledged_at: string | null; subject: { artifact_id?: string; announcement_id?: string; kind: string; title: string; version_no?: number; link?: string } }
 interface FeedItem { id: string; title: string; priority: string; pinned: boolean; require_ack: boolean; published_at: string | null; read_at: string | null; acked_at: string | null }
 
 function greeting() {
@@ -39,7 +39,8 @@ export function Home() {
   const reviews = (docs ?? []).filter((d) => d.state === 'in_review' && (can(`${d.kind}:review`) || can(`${d.kind}:approve`)));
   const news = (feed ?? []).filter((f) => (f.require_ack && !f.acked_at) || !f.read_at);
   const todo = [
-    ...(acks ?? []).map((a) => ({
+    // Announcement acknowledgements already appear from the feed below.
+    ...(acks ?? []).filter((a) => a.subject.kind !== 'announcement').map((a) => ({
       key: `ack-${a.id}`, kind: 'ack', icon: BookOpenCheck, tone: 'purple', sort: a.overdue ? 0 : 1,
       title: `Acknowledge “${a.subject.title}”`, meta: `${KIND_TAG[a.subject.kind]?.label ?? 'Document'} v${a.subject.version_no} · ${a.campaign_title}`,
       tag: dueTag(a.due_at, a.overdue), label: 'Read and acknowledge', to: `/library/${a.subject.artifact_id}`,
@@ -118,7 +119,7 @@ export function Home() {
                 {receipts.map((r) => (
                   <li key={r.id}>
                     <CircleCheck aria-hidden="true" size="0.9375rem" className="receipt-icon" />
-                    <span>You acknowledged <Link to={`/library/${r.subject.artifact_id}`}>{r.subject.title}</Link> v{r.subject.version_no}</span>
+                    <span>You acknowledged <Link to={r.subject.link ?? `/library/${r.subject.artifact_id}`}>{r.subject.title}</Link>{r.subject.version_no ? ` v${r.subject.version_no}` : ''}</span>
                     <time className="receipt-time" dateTime={r.acknowledged_at!}>{shortDate(r.acknowledged_at)}</time>
                   </li>
                 ))}

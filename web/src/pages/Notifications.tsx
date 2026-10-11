@@ -15,6 +15,12 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   campaign_assigned: { icon: BookOpenCheck, tone: 'purple' },
   campaign_reminder: { icon: BookOpenCheck, tone: 'purple' },
   campaign_escalated: { icon: BookOpenCheck, tone: 'red' },
+  announcement_ack_reminder: { icon: Megaphone, tone: 'orange' },
+  announcement_ack_escalated: { icon: Megaphone, tone: 'red' },
+  announcement_approval: { icon: Megaphone, tone: 'orange' },
+  announcement_decided: { icon: Megaphone, tone: 'orange' },
+  review_requested: { icon: BookOpenCheck, tone: 'blue' },
+  review_decided: { icon: BookOpenCheck, tone: 'blue' },
 };
 
 /** The member's inbox (FR-N01): opening an item marks it read. */

@@ -4,7 +4,7 @@ import { Form } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
 import { type Member, memberMap, useItems, useResource } from '../lib/data';
 import { type Block, blocksToText, shortDate, textToBlocks, timeAgo } from '../lib/format';
-import { navigate, useRoute } from '../lib/router';
+import { Link, navigate, useRoute } from '../lib/router';
 import { useSession } from '../lib/session';
 import { type Audience, AudiencePicker, EVERYONE, audienceOf, audienceSummary, isEmptyAudience, useDirectory } from '../ui/Audience';
 import { Avatar } from '../ui/Avatar';
@@ -22,7 +22,7 @@ export interface Announcement {
   /** Publishing needs someone else's approval (announcements.approval_required). */
   needs_approval?: boolean;
   id: string; title: string; content: { blocks?: Block[] }; audience: unknown; priority: string; pinned: boolean; require_ack: boolean;
-  publish_at: string | null; expires_at: string; state: string; expired: boolean; approval_required: boolean; channels: string[];
+  publish_at: string | null; expires_at: string; ack_by?: string | null; campaign_id?: string | null; state: string; expired: boolean; approval_required: boolean; channels: string[];
   author_membership_id: string; submitted_at: string | null; decided_by: string | null; decided_at: string | null; decision_comment: string | null;
   published_at: string | null; recipient_count: number | null; archived_at: string | null; archive_reason: string | null; created_at: string; revision: number;
 }
@@ -174,6 +174,7 @@ function AnnouncementDrawer({ a, people, onClose, onEdit, onChanged }: { a: Anno
         <dt>Acknowledgement</dt><dd>{a.require_ack ? 'People are asked to confirm they’ve read it' : 'Not asked'}</dd>
         {a.publish_at && <><dt>Publish</dt><dd>{new Date(a.publish_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</dd></>}
         <dt>Expires</dt><dd>{shortDate(a.expires_at)}</dd>
+        {a.require_ack && a.ack_by && <><dt>Confirm by</dt><dd>{shortDate(a.ack_by)}{a.campaign_id && <> · <Link to={`/admin/campaigns/${a.campaign_id}`}>Reminders and evidence</Link></>}</dd></>}
         {a.channels.length > 0 && <><dt>Sent by</dt><dd>{channelText(a.channels)}</dd></>}
       </dl>
       {live && stats && (
@@ -217,6 +218,7 @@ function Composer({ value, onClose, onSaved }: { value: Announcement | 'new' | n
   const [ack, setAck] = useState(false);
   const [later, setLater] = useState('');
   const [expires, setExpires] = useState('');
+  const [ackBy, setAckBy] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -226,6 +228,7 @@ function Composer({ value, onClose, onSaved }: { value: Announcement | 'new' | n
     setAudience(editing ? audienceOf(editing.audience) : EVERYONE); setCritical(editing?.priority === 'critical');
     setPinned(editing?.pinned ?? false); setAck(editing?.require_ack ?? false);
     setLater(toLocalInput(editing?.publish_at ?? null)); setExpires(editing ? editing.expires_at.slice(0, 10) : '');
+    setAckBy(editing?.ack_by ? editing.ack_by.slice(0, 10) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
   const save = async () => {
@@ -233,6 +236,7 @@ function Composer({ value, onClose, onSaved }: { value: Announcement | 'new' | n
     const payload = {
       title: title.trim(), content: { blocks: textToBlocks(body) }, audience, priority: critical ? 'critical' : 'normal', pinned, require_ack: ack,
       publish_at: later ? new Date(later).toISOString() : null, expires_at: expires ? new Date(`${expires}T23:59:00`).toISOString() : null,
+      ...(ack && ackBy ? { ack_by: new Date(`${ackBy}T23:59:00`).toISOString() } : {}),
     };
     try {
       const a = editing
@@ -263,6 +267,7 @@ function Composer({ value, onClose, onSaved }: { value: Announcement | 'new' | n
         </div>
         <div className="compose-dates">
           <div className="field"><label className="field-label" htmlFor="ann-at">Publish at <span className="muted">(optional)</span></label><input id="ann-at" type="datetime-local" className="field-input" value={later} onChange={(e) => setLater(e.target.value)} /><span className="field-description">Leave empty to send it as soon as it’s published.</span></div>
+          {ack && <div className="field"><label className="field-label" htmlFor="ann-ackby">Confirm by <span className="muted">(optional)</span></label><input id="ann-ackby" type="date" className="field-input" value={ackBy} max={expires || undefined} onChange={(e) => setAckBy(e.target.value)} /><span className="field-description">People get reminders until then, and their manager is told once if they haven’t confirmed. Leave empty for the workspace default.</span></div>}
           <div className="field"><label className="field-label" htmlFor="ann-exp">Expires on <span className="muted">(optional)</span></label><input id="ann-exp" type="date" className="field-input" value={expires} onChange={(e) => setExpires(e.target.value)} /><span className="field-description">Leave empty for the workspace default.</span></div>
         </div>
       </Form>

@@ -20,7 +20,7 @@ import { KIND_TAG, Tag, type TagColor } from '../ui/Tag';
 interface Progress { assigned: number; acknowledged: number; pending: number; overdue: number }
 export interface Campaign {
   id: string; title: string; state: string; audience: unknown; ack_text: string; due_at: string | null; due_in_secs: number; created_at: string; launched_at: string | null; ended_at: string | null; end_reason: string | null;
-  subject: { artifact_id: string; kind: string; title: string; version_id: string; version_no: number; semver?: string | null }; progress: Progress; audience_preview?: number; origin?: string; audience_snapshot?: 'at_launch' | 'dynamic';
+  subject: { artifact_id?: string; announcement_id?: string; kind: string; title: string; version_id?: string; version_no?: number; semver?: string | null; link?: string }; progress: Progress; audience_preview?: number; origin?: string; audience_snapshot?: 'at_launch' | 'dynamic';
 }
 interface Recipient { id: string; name: string; email: string; department: string | null; state: string; due_at: string; overdue: boolean; acknowledged_at: string | null; reminders_sent: number }
 
@@ -80,7 +80,7 @@ export function Campaigns() {
                   <td>
                     <span className="cell-entity">
                       <span className={`doc-icon tag-${KIND_TAG[c.subject.kind]?.color ?? 'gray'}`}>{c.subject.kind === 'sop' ? <ScrollText aria-hidden="true" size="0.875rem" /> : <FileText aria-hidden="true" size="0.875rem" />}</span>
-                      <span className="cell-stack"><Link to={`/admin/campaigns/${c.id}`}>{c.title}</Link><span className="cell-sub">{c.subject.title} v{c.subject.version_no}</span></span>
+                      <span className="cell-stack"><Link to={`/admin/campaigns/${c.id}`}>{c.title}</Link><span className="cell-sub">{c.subject.title}{c.subject.version_no ? ` v${c.subject.version_no}` : ' · announcement'}</span></span>
                     </span>
                   </td>
                   <td><Tag color={STATE[c.state]?.color} dot>{STATE[c.state]?.label ?? c.state}</Tag></td>
@@ -192,7 +192,7 @@ export function CampaignDetail({ id }: { id: string }) {
         <div>
           <div className="drawer-tags"><Tag color={STATE[c.state]?.color} dot>{STATE[c.state]?.label ?? c.state}</Tag>{c.origin === 'reack' && <Tag color="purple">Started by publishing</Tag>}</div>
           <h1>{c.title}</h1>
-          <p>Acknowledge <Link to={`/library/${c.subject.artifact_id}`}>{c.subject.title}</Link> v{c.subject.semver ?? c.subject.version_no} · {audienceSummary(audienceOf(c.audience), dir)}{c.due_at ? ` · due ${shortDate(c.due_at)}` : ''}</p>
+          <p>{c.subject.kind === 'announcement' ? 'Confirm reading' : 'Acknowledge'} <Link to={c.subject.link ?? `/library/${c.subject.artifact_id}`}>{c.subject.title}</Link>{c.subject.kind === 'announcement' ? '' : ` v${c.subject.semver ?? c.subject.version_no}`} · {audienceSummary(audienceOf(c.audience), dir)}{c.due_at ? ` · due ${shortDate(c.due_at)}` : ''}</p>
         </div>
         <div className="actions">
           {live && <Button variant="secondary" onPress={() => void download(`/api/v1/campaigns/${c.id}/evidence`, `campaign-${c.id}-evidence.csv`).then(() => setToast('Evidence downloaded.')).catch((e: unknown) => setActError(e instanceof Error ? e.message : 'Download failed.'))}><Download aria-hidden="true" size="0.9375rem" /> Evidence CSV</Button>}

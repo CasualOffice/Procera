@@ -286,11 +286,12 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect(page.getByRole('row', { name: /Jo Joiner/ }).getByText('Done')).toBeVisible();
   });
 
-  test('E2E-R1-09 an announcement to the Bangalore location reaches only people there; their acknowledgement shows in the receipts', async ({ page, browser, request }) => {
+  test('E2E-R1-09 J14: an announcement to Bangalore with a confirm-by date reaches only people there, runs on the campaign engine, escalates once to the manager of whoever did not confirm, and closes on archive', async ({ page, browser, request }) => {
     const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
     const ana = await member(request, owner, ws.id, 'ana');
+    const kim = await member(request, owner, ws.id, 'kim');
     const raj = await member(request, owner, ws.id, 'raj');
-    const csv = `email,department,location\n${ana.email},Finance,Bangalore\n${raj.email},Operations,Pune`;
+    const csv = `email,department,location,manager_email\n${ana.email},Finance,Bangalore,${ownerEmail}\n${kim.email},Finance,Bangalore,${ownerEmail}\n${raj.email},Operations,Pune,`;
     const imp = await owner.c.post('/api/v1/members/import?mode=apply', { headers: { ...owner.headers, 'content-type': 'text/csv' }, data: csv });
     expect(imp.status(), await imp.text()).toBe(200);
 
@@ -299,36 +300,62 @@ test.describe('R1 gate @r1 @ui', () => {
     await nav(page, 'Manage announcements');
     await page.getByRole('button', { name: 'New announcement' }).first().click();
     const dlg = page.getByRole('dialog', { name: 'New announcement' });
-    await dlg.getByLabel('Title').fill('Bangalore office power cut');
-    await dlg.getByLabel('Message').fill('Power is off on Saturday from 9 to 1.');
+    await dlg.getByLabel('Title').fill('Bangalore office move');
+    await dlg.getByLabel('Message').fill('We move to the new office on Monday.');
     await dlg.getByRole('button', { name: 'Specific people' }).click();
     const places = dlg.getByRole('group', { name: 'Locations' });
     await expect(places.getByRole('button', { name: /Pune/ })).toBeVisible();
     await places.getByRole('button', { name: /Bangalore/ }).click();
     await expect(dlg.getByText('Sends to:')).toContainText('Bangalore');
     await dlg.getByText('Ask people to confirm they’ve read it').click();
+    const due = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    await dlg.getByLabel(/^Confirm by/).fill(due);
     await axe(page);
     await dlg.getByRole('button', { name: 'Save draft' }).click();
     await page.getByRole('button', { name: 'Publish now' }).click(); // a targeted post needs no approval
-    await expect(page.getByText(/\(0 of 1\)/).first()).toBeVisible();
+    await expect(page.getByText(/\(0 of 2\)/).first()).toBeVisible();
+    await expect(page.getByText('Confirm by')).toBeVisible();
     await request.post('/__test/drain');
 
-    // Ana (Bangalore) has it; Raj (Pune) does not.
+    // Ana confirms; Raj (Pune) never sees it.
     const anaPage = await (await browser.newContext()).newPage();
     await signInPassword(anaPage, ana.email);
     await nav(anaPage, 'Announcements');
-    const post = anaPage.getByRole('listitem').filter({ hasText: 'Bangalore office power cut' });
-    await post.getByRole('button', { name: /Bangalore office power cut/ }).click();
+    const post = anaPage.getByRole('listitem').filter({ hasText: 'Bangalore office move' });
+    await post.getByRole('button', { name: /Bangalore office move/ }).click();
     await post.getByRole('button', { name: 'I’ve read this' }).click();
     await expect(post.getByText('Acknowledged')).toBeVisible();
     const rajPage = await (await browser.newContext()).newPage();
     await signInPassword(rajPage, raj.email);
     await nav(rajPage, 'Announcements');
-    await expect(rajPage.getByText('Bangalore office power cut')).toHaveCount(0);
+    await expect(rajPage.getByText('Bangalore office move')).toHaveCount(0);
 
-    await page.reload();
-    await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Bangalore office power cut' }).click();
-    await expect(page.getByText(/100%/).first()).toBeVisible();
+    // The campaign behind it counts Ana's confirmation.
+    await page.getByRole('link', { name: 'Reminders and evidence' }).click();
+    await expect(page.getByText('1 of 2')).toBeVisible();
+    await expect(page.getByRole('row', { name: /ana/ }).getByText('Done')).toBeVisible();
+    const campaignUrl = page.url();
+    const campaignId = campaignUrl.split('/').pop()!;
+
+    // Past the deadline, Kim's manager is told once.
+    expect((await request.post('/__test/campaigns/backdate', { data: { workspace: ws.id, campaign: campaignId, seconds: 15 * 86_400 } })).status()).toBe(204);
+    const kinds = async () => (await (await owner.c.get('/api/v1/notifications', { headers: owner.headers })).json()).items.map((n: { kind: string }) => n.kind) as string[];
+    await expect.poll(async () => { await request.post('/__test/drain'); return (await kinds()).filter((k) => k === 'announcement_ack_escalated').length; }).toBe(1);
+    await request.post('/__test/drain');
+    expect((await kinds()).filter((k) => k === 'announcement_ack_escalated')).toHaveLength(1);
+    await nav(page, 'Notifications');
+    await expect(page.getByText(/kim has not acknowledged Bangalore office move/)).toBeVisible();
+
+    // Archiving the announcement closes its campaign.
+    await nav(page, 'Manage announcements');
+    await page.getByRole('table', { name: 'Announcements' }).getByRole('button', { name: 'Bangalore office move' }).click();
+    await page.getByRole('button', { name: 'Archive' }).click();
+    const archive = page.getByRole('dialog', { name: 'Archive this announcement?' });
+    await archive.getByLabel(/^Reason/).fill('Move done');
+    await archive.getByRole('button', { name: 'Archive', exact: true }).click();
+    await expect(archive).toHaveCount(0);
+    await page.goto(campaignUrl);
+    await expect(page.getByText('the announcement was archived')).toBeVisible();
   });
 
   test('E2E-R1-03 branding: a too-light accent is adjusted for text with a live explanation, and every member sees the workspace colour', async ({ page, browser, request }) => {
