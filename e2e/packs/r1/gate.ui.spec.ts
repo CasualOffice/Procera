@@ -448,7 +448,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const local = new Date(later.getTime() - later.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
     await pub.getByLabel(/^Goes live/).fill(local);
     await pub.getByRole('button', { name: 'Schedule' }).click();
-    await expect(page.getByText(/^Scheduled: goes live/)).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: /^Scheduled for / })).toBeVisible();
     const versions = (await (await owner.c.get(`/api/v1/artifacts/${r.artifact.id}`, { headers: h })).json()).versions as { id: string; version_no: number; lifecycle: string }[];
     const v2 = versions.find((v) => v.version_no === 2)!;
     expect(v2.lifecycle).toBe('scheduled');
@@ -586,9 +586,11 @@ test.describe('R1 gate @r1 @ui', () => {
     // Grant it to Nina for the HR collection only.
     await hd.getByRole('button', { name: 'Grant role' }).click();
     const grant = page.getByRole('dialog', { name: 'Grant a role' });
-    await grant.getByLabel('Person').selectOption({ label: 'nina' });
+    await grant.getByRole('button', { name: /Person$/ }).click();
+    await page.getByRole('option', { name: 'nina', exact: true }).click();
     await grant.getByText('A collection', { exact: true }).click();
-    await grant.getByLabel('Collection').selectOption({ label: 'HR' });
+    await grant.getByRole('button', { name: /Collection$/ }).click();
+    await page.getByRole('option', { name: 'HR', exact: true }).click();
     await grant.getByRole('button', { name: 'Grant role' }).click();
     await expect(page.getByText('Role granted.')).toBeVisible();
 
