@@ -18,6 +18,7 @@ pub mod docx;
 pub mod governance;
 pub mod portal;
 pub mod reack;
+pub mod templates;
 
 pub use reack::{Change, PublishPlan, ReackPolicy, ReackSubject};
 
