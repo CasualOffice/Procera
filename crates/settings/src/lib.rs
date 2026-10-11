@@ -1,13 +1,16 @@
-//! Layered settings (BPMS-027, docs/20 §1): code default → platform floor → profile/workspace value.
-//! Department/collection overrides (layer 4) arrive with the directory; process-level values live
-//! in release bundles (ADR-0012).
+//! Layered settings (BPMS-027, docs/20 §1): code default → profile/workspace value → department
+//! override, clamped by the platform floor. Collection overrides arrive with collections;
+//! process-level values live in release bundles (ADR-0012).
 
 pub mod catalogue;
+mod scoped;
+
+pub use scoped::{DepartmentEffective, Snapshot};
 
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use catalogue::{CATALOGUE, Comparator, Def, Kind};
+use catalogue::{Comparator, Def, Kind};
 use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
 use procera_db::{DbError, SYSTEM_WORKSPACE, WsTx};
 use procera_kernel::{Clock, IdGen};
@@ -15,6 +18,9 @@ use serde::Serialize;
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+/// Outbox topic written in the same transaction as every settings change (docs/20 §5).
+pub const CHANGED_TOPIC: &str = "settings.changed.v1";
 
 #[derive(Debug, thiserror::Error)]
 pub enum SettingsError {
@@ -30,6 +36,14 @@ pub enum SettingsError {
     ReasonRequired(String),
     #[error("the setting changed (revision {current})")]
     StaleRevision { current: i64 },
+    #[error("unknown department")]
+    UnknownDepartment,
+    #[error("{0} cannot be overridden per department")]
+    NotDepartmentScopable(String),
+    #[error("this department has no override for {0}")]
+    NoOverride(String),
+    #[error("the settings changed since the plan was made")]
+    PlanChanged { current: String },
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -161,6 +175,22 @@ pub fn at_least_as_strict(cmp: Comparator, candidate: &Value, floor: &Value) -> 
 pub struct Layer {
     pub layer: &'static str,
     pub value: Value,
+    /// The department a `department` layer belongs to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_id: Option<Uuid>,
+}
+
+impl Layer {
+    fn new(layer: &'static str, value: Value) -> Self {
+        Self { layer, value, scope_id: None }
+    }
+}
+
+/// A department override on the path to the department being resolved (root first, target last).
+#[derive(Debug, Clone, Copy)]
+pub struct DeptOverride<'a> {
+    pub department_id: Uuid,
+    pub value: &'a Value,
 }
 
 /// The effective value of a key and how it was reached (docs/20 §1 explainer).
@@ -170,7 +200,8 @@ pub struct Effective {
     /// Catalogue group (docs/20 §2 section), for grouping in the UI.
     pub group: &'static str,
     pub value: Value,
-    /// Layer the value came from: `default`, `profile`, `workspace` or `platform_floor` (when clamped).
+    /// Layer the value came from: `default`, `profile`, `workspace`, `department` or
+    /// `platform_floor` (when clamped).
     pub source: &'static str,
     /// The stored workspace value is looser than a floor raised after it was saved (kept, not applied).
     pub clamped: bool,
@@ -179,7 +210,10 @@ pub struct Effective {
     pub immediate: bool,
     pub step_up: bool,
     pub kind: Kind,
+    /// Revision of the workspace value (the If-Match for `PUT /settings/{key}`).
     pub revision: i64,
+    /// A department may override this key (docs/20 §2 Ovr).
+    pub department_scopable: bool,
 }
 
 /// Pure resolution: default, optional floor, optional stored workspace value (with its origin).
@@ -188,19 +222,42 @@ pub fn resolve(
     floor: Option<&Value>,
     stored: Option<(&Value, &'static str, i64)>,
 ) -> Effective {
+    resolve_scoped(d, floor, stored, &[])
+}
+
+/// Resolution for a department: the workspace resolution, then each override on the department's
+/// path (root first, so the nearest wins), then the floor clamp. Overrides are ignored for keys
+/// that are not department-scopable. Never looser than the floor (property-tested).
+pub fn resolve_scoped(
+    d: &'static Def,
+    floor: Option<&Value>,
+    stored: Option<(&Value, &'static str, i64)>,
+    overrides: &[DeptOverride<'_>],
+) -> Effective {
     let default = (d.default)();
-    let mut layers = vec![Layer { layer: "default", value: default.clone() }];
+    let mut layers = vec![Layer::new("default", default.clone())];
     let floor = floor.filter(|_| d.floor.is_some());
     if let Some(f) = floor {
-        layers.push(Layer { layer: "platform_floor", value: f.clone() });
+        layers.push(Layer::new("platform_floor", f.clone()));
     }
     let (mut value, mut source, revision) = match stored {
         Some((v, origin, rev)) => {
-            layers.push(Layer { layer: origin, value: v.clone() });
+            layers.push(Layer::new(origin, v.clone()));
             (v.clone(), origin, rev)
         }
         None => (default, "default", 0),
     };
+    if d.department {
+        for o in overrides {
+            layers.push(Layer {
+                layer: "department",
+                value: o.value.clone(),
+                scope_id: Some(o.department_id),
+            });
+            value = o.value.clone();
+            source = "department";
+        }
+    }
     let mut clamped = false;
     if let (Some(cmp), Some(f)) = (d.floor, floor)
         && !at_least_as_strict(cmp, &value, f)
@@ -221,6 +278,7 @@ pub fn resolve(
         step_up: d.step_up,
         kind: d.kind,
         revision,
+        department_scopable: d.department,
     }
 }
 
@@ -272,9 +330,25 @@ impl Settings {
         reason: Option<&str>,
         author: Option<Uuid>,
     ) -> Result<Uuid, SettingsError> {
+        self.record_scoped(tx, (layer, None), key, before, after, reason, author).await
+    }
+
+    /// Appends a revision; `scope.1` is the department of a `department` layer.
+    #[allow(clippy::too_many_arguments)]
+    async fn record_scoped(
+        &self,
+        tx: &mut WsTx<'_>,
+        scope: (&str, Option<Uuid>),
+        key: &str,
+        before: Option<&Value>,
+        after: &Value,
+        reason: Option<&str>,
+        author: Option<Uuid>,
+    ) -> Result<Uuid, SettingsError> {
+        let (layer, scope_id) = scope;
         let id = self.ids.new_id();
-        sqlx::query("INSERT INTO settings_revisions (workspace_id, id, layer, key, before, after, reason, author_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)")
-            .bind(tx.ctx.workspace_id).bind(id).bind(layer).bind(key).bind(before).bind(after).bind(reason).bind(author).bind(self.clock.now())
+        sqlx::query("INSERT INTO settings_revisions (workspace_id, id, layer, scope_id, key, before, after, reason, author_id, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)")
+            .bind(tx.ctx.workspace_id).bind(id).bind(layer).bind(scope_id).bind(key).bind(before).bind(after).bind(reason).bind(author).bind(self.clock.now())
             .execute(tx.conn()).await?;
         Ok(id)
     }
@@ -290,9 +364,24 @@ impl Settings {
         reason: Option<&str>,
         client: (Option<String>, Option<String>),
     ) -> Result<(), SettingsError> {
+        self.audit_object(tx, actor_subject, action, ("settings_revision", revision_id), diff, reason, client)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn audit_object(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor_subject: Option<Uuid>,
+        action: &str,
+        object: (&str, Uuid),
+        diff: Value,
+        reason: Option<&str>,
+        client: (Option<String>, Option<String>),
+    ) -> Result<(), SettingsError> {
         let kind = if actor_subject.is_some() { ActorKind::User } else { ActorKind::System };
         let mut ev = AuditEvent::new(actor_subject, kind, Category::Config, action, Outcome::Allowed)
-            .object("settings_revision", revision_id);
+            .object(object.0, object.1);
         ev.diff = Some(diff);
         ev.reason = reason.map(str::to_owned);
         (ev.ip, ev.user_agent) = client;
@@ -315,24 +404,33 @@ impl Settings {
         Ok(())
     }
 
-    /// Every catalogue key resolved for the transaction's workspace.
+    /// Every catalogue key resolved for the transaction's workspace (read from the database).
     pub async fn effective_all(&self, tx: &mut WsTx<'_>) -> Result<Vec<Effective>, SettingsError> {
-        let floors = Self::floors(tx).await?;
-        let stored: Vec<(String, Value, Option<Uuid>, i64)> =
-            sqlx::query_as("SELECT key, value, updated_by, revision FROM workspace_settings")
-                .fetch_all(tx.conn())
-                .await?;
-        Ok(CATALOGUE
-            .iter()
-            .map(|d| {
-                let floor = floors.iter().find(|(k, _)| k == d.key).map(|(_, v)| v);
-                let s = stored
-                    .iter()
-                    .find(|(k, ..)| k == d.key)
-                    .map(|(_, v, by, rev)| (v, if by.is_some() { "workspace" } else { "profile" }, *rev));
-                resolve(d, floor, s)
-            })
-            .collect())
+        Ok(Snapshot::load(tx).await?.effective_all(&[]))
+    }
+
+    /// Records `settings.changed.v1` in the outbox, in the change's transaction, so every node can
+    /// drop cached effective values (docs/20 §5, CFG-004). `keys` are catalogue keys.
+    async fn changed(
+        tx: &mut WsTx<'_>,
+        keys: &[&str],
+        department: Option<Uuid>,
+        floors: bool,
+    ) -> Result<(), SettingsError> {
+        let ws = tx.ctx.workspace_id;
+        procera_db::outbox::enqueue(
+            tx,
+            procera_db::outbox::OutboxEvent {
+                topic: CHANGED_TOPIC,
+                aggregate_type: "workspace_settings",
+                aggregate_id: ws,
+                aggregate_revision: 0,
+                payload: json!({"keys": keys, "department_id": department, "floors": floors}),
+                trace_id: None,
+            },
+        )
+        .await?;
+        Ok(())
     }
 
     pub async fn effective(&self, tx: &mut WsTx<'_>, key: &str) -> Result<Effective, SettingsError> {
@@ -417,6 +515,7 @@ impl Settings {
             client,
         )
         .await?;
+        Self::changed(tx, &[d.key], None, false).await?;
         self.effective(tx, key).await
     }
 
@@ -486,20 +585,23 @@ impl Settings {
             client,
         )
         .await?;
+        Self::changed(tx, &[d.key], None, true).await?;
         Ok(PlatformValue { key: d.key, value: v, is_floor: true, revision, comparator: Some(cmp) })
     }
 
     /// Change history for one key in the transaction's workspace, newest first.
     pub async fn history(&self, tx: &mut WsTx<'_>, key: &str) -> Result<Vec<Revision>, SettingsError> {
         def(key)?;
-        let rows: Vec<(Uuid, String, Option<Value>, Value, Option<String>, Option<Uuid>, OffsetDateTime)> = sqlx::query_as(
-            "SELECT id, layer, before, after, reason, author_id, created_at FROM settings_revisions WHERE key = $1 ORDER BY created_at DESC, id DESC LIMIT 100",
+        #[allow(clippy::type_complexity)]
+        let rows: Vec<(Uuid, String, Option<Uuid>, Option<Value>, Value, Option<String>, Option<Uuid>, OffsetDateTime)> = sqlx::query_as(
+            "SELECT id, layer, scope_id, before, after, reason, author_id, created_at FROM settings_revisions WHERE key = $1 ORDER BY created_at DESC, id DESC LIMIT 100",
         ).bind(key).fetch_all(tx.conn()).await?;
         Ok(rows
             .into_iter()
-            .map(|(id, layer, before, after, reason, author_id, created_at)| Revision {
+            .map(|(id, layer, scope_id, before, after, reason, author_id, created_at)| Revision {
                 id,
                 layer,
+                scope_id,
                 before,
                 after,
                 reason,
@@ -514,6 +616,9 @@ impl Settings {
 pub struct Revision {
     pub id: Uuid,
     pub layer: String,
+    /// The department of a `department` revision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scope_id: Option<Uuid>,
     pub before: Option<Value>,
     pub after: Value,
     pub reason: Option<String>,
