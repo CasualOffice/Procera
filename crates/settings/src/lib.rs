@@ -4,8 +4,10 @@
 
 pub mod catalogue;
 mod scoped;
+mod switch;
 
 pub use scoped::{DepartmentEffective, Snapshot};
+pub use switch::{PlanItem, ProfilePlan, profile_managed_keys};
 
 use std::collections::BTreeSet;
 use std::sync::Arc;

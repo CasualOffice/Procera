@@ -1,4 +1,4 @@
-//! BPMS-027 remainder: department overrides (layer 4). Properties extend "never looser than the floor" to the
+//! BPMS-027 remainder: department overrides (layer 4) and profile switch plan/apply (CFG-017). Properties extend "never looser than the floor" to the
 //! department layer; the database tests run against real Postgres (and Valkey when configured).
 
 use procera_db::{WsCtx, test_support};
@@ -193,5 +193,45 @@ async fn department_overrides_inherit_and_clear() -> anyhow::Result<()> {
     tx.commit().await?;
     let report = procera_audit::verify(&t.db, ws).await?;
     assert_eq!((report.first_broken, report.checked), (None, 4), "one event per set or clear");
+    Ok(())
+}
+
+#[tokio::test]
+async fn profile_switch_plans_then_applies() -> anyhow::Result<()> {
+    let Some((t, ws, actor)) = fixture().await? else { return Ok(()) };
+    let s = svc();
+    let mut tx = t.db.begin_ws(ws).await?;
+    // Profile switch: plan, refuse a stale plan, apply, and nothing left to change afterwards.
+    let plan = s.plan_profile_switch(&mut tx, "standard", "regulated").await?;
+    let idle = plan.items.iter().find(|i| i.key == "auth.session.idle_timeout").expect("idle in plan");
+    assert_eq!((idle.current.clone(), idle.after.clone(), idle.clamped), (json!(1800), json!(900), false));
+    assert!(matches!(
+        s.apply_profile_switch(&mut tx, actor, "standard", "regulated", "audit finding", Some("stale"), c())
+            .await,
+        Err(SettingsError::PlanChanged { .. })
+    ));
+    assert!(matches!(
+        s.apply_profile_switch(&mut tx, actor, "standard", "regulated", " ", Some(&plan.basis), c()).await,
+        Err(SettingsError::ReasonRequired(_))
+    ));
+    let applied = s
+        .apply_profile_switch(
+            &mut tx,
+            actor,
+            "standard",
+            "regulated",
+            "audit finding",
+            Some(&plan.basis),
+            c(),
+        )
+        .await?;
+    assert_eq!(applied.items.len(), plan.items.len());
+    let e = s.effective(&mut tx, "auth.session.idle_timeout").await?;
+    assert_eq!((e.value, e.source), (json!(900), "profile"));
+    assert!(s.plan_profile_switch(&mut tx, "regulated", "regulated").await?.items.is_empty());
+
+    tx.commit().await?;
+    let report = procera_audit::verify(&t.db, ws).await?;
+    assert_eq!((report.first_broken, report.checked), (None, 1), "one event for the whole switch");
     Ok(())
 }
