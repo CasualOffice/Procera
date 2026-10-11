@@ -21,7 +21,7 @@ use procera_runtime::{
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::{EngineError, effects};
+use crate::{EngineError, effects, sla};
 
 /// Which published program an instance runs. Until release bundles exist (BPMS-084) the key and
 /// version name it, and the checksum pins the compiled IR.
@@ -289,6 +289,7 @@ impl Engine {
         .execute(tx.conn())
         .await?;
         effects::apply(self, tx, exe, st, &step.commands).await?;
+        sla::sync(self, tx, exe, before, st, stimulus.at).await?;
         let action = match (before, st.status) {
             (None, _) => "instance.started",
             (Some(_), InstanceStatus::Completed) => "instance.completed",

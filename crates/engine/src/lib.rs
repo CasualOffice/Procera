@@ -18,6 +18,8 @@ mod effects;
 pub mod engine;
 pub mod jobs;
 pub mod lease;
+pub mod scheduler;
+pub mod sla;
 pub mod store;
 
 pub use calendar::{BusinessDuration, Calendar, CalendarError, CalendarSpec};
@@ -26,6 +28,7 @@ pub use engine::{
     stored_status,
 };
 pub use lease::{Lease, Stale};
+pub use scheduler::{Lateness, LatenessSnapshot, Pass, Scheduler};
 pub use store::{CalendarVersion, calendar_by_id, calendar_by_ref, put_calendar};
 
 use procera_runtime::EventError;
