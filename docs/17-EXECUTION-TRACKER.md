@@ -64,10 +64,10 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-061 | FILE | Previews (image/PDF) in sandbox; Office preview spike | P0 | R1 | Backend | FR-F04, U-08 | No active content | M | BPMS-060 | In progress |
 | BPMS-062 | FILE | Workspace Files view, quotas, orphan cleanup | P0 | R1 | FE | FR-F06/F07 | Held files undeletable | M | BPMS-060,028 | In progress |
 | BPMS-063 | ADMIN | Workspace overview dashboard + people & access monitor | P0 | R1 | FE | FR-A01/A06 | Every tile drills down | L | BPMS-028 | Done |
-| BPMS-064 | AUD | Audit explorer, timelines, saved queries, export | P0 | R1 | Fullstack | FR-T03/T04 | P95<2s @10M | L | BPMS-026 | In progress |
+| BPMS-064 | AUD | Audit explorer, timelines, saved queries, export | P0 | R1 | Fullstack | FR-T03/T04 | P95<2s @10M | L | BPMS-026 | Done |
 | BPMS-065 | PLAT | System console: workspaces grid, quotas, health, system audit | P0 | R1 | FE | FR-S02–S09 | — | M | BPMS-020 | Done |
 | BPMS-120 | PILOT | Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks | P0 | R1 | Product | G3 | G3 checklist | L | M6 | Not started |
-| BPMS-080 | RT | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | P0 | R2 | Runtime | 11, ADR-0003 | All checks covered | L | BPMS-009 | Not started |
+| BPMS-080 | RT | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | P0 | R2 | Runtime | 11, ADR-0003 | All checks covered | L | BPMS-009 | In progress |
 | BPMS-081 | RT | Expression engine integration (typed, budgeted, WASM build) | P0 | R2 | Runtime | ADR-0010 | Budget exhaustion = incident | M | BPMS-009 | Not started |
 | BPMS-082 | RT | Interpreter: advance loop, tokens, splits/joins, end/terminate | P0 | R2 | Runtime | 04 §4 | Conformance green | L | BPMS-080 | Not started |
 | BPMS-083 | RT | Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks | P0 | R2 | Runtime | 04 §4.4, FR-E12 | T06; lateness SLO | L | BPMS-082 | Not started |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started |
 
-**Progress:** Done: 33 · In review: 0 · In progress: 8 · Blocked: 0 · Not started: 68 · Deferred: 0 (of 109)
+**Progress:** Done: 34 · In review: 0 · In progress: 8 · Blocked: 0 · Not started: 67 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -175,8 +175,9 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-061 | Previews (image/PDF) in sandbox; Office preview spike | In progress | Image/PDF previews: GET /files/{id}/preview-url (kind image|pdf|none) and GET /files/preview/{token} (own preview HMAC purpose, 2-minute TTL, re-authorized per request; clean PNG/JPEG/GIF/WebP/PDF only by recorded type plus fresh sniff, else 415; inline under CSP sandbox, nosniff, CORP same-origin, no-store; audited file.previewed); JPEG Exif/XMP/IPTC stripped from previews (files.exif_strip); Preview dialog on attachments. E2E-R1-FILE-04, E2E-R1-UI-34. Remaining: separate preview origin, EXIF strip at upload, Office preview (P1). |
 | BPMS-062 | Workspace Files view, quotas, orphan cleanup | In progress | Files admin view: usage against the storage quota, scan states, every file with uploader, use and scan result, delete (blocked while held by a version past draft), orphan report and purge (files.orphan_purge_after). E2E-R1-FILE-03, E2E-R1-UI-33. Remaining: legal hold and retention class per file, bulk actions, last accessed. |
 | BPMS-063 | Workspace overview dashboard + people & access monitor | Done | API: GET /admin/overview (needs-attention ranking: overdue acknowledgements, admins without MFA, documents past review, drafts in review, announcements to approve; acknowledgement metrics, published-versions series, security strip from the audit chain, departments; requests/storage reported as null with guidance until those modules ship) and GET /admin/people (MFA, last active, roles, dormant, privileged, expiring grants, pending invites, filters); migration 0018 discovery.member_login_failures. UI: Overview (typographic summary, ranked list, metric rows, security strip; time range + department in the URL) and People & access (filter chips). E2E-R1-ADM-01..02, E2E-R1-UI-23. |
-| BPMS-064 | Audit explorer, timelines, saved queries, export | In progress | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
+| BPMS-064 | Audit explorer, timelines, saved queries, export | Done | procera_audit::explorer and query: filtered newest-first keyset paging, view-own scope, member names, artifact timelines (own and version events), chain verify, saved queries, capped synchronous CSV/JSONL exports with step-up; POST /audit/query (AND/OR tree, allow-listed fields, depth 2); background export jobs (migration 0029) stored as the requester's encrypted file with notification; Audit log UI with filters, timelines and background exports. E2E-R1-AUDX-01..08, E2E-R1-AUD-01, E2E-R1-UI-17, 39. Later: verify-proof per sequence, the P95 < 2 s at 10 M events benchmark |
 | BPMS-065 | System console: workspaces grid, quotas, health, system audit | Done | System console (0022): workspaces grid with usage and quotas, suspend/reactivate/schedule deletion with step-up on the system chain, quota defaults per profile with the member quota enforced at invite, platform health, system audit explorer; console shell for system admins (metadata only, never workspace content). E2E-R1-SYS-01..09, E2E-R1-UI-40..41 (A-18) |
+| BPMS-080 | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | In progress | procera-ir crate: IR v1 model, compiler with the docs/11 §11 checks (IR-E001..E034, E100, W001-W002, I001; JSON-pointer diagnostics), JCS canonical form + sha256 checksum, semantic diff with apply; a test per code, property tests, conformance/compiler fixtures, golden checksums for the reference processes (A-21). Remaining: type checking with the BPMS-081 engine, environment wiring at publish (BPMS-084), declared perpetual waits. |
 | BPMS-066 | Retention policy per record class (policy only) | Done | Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26. |
 
 ## Domain backlogs (detail, owned by their docs)
@@ -186,7 +187,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 227 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 230 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

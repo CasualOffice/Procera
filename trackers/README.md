@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████████░░░░░░░░░░░░░░░░░░░░░  33/109 epics done  (30%)
-Partial   ██████████░░░░░░░░░░░░░░░░░░░░  34% counting in-progress epics as half done
-Tests     151 automated E2E scenarios · 122 Rust tests (incl. property tests)
-Status    done 33 · in review 0 · in progress 8 · blocked 0 · not started 68 · deferred 0
+Overall   █████████░░░░░░░░░░░░░░░░░░░░░  34/109 epics done  (31%)
+Partial   ██████████░░░░░░░░░░░░░░░░░░░░  35% counting in-progress epics as half done
+Tests     154 automated E2E scenarios · 186 Rust tests (incl. property tests)
+Status    done 34 · in review 0 · in progress 8 · blocked 0 · not started 67 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -18,7 +18,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | Release | Name | Window | Gate | Progress | Done |
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
-| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████░░░░` | 22/32 |
+| **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `█████████░░░` | 23/32 |
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `░░░░░░░░░░░░` | 0/17 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `██░░░░░░░░░░` | 1/8 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/13 |
@@ -37,7 +37,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-060 | Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs | **In progress** | procera-files (migration 0027): resumable chunked upload (offset-checked, resume from received), size limit and storage quota, SHA-256, magic-byte type with a platform deny list (executables, scripts, HTML, SVG), clamd INSTREAM scanner (built-in EICAR-only fallback, warned), quarantine and rejection, per-file DEK under the workspace KEK (rotated and shredded with it), local storage port, 5-minute signed download links re-authorized per request (nosniff, CSP sandbox), audited; attachments on draft versions fixed once past draft. E2E-R1-FILE-01..03, E2E-R1-UI-32..33. Remaining: S3-compatible storage backend, EXIF stripping at upload (previews done in BPMS-061), attachments elsewhere (forms, cases). |
 | BPMS-061 | Previews (image/PDF) in sandbox; Office preview spike | **In progress** | Image/PDF previews: GET /files/{id}/preview-url (kind image|pdf|none) and GET /files/preview/{token} (own preview HMAC purpose, 2-minute TTL, re-authorized per request; clean PNG/JPEG/GIF/WebP/PDF only by recorded type plus fresh sniff, else 415; inline under CSP sandbox, nosniff, CORP same-origin, no-store; audited file.previewed); JPEG Exif/XMP/IPTC stripped from previews (files.exif_strip); Preview dialog on attachments. E2E-R1-FILE-04, E2E-R1-UI-34. Remaining: separate preview origin, EXIF strip at upload, Office preview (P1). |
 | BPMS-062 | Workspace Files view, quotas, orphan cleanup | **In progress** | Files admin view: usage against the storage quota, scan states, every file with uploader, use and scan result, delete (blocked while held by a version past draft), orphan report and purge (files.orphan_purge_after). E2E-R1-FILE-03, E2E-R1-UI-33. Remaining: legal hold and retention class per file, bulk actions, last accessed. |
-| BPMS-064 | Audit explorer, timelines, saved queries, export | **In progress** | API done: procera_audit::explorer — filtered newest-first keyset paging, view-own scope, member names, artifact-aware object timelines, chain verify, private audited saved queries, capped CSV/JSONL exports with step-up that are themselves audited; E2E-R1-AUDX-01..06. UI: Audit log screen (chain-verified badge, filters, keyset paging, expandable records, object timelines in a drawer; E2E-R1-UI-17). Remaining: async export job, POST /audit/query |
+| BPMS-080 | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | **In progress** | procera-ir crate: IR v1 model, compiler with the docs/11 §11 checks (IR-E001..E034, E100, W001-W002, I001; JSON-pointer diagnostics), JCS canonical form + sha256 checksum, semantic diff with apply; a test per code, property tests, conformance/compiler fixtures, golden checksums for the reference processes (A-21). Remaining: type checking with the BPMS-081 engine, environment wiring at publish (BPMS-084), declared perpetual waits. |
 
 ## Done
 
@@ -72,6 +72,7 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 - [x] **BPMS-048** In-app notification centre + SMTP email + templates + digests — procera-notify (migrations 0011, 0023): templates in code (minijinja, strict, HTML auto-escaped), in-app inbox, sealed email queue with dedupe, SMTP delivery via lettre with backoff; digests (daily/weekly at the member's hour and time zone; only normal emails are digested), quiet hours (emails held until the window ends; critical override), bounce suppression on permanent SMTP rejection (global email_suppressions); member preferences with workspace defaults (notify.digest.*, notify.quiet_hours.*); Notification preferences page. E2E-R1-NOT-01..05, E2E-R1-UI-25. Later: localisation + terminology (CFG-008), per-day quiet hours (A-15), more event kinds as features land
 - [x] **BPMS-049** Postgres FTS + trgm, permission-filtered search — procera-search (migration 0015): Postgres FTS (english + simple) + pg_trgm fuzzy/prefix over SOPs, policies (artifact tsv kept current by triggers), members, departments, groups; one ranked list with escaped <mark> snippets; permission-filtered per type with Cedar before querying; RLS isolation; E2E-R1-SRCH-01..03
 - [x] **BPMS-063** Workspace overview dashboard + people & access monitor — API: GET /admin/overview (needs-attention ranking: overdue acknowledgements, admins without MFA, documents past review, drafts in review, announcements to approve; acknowledgement metrics, published-versions series, security strip from the audit chain, departments; requests/storage reported as null with guidance until those modules ship) and GET /admin/people (MFA, last active, roles, dormant, privileged, expiring grants, pending invites, filters); migration 0018 discovery.member_login_failures. UI: Overview (typographic summary, ranked list, metric rows, security strip; time range + department in the URL) and People & access (filter chips). E2E-R1-ADM-01..02, E2E-R1-UI-23.
+- [x] **BPMS-064** Audit explorer, timelines, saved queries, export — procera_audit::explorer and query: filtered newest-first keyset paging, view-own scope, member names, artifact timelines (own and version events), chain verify, saved queries, capped synchronous CSV/JSONL exports with step-up; POST /audit/query (AND/OR tree, allow-listed fields, depth 2); background export jobs (migration 0029) stored as the requester's encrypted file with notification; Audit log UI with filters, timelines and background exports. E2E-R1-AUDX-01..08, E2E-R1-AUD-01, E2E-R1-UI-17, 39. Later: verify-proof per sequence, the P95 < 2 s at 10 M events benchmark
 - [x] **BPMS-065** System console: workspaces grid, quotas, health, system audit — System console (0022): workspaces grid with usage and quotas, suspend/reactivate/schedule deletion with step-up on the system chain, quota defaults per profile with the member quota enforced at invite, platform health, system audit explorer; console shell for system admins (metadata only, never workspace content). E2E-R1-SYS-01..09, E2E-R1-UI-40..41 (A-18)
 - [x] **BPMS-066** Retention policy per record class (policy only) — Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26.
 
@@ -102,7 +103,7 @@ _SP-01…SP-10, ADRs, tokens, CI + E2E harness smoke (old M0–M1)_
 </details>
 
 <details>
-<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 22/32 done</summary>
+<summary><b>R1 — Workspace & Policies</b> · 2026-11-23 → 2027-01-15 · gate G-R1 · 23/32 done</summary>
 
 _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)_
 
@@ -135,7 +136,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 - [ ] **BPMS-061** (P0, M) Previews (image/PDF) in sandbox; Office preview spike **[In progress]**
 - [ ] **BPMS-062** (P0, M) Workspace Files view, quotas, orphan cleanup **[In progress]**
 - [x] **BPMS-063** (P0, L) Workspace overview dashboard + people & access monitor
-- [ ] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export **[In progress]**
+- [x] **BPMS-064** (P0, L) Audit explorer, timelines, saved queries, export
 - [x] **BPMS-065** (P0, M) System console: workspaces grid, quotas, health, system audit
 - [ ] **BPMS-120** (P0, L) Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks
 
@@ -146,7 +147,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 
 _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)_
 
-- [ ] **BPMS-080** (P0, L) IR v1 model + compiler (§11 checks, diagnostics, semantic diff)
+- [ ] **BPMS-080** (P0, L) IR v1 model + compiler (§11 checks, diagnostics, semantic diff) **[In progress]**
 - [ ] **BPMS-081** (P0, M) Expression engine integration (typed, budgeted, WASM build)
 - [ ] **BPMS-082** (P0, L) Interpreter: advance loop, tokens, splits/joins, end/terminate
 - [ ] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks
@@ -261,7 +262,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 227 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 230 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 14 / 16 / 20 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 14 / 16 / 21 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

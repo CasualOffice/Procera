@@ -247,6 +247,7 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-UI-33 | An EICAR upload on a document is refused with a quarantine message and shows as Quarantined (no download) in the Files view | BPMS-060/062 |
 | E2E-R1-UI-34 | An author opens Preview on an image attachment: a dialog named after the file shows the image (axe clean); a text attachment offers no Preview; Escape closes it and focus returns | BPMS-061 |
 | E2E-R1-UI-38 | On the Library grid: build a Status filter (chip + count), sort by name descending, save the view, reload and get the same filter and order back with no modified marker, export a CSV with exactly the visible columns and rows | BPMS-028 |
+| E2E-R1-UI-39 | An admin filters the Audit log to content events, starts a background export (dialog says it uses the current filters), sees it become Ready in Your exports, and downloads the CSV | BPMS-064 |
 | E2E-R1-UI-30 | Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022 |
 | E2E-R1-UI-31 | Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022 |
 | E2E-R1-UI-35 | Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027 |
@@ -275,6 +276,8 @@ Implemented in `e2e/packs/r1/shell.ui.spec.ts` and `journeys.ui.spec.ts` (Chromi
 | E2E-R1-AUDX-04 | Chain verify reports intact | FR-T02 |
 | E2E-R1-AUDX-05 | Saved queries: create, duplicate 409, validation 422, private per member, delete; audited | FR-T03, FR-T01 |
 | E2E-R1-AUDX-06 | CSV and JSONL exports honour filters, need step-up, and are audited | FR-T01, docs/12 §11 |
+| E2E-R1-AUDX-07 | `POST /audit/query`: an AND group (category, action prefix, within P30D) sorted ascending pages by cursor; an OR group returns only matching events; unknown fields or values, bad durations, nesting deeper than 2 and unsupported sorts → 422 | BPMS-064, docs/08 §7.5 |
+| E2E-R1-AUDX-08 | A background export (202) runs as a job, finishes `done` with rows, its CSV downloads through the requester's signed file link, the requester is notified, and both `audit.export_requested` and `audit.exported` are recorded | BPMS-064, FR-T04 |
 
 Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts` and `search-audit.api.spec.ts`.
 

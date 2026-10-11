@@ -275,6 +275,7 @@ E2E scenarios (E2E),E2E-R1-UI-32,"An author attaches a file to a draft from the 
 E2E scenarios (E2E),E2E-R1-UI-33,An EICAR upload on a document is refused with a quarantine message and shows as Quarantined (no download) in the Files view | BPMS-060/062,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-34,An author opens Preview on an image attachment: a dialog named after the file shows the image (axe clean); a text attachment offers no Preview; Escape closes it and focus returns | BPMS-061,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-38,"On the Library grid: build a Status filter (chip + count), sort by name descending, save the view, reload and get the same filter and order back with no modified marker, export a CSV with exactly the visible columns and rows | BPMS-028",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-UI-39,"An admin filters the Audit log to content events, starts a background export (dialog says it uses the current filters), sees it become Ready in Your exports, and downloads the CSV | BPMS-064",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-30,"Add a passkey from Account › Security, sign out, sign in with password + passkey | BPMS-022",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-31,Removing a passkey asks to confirm it’s you; the passkey itself passes step-up | BPMS-022,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-UI-35,"Departments: override a setting for a parent department, see a child inherit it, then clear it | BPMS-027",23-E2E-TEST-PLAN.md
@@ -303,6 +304,8 @@ E2E scenarios (E2E),E2E-R1-AUDX-03,"Artifact timeline covers all versions, oldes
 E2E scenarios (E2E),E2E-R1-AUDX-04,Chain verify reports intact | FR-T02,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-AUDX-05,"Saved queries: create, duplicate 409, validation 422, private per member, delete; audited | FR-T03, FR-T01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-AUDX-06,"CSV and JSONL exports honour filters, need step-up, and are audited | FR-T01, docs/12 §11",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-07,"`POST /audit/query`: an AND group (category, action prefix, within P30D) sorted ascending pages by cursor; an OR group returns only matching events; unknown fields or values, bad durations, nesting deeper than 2 and unsupported sorts → 422 | BPMS-064, docs/08 §7.5",23-E2E-TEST-PLAN.md
+E2E scenarios (E2E),E2E-R1-AUDX-08,"A background export (202) runs as a job, finishes `done` with rows, its CSV downloads through the requester's signed file link, the requester is notified, and both `audit.export_requested` and `audit.exported` are recorded | BPMS-064, FR-T04",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-01,Bootstrap: one-time token → system owner enrols MFA → no default credentials work | FR-S01,23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-02,"System admin creates workspace A (Starter) and B (Enterprise), invites owners; owners accept via Mailpit link and enrol MFA | FR-S02/S03, FR-W01",23-E2E-TEST-PLAN.md
 E2E scenarios (E2E),E2E-R1-03,"Workspace owner sets branding; a low-contrast accent is auto-adjusted or rejected; terminology override (""Request"" → ""Ticket"") shows in UI and email | FR-W04, 05 §7",23-E2E-TEST-PLAN.md
