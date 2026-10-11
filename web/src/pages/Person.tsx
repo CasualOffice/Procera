@@ -12,6 +12,7 @@ import { Avatar } from '../ui/Avatar';
 import { setCrumb } from '../ui/AppShell';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
+import { AccountSecurity } from './personSecurity';
 
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
@@ -72,6 +73,7 @@ export function Person({ id }: { id: string }) {
         <dt>Joined</dt>
         <dd>{shortDate(m.joined_at)}</dd>
       </dl>
+      {can('member:security.manage') && m.status === 'active' && <AccountSecurity membershipId={m.id} name={m.display_name} />}
       <FormDialog isOpen={confirming} onOpenChange={setConfirming} title={`Deactivate ${m.display_name}?`}
         description="They are signed out of this workspace at once and can’t act in it. Their history and records stay. To bring them back, invite them again."
         footer={<><Button variant="secondary" onPress={() => setConfirming(false)}>Keep</Button><Button variant="danger" onPress={() => void deactivate()}>Deactivate</Button></>}>
