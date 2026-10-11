@@ -84,6 +84,8 @@ if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
   target/debug/procera migrate --migrator-url "postgres://procera_migrator@$HOSTPART/$E2E_DB" 2>/dev/null
   API_ENV=(PROCERA_DATABASE_URL="postgres://procera_app@$HOSTPART/$E2E_DB" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" PROCERA_INSECURE_COOKIES=true PROCERA_LOGIN_RATE_PER_MIN=10000)
   echo "e2e database $E2E_DB"
+  # Exercise the shared-cache paths (effective-settings cache, CFG-004) when a cache server runs.
+  if [[ -n "${PROCERA_TEST_CACHE_URL:-}" ]]; then API_ENV+=(PROCERA_CACHE_URL="$PROCERA_TEST_CACHE_URL"); echo "e2e cache $PROCERA_TEST_CACHE_URL"; fi
 fi
 env "${API_ENV[@]}" PROCERA_BIND=127.0.0.1:$API_PORT PROCERA_PUBLIC_URL="http://127.0.0.1:$WEB_PORT" target/debug/procera serve --all >/tmp/procera-test-all-$OFF.log 2>&1 & API_PID=$!
 (cd web && PROCERA_API_URL="http://127.0.0.1:$API_PORT" exec ./node_modules/.bin/vite preview --port $WEB_PORT --strictPort --host 127.0.0.1 >/tmp/web-test-all-$OFF.log 2>&1) & WEB_PID=$!
