@@ -1,6 +1,6 @@
 import { type APIRequestContext, type Locator, type Page, expect, test } from '@playwright/test';
 import { PW, hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
-import { WEB, axe, nav, signIn } from '../../fixtures/ui';
+import { WEB, axe, nav, openSettings, signIn } from '../../fixtures/ui';
 import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 import { totp } from '../../fixtures/totp';
 import { inviteFromMembers, joinAsNewPerson } from '../../fixtures/journey';
@@ -364,7 +364,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const m = await member(request, owner, ws.id, 'viewer');
     await signIn(page, ownerEmail, owner.recovery![0]!);
     await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
-    await nav(page, 'Settings');
+    await openSettings(page, 'General & branding');
     const row = page.getByRole('listitem').filter({ has: page.getByText('Accent colour', { exact: true }) });
     await row.scrollIntoViewIfNeeded();
     await row.getByRole('button', { name: 'Change Accent colour' }).click();
@@ -396,8 +396,10 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect(them.locator('img.ws-logo')).toBeVisible();
 
     // Terminology: the workspace calls SOPs "Work Instructions"; labels follow, API values do not.
-    await nav(page, 'Settings');
-    const terms = page.getByRole('listitem').filter({ has: page.getByText('Terminology', { exact: true }) });
+    // Terminology is rarely changed, so it sits under the page's Advanced disclosure.
+    await openSettings(page, 'General & branding');
+    await page.getByRole('button', { name: /^Advanced/ }).click();
+    const terms =page.getByRole('listitem').filter({ has: page.getByText('Terminology', { exact: true }) });
     await terms.getByRole('button', { name: 'Change Terminology' }).click();
     await terms.getByLabel('Singular for SOP').fill('Work Instruction');
     await terms.getByLabel('Plural for SOP').fill('Work Instructions');

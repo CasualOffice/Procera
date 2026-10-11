@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { hasDatabase } from '../../fixtures/accounts';
-import { axe, nav, signIn } from '../../fixtures/ui';
+import { axe, openSettings, signIn } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-UI-46 — Account › Profile: name and time zone, used in every workspace.
@@ -39,7 +39,7 @@ test.describe('account and workspace identity @r1 @ui', () => {
   test('E2E-R1-UI-47 an owner renames the workspace in Settings and the switcher shows the new name', async ({ page, request }) => {
     const { ownerEmail, owner } = await workspaceWithOwner(request);
     await signIn(page, ownerEmail, owner.recovery![0]!);
-    await nav(page, 'Settings');
+    await openSettings(page, 'General & branding');
     const field = page.getByRole('textbox', { name: 'Workspace name' });
     await expect(field).toHaveValue('Acme');
     await expect(page.getByRole('button', { name: 'Rename' })).toBeDisabled();

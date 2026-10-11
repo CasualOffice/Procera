@@ -26,3 +26,10 @@ export async function signIn(page: Page, email: string, recovery: string) {
 export async function nav(page: Page, label: string) {
   await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: new RegExp(`^${label}`) }).click();
 }
+
+/** Settings › a category: the Settings index lists the categories, and each one is its own page. */
+export async function openSettings(page: Page, category: string) {
+  await nav(page, 'Settings');
+  await page.getByRole('navigation', { name: 'Settings categories' }).getByRole('link', { name: category, exact: true }).click();
+  await expect(page.getByRole('heading', { level: 1, name: category })).toBeVisible();
+}
