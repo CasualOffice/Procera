@@ -608,6 +608,90 @@ impl Members {
         Ok(())
     }
 
+    /// Reactivates a deactivated membership (docs/22 A-41). Deactivation removed nothing, so the
+    /// member comes back with the roles, groups and directory fields they had. Because that restores
+    /// access, the actor must hold every permission of those roles (the invitation rule: no
+    /// escalation), the account must not be disabled and the member quota must have a seat.
+    /// Returns the restored role keys.
+    pub async fn reactivate(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Actor,
+        membership: Uuid,
+        reason: &str,
+        client: &ClientInfo,
+    ) -> Result<Vec<String>, MembersError> {
+        let reason = reason.trim();
+        if reason.is_empty() || reason.chars().count() > 500 {
+            return Err(MembersError::Invalid("a reason of 1-500 characters is required".into()));
+        }
+        let row: Option<(String, String, String)> = sqlx::query_as(
+            "SELECT m.status, u.status, u.email::text FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1 FOR UPDATE OF m",
+        )
+        .bind(membership)
+        .fetch_optional(tx.conn())
+        .await?;
+        let (status, account, email) = row.ok_or(MembersError::NotFound)?;
+        if status != "deactivated" {
+            return Err(MembersError::Conflict("this member is already active".into()));
+        }
+        if account == "disabled" {
+            return Err(MembersError::Conflict(
+                "this person's account is disabled; a system administrator must restore it first".into(),
+            ));
+        }
+        let now = self.clock.now();
+        // Every unexpired grant that will apply again, at any scope, direct or through a group.
+        let grants: Vec<(String, Vec<String>)> = sqlx::query_as(
+            "SELECT DISTINCT r.key, r.permissions FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+             WHERE (g.membership_id = $1 OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = $1))
+               AND (g.expires_at IS NULL OR g.expires_at > $2)",
+        )
+        .bind(membership)
+        .bind(now)
+        .fetch_all(tx.conn())
+        .await?;
+        let held = self.access.effective_workspace_permissions(tx, actor.membership).await?;
+        let mut missing: Vec<String> =
+            grants.iter().flat_map(|(_, p)| p.iter()).filter(|p| !held.contains(*p)).cloned().collect();
+        missing.sort();
+        missing.dedup();
+        if !missing.is_empty() {
+            return Err(AccessError::Escalation(missing).into());
+        }
+        self.check_member_quota(tx, &email, now).await?;
+        sqlx::query("UPDATE memberships SET status = 'active', deactivated_at = NULL WHERE id = $1")
+            .bind(membership)
+            .execute(tx.conn())
+            .await?;
+        self.access.invalidate(tx).await?;
+        outbox::enqueue(
+            tx,
+            OutboxEvent {
+                topic: "membership.reactivated.v1",
+                aggregate_type: "membership",
+                aggregate_id: membership,
+                aggregate_revision: 3,
+                payload: json!({"membership_id": membership}),
+                trace_id: None,
+            },
+        )
+        .await?;
+        let mut roles: Vec<String> = grants.into_iter().map(|(k, _)| k).collect();
+        roles.sort();
+        roles.dedup();
+        self.audit(
+            tx,
+            Some(actor.subject_ref),
+            "member.reactivated",
+            membership,
+            json!({"status": {"before": "deactivated", "after": "active"}, "roles": roles, "reason": reason}),
+            client,
+        )
+        .await?;
+        Ok(roles)
+    }
+
     /// The caller's membership in a workspace: (membership id, status, subject_ref).
     pub async fn membership(
         &self,

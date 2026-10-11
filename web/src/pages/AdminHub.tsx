@@ -6,6 +6,8 @@ import { adminNav } from '../ui/nav';
 const ABOUT: Record<string, string> = {
   overview: 'What needs attention: overdue acknowledgements, reviews and security signals.',
   members: 'Invite people, see who has joined, and manage each person.',
+  departments: 'Your org chart: each person belongs to one; used to target and scope.',
+  groups: 'Flexible sets of people across departments, for access and audiences.',
   roles: 'What each role can do, custom roles, and who holds them.',
   people: 'Two-step verification, dormant accounts and privileged access at a glance.',
   templates: 'Starter packs: an employee handbook and policies to adapt and publish.',

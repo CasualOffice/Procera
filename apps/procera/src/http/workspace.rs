@@ -32,6 +32,7 @@ pub fn router() -> Router<AppState> {
         .route("/members/invitations", get(list_invitations).post(invite))
         .route("/members/invitations/{id}", delete(revoke_invitation))
         .route("/members/{id}/deactivate", post(deactivate))
+        .route("/members/{id}/reactivate", post(reactivate))
         .route("/roles", get(list_roles).post(create_role))
         .route("/roles/{id}", patch(update_role))
         .route("/roles/{id}/preview", post(preview_role))
@@ -442,6 +443,30 @@ async fn deactivate(
     m.deactivate(&mut tx, me.actor, id, &client_info(&headers)).await?;
     tx.commit().await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ReactivateReq {
+    reason: String,
+}
+
+/// Brings a deactivated member back with the roles they had (docs/22 A-41). Restoring access is
+/// treated like granting it: step-up, and no restoring roles the caller could not grant.
+async fn reactivate(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<ReactivateReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "member:deactivate", Resource::Member(id)).await?;
+    me.require_step_up(&s, &mut tx).await?;
+    let roles = m.reactivate(&mut tx, me.actor, id, &r.reason, &client_info(&headers)).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({"roles": roles})).into_response())
 }
 
 async fn list_roles(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {

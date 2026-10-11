@@ -667,8 +667,15 @@ impl Members {
         let (title, department_id, manager_membership_id, location, sources) =
             row.ok_or(MembersError::NotFound)?;
         let manager = self.resolve_manager(tx, membership).await?;
+        let group_ids: Vec<Uuid> = sqlx::query_scalar(
+            "SELECT gm.group_id FROM group_members gm JOIN groups g ON g.workspace_id = gm.workspace_id AND g.id = gm.group_id
+             WHERE gm.membership_id = $1 ORDER BY lower(g.name)",
+        )
+        .bind(membership)
+        .fetch_all(tx.conn())
+        .await?;
         Ok(
-            json!({"membership_id": membership, "title": title, "department_id": department_id, "manager_membership_id": manager_membership_id, "location": location, "field_sources": sources, "resolved_manager": manager}),
+            json!({"membership_id": membership, "title": title, "department_id": department_id, "manager_membership_id": manager_membership_id, "location": location, "field_sources": sources, "resolved_manager": manager, "group_ids": group_ids}),
         )
     }
 

@@ -1,9 +1,9 @@
-import { Archive, Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Archive, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
-  | 'admin' | 'overview' | 'members' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'overview' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -34,6 +34,8 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
     ]) },
     { label: 'People', items: pick([
       any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite' },
+      can('directory:manage') && { key: 'departments', label: 'Departments', to: '/admin/departments', icon: Network, keywords: 'org chart teams hierarchy head structure' },
+      can('directory:manage') && { key: 'groups', label: 'Groups', to: '/admin/groups', icon: UsersRound, keywords: 'sets teams fire wardens auditors audience' },
       can('role:view') && { key: 'roles', label: 'Roles & access', to: '/admin/roles', icon: UserCog, keywords: 'permissions custom role grant scope expiry rbac' },
       can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     ]) },
@@ -52,7 +54,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
   ].filter((g) => g.items.length);
 }
 
-const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'members', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
+const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'members', 'departments', 'groups', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
 /** Pages that show the admin sidebar. */
 export const isAdminPage = (key: NavKey) => ADMIN_KEYS.has(key);
 
