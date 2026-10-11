@@ -6,6 +6,7 @@ import { shortDate } from '../lib/format';
 import { Link } from '../lib/router';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
+import { LibraryTabs } from './areaTabs';
 
 interface WhatChanged { from_version_no: number; added: number; removed: number; changed: number; change_reason: string | null }
 interface PortalPolicy { id: string; key: string; title: string; category: string | null; version_no: number; published_at: string | null; verified: boolean; review_status: string; what_changed: WhatChanged | null }
@@ -37,6 +38,7 @@ export function Policies() {
       <div className="page-head">
         <div><h1>Policies</h1><p>The policies that apply to you, always the current version.</p></div>
       </div>
+      <LibraryTabs current="applies" />
       <div className="toolbar portal-toolbar">
         <SearchField className="search-input" aria-label="Search policies" value={q} onChange={setQ}>
           <Search aria-hidden="true" size="0.9375rem" /><Input placeholder="Search policies" />

@@ -8,6 +8,7 @@ import { Link, navigate, useRoute } from '../lib/router';
 import { useSession } from '../lib/session';
 import { type Audience, AudiencePicker, EVERYONE, audienceOf, audienceSummary, isEmptyAudience, useDirectory } from '../ui/Audience';
 import { Avatar } from '../ui/Avatar';
+import { AnnouncementTabs } from './areaTabs';
 import { Button } from '../ui/components/Button';
 import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
@@ -66,6 +67,7 @@ export function ManageAnnouncements() {
         <div><h1>Manage announcements</h1><p>Write, approve and publish announcements, and see who has read them.</p></div>
         {canCreate && <Button onPress={() => setComposing('new')}><Plus aria-hidden="true" size="1rem" /> New announcement</Button>}
       </div>
+      <AnnouncementTabs current="manage" />
       <div className="toolbar">
         <div className="segmented seg-scroll" role="group" aria-label="Filter by status">
           {TABS.filter(([k]) => k === 'all' || count(k) > 0 || k === 'draft').map(([k, label]) => (

@@ -18,14 +18,16 @@ import { DataGrid } from '../ui/components/DataGrid';
 import { BookOpen, Download } from 'lucide-react';
 import { type CollectionItem, collectionPath } from './docOrganisation';
 import { CollectionTree } from './libraryCollections';
+import { LibraryTabs } from './areaTabs';
 
 type Filter = 'all' | 'policy' | 'sop';
 
 /** Library (docs/05 §3.2, §3.21): policies and SOPs. */
 export function Library() {
   useTerms(); // the workspace's terms (CFG-008)
-  const { can } = useSession();
+  const { can, membershipId } = useSession();
   const { query } = useRoute();
+  const mine = query.get('view') === 'mine';
   const [filter, setFilter] = useState<Filter>('all');
   const collection = query.get('collection');
   const [docs, reload, loadError] = useItems<Artifact>(collection ? `/api/v1/artifacts?collection=${collection}` : '/api/v1/artifacts');
@@ -40,16 +42,17 @@ export function Library() {
   const [creating, setCreating] = useState<'policy' | 'sop' | null>(newKind === 'policy' || newKind === 'sop' ? newKind : null);
   useEffect(() => { if (newKind === 'policy' || newKind === 'sop') setCreating(newKind); }, [newKind]);
 
-  const rows = useMemo(() => (docs ?? []).filter((d) => filter === 'all' || d.kind === filter), [docs, filter]);
-  const counts = { all: docs?.length ?? 0, policy: docs?.filter((d) => d.kind === 'policy').length ?? 0, sop: docs?.filter((d) => d.kind === 'sop').length ?? 0 };
+  const scoped = useMemo(() => (docs ?? []).filter((d) => !mine || d.owner_membership_id === membershipId), [docs, mine, membershipId]);
+  const rows = useMemo(() => scoped.filter((d) => filter === 'all' || d.kind === filter), [scoped, filter]);
+  const counts = { all: scoped.length, policy: scoped.filter((d) => d.kind === 'policy').length, sop: scoped.filter((d) => d.kind === 'sop').length };
   const canCreate = can('policy:create') || can('sop:create');
 
   return (
     <>
       <div className="page-head">
         <div>
-          <h1>{here ?? 'Library'}</h1>
-          <p>{here ? 'Documents in this collection and the ones inside it.' : `Policies say what and why; ${term('sop', { plural: true })} say how. Everything here is versioned, reviewed and audited.`}</p>
+          <h1>{mine ? 'My documents' : here ?? 'Library'}</h1>
+          <p>{mine ? 'Documents you own: drafts, ones in review and published ones you keep current.' : here ? 'Documents in this collection and the ones inside it.' : `Policies say what and why; ${term('sop', { plural: true })} say how. Everything here is versioned, reviewed and audited.`}</p>
         </div>
         <div className="page-actions">
         <Button variant="secondary" onPress={() => void download(`/api/v1/raci/export${collection ? `?collection=${collection}` : ''}`, 'raci.csv')}><Download aria-hidden="true" size="1rem" /> Export RACI</Button>
@@ -57,6 +60,7 @@ export function Library() {
         </div>
       </div>
 
+      <LibraryTabs current={mine ? 'mine' : 'all'} />
       <div className={showTree ? 'library-layout' : undefined}>
       {showTree && <CollectionTree items={tree!.items} current={collection} canManage={tree!.can_manage} onChanged={() => { loadTree(); reload(); }} />}
       <div>

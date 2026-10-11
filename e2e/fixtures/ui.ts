@@ -22,7 +22,29 @@ export async function signIn(page: Page, email: string, recovery: string) {
   await page.getByRole('button', { name: 'Verify' }).click();
 }
 
-/** Navigates with the sidebar (client-side), like a user would. */
+/** Pages reached through a tab of another area (docs/05 §2.1): [sidebar item, tab]. */
+const VIA_TAB: Record<string, [string, string]> = {
+  Policies: ['Library', 'Applies to me'],
+  'Manage announcements': ['Announcements', 'Manage'],
+};
+
+/**
+ * Navigates like a person would (client-side): the sidebar shows everyday items, and admin pages
+ * sit behind "Admin" (admin mode has "Back to workspace"). Tab pages go through their area.
+ */
 export async function nav(page: Page, label: string) {
-  await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: new RegExp(`^${label}`) }).click();
+  const main = page.getByRole('navigation', { name: 'Main' });
+  await expect(main.getByRole('link').first()).toBeVisible();
+  const via = VIA_TAB[label];
+  if (via) {
+    await nav(page, via[0]);
+    await page.getByRole('navigation', { name: /views$/ }).getByRole('link', { name: via[1], exact: true }).click();
+    return;
+  }
+  const link = main.getByRole('link', { name: new RegExp(`^${label}`) });
+  if ((await link.count()) === 0) {
+    const admin = main.getByRole('link', { name: 'Admin', exact: true });
+    await ((await admin.count()) > 0 ? admin : main.getByRole('link', { name: 'Back to workspace' })).click();
+  }
+  await link.first().click();
 }

@@ -141,6 +141,6 @@ test.describe('journeys @r1 @ui', () => {
     await page.getByLabel('Code').fill(recovery);
     await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
   });
 });

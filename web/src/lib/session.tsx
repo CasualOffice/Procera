@@ -30,6 +30,8 @@ interface Session {
   workspaces: Workspace[];
   workspace: Workspace | null;
   permissions: Set<string>;
+  /** My membership in the current workspace. */
+  membershipId: string | null;
   /** Why entering the workspace failed (e.g. `mfa_required`), shown on the chooser. */
   entryError: string | null;
   can: (permission: string) => boolean;
@@ -62,6 +64,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [permissions, setPermissions] = useState<Set<string>>(new Set());
+  const [membershipId, setMembershipId] = useState<string | null>(null);
   const autoSelected = useRef(false);
   const [entryError, setEntryError] = useState<string | null>(null);
 
@@ -74,8 +77,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const current = mine.items.find((w) => w.workspace_id === me.token.workspace) ?? null;
     if (current) {
       try {
-        const p = await api<{ permissions: string[] }>('/api/v1/me/permissions');
+        const p = await api<{ permissions: string[]; membership_id: string }>('/api/v1/me/permissions');
         setPermissions(new Set(p.permissions));
+        setMembershipId(p.membership_id);
         setEntryError(null);
         setWorkspace(current);
         setStatus('ready');
@@ -88,6 +92,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
     setWorkspace(null);
     setPermissions(new Set());
+    setMembershipId(null);
     const only = mine.items.length === 1 ? mine.items[0] : undefined;
     if (only && !current && !autoSelected.current) {
       autoSelected.current = true; // once: if entry fails (e.g. MFA required), stay on the chooser
@@ -147,6 +152,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       workspaces,
       workspace,
       permissions,
+      membershipId,
       entryError,
       can: (p) => permissions.has(p),
       async signIn(email, password) {
@@ -182,6 +188,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         setWorkspace(null);
         setWorkspaces([]);
         setPermissions(new Set());
+    setMembershipId(null);
         setEntryError(null);
         autoSelected.current = false;
         // A deliberate sign-out doesn't come back to this page afterwards.
@@ -190,7 +197,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       },
       reload: load,
     }),
-    [status, user, workspaces, workspace, permissions, entryError, load, select, next],
+    [status, user, workspaces, workspace, permissions, membershipId, entryError, load, select, next],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
+import { ArrowLeft, Bell, Check, ChevronsUpDown, History, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { ApiError, api, blobUrl } from '../lib/api';
@@ -7,7 +7,7 @@ import { useSession } from '../lib/session';
 import { setTerms, useTerms } from '../lib/terms';
 import { Avatar } from './Avatar';
 import { CommandPalette, shortcutLabel } from './CommandPalette';
-import { type NavKey, navGroups } from './nav';
+import { type NavItem, type NavKey, adminNav, isAdminPage, workNav } from './nav';
 import './shell.css';
 import { ShellSkeleton } from './States';
 
@@ -95,7 +95,16 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   }, [workspace, can]);
 
   if (!workspace || !user) return <ShellSkeleton />;
-  const groups = navGroups(can);
+  const adminGroups = adminNav(can);
+  const adminMode = isAdminPage(current) && adminGroups.length > 0;
+  const item = (i: NavItem) => (
+    <li key={i.key}>
+      <Link to={i.to} aria-current={i.key === current ? 'page' : undefined}>
+        <i.icon aria-hidden="true" size="1rem" />
+        <span>{i.label}</span>
+      </Link>
+    </li>
+  );
 
   return (
     <div className="app">
@@ -140,32 +149,32 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
           </Popover>
         </MenuTrigger>
 
-        <AriaButton className="search-btn" onPress={() => setPalette(true)} aria-keyshortcuts={shortcutLabel() === '⌘K' ? 'Meta+K' : 'Control+K'}>
-          <Search aria-hidden="true" size="0.9375rem" />
-          <span>Search</span>
-          <kbd aria-hidden="true">{shortcutLabel()}</kbd>
-        </AriaButton>
-
         <nav className="nav" aria-label="Main">
-          {groups.map((g) => (
-            <div key={g.label}>
-              <p className="nav-group-label">{g.label}</p>
-              <ul>
-                {g.items.map((i) => {
-                  const count = i.key === 'inbox' ? unread : 0;
-                  return (
-                    <li key={i.key}>
-                      <Link to={i.to} aria-current={i.key === current ? 'page' : undefined} aria-label={count ? `${i.label}, ${count} unread` : undefined}>
-                        <i.icon aria-hidden="true" size="1rem" />
-                        <span>{i.label}</span>
-                        {count ? <span className="nav-count" aria-hidden="true">{count > 99 ? '99+' : count}</span> : null}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
+          <div className="nav-tools">
+            <AriaButton className="search-btn" onPress={() => setPalette(true)} aria-keyshortcuts={shortcutLabel() === '⌘K' ? 'Meta+K' : 'Control+K'}>
+              <Search aria-hidden="true" size="0.9375rem" />
+              <span>Search</span>
+              <kbd aria-hidden="true">{shortcutLabel()}</kbd>
+            </AriaButton>
+            <Link className="bell" to="/notifications" aria-current={current === 'inbox' ? 'page' : undefined} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}>
+              <Bell aria-hidden="true" size="1rem" />
+              {unread ? <span className="bell-count" aria-hidden="true">{unread > 99 ? '99+' : unread}</span> : null}
+            </Link>
+          </div>
+          {adminMode ? (
+            <>
+              <Link className="nav-back" to="/"><ArrowLeft aria-hidden="true" size="1rem" /> Back to workspace</Link>
+              <p className="nav-mode">Admin</p>
+              {adminGroups.map((g) => (
+                <div key={g.label}>
+                  <p className="nav-group-label">{g.label}</p>
+                  <ul>{g.items.map(item)}</ul>
+                </div>
+              ))}
+            </>
+          ) : (
+            <ul>{workNav(can).map(item)}</ul>
+          )}
         </nav>
 
         <MenuTrigger>
@@ -186,6 +195,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                   navigate('/sign-in', { replace: true });
                 } else if (key === 'security') navigate('/account/security');
                 else if (key === 'profile') navigate('/account/profile');
+                else if (key === 'activity') navigate('/admin/audit');
                 else setTheme(String(key).replace('theme-', '') as Theme);
               }}
             >
@@ -195,6 +205,11 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
               <MenuItem id="security" className="menu-item" textValue="Security">
                 <ShieldCheck aria-hidden="true" size="1rem" /> Security
               </MenuItem>
+              {can('audit:view_own') && !can('audit:view') && (
+                <MenuItem id="activity" className="menu-item" textValue="My activity">
+                  <History aria-hidden="true" size="1rem" /> My activity
+                </MenuItem>
+              )}
               <Separator className="menu-separator" />
               <MenuSection>
                 <Header className="menu-header">Appearance</Header>

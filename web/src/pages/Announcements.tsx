@@ -1,10 +1,11 @@
-import { Check, ChevronDown, Megaphone, Pin, SquarePen } from 'lucide-react';
+import { Check, ChevronDown, Megaphone, Pin } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type Member, memberMap, useItems } from '../lib/data';
 import type { Block } from '../lib/format';
 import { timeAgo } from '../lib/format';
-import { Link, useRoute } from '../lib/router';
+import { useRoute } from '../lib/router';
+import { AnnouncementTabs } from './areaTabs';
 import { useSession } from '../lib/session';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
@@ -36,14 +37,13 @@ export function Announcements() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items === null, query.get('open')]);
   const toggle = (f: FeedItem) => { setOpen(open === f.id ? null : f.id); markRead(f); };
-  const canCompose = can('announcement:create') || can('announcement:publish') || can('announcement:manage');
 
   return (
     <>
       <div className="page-head">
         <div><h1>Announcements</h1><p>News and notices for you, newest first. Some ask you to confirm you’ve read them.</p></div>
-        {canCompose && <Link className="btn btn-secondary btn-md link-btn" to="/admin/announcements"><SquarePen aria-hidden="true" size="0.9375rem" /> Manage announcements</Link>}
       </div>
+      <AnnouncementTabs current="feed" />
       {error ? <LoadError error={error} onRetry={reload} what="announcements" /> : items === null ? <Skeleton rows={3} label="Loading announcements" /> : items.length === 0 ? (
         <Empty icon={Megaphone} title="No announcements">When something is posted for you, it shows up here.</Empty>
       ) : (

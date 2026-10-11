@@ -778,3 +778,54 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .first-run > div { flex: 1 1 20rem; min-width: 0; }
 .first-run h2 { margin: 0; font-size: 0.9375rem !important; font-weight: 600; }
 .first-run p { margin: 0.25rem 0 0; color: var(--color-text-secondary); }
+/* Section tabs: views of one area (Library, Announcements) as links with an underline marker. */
+.section-tabs { margin: calc(-1 * var(--space-2)) 0 var(--space-5); border-bottom: 1px solid var(--color-border); }
+.section-tabs ul { display: flex; gap: var(--space-5); list-style: none; margin: 0; padding: 0; overflow-x: auto; }
+.section-tabs a { display: inline-block; padding: var(--space-2) 0; margin-bottom: -1px; font-size: 0.875rem; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; }
+.section-tabs a:hover { color: var(--color-text); }
+.section-tabs a[aria-current='page'] { color: var(--color-text); border-bottom-color: var(--color-text); }
+/* Admin hub: groups of plain links, each saying what the page is for. */
+.admin-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr)); gap: var(--space-6) var(--space-8); }
+.admin-hub-group h2 { margin: 0 0 var(--space-2); font-size: 0.8125rem; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+.admin-hub-group ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.admin-hub-item { display: flex; gap: var(--space-3); align-items: flex-start; padding: var(--space-3); border-radius: 0.5rem; color: var(--color-text); text-decoration: none; }
+.admin-hub-item:hover { background: var(--fill-hover); }
+.admin-hub-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 0.5rem; background: var(--color-surface-muted); color: var(--color-text); }
+.admin-hub-title { display: block; font-weight: var(--font-weight-medium); }
+.admin-hub-about { display: block; margin-top: 0.125rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.task-group + .task-group { margin-top: var(--space-4); }
+.task-group-label { margin: 0 0 var(--space-2); font-size: 0.75rem; font-weight: var(--font-weight-semibold); letter-spacing: .02em; color: var(--color-text-secondary); }
+/* Workspace onboarding (docs/05 §3.1): checklist on Home and the /welcome steps. */
+.setup { padding: var(--space-5); margin-bottom: var(--space-6); }
+.setup-head { display: flex; align-items: center; gap: var(--space-3); }
+.setup-heading { flex: 1; min-width: 0; }
+.setup-heading h2 { margin: 0; font-size: 1rem; }
+.setup-heading p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.setup-bar { height: 0.25rem; margin: var(--space-4) 0; border-radius: 0.125rem; background: var(--color-surface-muted); overflow: hidden; }
+.setup-bar span { display: block; height: 100%; background: var(--color-text); transition: width 300ms ease; }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--space-2) var(--space-6); }
+.setup-steps li { display: grid; grid-template-columns: 1rem 1fr; column-gap: var(--space-2); align-items: start; font-size: 0.875rem; }
+.setup-steps li.is-done > span:first-of-type { color: var(--color-text-secondary); text-decoration: line-through; }
+.setup-hint { grid-column: 2; display: block; font-size: 0.75rem; color: var(--color-text-secondary); text-decoration: none; }
+.setup-tick { color: var(--color-success); margin-top: 0.125rem; }
+.setup-dot { color: var(--color-text-secondary); margin-top: 0.125rem; }
+.welcome { max-width: 46rem; }
+.welcome-steps { list-style: none; margin: 0 0 var(--space-5); padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.welcome-steps button { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1); font: inherit; font-size: 0.8125rem; color: var(--color-text-secondary); background: none; border: 1px solid var(--color-border); border-radius: 999px; cursor: pointer; }
+.welcome-steps li[aria-current='step'] button { color: var(--color-text); border-color: var(--color-text); }
+.welcome-num { display: inline-flex; align-items: center; justify-content: center; width: 1.375rem; height: 1.375rem; border-radius: 50%; background: var(--color-surface-muted); font-weight: var(--font-weight-semibold); font-size: 0.75rem; }
+.welcome-steps li[aria-current='step'] .welcome-num { background: var(--color-text); color: var(--color-surface); }
+.welcome-card { padding: var(--space-6); }
+.welcome-form { display: flex; flex-direction: column; gap: var(--space-4); }
+.welcome-form h2 { margin: 0; font-size: 1.125rem; }
+.welcome-lede { margin: calc(-1 * var(--space-2)) 0 0; color: var(--color-text-secondary); }
+.welcome-accent { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: var(--space-1) var(--space-3); }
+.welcome-accent label { grid-column: 1 / -1; font-size: 0.875rem; font-weight: var(--font-weight-medium); }
+.welcome-accent input { width: 2.75rem; height: 2rem; padding: 0; border: 1px solid var(--color-border); border-radius: 0.375rem; background: none; }
+.welcome-accent-hint { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.welcome-textarea { min-height: 8rem; padding: var(--space-2) var(--space-3); resize: vertical; font: inherit; }
+.welcome-packs, .welcome-invites { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.welcome-packs li { display: grid; grid-template-columns: 1rem 1fr; gap: var(--space-2); }
+.welcome-invites li { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-3); }
+.welcome-existing { margin: 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
+@media (max-width: 40rem) { .welcome-invites li { grid-template-columns: 1fr; } .setup-head { flex-wrap: wrap; } }

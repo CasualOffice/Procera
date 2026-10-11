@@ -40,9 +40,9 @@ test.describe('app shell @r1 @ui', () => {
     const nav = page.getByRole('navigation', { name: 'Main' });
     await expect(nav.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
     await expect(nav.getByRole('link', { name: 'Library' })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Members' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'For you' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await expect(page.getByRole('group', { name: 'Quick actions' }).getByRole('link', { name: 'New policy' })).toBeVisible();
     await axe(page);
     // The session survives a reload (refresh cookie, access token only in memory).
@@ -80,12 +80,12 @@ test.describe('app shell @r1 @ui', () => {
     await axe(page);
     await page.getByRole('button', { name: 'Beta Corp' }).click();
     await expect(page.getByRole('button', { name: /Workspace: Beta Corp/ })).toBeVisible();
-    // A plain member of Beta sees no Admin.
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toHaveCount(0);
+    // A plain member of Beta sees no Admin entry.
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin', exact: true })).toHaveCount(0);
     await page.getByRole('button', { name: /Workspace: Beta Corp/ }).click();
     await page.getByRole('menuitem', { name: 'Acme' }).click();
     await expect(page.getByRole('button', { name: /Workspace: Acme/ })).toBeVisible();
-    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Members' })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Admin', exact: true })).toBeVisible();
   });
 
   test('E2E-R1-UI-04 the bell shows unread notifications; the inbox marks them read', async ({ page, request }) => {

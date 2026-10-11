@@ -3,6 +3,7 @@ import { type Artifact, type Member, useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { SetupChecklist } from './onboarding';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
@@ -18,6 +19,9 @@ function greeting() {
 }
 
 const DAY = 86_400_000;
+/** "Needs you" sections (docs/05 §2.1): by when, not by kind. */
+const GROUPS = ['Overdue', 'This week', 'Later'];
+
 function dueTag(iso: string, overdue: boolean) {
   if (overdue) return <Tag color="red" dot>Overdue</Tag>;
   const days = Math.ceil((Date.parse(iso) - Date.now()) / DAY);
@@ -44,25 +48,27 @@ export function Home() {
     // Announcement acknowledgements already appear from the feed below.
     ...(acks ?? []).filter((a) => a.subject.kind !== 'announcement').map((a) => ({
       key: `ack-${a.id}`, kind: 'ack', icon: BookOpenCheck, tone: 'purple', sort: a.overdue ? 0 : 1,
+      group: a.overdue ? 0 : a.due_at && Date.parse(a.due_at) - Date.now() < 7 * DAY ? 1 : 2,
       title: `Acknowledge “${a.subject.title}”`, meta: `${KIND_TAG[a.subject.kind]?.label ?? 'Document'} v${a.subject.version_no} · ${a.campaign_title}`,
       tag: dueTag(a.due_at, a.overdue), label: 'Read and acknowledge', to: `/library/${a.subject.artifact_id}`,
     })),
     ...news.filter((f) => f.require_ack && !f.acked_at).map((f) => ({
-      key: `ann-${f.id}`, kind: 'ann', icon: Megaphone, tone: 'orange', sort: f.priority === 'critical' ? 0 : 1,
+      key: `ann-${f.id}`, kind: 'ann', icon: Megaphone, tone: 'orange', sort: f.priority === 'critical' ? 0 : 1, group: 1,
       title: f.title, meta: `Announcement · posted ${timeAgo(f.published_at)}`,
       tag: f.priority === 'critical' ? <Tag color="red" dot>Critical</Tag> : null, label: 'Read and acknowledge', to: `/announcements?open=${f.id}`,
     })),
     ...reviews.map((d) => ({
-      key: `rev-${d.id}`, kind: 'rev', icon: d.kind === 'sop' ? ScrollText : FileText, tone: 'yellow', sort: 2,
+      key: `rev-${d.id}`, kind: 'rev', icon: d.kind === 'sop' ? ScrollText : FileText, tone: 'yellow', sort: 2, group: 1,
       title: `Review “${d.title}”`, meta: `${KIND_TAG[d.kind]?.label ?? d.kind} · waiting for a reviewer`,
       tag: d.criticality === 'controlled' ? <Tag color="red">Controlled</Tag> : null, label: 'Review', to: `/library/${d.id}`,
     })),
     ...news.filter((f) => !(f.require_ack && !f.acked_at)).map((f) => ({
-      key: `new-${f.id}`, kind: 'new', icon: Megaphone, tone: 'blue', sort: f.priority === 'critical' ? 0 : 3,
+      key: `new-${f.id}`, kind: 'new', icon: Megaphone, tone: 'blue', sort: f.priority === 'critical' ? 0 : 3, group: f.priority === 'critical' ? 1 : 2,
       title: f.title, meta: `Announcement · posted ${timeAgo(f.published_at)}`,
       tag: f.priority === 'critical' ? <Tag color="red" dot>Critical</Tag> : null, label: 'Read', to: `/announcements?open=${f.id}`,
     })),
-  ].sort((a, b) => a.sort - b.sort);
+  ].sort((a, b) => a.group - b.group || a.sort - b.sort);
+  const groups = GROUPS.map((label, i) => ({ label, items: todo.filter((t) => t.group === i) })).filter((g) => g.items.length);
   const loading = acks === null || (canLibrary && docs === null) || (can('announcement:view') && feed === null);
   const overdue = (acks ?? []).filter((a) => a.overdue).length;
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -94,7 +100,9 @@ export function Home() {
         )}
       </div>
 
-      {firstRun && (
+      <SetupChecklist />
+
+      {firstRun && !can('workspace:settings.manage') && (
         <section className="first-run" aria-labelledby="first-run-title">
           <span className="quick-icon tag-purple"><LayoutTemplate aria-hidden="true" size="1rem" /></span>
           <div>
@@ -108,25 +116,30 @@ export function Home() {
       <div className="home-grid">
         <section aria-labelledby="foryou" className="home-main">
           <div className="section-head">
-            <h2 id="foryou">For you</h2>
+            <h2 id="foryou">Needs you</h2>
             {todo.length > 0 && <span className="count-pill">{todo.length}</span>}
           </div>
           {acksError ? <LoadError error={acksError} onRetry={reloadAcks} what="your tasks" /> : loading ? <Skeleton rows={3} label="Loading your tasks" /> : todo.length === 0 ? (
             <Empty icon={CircleCheck} title="You’re all caught up">Documents to acknowledge, drafts to review and new announcements will appear here.</Empty>
           ) : (
-            <ul className="tasks">
-              {todo.map((t) => (
-                <li key={t.key}>
-                  <span className={`task-icon tag-${t.tone}`}><t.icon aria-hidden="true" size="1rem" /></span>
-                  <div className="task-main">
-                    <p className="task-title">{t.title}</p>
-                    <p className="task-meta">{t.meta}</p>
-                  </div>
-                  {t.tag}
-                  <Button variant="secondary" className="btn-sm" onPress={() => navigate(t.to)}>{t.label}</Button>
-                </li>
-              ))}
-            </ul>
+            groups.map((g) => (
+              <div key={g.label} className="task-group">
+                {groups.length > 1 && <h3 className="task-group-label">{g.label}</h3>}
+                <ul className="tasks">
+                  {g.items.map((t) => (
+                    <li key={t.key}>
+                      <span className={`task-icon tag-${t.tone}`}><t.icon aria-hidden="true" size="1rem" /></span>
+                      <div className="task-main">
+                        <p className="task-title">{t.title}</p>
+                        <p className="task-meta">{t.meta}</p>
+                      </div>
+                      {t.tag}
+                      <Button variant="secondary" className="btn-sm" onPress={() => navigate(t.to)}>{t.label}</Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))
           )}
 
           {receipts.length > 0 && (

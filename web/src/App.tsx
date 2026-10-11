@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Compass } from 'lucide-react';
 import { Link, match, navigate, useRoute } from './lib/router';
 import { useSession } from './lib/session';
-import { AppShell, PlainShell } from './ui/AppShell';
+import { AppShell, type Crumb, PlainShell } from './ui/AppShell';
 import { Empty, Skeleton } from './ui/States';
 import { ChooseWorkspace } from './pages/ChooseWorkspace';
 import { DesignGallery } from './pages/DesignGallery';
@@ -39,6 +39,8 @@ import { SystemQuotas } from './pages/system/SystemQuotas';
 import { SystemWorkspaces } from './pages/system/SystemWorkspaces';
 import { SystemShell } from './ui/SystemShell';
 import { Profile } from './pages/Profile';
+import { AdminHub } from './pages/AdminHub';
+import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
 
 function Redirect({ to }: { to: string }) {
@@ -46,7 +48,7 @@ function Redirect({ to }: { to: string }) {
   return null;
 }
 
-const ADMIN = 'Administration';
+const ADMIN: Crumb = ['Admin', '/admin'];
 
 /** The system console (docs/05 §2.3) lives at `/system`, outside any workspace. */
 const isSystemPath = (p: string) => p === '/system' || p.startsWith('/system/');
@@ -92,9 +94,11 @@ export function App() {
   if (path === '/') return <AppShell current="home" crumbs={['Home']}><Home /></AppShell>;
   if (path === '/notifications/preferences') return <AppShell current="inbox" crumbs={[['Notifications', '/notifications'], 'Preferences']}><NotificationPreferences /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
-  if (path === '/library') return <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/library') return query.get('view') === 'mine' ? <AppShell current="my-documents" crumbs={[['Library', '/library'], 'My documents']}><Library /></AppShell> : <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/welcome') return <AppShell current="home" crumbs={[['Home', '/'], 'Set up']}><Welcome /></AppShell>;
+  if (path === '/admin') return <AppShell current="admin" crumbs={['Admin']}><AdminHub /></AppShell>;
   if (path === '/templates') return <AppShell current="templates" crumbs={['Templates']}><Templates /></AppShell>;
-  if (path === '/policies') return <AppShell current="policies" crumbs={['Policies']}><Policies /></AppShell>;
+  if (path === '/policies') return <AppShell current="library" crumbs={[['Library', '/library'], 'Applies to me']}><Policies /></AppShell>;
   const cmp = match('/library/:id/compare', path);
   if (cmp) return <AppShell current="library" crumbs={[['Library', '/library'], 'Compare']}><Compare id={cmp.id!} /></AppShell>;
   const doc = match('/library/:id', path);
@@ -115,10 +119,10 @@ export function App() {
   if (person) return <AppShell current="home" crumbs={[['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
   if (path === '/admin/roles') return <AppShell current="roles" crumbs={[ADMIN, 'Roles & access']}><Roles /></AppShell>;
-  if (path === '/admin/announcements') return <AppShell current="manage-announcements" crumbs={[ADMIN, 'Manage announcements']}><ManageAnnouncements /></AppShell>;
-  if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={[ADMIN, 'Campaigns']}><Campaigns /></AppShell>;
+  if (path === '/admin/announcements') return <AppShell current="announcements" crumbs={[['Announcements', '/announcements'], 'Manage']}><ManageAnnouncements /></AppShell>;
+  if (path === '/admin/campaigns') return <AppShell current="campaigns" crumbs={['Campaigns']}><Campaigns /></AppShell>;
   const camp = match('/admin/campaigns/:id', path);
-  if (camp) return <AppShell current="campaigns" crumbs={[ADMIN, ['Campaigns', '/admin/campaigns'], 'Campaign']}><CampaignDetail id={camp.id!} /></AppShell>;
+  if (camp) return <AppShell current="campaigns" crumbs={[['Campaigns', '/admin/campaigns'], 'Campaign']}><CampaignDetail id={camp.id!} /></AppShell>;
   if (path === '/admin/settings') return <AppShell current="settings" crumbs={[ADMIN, 'Settings']}><Settings /></AppShell>;
   if (path === '/admin/audit') return <AppShell current="audit" crumbs={[ADMIN, 'Audit log']}><Audit /></AppShell>;
   return (
