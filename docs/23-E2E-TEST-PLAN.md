@@ -309,13 +309,13 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R1-11 | File upload (resumable 50 MB): clean file previews; **EICAR quarantined** and undownloadable; signed URL expires and fails from workspace B | FR-F01–F03, SEC-10 |
 | E2E-R1-12 | Files view: filter by scan state/type/size, bulk retention change, held file deletion refused | FR-F06, FR-V* |
 | E2E-R1-13 | DataGrid: multi-sort, typed filters, AND/OR group, saved view shared to a role, URL deep link restores view, CSV/XLSX export matches view and redaction | FR-V01–V07 |
-| E2E-R1-14 | Audit: perform 10 actions → audit explorer filter by actor → user timeline shows them in order → `/__test/audit/verify` OK | FR-T01–T04 |
+| E2E-R1-14 | Audit: perform 10 actions → audit explorer filter by actor → user timeline shows them in order → `/__test/audit/verify` OK (browser: Person filter shows only that person's events; a version's timeline is oldest first: three edits, submitted, published; the page shows Chain verified) | FR-T01–T04 |
 | E2E-R1-15 | Workspace overview dashboard: every tile drills into a pre-filtered grid with matching counts | FR-A01 |
 | E2E-R1-16 | Member deactivated → sessions revoked immediately → cannot log in or act (browser: owner deactivates from the person page; the member's open tab is sent to the chooser on the next page; signing in again offers no workspace; the API refuses entry) | SEC-04, FR-W01 |
 | E2E-R1-17 | System admin suspends workspace B (read-only) → writes return 423 with banner → restore (browser: reads keep working; the first change is refused and a read-only banner appears on every page; after restore the banner is gone and changes work) | FR-S02, J8 |
 | E2E-R1-18 | Startup day-one (J12): Starter profile → install policy-ack pack → publish handbook → 20 employees ack on phones in < 15 min wall-clock | J12 |
 | E2E-R1-19 | Keyboard-only: publish a policy and acknowledge it without a mouse (browser: Tab/Enter/typing only, author from Library to Published, colleague from sign-in to Acknowledged) | A11Y-01, T10 |
-| E2E-R1-ISO | Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` | SEC-01/02 |
+| E2E-R1-ISO | Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` (built: B's owner probes 21 reads and writes on A's documents, versions, exports, campaigns, announcements, collections, departments, views, files and members → all 404, A unchanged; not yet: the `denied` audit record for cross-workspace probes) | SEC-01/02 |
 
 ### E2E-R2: Requests & Approvals
 

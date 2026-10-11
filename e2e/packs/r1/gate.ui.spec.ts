@@ -201,4 +201,48 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.getByRole('button', { name: 'Submit for review' }).click();
     await expect(page.getByText('Approved', { exact: true })).toBeVisible();
   });
+
+  test('E2E-R1-14 audit trail: ten actions by two people, filtered by person in the Audit log, a version timeline in order, the chain verified', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    // Ten actions: a policy written over three edits, submitted and published; a collection; an
+    // invitation; an announcement draft; a member who joins.
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: h, data: { kind: 'policy', key: 'expenses', title: 'Expenses', content: { blocks: [{ type: 'paragraph', text: 'v0' }] } } })).json();
+    let rev = r.version.revision;
+    for (const t of ['One', 'Two', 'Three']) {
+      const e = await owner.c.patch(`/api/v1/versions/${r.version.id}`, { headers: { ...h, 'if-match': `"${rev}"` }, data: { content: { blocks: [{ type: 'paragraph', text: t }] } } });
+      expect(e.status()).toBe(200);
+      rev = (await e.json()).revision;
+    }
+    await owner.c.post(`/api/v1/versions/${r.version.id}/submit`, { headers: h });
+    await owner.c.post(`/api/v1/versions/${r.version.id}/publish`, { headers: h, data: {} });
+    await owner.c.post('/api/v1/collections', { headers: h, data: { name: 'Finance' } });
+    await owner.c.post('/api/v1/announcements', { headers: h, data: { title: 'Quarter close', content: { blocks: [{ type: 'paragraph', text: 'Soon.' }] }, audience: { all: true } } });
+    const joiner = await member(request, owner, ws.id, 'auditee');
+
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+    await nav(page, 'Audit log');
+    await expect(page.getByText('Chain verified')).toBeVisible();
+    const table = page.getByRole('table', { name: 'Audit events' });
+    // Only the joiner's own actions when filtered to them.
+    await page.getByLabel('Person').selectOption({ label: 'auditee' });
+    await expect(table.getByRole('row').nth(1)).toBeVisible();
+    for (const row of await table.locator('tbody tr').allTextContents()) expect(row).toContain('auditee');
+    // Olivia's actions include the publication, newest first.
+    await page.getByLabel('Person').selectOption({ label: 'Olivia' });
+    await expect(table.getByText('Version published').first()).toBeVisible();
+    await axe(page);
+    // The version's own history, oldest first: three edits, then submitted, then published.
+    await table.getByRole('row').filter({ hasText: 'Version submitted' }).first().getByRole('button', { name: /artifact version/ }).click();
+    const tl = page.getByRole('dialog', { name: /history/ });
+    const titles = await tl.locator('.tl-title').allInnerTexts();
+    const at = (t: string) => titles.findIndex((x) => x.startsWith(t));
+    expect(titles.filter((t) => t.startsWith('Version edited'))).toHaveLength(3);
+    expect(at('Version edited')).toBeLessThan(at('Version submitted'));
+    expect(at('Version submitted')).toBeLessThan(at('Version published'));
+    const chain = await (await request.get(`/__test/audit/verify?workspace=${ws.id}`)).json();
+    expect(chain.ok).toBe(true);
+    expect(joiner.id).toBeTruthy();
+  });
 });
