@@ -14,6 +14,7 @@ mod ast;
 mod builtins;
 mod check;
 mod diag;
+mod eval;
 mod lexer;
 mod parser;
 mod types;
@@ -22,6 +23,7 @@ mod value;
 pub use ast::{BinaryOp, Expr, ExprKind, Literal, MacroKind, UnaryOp};
 pub use check::{CheckOptions, CheckedExpr, ExprContext, check};
 pub use diag::{Code, Diagnostic, Span};
+pub use eval::{BindingError, Bindings, Budget, EvalEnv, EvalError, Usage, evaluate, evaluate_metered};
 pub use parser::parse;
 pub use types::{Classification, Schema, Type, VarDecl};
 pub use value::{
