@@ -4,6 +4,7 @@ import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger,
 import { ApiError, api, blobUrl } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { setTerms, useTerms } from '../lib/terms';
 import { Avatar } from './Avatar';
 import { CommandPalette, shortcutLabel } from './CommandPalette';
 import { type NavKey, navGroups } from './nav';
@@ -31,6 +32,7 @@ function applyTheme(t: Theme) {
  */
 export function AppShell({ children, current = 'home', crumbs = [], actions }: { children: React.ReactNode; current?: NavKey; crumbs?: Crumb[]; actions?: React.ReactNode }) {
   const { user, workspace, workspaces, can, selectWorkspace, signOut, reload } = useSession();
+  useTerms(); // navigation labels use the workspace's terms
   const [unread, setUnread] = useState(0);
   const [logo, setLogo] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
@@ -74,8 +76,9 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   useEffect(() => {
     if (!workspace) return;
     let live = true;
-    api<{ light: Record<string, string>; dark: Record<string, string>; logo: string | null }>('/api/v1/branding').then((b) => {
+    api<{ light: Record<string, string>; dark: Record<string, string>; logo: string | null; terms?: Record<string, { singular: string; plural: string }> }>('/api/v1/branding').then((b) => {
       if (!live) return;
+      setTerms(b.terms); // workspace terminology (CFG-008)
       if (b.logo) void blobUrl(b.logo).then((u) => { if (live) setLogo(u); else URL.revokeObjectURL(u); }).catch(() => undefined);
       else setLogo(null);
       const vars = (x: Record<string, string>) => `--color-accent-text:${x.text};--color-accent-strong:${x.strong};--color-accent-strong-hover:${x.strong_hover};--color-focus:${x.focus};`;
@@ -83,7 +86,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
       if (!el) { el = document.createElement('style'); el.id = 'ws-brand'; document.head.appendChild(el); }
       el.textContent = `:root{${vars(b.light)}}@media (prefers-color-scheme: dark){:root:not([data-theme='light']){${vars(b.dark)}}}:root[data-theme='dark']{${vars(b.dark)}}`;
     }).catch(() => undefined);
-    return () => { live = false; document.getElementById('ws-brand')?.remove(); };
+    return () => { live = false; document.getElementById('ws-brand')?.remove(); setTerms(null); };
   }, [workspace]);
   useEffect(() => () => { if (logo) URL.revokeObjectURL(logo); }, [logo]);
   useEffect(() => {

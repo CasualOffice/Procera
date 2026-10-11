@@ -16,6 +16,7 @@ import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag, type TagColor } from '../ui/Tag';
+import { term, useTerms } from '../lib/terms';
 
 interface Progress { assigned: number; acknowledged: number; pending: number; overdue: number }
 export interface Campaign {
@@ -42,6 +43,7 @@ function Meter({ p, label }: { p: Progress; label: string }) {
 
 /** Admin · Campaigns list (docs/05 §3.24): source, audience, completion, overdue, deadline. */
 export function Campaigns() {
+  useTerms(); // the workspace's terms (CFG-008)
   const { can } = useSession();
   const { query } = useRoute();
   const [items, reload, error] = useItems<Campaign>('/api/v1/campaigns');
@@ -56,7 +58,7 @@ export function Campaigns() {
   return (
     <>
       <div className="page-head">
-        <div><h1>Campaigns</h1><p>Ask people to read and acknowledge a published policy or SOP, then keep the evidence.</p></div>
+        <div><h1>Campaigns</h1><p>Ask people to read and acknowledge a published policy or {term('sop')}, then keep the evidence.</p></div>
         {canManage && <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New campaign</Button>}
       </div>
       {items && items.length > 0 && (
@@ -102,6 +104,7 @@ export function Campaigns() {
 
 /** Create a draft campaign from a published document version. */
 function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose: () => void; onCreated: (id: string) => void }) {
+  useTerms(); // the workspace's terms (CFG-008)
   const [docs] = useItems<Artifact>(isOpen ? '/api/v1/artifacts' : null, [isOpen]);
   const published = (docs ?? []).filter((d) => d.current_published_version_id);
   const [doc, setDoc] = useState<string>('');
@@ -131,7 +134,7 @@ function NewCampaign({ isOpen, onClose, onCreated }: { isOpen: boolean; onClose:
         <div className="field" role="group" aria-labelledby="doc-pick-label">
           <span className="field-label" id="doc-pick-label">Document</span>
           {docs === null ? <Skeleton rows={2} label="Loading documents" /> : published.length === 0 ? (
-            <p className="aud-note">Nothing is published yet. Publish a policy or SOP first, then come back.</p>
+            <p className="aud-note">Nothing is published yet. Publish a policy or {term('sop')} first, then come back.</p>
           ) : (
             <div className="doc-pick">
               {published.map((d) => (

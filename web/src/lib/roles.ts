@@ -1,4 +1,5 @@
 import { ApiError } from './api';
+import { TERMS, type Term, term } from './terms';
 
 /** Roles and grants as the Access API returns them (docs/08 Roles, docs/12 §5-6). */
 export interface Role { id: string; key: string; name: string; description: string | null; is_builtin: boolean; builtin_template: string | null; permissions: string[]; revision: number }
@@ -27,7 +28,8 @@ const ACTION: Record<string, string> = {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export const areaOf = (p: string) => p.slice(0, p.indexOf(':'));
-export const areaLabel = (area: string) => AREA[area] ?? cap(area.replace(/_/g, ' '));
+/** Areas named after a product term (SOPs, Requests, Cases…) use the workspace's term (CFG-008). */
+export const areaLabel = (area: string) => ((TERMS as string[]).includes(area) ? term(area as Term, { plural: true, capitalised: true }) : AREA[area] ?? cap(area.replace(/_/g, ' ')));
 export const actionLabel = (p: string) => { const a = p.slice(p.indexOf(':') + 1); return ACTION[a] ?? cap(a.replace(/[._]/g, ' ')); };
 /** "Processes: Publish" — a permission in words, for previews and errors. */
 export const permLabel = (p: string) => (p.includes(':') ? `${areaLabel(areaOf(p))}: ${actionLabel(p)}` : p);

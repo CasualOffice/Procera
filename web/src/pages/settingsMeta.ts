@@ -13,7 +13,7 @@ export const AREAS: Area[] = [
   { id: 'notifications', label: 'Notifications', prefixes: ['notify.'] },
   { id: 'directory', label: 'Directory', prefixes: ['directory.'] },
   { id: 'branding', label: 'Branding', prefixes: ['branding.'] },
-  { id: 'locale', label: 'Language and region', prefixes: ['locale.'] },
+  { id: 'locale', label: 'Language, region and terms', prefixes: ['locale.', 'terminology.'] },
   { id: 'files', label: 'Files', prefixes: ['files.'] },
   { id: 'requests', label: 'Requests', prefixes: ['exec.', 'monitoring.'] },
 ];
@@ -61,6 +61,7 @@ export const LABELS: Record<string, [string, string?]> = {
   'locale.default': ['Language', 'A language tag such as en or en-GB.'],
   'locale.timezone': ['Time zone', 'For example Europe/London.'],
   'locale.week_start': ['Week starts on'],
+  'terminology.overrides': ['Terminology', 'Rename product terms for this workspace, for example Request to Ticket. Applies to screens, emails and exports; the API keeps its own names.'],
   'files.max_size': ['Largest file people can upload'],
   'files.scan.required': ['Scan uploads for malware'],
   'files.exif_strip': ['Remove location data from photos'],

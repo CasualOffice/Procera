@@ -4,6 +4,7 @@ import { useItems, useResource } from '../lib/data';
 import { type Catalog, type Grant, type Role } from '../lib/roles';
 import { navigate, useRoute } from '../lib/router';
 import { useSession } from '../lib/session';
+import { useTerms } from '../lib/terms';
 import { Button } from '../ui/components/Button';
 import { DataGrid } from '../ui/components/DataGrid';
 import { Notice } from '../ui/components/Notice';
@@ -19,6 +20,7 @@ interface GrantRow { id: string; grant: Grant; role: string; who: string; scope:
 
 /** Admin · Roles & access (docs/05 §3.15): built-in and custom roles, their permissions, and who holds them where. */
 export function Roles() {
+  useTerms(); // the workspace's terms (CFG-008)
   const { can } = useSession();
   const { query } = useRoute();
   const [roles, reloadRoles, rolesError] = useItems<Role>('/api/v1/roles');
