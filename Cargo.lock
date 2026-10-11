@@ -2516,6 +2516,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "procera-search"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-db",
+ "procera-kernel",
+ "procera-library",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "procera-settings"
 version = "0.0.0"
 dependencies = [
