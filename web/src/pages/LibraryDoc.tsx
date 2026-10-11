@@ -1,3 +1,4 @@
+import { CollectionRow, OwnerRow, RaciRows } from './docOrganisation';
 import { BookOpenCheck, Check, CircleDot, FileText, GitBranch, Hash, Pencil, ScrollText, Send, ShieldCheck, User } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
@@ -20,7 +21,7 @@ import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from './docGovernance';
 import { ApplicabilityRow } from './docApplicability';
 
-interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
+interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean; collection_id?: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[] }
 interface Version { id: string; version_no: number; lifecycle: string; content: { blocks?: Block[] }; content_hash: string | null; created_by: string; created_at: string; published_at: string | null; revision: number; reviews: { reviewer_membership_id: string; decision: string; comment: string | null; decided_at: string }[]; approvals_required: number | null; change_reason: string | null; semver?: string | null; reack_required?: boolean }
 /** What publishing would do (BPMS-045): numbers per change, who is asked to re-acknowledge and by when. */
 interface PublishPreview { version_no: number; next_semver_major: string; next_semver_minor: string; reack_required_if_major: boolean; reack_required_if_minor: boolean; audience_size: number; due_at: string }
@@ -130,7 +131,9 @@ export function LibraryDoc({ id }: { id: string }) {
       <dl className="props">
         <dt><CircleDot aria-hidden="true" size="0.9375rem" /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
         <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>v{v.version_no}{v.semver && <span className="muted">· {v.semver}</span>}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
-        <dt><User aria-hidden="true" size="0.9375rem" /> Owner</dt><dd>{owner ? <span className="person"><Avatar name={owner.display_name} size="1.25rem" />{owner.display_name}</span> : <span className="muted">No owner</span>}</dd>
+        <OwnerRow artifactId={a.id} owner={owner} canEdit={p('publish')} act={act} />
+        <CollectionRow artifactId={a.id} collectionId={a.collection_id ?? null} canEdit={p('publish')} act={act} />
+        <RaciRows artifactId={a.id} canEdit={p('publish')} act={act} />
         {v.lifecycle === 'in_review' && <><dt><ShieldCheck aria-hidden="true" size="0.9375rem" /> Approvals</dt><dd>{approvals} of {v.approvals_required ?? 1}{v.reviews.map((r) => <span key={r.reviewer_membership_id} className="person" title={r.decision}><Avatar name={directory.get(r.reviewer_membership_id)?.display_name ?? '?'} size="1.25rem" /></span>)}</dd></>}
         {a.governance && a.current_published_version_id && <GovernanceRows artifactId={a.id} g={a.governance} canRecertify={p('publish')} canVerify={p('approve')} act={act} />}
         {a.kind === 'policy' && (p('publish') || !!a.category || !!a.restricted || a.applicability != null) && <ApplicabilityRow artifactId={a.id} category={a.category ?? null} applicability={a.applicability ?? null} restricted={!!a.restricted} canEdit={p('publish')} act={act} />}

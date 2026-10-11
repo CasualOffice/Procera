@@ -129,6 +129,14 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/artifacts/{id}/change-requests", &[&["change_request.opened"]]),
     emits("POST", "/api/v1/change-requests/{id}/resolve", &[&["change_request.resolved"]]),
     emits("PUT", "/api/v1/me/notification-preferences", &[&["notification_preferences.changed"]]),
+    // Collections, owners, RACI (BPMS-041).
+    emits("POST", "/api/v1/collections", &[&["collection.created"]]),
+    emits("PATCH", "/api/v1/collections/{id}", &[&["collection.updated"]]),
+    emits("DELETE", "/api/v1/collections/{id}", &[&["collection.deleted"]]),
+    emits("PUT", "/api/v1/collections/{id}/visibility", &[&["collection.visibility_set"]]),
+    emits("PUT", "/api/v1/artifacts/{id}/collection", &[&["artifact.collection_set"]]),
+    emits("PUT", "/api/v1/artifacts/{id}/owner", &[&["artifact.owner_set"]]),
+    emits("PUT", "/api/v1/artifacts/{id}/raci", &[&["artifact.raci_set"]]),
     emits("PUT", "/api/v1/artifacts/{id}/applicability", &[&["artifact.applicability_set"]]),
     // Campaigns (BPMS-046). Reminder steps, escalations and joiner enrolment are scheduler/consumer
     // work, audited as the system (campaign.reminders_sent, campaign.escalated, campaign.recipient_enrolled).

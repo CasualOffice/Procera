@@ -11,6 +11,7 @@
 //!
 //! Permissions and step-up are checked by the caller (HTTP layer); this crate enforces the lifecycle.
 
+pub mod collections;
 pub mod diff;
 pub mod governance;
 pub mod portal;
@@ -153,6 +154,8 @@ pub struct Artifact {
     pub applicability: Option<Value>,
     /// Hidden from readers outside `applicability` (A-14).
     pub restricted: bool,
+    /// The collection it is filed in (BPMS-041); `None` = top level.
+    pub collection_id: Option<Uuid>,
 }
 
 /// Recertification and verification state of an artifact (BPMS-044, FR-G07, FX-G01/G02).
@@ -281,8 +284,9 @@ struct ArtifactRow {
     category: Option<String>,
     applicability: Option<Value>,
     restricted: bool,
+    collection_id: Option<Uuid>,
 }
-const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at, review_cadence_days, next_review_at, last_reviewed_at, review_overdue_at, verified_at, verified_by, verification_expires_at, category, applicability, restricted";
+const ARTIFACT_COLS: &str = "id, kind, key, title, owner_membership_id, criticality, state, current_published_version_id, revision, created_at, review_cadence_days, next_review_at, last_reviewed_at, review_overdue_at, verified_at, verified_by, verification_expires_at, category, applicability, restricted, collection_id";
 
 /// Who is reading (A-14): their membership and the kinds they hold an authoring permission on.
 #[derive(Debug, Clone, Copy)]
@@ -301,7 +305,7 @@ impl Reader<'_> {
 pub const PUBLISHED_HISTORY: &[&str] = &["published", "deprecated", "retired"];
 
 /// SQL: artifact `a` is visible to a view-only reader (membership is `$4`).
-pub(crate) const READER_VISIBLE: &str = "(a.current_published_version_id IS NOT NULL AND (NOT a.restricted OR a.applicability IS NULL OR procera_audience_contains(a.applicability, $4)))";
+pub(crate) const READER_VISIBLE: &str = "(a.current_published_version_id IS NOT NULL AND (NOT a.restricted OR a.applicability IS NULL OR procera_audience_contains(a.applicability, $4)) AND (a.collection_id IS NULL OR procera_collection_visible(a.collection_id, $4)))";
 
 /// Review status at `now`: overdue once the review date has passed (whether or not the worker has
 /// flagged it yet), due soon within [`DUE_SOON`].
@@ -340,6 +344,7 @@ fn artifact(r: ArtifactRow, now: OffsetDateTime) -> Artifact {
         category: r.category,
         applicability: r.applicability,
         restricted: r.restricted,
+        collection_id: r.collection_id,
     }
 }
 
@@ -411,12 +416,14 @@ impl Library {
         tx: &mut WsTx<'_>,
         kinds: &[&str],
         state: Option<&str>,
+        collection: Option<Uuid>,
         reader: &Reader<'_>,
     ) -> Result<Vec<Artifact>, LibraryError> {
         let kinds: Vec<String> = kinds.iter().map(|k| (*k).to_owned()).collect();
         let full: Vec<String> = reader.full_kinds.iter().map(|k| (*k).to_owned()).collect();
-        let rows: Vec<ArtifactRow> = sqlx::query_as(&format!("SELECT {ARTIFACT_COLS} FROM artifacts a WHERE kind = ANY($1) AND ($2::text IS NULL OR state = $2) AND (kind = ANY($3) OR {READER_VISIBLE}) ORDER BY lower(title)"))
-            .bind(&kinds).bind(state).bind(&full).bind(reader.membership).fetch_all(tx.conn()).await?;
+        // `collection` includes its sub-collections.
+        let rows: Vec<ArtifactRow> = sqlx::query_as(&format!("SELECT {ARTIFACT_COLS} FROM artifacts a WHERE kind = ANY($1) AND ($2::text IS NULL OR state = $2) AND (kind = ANY($3) OR {READER_VISIBLE}) AND ($5::uuid IS NULL OR a.collection_id IN (SELECT id FROM collections WHERE $5 = ANY(path))) ORDER BY lower(title)"))
+            .bind(&kinds).bind(state).bind(&full).bind(reader.membership).bind(collection).fetch_all(tx.conn()).await?;
         let now = self.clock.now();
         Ok(rows.into_iter().map(|r| artifact(r, now)).collect())
     }

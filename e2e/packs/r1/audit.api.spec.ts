@@ -143,6 +143,15 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/artifacts/{id}/recertify', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/recertify`, { headers: oh, data: { comment: 'still right' } }));
   await step('POST', '/api/v1/artifacts/{id}/verification', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
   await step('DELETE', '/api/v1/artifacts/{id}/verification', () => own.delete(`/api/v1/artifacts/${sop.artifact.id}/verification`, { headers: oh }));
+  // Collections, owner, RACI (BPMS-041).
+  const col = await (await step('POST', '/api/v1/collections', () => own.post('/api/v1/collections', { headers: oh, data: { name: 'Audit collection' } }))).json();
+  await step('PATCH', '/api/v1/collections/{id}', () => own.patch(`/api/v1/collections/${col.id}`, { headers: oh, data: { name: 'Audit collection 2' } }));
+  await step('PUT', '/api/v1/collections/{id}/visibility', () => own.put(`/api/v1/collections/${col.id}/visibility`, { headers: oh, data: { visibility: null } }));
+  await step('PUT', '/api/v1/artifacts/{id}/collection', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/collection`, { headers: oh, data: { collection_id: col.id } }));
+  await own.put(`/api/v1/artifacts/${sop.artifact.id}/collection`, { headers: oh, data: { collection_id: null } });
+  await step('DELETE', '/api/v1/collections/{id}', () => own.delete(`/api/v1/collections/${col.id}`, { headers: oh }));
+  await step('PUT', '/api/v1/artifacts/{id}/owner', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/owner`, { headers: oh, data: { membership_id: joined.membership_id } }));
+  await step('PUT', '/api/v1/artifacts/{id}/raci', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/raci`, { headers: oh, data: { accountable: [{ membership_id: joined.membership_id }] } }));
   await step('PUT', '/api/v1/me/notification-preferences', () => own.put('/api/v1/me/notification-preferences', { headers: oh, data: { digest: 'daily' } }));
   await step('PUT', '/api/v1/artifacts/{id}/applicability', () => own.put(`/api/v1/artifacts/${sop.artifact.id}/applicability`, { headers: oh, data: { category: 'Audit' } }));
   const cr = await (await step('POST', '/api/v1/artifacts/{id}/change-requests', () => own.post(`/api/v1/artifacts/${sop.artifact.id}/change-requests`, { headers: oh, data: { title: 'Add a step' } }))).json();

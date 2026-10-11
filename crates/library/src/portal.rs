@@ -55,14 +55,28 @@ impl Library {
         if a.current_published_version_id.is_none() {
             return Ok(false);
         }
-        match (&a.applicability, a.restricted) {
-            (Some(aud), true) => Ok(sqlx::query_scalar("SELECT procera_audience_contains($1, $2)")
-                .bind(aud)
-                .bind(reader.membership)
-                .fetch_one(tx.conn())
-                .await?),
-            _ => Ok(true),
-        }
+        let applies = match (&a.applicability, a.restricted) {
+            (Some(aud), true) => {
+                sqlx::query_scalar("SELECT procera_audience_contains($1, $2)")
+                    .bind(aud)
+                    .bind(reader.membership)
+                    .fetch_one(tx.conn())
+                    .await?
+            }
+            _ => true,
+        };
+        // A collection that restricts visibility hides its documents from readers outside it (BPMS-041).
+        let in_collection = match a.collection_id {
+            Some(c) => {
+                sqlx::query_scalar("SELECT procera_collection_visible($1, $2)")
+                    .bind(c)
+                    .bind(reader.membership)
+                    .fetch_one(tx.conn())
+                    .await?
+            }
+            None => true,
+        };
+        Ok(applies && in_collection)
     }
 
     /// Whether `reader` may open a version in `lifecycle` of a visible artifact.
@@ -146,6 +160,7 @@ impl Library {
             "SELECT a.id, v.id, v.version_no, v.published_at, v.content
              FROM artifacts a JOIN artifact_versions v ON v.workspace_id = a.workspace_id AND v.id = a.current_published_version_id
              WHERE a.kind = 'policy' AND (a.applicability IS NULL OR procera_audience_contains(a.applicability, $1))
+               AND (a.collection_id IS NULL OR procera_collection_visible(a.collection_id, $1))
                AND ($2::text IS NULL OR a.title ILIKE $2 OR a.key ILIKE $2 OR a.category ILIKE $2)
                AND ($3::text IS NULL OR lower(a.category) = lower($3))
              ORDER BY lower(coalesce(a.category, '')), lower(a.title)",

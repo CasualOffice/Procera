@@ -5,7 +5,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post, put};
+use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
 use procera_db::WsTx;
@@ -34,6 +34,13 @@ pub fn router() -> Router<AppState> {
         .route("/change-requests/{id}/resolve", post(resolve_change_request))
         .route("/artifacts/{id}/applicability", put(set_applicability))
         .route("/me/policies", get(portal))
+        .route("/collections", get(list_collections).post(create_collection))
+        .route("/collections/{id}", patch(update_collection).delete(delete_collection))
+        .route("/collections/{id}/visibility", put(set_collection_visibility))
+        .route("/artifacts/{id}/collection", put(set_artifact_collection))
+        .route("/artifacts/{id}/owner", put(set_owner))
+        .route("/artifacts/{id}/raci", get(get_raci).put(set_raci))
+        .route("/raci/export", get(export_raci))
         .route("/versions/{id}/submit", post(submit))
         .route("/versions/{id}/withdraw", post(withdraw))
         .route("/versions/{id}/reviews", post(review))
@@ -171,6 +178,8 @@ async fn authorize_version(
 struct ListQuery {
     kind: Option<String>,
     state: Option<String>,
+    /// A collection; its sub-collections are included (BPMS-041).
+    collection: Option<Uuid>,
 }
 
 async fn list(
@@ -199,7 +208,7 @@ async fn list(
     }
     let full = full_kinds(&s, &me, &mut tx).await?;
     let reader = Reader { membership: me.actor.membership, full_kinds: &full };
-    let items = library(&s)?.list(&mut tx, &kinds, q.state.as_deref(), &reader).await?;
+    let items = library(&s)?.list(&mut tx, &kinds, q.state.as_deref(), q.collection, &reader).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": items })).into_response())
 }
@@ -767,4 +776,239 @@ async fn portal(
     let mut categories: Vec<&str> = items.iter().filter_map(|p| p.category.as_deref()).collect();
     categories.dedup();
     Ok(Json(json!({ "items": items, "categories": categories })))
+}
+
+// ---- BPMS-041: collections, owners, RACI ----
+
+/// Whether the member manages collections (sees and edits all of them).
+async fn manages_collections(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>) -> Result<bool, ApiError> {
+    Ok(members(s)?
+        .access()
+        .check(tx, me.actor.membership, "collection:manage", &Resource::Workspace)
+        .await?
+        .allowed)
+}
+
+async fn list_collections(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "collection:view", Resource::Workspace).await?;
+    let all = manages_collections(&s, &me, &mut tx).await?;
+    let full = full_kinds(&s, &me, &mut tx).await?;
+    let reader = Reader { membership: me.actor.membership, full_kinds: &full };
+    let items = library(&s)?.collections(&mut tx, &reader, all).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items, "can_manage": all })))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CollectionReq {
+    name: String,
+    parent_id: Option<Uuid>,
+}
+
+async fn create_collection(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Json(r): Json<CollectionReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "collection:manage", Resource::Workspace).await?;
+    let c = library(&s)?.create_collection(&mut tx, &actor(&me, &headers), &r.name, r.parent_id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok((StatusCode::CREATED, Json(c)).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CollectionPatch {
+    name: Option<String>,
+    /// Present (even `null` = top level) to move the collection.
+    #[serde(default, deserialize_with = "present")]
+    parent_id: Option<Option<Uuid>>,
+}
+
+/// Distinguishes an absent field (`None`) from an explicit `null` (`Some(None)`).
+fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<Uuid>>, D::Error> {
+    Option::<Uuid>::deserialize(d).map(Some)
+}
+
+async fn update_collection(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<CollectionPatch>,
+) -> Result<Json<procera_library::collections::Collection>, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "collection:manage", Resource::Workspace).await?;
+    let c = library(&s)?
+        .update_collection(&mut tx, &actor(&me, &headers), id, r.name.as_deref(), r.parent_id)
+        .await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(c))
+}
+
+async fn delete_collection(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "collection:manage", Resource::Workspace).await?;
+    library(&s)?.delete_collection(&mut tx, &actor(&me, &headers), id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VisibilityReq {
+    /// An audience; `null` = everyone in the workspace.
+    visibility: Option<procera_members::audience::Audience>,
+}
+
+async fn set_collection_visibility(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<VisibilityReq>,
+) -> Result<Json<procera_library::collections::Collection>, ApiError> {
+    let v = match r.visibility {
+        Some(a) if a.is_empty() => {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("visibility must name at least one audience, or be null for everyone"));
+        }
+        Some(a) => Some(serde_json::to_value(a).map_err(internal)?),
+        None => None,
+    };
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "collection:manage", Resource::Workspace).await?;
+    let c = library(&s)?.set_collection_visibility(&mut tx, &actor(&me, &headers), id, v.as_ref()).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(c))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct FileReq {
+    collection_id: Option<Uuid>,
+}
+
+/// Filing a document needs `publish` on its kind (the people who control where it lives).
+async fn set_artifact_collection(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<FileReq>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "publish").await?;
+    let a = library(&s)?.set_artifact_collection(&mut tx, &actor(&me, &headers), id, r.collection_id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct OwnerReq {
+    membership_id: Uuid,
+}
+
+async fn set_owner(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<OwnerReq>,
+) -> Result<Json<procera_library::Artifact>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "publish").await?;
+    let a = library(&s)?.set_owner(&mut tx, &actor(&me, &headers), id, r.membership_id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(a))
+}
+
+async fn get_raci(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Json<procera_library::collections::Raci>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "view").await?;
+    let r = library(&s)?.raci(&mut tx, id).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(r))
+}
+
+async fn set_raci(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<procera_library::collections::Raci>,
+) -> Result<Json<procera_library::collections::Raci>, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    authorize_artifact(&s, &me, &mut tx, id, "publish").await?;
+    let out = library(&s)?.set_raci(&mut tx, &actor(&me, &headers), id, &r).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(out))
+}
+
+#[derive(Debug, Deserialize)]
+struct ExportQuery {
+    collection: Option<Uuid>,
+}
+
+/// RACI of every document the caller may see, as CSV (FR-G01 "RACI exportable"). Audited.
+async fn export_raci(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Query(q): Query<ExportQuery>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let mut kinds = vec![];
+    for k in AUTHORABLE {
+        if m.access()
+            .check(&mut tx, me.actor.membership, permission(k, "view")?, &Resource::Workspace)
+            .await?
+            .allowed
+        {
+            kinds.push(*k);
+        }
+    }
+    if kinds.is_empty() {
+        return Err(ApiError::new(403, "forbidden", "Forbidden"));
+    }
+    let full = full_kinds(&s, &me, &mut tx).await?;
+    let reader = Reader { membership: me.actor.membership, full_kinds: &full };
+    let csv = library(&s)?.raci_csv(&mut tx, &reader, &kinds, q.collection).await?;
+    let rows = csv.lines().count().saturating_sub(1);
+    m.audit_object(
+        &mut tx,
+        Some(me.actor.subject_ref),
+        "raci.exported",
+        "collection",
+        q.collection.unwrap_or_default(),
+        json!({"rows": rows, "collection_id": q.collection}),
+        &super::auth::client_info(&headers),
+    )
+    .await?;
+    tx.commit().await.map_err(internal)?;
+    let mut res = csv.into_response();
+    res.headers_mut().insert(header::CONTENT_TYPE, HeaderValue::from_static("text/csv; charset=utf-8"));
+    res.headers_mut()
+        .insert(header::CONTENT_DISPOSITION, HeaderValue::from_static("attachment; filename=\"raci.csv\""));
+    Ok(res)
 }

@@ -205,7 +205,7 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .search-input input { border: 0; outline: none; background: transparent; font: inherit; font-size: 0.8438rem; color: var(--color-text); width: 100%; }
 .search-input[data-focus-within] { border-color: var(--color-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 12%, transparent); }
 .check-row { display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.8438rem; cursor: pointer; }
-.check-row input { width: 1rem; height: 1rem; margin-top: 2px; accent-color: var(--color-action-primary); }
+.check-row input { width: 1rem; height: 1rem; margin-top: 0.125rem; accent-color: var(--color-action-primary); }
 .page-head h1 { font-size: 1.625rem !important; line-height: 2rem !important; font-weight: 700; letter-spacing: -0.022em !important; }
 .doc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
 .doc-meta { margin-left: auto; font-size: 0.7813rem; }
@@ -618,7 +618,7 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 
 /* Taste pass: checkbox rows with a hint line; narrow-screen task rows put the action under the
    text instead of truncating the title; headings balance their lines. */
-.check-row small { display: block; color: var(--color-text-secondary); font-size: 0.7813rem; margin-top: 2px; }
+.check-row small { display: block; color: var(--color-text-secondary); font-size: 0.7813rem; margin-top: 0.125rem; }
 h1, h2, .task-title, .post-title { text-wrap: balance; }
 @media (max-width: 43.75rem) {
   .tasks li { flex-wrap: wrap; row-gap: 0.625rem; }
@@ -661,3 +661,22 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .account-lede { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); max-width: 40rem; }
 .account-section .notice { margin-bottom: var(--space-3); }
 .account-section .row-title .tag { margin-left: 0.375rem; vertical-align: 0.0625rem; }
+
+/* Collections, owners and RACI (BPMS-041). */
+.raci-dd { align-items: flex-start; }
+.raci-list { display: flex; flex-direction: column; gap: 0.25rem; }
+.raci-item { display: inline-flex; gap: 0.5rem; align-items: baseline; }
+.raci-role { display: inline-grid; place-items: center; width: 1.125rem; height: 1.125rem; border-radius: 0.25rem; font-size: 0.6875rem; font-weight: 600; color: var(--color-text-secondary); background: var(--fill-hover); flex: none; }
+.pick-list { list-style: none; margin: 0; padding: 0; max-height: 15rem; overflow-y: auto; border: 1px solid var(--line); border-radius: var(--radius-control); }
+.pick-list li { padding: 0.5rem 0.75rem; border-top: 1px solid var(--line-subtle); }
+.pick-list li:first-child { border-top: 0; }
+.library-layout { display: grid; grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-6); align-items: start; }
+@media (max-width: 56rem) { .library-layout { grid-template-columns: 1fr; } }
+.collection-tree { position: sticky; top: var(--space-4); font-size: 0.8438rem; }
+.collection-tree h2 { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; font-weight: 600; color: var(--color-text-secondary); text-transform: none; margin: 0 0 0.375rem; padding: 0 0.5rem; }
+.collection-tree ul { list-style: none; margin: 0; padding: 0; }
+.collection-tree a { display: flex; align-items: center; gap: 0.5rem; padding: 0.3125rem 0.5rem; border-radius: 0.375rem; color: var(--color-text); text-decoration: none; min-height: var(--target-min); }
+.collection-tree a:hover { background: var(--fill-hover); }
+.collection-tree a[aria-current='true'] { background: var(--fill-hover); font-weight: 500; }
+.collection-tree .count { margin-left: auto; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+.collection-tree .lock { color: var(--color-text-secondary); }

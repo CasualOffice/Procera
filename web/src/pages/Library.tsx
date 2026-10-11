@@ -1,7 +1,7 @@
 import { FileText, Plus, ScrollText, Search } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Form, Input, SearchField } from 'react-aria-components';
-import { ApiError, api } from '../lib/api';
+import { ApiError, api, download } from '../lib/api';
 import { type Artifact, type Member, memberMap, useItems } from '../lib/data';
 import { shortDate, slugify } from '../lib/format';
 import { Link, navigate, useRoute } from '../lib/router';
@@ -13,7 +13,9 @@ import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { Empty, LoadError, Skeleton } from '../ui/States';
-import { BookOpen, SearchX } from 'lucide-react';
+import { BookOpen, Download, SearchX } from 'lucide-react';
+import { type CollectionItem, collectionPath } from './docOrganisation';
+import { CollectionTree } from './libraryCollections';
 
 type Filter = 'all' | 'policy' | 'sop';
 
@@ -23,7 +25,13 @@ export function Library() {
   const { query } = useRoute();
   const [filter, setFilter] = useState<Filter>('all');
   const [q, setQ] = useState('');
-  const [docs, reload, loadError] = useItems<Artifact>('/api/v1/artifacts');
+  const collection = query.get('collection');
+  const [docs, reload, loadError] = useItems<Artifact>(collection ? `/api/v1/artifacts?collection=${collection}` : '/api/v1/artifacts');
+  const [tree, setTree] = useState<{ items: CollectionItem[]; can_manage: boolean } | null>(null);
+  const loadTree = () => { api<{ items: CollectionItem[]; can_manage: boolean }>('/api/v1/collections').then(setTree).catch(() => setTree({ items: [], can_manage: false })); };
+  useEffect(loadTree, []);
+  const here = collectionPath(collection, tree?.items ?? []);
+  const showTree = !!tree && (tree.items.length > 0 || tree.can_manage);
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
   const people = memberMap(members);
   const newKind = query.get('new');
@@ -38,11 +46,18 @@ export function Library() {
     <>
       <div className="page-head">
         <div>
-          <h1>Library</h1>
-          <p>Policies say what and why; SOPs say how. Everything here is versioned, reviewed and audited.</p>
+          <h1>{here ?? 'Library'}</h1>
+          <p>{here ? 'Documents in this collection and the ones inside it.' : 'Policies say what and why; SOPs say how. Everything here is versioned, reviewed and audited.'}</p>
         </div>
+        <div className="page-actions">
+        <Button variant="secondary" onPress={() => void download(`/api/v1/raci/export${collection ? `?collection=${collection}` : ''}`, 'raci.csv')}><Download aria-hidden="true" size="1rem" /> Export RACI</Button>
         {canCreate && <Button onPress={() => setCreating(can('policy:create') ? 'policy' : 'sop')}><Plus aria-hidden="true" size="1rem" /> New document</Button>}
+        </div>
       </div>
+
+      <div className={showTree ? 'library-layout' : undefined}>
+      {showTree && <CollectionTree items={tree!.items} current={collection} canManage={tree!.can_manage} onChanged={() => { loadTree(); reload(); }} />}
+      <div>
 
       <div className="toolbar">
         <div className="segmented" role="group" aria-label="Filter by type">
@@ -86,6 +101,9 @@ export function Library() {
           </table>
         </div>
       )}
+
+      </div>
+      </div>
 
       <NewDocumentDialog kind={creating} onClose={() => { setCreating(null); if (newKind) navigate('/library', { replace: true }); }} onCreated={(id) => { reload(); navigate(`/library/${id}`); }} />
     </>
