@@ -20,6 +20,7 @@ pub mod files;
 pub mod library;
 pub mod notifications;
 pub mod overview;
+pub mod probe;
 pub mod retention;
 pub mod search;
 pub mod settings;
@@ -281,6 +282,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", files::router())
         .nest("/api/v1", views::router())
         .nest("/sysapi/v1", system::router())
+        .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]
     let router = router.nest("/__test", test_controls::router());

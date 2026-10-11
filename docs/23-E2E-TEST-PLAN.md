@@ -315,7 +315,7 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R1-17 | System admin suspends workspace B (read-only) → writes return 423 with banner → restore (browser: reads keep working; the first change is refused and a read-only banner appears on every page; after restore the banner is gone and changes work) | FR-S02, J8 |
 | E2E-R1-18 | Startup day-one (J12): Starter profile → install policy-ack pack → publish handbook → 20 employees ack on phones in < 15 min wall-clock | J12 |
 | E2E-R1-19 | Keyboard-only: publish a policy and acknowledge it without a mouse (browser: Tab/Enter/typing only, author from Library to Published, colleague from sign-in to Acknowledged) | A11Y-01, T10 |
-| E2E-R1-ISO | Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` (built: B's owner probes 21 reads and writes on A's documents, versions, exports, campaigns, announcements, collections, departments, views, files and members → all 404, A unchanged; not yet: the `denied` audit record for cross-workspace probes) | SEC-01/02 |
+| E2E-R1-ISO | Isolation sweep: B users probe every A object id captured during the pack → 404 + audit `denied` (built: B's owner probes 21 reads and writes on A's documents, versions, exports, campaigns, announcements, collections, departments, views, files and members → all 404, each recorded in B's audit log as `access.denied` with the object id, B's chain verifies, A unchanged) | SEC-01/02 |
 
 ### E2E-R2: Requests & Approvals
 

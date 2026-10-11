@@ -185,6 +185,9 @@ impl FromRequestParts<AppState> for WsMember {
             }
             _ => {}
         }
+        if let Some(seen) = parts.extensions.get::<super::probe::Seen>() {
+            seen.record(ctx, subject_ref); // a 404 on an object id becomes `access.denied` (probe.rs)
+        }
         Ok(Self {
             ctx,
             actor: Actor { membership, subject_ref },

@@ -5,7 +5,8 @@ import { workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-ISO (SEC-01/02): the owner of workspace B, with every permission there, probes the ids of
 // workspace A's objects through the API. Every read and every write answers 404, exactly as for an
-// id that does not exist, and A's objects are unchanged afterwards.
+// id that does not exist; each probe is recorded in B's audit log as `access.denied`; A's objects
+// are unchanged afterwards.
 
 test.describe('R1 isolation sweep @r1 @security', () => {
   test.beforeEach(async ({ request }) => {
@@ -58,6 +59,14 @@ test.describe('R1 isolation sweep @r1 @security', () => {
       if (res.status() !== 404) problems.push(`${method} ${path} → ${res.status()}`);
     }
     expect(problems).toEqual([]);
+
+    // Each probe is on record in B's audit log as a denied access to that object id.
+    const denied = await (await b.owner.c.get('/api/v1/audit/events?action=access.denied&page[size]=100', { headers: b.owner.headers })).json();
+    expect(denied.items.length).toBe(probes.length);
+    expect(denied.items.every((e: { result: string }) => e.result === 'denied')).toBe(true);
+    expect(denied.items.map((e: { object_id: string }) => e.object_id)).toEqual(expect.arrayContaining([doc.artifact.id, doc.version.id, file.id, camp.id, owner]));
+    const chain = await (await request.get(`/__test/audit/verify?workspace=${b.ws.id}`)).json();
+    expect(chain.ok).toBe(true);
 
     // A is untouched.
     expect((await (await a.owner.c.get(`/api/v1/artifacts/${doc.artifact.id}`, { headers: h })).json()).artifact.title).toBe('A secret');
