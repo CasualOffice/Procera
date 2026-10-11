@@ -90,6 +90,21 @@ export async function download(path: string, filename: string, retried = false):
   URL.revokeObjectURL(url);
 }
 
+/** POSTs a JSON body and saves the file response as `filename` (e.g. a grid's XLSX export). */
+export async function downloadPost(path: string, body: unknown, filename: string, retried = false): Promise<void> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  const res = await fetch(path, { method: 'POST', headers, body: JSON.stringify(body), credentials: 'same-origin' });
+  if (res.status === 401 && !retried && (await refresh())) return downloadPost(path, body, filename, true);
+  if (!res.ok) await parse(res);
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** An authenticated binary response as an object URL (e.g. the workspace logo); the caller revokes it. */
 export async function blobUrl(path: string, retried = false): Promise<string> {
   const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
