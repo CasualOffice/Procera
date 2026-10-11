@@ -1,6 +1,6 @@
 import { ApiError, api } from './api';
 
-export interface FileInfo { id: string; name: string; size: number; received: number; state: string; sniffed_type: string | null; scan_result: string | null; sha256: string | null; uploaded_by: string; created_at: string }
+export interface FileInfo { id: string; name: string; size: number; received: number; state: string; sniffed_type: string | null; scan_result: string | null; sha256: string | null; uploaded_by: string; created_at: string; last_accessed_at?: string | null }
 
 const CHUNK = 2 * 1024 * 1024;
 

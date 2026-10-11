@@ -240,7 +240,8 @@ async fn list(
             .into_iter()
             .map(|(t, o)| json!({"object_type": t, "object_id": o}))
             .collect();
-        out.push(json!({ "file": f, "links": links }));
+        let class = procera_files::Files::retention_class(&mut tx, f.id).await?;
+        out.push(json!({ "file": f, "links": links, "retention_class": class }));
     }
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": out, "all": all })))

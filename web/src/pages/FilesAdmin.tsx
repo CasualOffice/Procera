@@ -2,15 +2,18 @@ import { Download, FileX2, HardDrive, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type LoadFailure, type Member, memberMap, toFailure, useItems } from '../lib/data';
-import { shortDate } from '../lib/format';
+import { shortDate, timeAgo } from '../lib/format';
 import { type FileInfo, downloadFile, formatBytes } from '../lib/upload';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
+import { DataGrid } from '../ui/components/DataGrid';
 import { Notice } from '../ui/components/Notice';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
 
-interface Row { file: FileInfo; links: { object_type: string; object_id: string }[] }
+interface Row { file: FileInfo; links: { object_type: string; object_id: string }[]; retention_class: string | null }
+type GridRow = Row & { id: string };
+const CLASS: Record<string, string> = { audit: 'Audit', governance_record: 'Governance record', draft: 'Draft' };
 interface Usage { used_bytes: number; quota_bytes: number | null; states: Record<string, number>; scanner: string; by_type: { type: string | null; files: number; bytes: number }[] }
 const STATE: Record<string, [string, TagColor]> = { clean: ['Clean', 'green'], scanning: ['Scanning', 'yellow'], quarantined: ['Quarantined', 'red'], rejected: ['Rejected', 'red'], uploading: ['Uploading', 'gray'] };
 const FILTERS = [['', 'All'], ['clean', 'Clean'], ['quarantined', 'Quarantined'], ['rejected', 'Rejected'], ['uploading', 'Unfinished']] as const;
@@ -56,25 +59,23 @@ export function FilesAdmin() {
       {rows === null ? <Skeleton variant="table" rows={4} label="Loading files" /> : rows.length === 0 ? (
         <Empty icon={FileX2} title="No files here">Files attached to documents show up here with their scan result.</Empty>
       ) : (
-        <div className="table-wrap">
-          <table className="table" aria-label="Files">
-            <thead><tr><th>Name</th><th className="col-optional">Uploaded by</th><th>Used by</th><th className="num">Size</th><th>Scan</th><th className="col-optional">Uploaded</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
-            <tbody>{rows.map(({ file: f, links }) => (
-              <tr key={f.id}>
-                <td>{f.name}<span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{f.sniffed_type ?? ''}</span></td>
-                <td className="cell-muted col-optional">{people.get(f.uploaded_by)?.display_name ?? ''}</td>
-                <td className="cell-muted">{links.length ? `${links.length} document version${links.length === 1 ? '' : 's'}` : 'Not attached'}</td>
-                <td className="num">{formatBytes(f.size)}</td>
-                <td><Tag color={STATE[f.state]?.[1] ?? 'gray'} dot>{STATE[f.state]?.[0] ?? f.state}</Tag>{f.scan_result && f.state !== 'clean' && <span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{f.scan_result}</span>}</td>
-                <td className="cell-muted col-optional">{shortDate(f.created_at)}</td>
-                <td className="cell-actions">
-                  {f.state === 'clean' && <button type="button" className="icon-btn" aria-label={`Download ${f.name}`} onClick={() => void downloadFile(f.id)}><Download aria-hidden="true" size="0.875rem" /></button>}
-                  {can('file:delete') && <button type="button" className="icon-btn" aria-label={`Delete ${f.name}`} onClick={() => void act(() => api(`/api/v1/files/${f.id}`, { method: 'DELETE' }), `${f.name} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /></button>}
-                </td>
-              </tr>
-            ))}</tbody>
-          </table>
-        </div>
+        <DataGrid<GridRow> caption="Files" showCaption={false} list="admin.files" data={rows.map((r) => ({ ...r, id: r.file.id }))} initialSort={[{ id: 'uploaded', desc: true }]}
+          selectable={can('file:delete')}
+          bulkActions={(sel, clear) => <Button variant="secondary" className="btn-sm" onPress={() => void act(async () => { for (const r of sel) await api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }); clear(); }, `${sel.length} file${sel.length === 1 ? '' : 's'} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /> Delete {sel.length}</Button>}
+          columns={[
+            { id: 'name', header: 'Name', value: (r) => r.file.name, cell: (r) => <>{r.file.name}<span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.sniffed_type ?? ''}</span></> },
+            { id: 'owner', header: 'Uploaded by', optional: true, value: (r) => people.get(r.file.uploaded_by)?.display_name ?? '' },
+            { id: 'used', header: 'Used by', value: (r) => (r.links.length ? `${r.links.length} ${r.links.some((l) => l.object_type === 'audit_export') ? 'audit export' : `document version${r.links.length === 1 ? '' : 's'}`}` : 'Not attached') },
+            { id: 'class', header: 'Retention class', type: 'enum', optional: true, value: (r) => CLASS[r.retention_class ?? ''] ?? 'Orphan rules' },
+            { id: 'size', header: 'Size', type: 'number', value: (r) => r.file.size, cell: (r) => formatBytes(r.file.size), className: 'num' },
+            { id: 'scan', header: 'Scan', type: 'enum', value: (r) => STATE[r.file.state]?.[0] ?? r.file.state, cell: (r) => <><Tag color={STATE[r.file.state]?.[1] ?? 'gray'} dot>{STATE[r.file.state]?.[0] ?? r.file.state}</Tag>{r.file.scan_result && r.file.state !== 'clean' && <span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.scan_result}</span>}</> },
+            { id: 'uploaded', header: 'Uploaded', type: 'date', optional: true, value: (r) => r.file.created_at, cell: (r) => shortDate(r.file.created_at) },
+            { id: 'accessed', header: 'Last accessed', type: 'date', optional: true, value: (r) => r.file.last_accessed_at ?? null, cell: (r) => (r.file.last_accessed_at ? timeAgo(r.file.last_accessed_at) : 'Never') },
+            { id: 'actions', header: 'Actions', sortable: false, value: () => '', className: 'cell-actions', cell: (r) => <>
+              {r.file.state === 'clean' && <button type="button" className="icon-btn" aria-label={`Download ${r.file.name}`} onClick={() => void downloadFile(r.file.id).then(load)}><Download aria-hidden="true" size="0.875rem" /></button>}
+              {can('file:delete') && <button type="button" className="icon-btn" aria-label={`Delete ${r.file.name}`} onClick={() => void act(() => api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }), `${r.file.name} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /></button>}
+            </> },
+          ]} />
       )}
       <section aria-labelledby="orph-h" style={{ marginTop: '2rem' }}>
         <h2 id="orph-h" style={{ fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>Orphaned files</h2>

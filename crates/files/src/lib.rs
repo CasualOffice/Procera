@@ -127,6 +127,9 @@ pub struct File {
     pub created_at: OffsetDateTime,
     #[serde(with = "time::serde::rfc3339::option")]
     pub completed_at: Option<OffsetDateTime>,
+    /// Last download or preview (FR-F06).
+    #[serde(with = "time::serde::rfc3339::option")]
+    pub last_accessed_at: Option<OffsetDateTime>,
 }
 
 fn hex_opt<S: serde::Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
@@ -136,7 +139,7 @@ fn hex_opt<S: serde::Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::
     }
 }
 
-const COLS: &str = "id, name, declared_type, sniffed_type, size, received, state, scan_result, sha256, uploaded_by, created_at, completed_at";
+const COLS: &str = "id, name, declared_type, sniffed_type, size, received, state, scan_result, sha256, uploaded_by, created_at, completed_at, last_accessed_at";
 
 /// Who acts, for audit records.
 #[derive(Debug, Clone, Default)]
@@ -407,6 +410,7 @@ impl Files {
     }
 
     pub async fn record_download(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<(), FileError> {
+        self.touch(tx, id).await?;
         self.audit(tx, Some(actor), "file.downloaded", id, json!({}), Outcome::Allowed).await
     }
 
@@ -444,7 +448,39 @@ impl Files {
     }
 
     pub async fn record_preview(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid) -> Result<(), FileError> {
+        self.touch(tx, id).await?;
         self.audit(tx, Some(actor), "file.previewed", id, json!({}), Outcome::Allowed).await
+    }
+
+    async fn touch(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<(), FileError> {
+        sqlx::query("UPDATE files SET last_accessed_at = $2 WHERE id = $1")
+            .bind(id)
+            .bind(self.clock.now())
+            .execute(tx.conn())
+            .await?;
+        Ok(())
+    }
+
+    /// The record class a file follows (FR-F09, docs/14 §4), from what holds it: an audit export is
+    /// `audit`, a document version past draft `governance_record`, a draft `draft`; none when nothing
+    /// holds it (orphan rules apply).
+    pub async fn retention_class(tx: &mut WsTx<'_>, id: Uuid) -> Result<Option<&'static str>, FileError> {
+        let rank: Option<i32> = sqlx::query_scalar(
+            "SELECT max(CASE WHEN l.object_type = 'audit_export' THEN 3
+                             WHEN v.lifecycle IN ('approved', 'scheduled', 'published', 'deprecated', 'retired') THEN 2
+                             WHEN v.lifecycle IS NOT NULL THEN 1 END)
+             FROM file_links l LEFT JOIN artifact_versions v ON l.object_type = 'artifact_version' AND v.workspace_id = l.workspace_id AND v.id = l.object_id
+             WHERE l.file_id = $1",
+        )
+        .bind(id)
+        .fetch_one(tx.conn())
+        .await?;
+        Ok(match rank {
+            Some(3) => Some("audit"),
+            Some(2) => Some("governance_record"),
+            Some(1) => Some("draft"),
+            _ => None,
+        })
     }
 
     // ---- signed download links ----

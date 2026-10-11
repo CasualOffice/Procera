@@ -4,7 +4,7 @@ import { EICAR, PNG_1PX, upload } from '../../fixtures/files';
 import { axe, nav, signIn, WEB } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R1-UI-32..34 — files in the browser (BPMS-060/061/062).
+// E2E-R1-UI-32..34, 43 — files in the browser (BPMS-060/061/062).
 
 test.describe('files @r1 @ui', () => {
   test.beforeEach(async ({ request }) => {
@@ -72,5 +72,34 @@ test.describe('files @r1 @ui', () => {
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
+  });
+
+  test('E2E-R1-UI-43 Files shows retention class and last access per file; a download updates it; unattached files are deleted in bulk', async ({ page, request }) => {
+    const { ownerEmail, owner } = await workspaceWithOwner(request);
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: owner.headers, data: { kind: 'sop', key: 'ops.keys', title: 'Key handover', content: { blocks: [{ type: 'paragraph', text: 'Keys go to reception.' }] } } })).json();
+    const loose = [await upload(owner, 'scratch-a.txt', Buffer.from('a')), await upload(owner, 'scratch-b.txt', Buffer.from('b'))];
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await page.locator('#att-input').setInputFiles({ name: 'keys.txt', mimeType: 'text/plain', buffer: Buffer.from('Reception desk') });
+    await expect(page.getByText('keys.txt attached.')).toBeVisible();
+
+    await nav(page, 'Files');
+    const grid = page.getByRole('table', { name: 'Files' });
+    const keys = grid.getByRole('row', { name: /keys\.txt/ });
+    await expect(keys).toContainText('Draft');
+    await expect(keys).toContainText('Never');
+    await expect(grid.getByRole('row', { name: /scratch-a\.txt/ })).toContainText('Not attached');
+    const download = page.waitForEvent('download');
+    await keys.getByRole('button', { name: 'Download keys.txt' }).click();
+    await download;
+    await expect(keys).toContainText('just now');
+
+    for (const f of loose) await grid.getByRole('checkbox', { name: `Select row ${f.id}` }).click();
+    await page.getByRole('button', { name: 'Delete 2' }).click();
+    await expect(page.getByText('2 files deleted.')).toBeVisible();
+    await expect(grid.getByRole('row', { name: /scratch-/ })).toHaveCount(0);
+    await expect(keys).toBeVisible();
+    await axe(page);
   });
 });
