@@ -1,4 +1,4 @@
-import { Check, ChevronsUpDown, LogOut, Monitor, Moon, Search, ShieldCheck, Sun } from 'lucide-react';
+import { Check, ChevronsUpDown, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
@@ -203,6 +203,9 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
           </ol>
           <div className="topbar-actions">{actions}</div>
         </header>
+        {workspace.state === 'suspended_ro' && (
+          <div className="ws-banner" role="status"><PauseCircle aria-hidden="true" size="1rem" /> <span><strong>This workspace is read-only.</strong> A system administrator paused changes. You can still read everything; nothing can be created, edited or acknowledged until it is reactivated.</span></div>
+        )}
         <main id="main" className="page" tabIndex={-1}>{children}</main>
       </div>
       <CommandPalette isOpen={palette} onOpenChange={setPalette} />

@@ -98,6 +98,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     [load],
   );
 
+  // The workspace became read-only or locked while signed in (a 423 from the API): re-read it so
+  // the shell shows why, instead of each action failing on its own.
+  useEffect(() => {
+    let last = 0; // a locked workspace answers 423 to the reload itself: at most one re-read per 5 s
+    const on = () => { if (Date.now() - last < 5000) return; last = Date.now(); void load().catch(() => undefined); };
+    window.addEventListener('procera:workspace-state', on);
+    return () => window.removeEventListener('procera:workspace-state', on);
+  }, [load]);
+
   useEffect(() => {
     (async () => {
       try {

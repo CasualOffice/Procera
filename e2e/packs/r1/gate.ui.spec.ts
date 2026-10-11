@@ -170,4 +170,35 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'ana' })).toBeVisible();
     await expect(page.locator('dl.props')).toContainText('Olivia');
   });
+
+  test('E2E-R1-17 a suspended (read-only) workspace keeps reading, refuses changes with a banner explaining why, and works again once restored', async ({ page, request }) => {
+    const { sys, ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const r = await (await owner.c.post('/api/v1/artifacts', { headers: owner.headers, data: { kind: 'policy', key: 'travel', title: 'Travel', content: { blocks: [{ type: 'paragraph', text: 'Book early.' }] } } })).json();
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
+
+    const ro = await sys.c.post(`/sysapi/v1/workspaces/${ws.id}/suspend`, { headers: sys.headers, data: { mode: 'read_only', reason: 'billing review' } });
+    expect(ro.status(), await ro.text()).toBe(200);
+
+    // Reading still works; the first change is refused and the banner explains it.
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await expect(page.getByText('Book early.')).toBeVisible();
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('This workspace is read-only', { exact: false }).first()).toBeVisible();
+    const banner = page.getByRole('status').filter({ hasText: 'This workspace is read-only.' });
+    await expect(banner).toBeVisible();
+    await axe(page);
+    // The banner stays on every page while suspended.
+    await nav(page, 'Library');
+    await expect(banner).toBeVisible();
+
+    const back = await sys.c.post(`/sysapi/v1/workspaces/${ws.id}/restore`, { headers: { ...sys.headers, 'if-match': ro.headers()['etag']! } });
+    expect(back.status()).toBe(200);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Library' })).toBeVisible();
+    await expect(banner).toHaveCount(0);
+    await page.goto(`${WEB}/library/${r.artifact.id}`);
+    await page.getByRole('button', { name: 'Submit for review' }).click();
+    await expect(page.getByText('Approved', { exact: true })).toBeVisible();
+  });
 });

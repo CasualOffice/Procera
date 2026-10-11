@@ -714,3 +714,7 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .person-head { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
 .person-head h1 { margin: 0; }
 .person-head p { margin: 0.25rem 0 0; }
+
+/* Read-only workspace banner (FR-S02, E2E-R1-17) */
+.ws-banner { display: flex; align-items: flex-start; gap: 0.625rem; margin: 0; padding: 0.625rem 1.5rem; background: var(--color-warning-bg); color: var(--color-warning); border-bottom: 1px solid var(--line); font-size: 0.8438rem; line-height: 1.45; }
+.ws-banner svg { flex: none; margin-top: 0.125rem; }

@@ -30,6 +30,7 @@ async function parse(res: Response) {
   if (res.status === 204) return undefined;
   const text = await res.text();
   const body = text ? JSON.parse(text) : undefined;
+  if (res.status === 423) window.dispatchEvent(new Event('procera:workspace-state')); // read-only or locked now: the session re-reads it
   if (!res.ok) throw new ApiError(body?.code ? body : { status: res.status, code: 'http_error', title: res.statusText });
   return body;
 }
