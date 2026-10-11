@@ -39,3 +39,6 @@
 .pick-list input { width: 1rem; height: 1rem; accent-color: var(--color-action-primary); }
 .pick-list small { display: block; color: var(--color-text-secondary); font-size: 0.75rem; }
 .group-members .rows .btn { flex: none; }
+.tag-link { text-decoration: none; border-radius: 999px; }
+.tag-link:hover .tag { text-decoration: underline; }
+.tag-link:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-focus); }

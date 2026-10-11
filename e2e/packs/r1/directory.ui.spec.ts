@@ -1,11 +1,14 @@
 import { type APIRequestContext, type Page, expect, test } from '@playwright/test';
-import { PW, client, hasDatabase, uniqueEmail } from '../../fixtures/accounts';
-import { axe, nav, signIn } from '../../fixtures/ui';
+import { PW, client, hasDatabase, serverNow, uniqueEmail } from '../../fixtures/accounts';
+import { totp } from '../../fixtures/totp';
+import { axe, nav, signIn, WEB } from '../../fixtures/ui';
 import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
 // Directory and member management in the browser (BPMS-023, docs/design/ia-competitive-analysis.md §5.4, §8.3).
 // E2E-R1-UI-51 — departments: empty state, add (parent, head), rename inline, move (no cycles), delete only when empty.
 // E2E-R1-UI-52 — groups: empty state, new group, add several people, remove one, delete.
+// E2E-R1-UI-53 — person page: edit profile, add to and remove from a group, manager loop refused, role chip opens the role.
+// E2E-R1-UI-54 — deactivate, then reactivate with a reason and step-up; resend and revoke a pending invitation.
 
 const home = (page: Page) => expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 
@@ -157,6 +160,109 @@ test.describe('directory @r1 @ui', () => {
     await dialog.getByRole('button', { name: 'Delete group' }).click();
     await expect(page.getByText('No groups yet')).toBeVisible();
     expect((await (await owner.c.get('/api/v1/groups', { headers: owner.headers })).json()).items).toEqual([]);
+  });
+
+  test('E2E-R1-UI-53 an admin edits a person’s profile, groups and sees their roles; a manager loop is refused', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const nina = await member(request, owner, ws.id, 'Nina');
+    const theo = await member(request, owner, ws.id, 'Theo');
+    expect((await owner.c.post('/api/v1/departments', { headers: owner.headers, data: { name: 'Finance' } })).ok()).toBe(true);
+    expect((await owner.c.post('/api/v1/groups', { headers: owner.headers, data: { name: 'Auditors' } })).ok()).toBe(true);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await home(page);
+
+    await page.goto(`${WEB}/members/${nina.id}`);
+    await expect(page.getByRole('heading', { level: 1, name: 'Nina' })).toBeVisible();
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    let dialog = page.getByRole('dialog', { name: 'Edit Nina’s profile' });
+    await dialog.getByRole('textbox', { name: 'Title' }).fill('Accountant');
+    await pick(page, dialog, /Department/, 'Finance');
+    await pick(page, dialog, /Manager/, 'Theo');
+    await dialog.getByRole('textbox', { name: 'Location' }).fill('Bangalore');
+    await axe(page);
+    await dialog.getByRole('button', { name: 'Save profile' }).click();
+    await expect(page.getByText('Profile saved.')).toBeVisible();
+    await expect(page.getByText('Accountant', { exact: true })).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: 'Finance' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Theo' })).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: 'Bangalore' })).toBeVisible();
+
+    // Groups: add, then remove after confirming.
+    await page.getByRole('button', { name: 'Add to group' }).click();
+    dialog = page.getByRole('dialog', { name: 'Add Nina to a group' });
+    await expect(dialog.getByRole('button', { name: /Group/ })).toContainText('Auditors');
+    await dialog.getByRole('button', { name: 'Add to group' }).click();
+    await expect(page.getByText('Nina added to Auditors.')).toBeVisible();
+    const groups = page.getByRole('list', { name: 'Groups' });
+    await expect(groups.getByRole('link', { name: 'Auditors' })).toBeVisible();
+    await axe(page);
+    await groups.getByRole('button', { name: 'Remove from Auditors' }).click();
+    await page.getByRole('dialog', { name: 'Remove Nina from Auditors?' }).getByRole('button', { name: 'Remove' }).click();
+    await expect(page.getByText('Nina removed from Auditors.')).toBeVisible();
+    await expect(groups).toHaveCount(0);
+
+    // Theo can't report to Nina: she reports to him.
+    await page.goto(`${WEB}/members/${theo.id}`);
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    dialog = page.getByRole('dialog', { name: 'Edit Theo’s profile' });
+    await pick(page, dialog, /Manager/, 'Nina');
+    await dialog.getByRole('button', { name: 'Save profile' }).click();
+    await expect(dialog.getByRole('alert')).toContainText('Can’t save: this manager link would create a reporting cycle.');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+    // Role chips open the role on Roles & access.
+    await page.getByRole('link', { name: 'Role: Member' }).click();
+    await expect(page).toHaveURL(/\/admin\/roles\?role=/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Roles & access' })).toBeVisible();
+
+    const dir = await (await owner.c.get(`/api/v1/members/${nina.id}/directory`, { headers: owner.headers })).json();
+    expect([dir.title, dir.location, dir.manager_membership_id, dir.group_ids]).toEqual(['Accountant', 'Bangalore', theo.id, []]);
+  });
+
+  test('E2E-R1-UI-54 an owner deactivates and reactivates a member (reason, step-up) and resends and revokes an invitation', async ({ page, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    const nina = await member(request, owner, ws.id, 'Nina');
+    const pending = uniqueEmail('pending');
+    expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email: pending, roles: ['member'] } })).ok()).toBe(true);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    await home(page);
+
+    await page.goto(`${WEB}/members/${nina.id}`);
+    await page.getByRole('button', { name: 'Deactivate' }).click();
+    await page.getByRole('dialog', { name: 'Deactivate Nina?' }).getByRole('button', { name: 'Deactivate' }).click();
+    await expect(page.getByText('Nina can no longer sign in to this workspace.')).toBeVisible();
+
+    // Reactivation restores access, so it asks for a reason and a fresh verification (age this sign-in).
+    expect((await request.post('/__test/session/age', { data: { email: ownerEmail, seconds: 3600 } })).status()).toBe(204);
+    await page.reload();
+    await page.getByRole('button', { name: 'Reactivate' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Reactivate Nina?' });
+    await expect(dialog).toContainText('with the roles they had (Member)');
+    await dialog.getByRole('button', { name: 'Reactivate' }).click();
+    await expect(dialog.getByText('Give a reason.')).toBeVisible();
+    await dialog.getByRole('textbox', { name: 'Reason' }).fill('Back from leave');
+    await axe(page);
+    await dialog.getByRole('button', { name: 'Reactivate' }).click();
+    const stepUp = page.getByRole('dialog', { name: 'Confirm it’s you' });
+    await expect(stepUp).toBeVisible();
+    await stepUp.getByLabel('Authentication code').fill(totp(owner.secret, await serverNow(owner.c), 1));
+    await stepUp.getByRole('button', { name: 'Verify' }).click();
+    await expect(page.getByText('Nina can sign in to this workspace again.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Deactivate' })).toBeVisible();
+
+    // Pending invitations: resend (a new link), then revoke after confirming.
+    await page.goto(`${WEB}/admin/members`);
+    await page.getByRole('button', { name: `Resend invitation to ${pending}` }).click();
+    await expect(page.getByText(`Invitation sent again to ${pending}. The earlier link no longer works.`)).toBeVisible();
+    await page.getByRole('button', { name: `Revoke invitation to ${pending}` }).click();
+    await page.getByRole('dialog', { name: `Revoke the invitation to ${pending}?` }).getByRole('button', { name: 'Revoke invitation' }).click();
+    await expect(page.getByText(`Invitation to ${pending} revoked.`)).toBeVisible();
+    await expect(page.getByRole('button', { name: `Resend invitation to ${pending}` })).toHaveCount(0);
+    await axe(page);
+
+    const list = (await (await owner.c.get('/api/v1/members', { headers: owner.headers })).json()).items as { id: string; status: string }[];
+    expect(list.find((m) => m.id === nina.id)!.status).toBe('active');
+    expect((await (await owner.c.get('/api/v1/members/invitations', { headers: owner.headers })).json()).items).toEqual([]);
   });
 });
 
