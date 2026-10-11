@@ -11,6 +11,8 @@
 //! `wasm32-unknown-unknown` so the designer can type-check in the browser.
 
 mod ast;
+mod builtins;
+mod check;
 mod diag;
 mod lexer;
 mod parser;
@@ -18,6 +20,7 @@ mod types;
 mod value;
 
 pub use ast::{BinaryOp, Expr, ExprKind, Literal, MacroKind, UnaryOp};
+pub use check::{CheckOptions, CheckedExpr, ExprContext, check};
 pub use diag::{Code, Diagnostic, Span};
 pub use parser::parse;
 pub use types::{Classification, Schema, Type, VarDecl};
@@ -31,6 +34,12 @@ pub const MAX_SOURCE_LEN: usize = 4096;
 pub const MAX_AST_DEPTH: u32 = 32;
 /// The IR language tag for this engine: `"expr:cel: amount > 50000"` (docs/11 §6).
 pub const LANGUAGE_TAG: &str = "cel";
+
+/// Parse and type-check in one step.
+pub fn compile(source: &str, schema: &Schema, opts: &CheckOptions) -> Result<CheckedExpr, Vec<Diagnostic>> {
+    let ast = parse(source).map_err(|d| vec![d])?;
+    check(source, ast, schema, opts)
+}
 
 /// Split an IR expression string `expr:<lang>: <source>` into its language tag and source.
 /// Returns `None` when the prefix is missing.

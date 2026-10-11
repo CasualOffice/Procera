@@ -144,3 +144,15 @@ pub enum ExprKind {
         to: crate::types::Type,
     },
 }
+
+impl Expr {
+    /// Dotted path for an identifier or a field chain (`initiator.manager`), used for
+    /// null-narrowing. `None` for anything else.
+    pub(crate) fn path(&self) -> Option<String> {
+        match &self.kind {
+            ExprKind::Ident(n) => Some(n.clone()),
+            ExprKind::Member { target, field } => target.path().map(|p| format!("{p}.{field}")),
+            _ => None,
+        }
+    }
+}
