@@ -1,22 +1,24 @@
 import { Check, ChevronDown, Lock, ShieldCheck } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ApiError, api } from '../lib/api';
-import { useItems } from '../lib/data';
+import { type LoadFailure, useItems } from '../lib/data';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
 import { StepUpDialog } from '../ui/StepUp';
+import { Tabs } from '../ui/components/Tabs';
+import { DepartmentOverrides, ProfileSwitch } from './SettingsScopes';
 import { LoadError, Skeleton } from '../ui/States';
 import { AREAS, LABELS, LAYER, areaOf, durationText, humanise, sizeText, valueName } from './settingsMeta';
 
-type Kind =
+export type Kind =
   | { type: 'bool' } | { type: 'int'; min: number; max: number } | { type: 'duration'; min: number; max: number } | { type: 'size'; min: number; max: number }
   | { type: 'enum'; values: string[] } | { type: 'set'; values: string[]; allow_all: boolean } | { type: 'list'; max_items: number; max_len: number }
   | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'duration_list'; min: number; max: number; max_items: number };
-interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number }
+export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number }
 
 /** A value as a short sentence fragment, for read-only display and the explainer. */
-function show(kind: Kind, v: unknown): string {
+export function show(kind: Kind, v: unknown): string {
   switch (kind.type) {
     case 'bool': return v ? 'On' : 'Off';
     case 'duration': return durationText(Number(v));
@@ -36,12 +38,25 @@ export function Settings() {
   const [items, reload, error] = useItems<Setting>('/api/v1/settings');
   const groups = useMemo(() => AREAS.map((a) => ({ ...a, items: (items ?? []).filter((s) => areaOf(s.key) === a.id) })).filter((g) => g.items.length), [items]);
   const editable = (s: Setting) => !!s.editable_with && can(s.editable_with);
+  const workspaceTab = <WorkspaceSettings items={items} reload={reload} error={error} groups={groups} editable={editable} />;
 
   return (
     <>
       <div className="page-head">
         <div><h1>Settings</h1><p>How this workspace works. Changes apply to everyone and are recorded in the audit log.</p></div>
       </div>
+      <Tabs label="Settings scope" tabs={[
+        { id: 'workspace', label: 'Workspace', content: workspaceTab },
+        { id: 'departments', label: 'Departments', content: <DepartmentOverrides /> },
+        { id: 'profile', label: 'Configuration profile', content: <ProfileSwitch onApplied={reload} /> },
+      ]} />
+    </>
+  );
+}
+
+function WorkspaceSettings({ items, reload, error, groups, editable }: { items: Setting[] | null; reload: () => void; error: LoadFailure | null; groups: { id: string; label: string; items: Setting[] }[]; editable: (s: Setting) => boolean }) {
+  return (
+    <>
       {error ? <LoadError error={error} onRetry={reload} what="settings" /> : items === null ? <Skeleton variant="table" rows={8} label="Loading settings" /> : (
         <div className="settings">
           <nav className="settings-index" aria-label="Settings sections">
@@ -168,7 +183,7 @@ function Why({ s, id }: { s: Setting; id: string }) {
 
 const DUR_UNITS = [[86_400, 'days'], [3_600, 'hours'], [60, 'minutes']] as const;
 
-function Control({ kind, value, onChange, labelledBy, describedBy }: { kind: Kind; value: unknown; onChange: (v: unknown) => void; labelledBy: string; describedBy?: string }) {
+export function Control({ kind, value, onChange, labelledBy, describedBy }: { kind: Kind; value: unknown; onChange: (v: unknown) => void; labelledBy: string; describedBy?: string }) {
   const a11y = { 'aria-labelledby': labelledBy, 'aria-describedby': describedBy };
   switch (kind.type) {
     case 'bool':
