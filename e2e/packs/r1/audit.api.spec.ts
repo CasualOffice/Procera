@@ -244,6 +244,10 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/audit/exports', () => own.post('/api/v1/audit/exports', { headers: oh, data: { format: 'jsonl', filters: { category: 'content' } } }));
 
   await step('POST', '/api/v1/members/{id}/deactivate', () => own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh }));
+  // Reactivation restores access, so it needs a recent verification (docs/22 A-41); then Adam leaves again.
+  const reFresh = await freshAuth({ c: own, headers: oh });
+  await step('POST', '/api/v1/members/{id}/reactivate', () => own.post(`/api/v1/members/${joined.membership_id}/reactivate`, { headers: reFresh, data: { reason: 'audit drill' } }));
+  await own.post(`/api/v1/members/${joined.membership_id}/deactivate`, { headers: oh });
 
   // Notifications (exempt: personal read state). Adam's join put a notification in the owner's inbox.
   await request.post('/__test/drain');

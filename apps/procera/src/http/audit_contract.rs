@@ -113,6 +113,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/members/invitations", &[&["member.invited"]]),
     emits("DELETE", "/api/v1/members/invitations/{id}", &[&["member.invitation_revoked"]]),
     emits("POST", "/api/v1/members/{id}/deactivate", &[&["member.deactivated"]]),
+    emits("POST", "/api/v1/members/{id}/reactivate", &[&["member.reactivated"]]),
     emits("POST", "/api/v1/roles", &[&["role.created"]]),
     emits("PATCH", "/api/v1/roles/{id}", &[&["role.updated"]]),
     exempt(
