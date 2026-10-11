@@ -1,9 +1,14 @@
 //! Notifications (BPMS-048, FR-N01/N02): an in-app inbox per member and an outbound email queue
 //! delivered over SMTP by the worker. Email bodies are sealed at rest (they can carry invitation
-//! links); delivery retries with backoff. Without SMTP configured, emails stay queued.
+//! links); delivery retries with backoff. Without SMTP configured, emails stay queued. The relay comes
+//! from `PROCERA_SMTP_URL` or from the platform email settings ([`smtp_config`], [`transport`]).
 
 pub mod delivery;
+pub mod smtp_config;
 pub mod templates;
+pub mod transport;
+
+pub use transport::{Mailers, Source, TestFailure};
 
 use std::sync::Arc;
 
@@ -27,6 +32,8 @@ pub enum NotifyError {
     Invalid(String),
     #[error("smtp: {0}")]
     Smtp(String),
+    #[error("revision mismatch (expected {expected}, current {current})")]
+    Stale { expected: i64, current: i64 },
     #[error("internal error: {0}")]
     Internal(String),
 }
@@ -78,7 +85,6 @@ pub struct OutboundEmail {
     pub not_before: Option<OffsetDateTime>,
 }
 
-/// SMTP delivery. `from` is the platform sender address (docs/20 §3 Email).
 /// A failed delivery; `permanent` = the server rejected it for good (a bounce).
 #[derive(Debug)]
 struct SendError {
@@ -86,10 +92,12 @@ struct SendError {
     permanent: bool,
 }
 
+/// SMTP delivery. `from` is the platform sender address (docs/20 §3 Email).
 #[derive(Clone)]
 pub struct SmtpMailer {
     transport: AsyncSmtpTransport<Tokio1Executor>,
     from: Mailbox,
+    reply_to: Option<Mailbox>,
 }
 
 impl std::fmt::Debug for SmtpMailer {
@@ -107,7 +115,7 @@ impl SmtpMailer {
         let from = from
             .parse()
             .map_err(|e: lettre::address::AddressError| NotifyError::Smtp(format!("from address: {e}")))?;
-        Ok(Self { transport, from })
+        Ok(Self { transport, from, reply_to: None })
     }
 
     async fn send(&self, e: &OutboundEmail, sender_name: Option<&str>) -> Result<(), SendError> {
@@ -115,8 +123,11 @@ impl SmtpMailer {
             Some(n) => Mailbox::new(Some(n.trim().to_owned()), self.from.email.clone()),
             None => self.from.clone(),
         };
-        let msg = Message::builder()
-            .from(from)
+        let mut msg = Message::builder().from(from);
+        if let Some(r) = &self.reply_to {
+            msg = msg.reply_to(r.clone());
+        }
+        let msg = msg
             .to(e.to.parse().map_err(|err: lettre::address::AddressError| SendError {
                 error: NotifyError::Smtp(format!("to address: {err}")),
                 permanent: true,

@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "ring", "webpki-roots", "hostname"] }
 minijinja = { version = "2", default-features = false, features = ["builtins", "serde", "debug", "multi_template"] }
+procera-audit.workspace = true
 procera-crypto.workspace = true
 procera-db.workspace = true
 procera-kernel.workspace = true
@@ -24,6 +25,7 @@ time = { workspace = true }
 tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
+zeroize = "1"
 
 [dev-dependencies]
 anyhow.workspace = true
