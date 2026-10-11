@@ -18,6 +18,7 @@ use crate::password::{self, HashCost, PolicyError};
 use crate::totp;
 use crate::webauthn::{CredentialJson, RelyingParty};
 
+mod account_admin;
 mod passkeys;
 mod recovery;
 pub use passkeys::Passkey;

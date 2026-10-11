@@ -12,6 +12,7 @@ pub const PERMISSIONS: &[&str] = &[
     "member:invite",
     "member:deactivate",
     "member:manage_roles",
+    "member:security.manage",
     "role:view",
     "role:manage",
     "directory:view",

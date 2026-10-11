@@ -630,6 +630,37 @@ impl Members {
             .collect())
     }
 
+    /// The account behind a membership of the current workspace, for admin account controls
+    /// (docs/06 §3.6.1): (user id, membership status, display name).
+    pub async fn member_account(
+        &self,
+        tx: &mut WsTx<'_>,
+        membership: Uuid,
+    ) -> Result<(Uuid, String, String), MembersError> {
+        let row: Option<(Uuid, String, String)> = sqlx::query_as(
+            "SELECT m.user_id, m.status, u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
+        )
+        .bind(membership)
+        .fetch_optional(tx.conn())
+        .await?;
+        row.ok_or(MembersError::NotFound)
+    }
+
+    /// Whether an account is used outside workspace `ws`: an active membership of another workspace,
+    /// or a system-plane role. Accounts are global, so a workspace admin may change their password
+    /// state, sessions or second factors only when neither holds (A-39); otherwise a system
+    /// administrator does it.
+    pub async fn account_used_elsewhere(&self, user_id: Uuid, ws: Uuid) -> Result<bool, MembersError> {
+        let others = self.user_workspaces(user_id).await?.iter().any(|w| w.workspace_id != ws);
+        if others {
+            return Ok(true);
+        }
+        Ok(sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM system_role_grants WHERE user_id = $1)")
+            .bind(user_id)
+            .fetch_one(self.db.pool())
+            .await?)
+    }
+
     pub fn db(&self) -> &Db {
         &self.db
     }
