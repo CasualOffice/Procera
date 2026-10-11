@@ -1,5 +1,6 @@
 import { type APIRequestContext, type Browser, type Page, expect, test } from '@playwright/test';
-import { PW, hasDatabase, seedUser, uniqueEmail } from '../../fixtures/accounts';
+import { PW, hasDatabase, seedUser, serverNow, uniqueEmail } from '../../fixtures/accounts';
+import { totp } from '../../fixtures/totp';
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { workspaceWithOwner } from '../../fixtures/workspace';
 
@@ -276,5 +277,73 @@ test.describe('complete flows @r1 @ui', () => {
     await page.getByRole('dialog', { name: 'Publish v1' }).getByRole('button', { name: 'Publish now' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Published.' })).toBeVisible();
     await axe(page);
+  });
+
+  test('E2E-R1-FLOW-06 announcement approval: a second admin joins and turns on two-step verification, gets the approval email, sends the post back; the author fixes it; the admin approves and it reaches people', async ({ page, browser, request }) => {
+    const { ws, ownerEmail, owner } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery![0]!);
+    const email = uniqueEmail('approver');
+    await inviteFromMembers(page, email, 'Admin');
+
+    // The new admin creates an account; their role needs two-step verification, set up right away.
+    const link = await emailLink(request, ws.id, email, 'invitation', /\/invite\?token=/);
+    const admin = await personPage(browser);
+    await admin.goto(link);
+    await admin.getByLabel('Your name').fill('Ada Approver');
+    await admin.getByLabel('Password', { exact: true }).fill(PW);
+    await admin.getByLabel('Confirm password').fill(PW);
+    await admin.getByRole('button', { name: 'Create account and join' }).click();
+    await expect(admin.getByRole('heading', { level: 1, name: 'Turn on two-step verification' })).toBeVisible();
+    await admin.getByRole('button', { name: 'Get started' }).click();
+    const secret = (await admin.locator('.mfa-secret code').innerText()).replace(/\s+/g, '');
+    await admin.getByLabel('6-digit code').fill(totp(secret, await serverNow(request)));
+    await admin.getByRole('button', { name: 'Verify and turn on' }).click();
+    const recovery = await admin.getByRole('list', { name: 'Recovery codes' }).getByRole('listitem').first().innerText();
+    await admin.getByRole('button', { name: /sign in again/ }).click();
+    await signInForm(admin, email);
+    await admin.getByLabel('Code').fill(recovery);
+    await admin.getByRole('button', { name: 'Verify' }).click();
+    await expect(admin.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), Ada/ })).toBeVisible();
+
+    // Owner writes a workspace-wide post: it needs someone else's approval.
+    await nav(page, 'Manage announcements');
+    await page.getByRole('button', { name: 'New announcement' }).first().click();
+    const dlg = page.getByRole('dialog', { name: 'New announcement' });
+    await dlg.getByLabel('Title').fill('New expense tool');
+    await dlg.getByLabel('Message').fill('Submit expenses in the new tool from Monday.');
+    await dlg.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Send for approval' }).click();
+
+    // Admin: the approval email opens the post; they send it back with a note.
+    const approve = await emailLink(request, ws.id, email, 'announcement_approval', /\/admin\/announcements\?id=/);
+    await admin.goto(approve);
+    await expect(admin.getByText('Submit expenses in the new tool from Monday.')).toBeVisible();
+    await admin.getByRole('button', { name: 'Request changes' }).click();
+    const back = admin.getByRole('dialog', { name: 'Request changes' });
+    await back.getByLabel('What should change?').fill('Add the link to the tool.');
+    await back.getByRole('button', { name: 'Send back' }).click();
+
+    // Owner: told it came back, with the note; edits and resubmits from the notification.
+    await request.post('/__test/drain');
+    await nav(page, 'Notifications');
+    const note = page.getByRole('listitem').filter({ hasText: '“New expense tool” was sent back' });
+    await expect(note.getByText('Add the link to the tool.')).toBeVisible();
+    await note.getByRole('link', { name: '“New expense tool” was sent back' }).click();
+    await page.getByRole('button', { name: 'Edit' }).first().click();
+    const edit = page.getByRole('dialog', { name: 'Edit announcement' });
+    await edit.getByLabel('Message').fill('Submit expenses in the new tool from Monday: expenses.acme.test');
+    await edit.getByRole('button', { name: 'Save draft' }).click();
+    await page.getByRole('button', { name: 'Send for approval' }).click();
+
+    // Admin approves; the owner hears it; the post is in everyone's feed.
+    await admin.reload();
+    await admin.getByRole('button', { name: 'Approve and publish' }).click();
+    await expect(admin.getByRole('heading', { name: 'Receipts' })).toBeVisible();
+    await request.post('/__test/drain');
+    await nav(page, 'Notifications');
+    await expect(page.getByRole('link', { name: '“New expense tool” is approved' })).toBeVisible();
+    await nav(page, 'Announcements');
+    await expect(page.getByRole('listitem').filter({ hasText: 'New expense tool' })).toBeVisible();
+    await axe(admin);
   });
 });
