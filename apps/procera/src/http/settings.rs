@@ -6,7 +6,7 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post, put};
+use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use procera_access::{Resource, Scope};
 use procera_settings::cache::{self, SettingsCache};
@@ -23,7 +23,7 @@ use super::workspace::{WsMember, members};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/branding", get(branding))
-        .route("/workspace", axum::routing::patch(rename_workspace))
+        .route("/workspace", patch(rename_workspace))
         .route("/branding/logo", get(branding_logo))
         .route("/settings", get(list))
         .route("/settings/effective", get(effective))

@@ -15,7 +15,9 @@ use super::auth::{AuthUser, client_info};
 use super::error::ApiError;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/me/profile", get(get_profile).patch(update_profile))
+    Router::new()
+        // One line per route: the audit contract test reads `.route(` lines from this file.
+        .route("/me/profile", get(get_profile).patch(update_profile))
 }
 
 fn internal(e: impl std::fmt::Display) -> ApiError {

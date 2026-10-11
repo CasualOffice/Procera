@@ -324,6 +324,7 @@ mod tests {
             ("/api/v1", include_str!("encryption.rs")),
             ("/api/v1", include_str!("files.rs")),
             ("/api/v1", include_str!("views.rs")),
+            ("/api/v1", include_str!("profile.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("", include_str!("../http.rs")),
