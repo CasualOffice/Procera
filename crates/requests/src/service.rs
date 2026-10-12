@@ -12,6 +12,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::catalogue::{Form, RequestType};
+use crate::delegation::{self, Away};
 use crate::forms::{self, FieldError};
 use crate::views::{
     Decided, Person, Reassigned, RequestDetail, RequestSummary, Sla, Started, Step, TimelineEntry,
@@ -92,6 +93,9 @@ struct WorkListRow {
     variables: Value,
     state: String,
     assignees: Vec<String>,
+    completed_on_behalf_of: Option<Uuid>,
+    exclude_initiator: bool,
+    exclude_actors_of: Vec<String>,
 }
 
 /// What the decision path reads under the row lock.
@@ -326,15 +330,20 @@ impl Requests {
         Ok(rows.into_iter().map(|r| self.summary(r)).collect())
     }
 
-    /// Whether `m` started the request, is offered one of its steps or decided one.
+    /// Whether `m` started the request, is offered one of its steps or decided one, or currently
+    /// acts for someone offered an open step (out of office).
     pub async fn involved(&self, tx: &mut WsTx<'_>, id: Uuid, m: Uuid) -> R<bool> {
+        let principals = delegation::acting_for(tx, m, self.today()).await?;
         Ok(sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM requests WHERE instance_id = $1 AND initiator_membership_id = $2)
                  OR EXISTS (SELECT 1 FROM work_items w WHERE w.instance_id = $1 AND (w.completed_by = $2 OR EXISTS
-                            (SELECT 1 FROM work_item_candidates c WHERE c.work_item_id = w.id AND c.membership_id = $2)))",
+                            (SELECT 1 FROM work_item_candidates c WHERE c.work_item_id = w.id AND c.membership_id = $2)))
+                 OR EXISTS (SELECT 1 FROM work_items w JOIN work_item_candidates c ON c.workspace_id = w.workspace_id AND c.work_item_id = w.id
+                             WHERE w.instance_id = $1 AND w.state IN ('offered', 'claimed') AND c.membership_id = ANY($3))",
         )
         .bind(id)
         .bind(m)
+        .bind(&principals)
         .fetch_one(tx.conn())
         .await?)
     }
@@ -401,7 +410,9 @@ impl Requests {
             OffsetDateTime,
             Option<String>,
             Vec<String>,
-            Option<Value>,
+            Option<String>,
+            Vec<Uuid>,
+            Value,
         );
         let rows: Vec<StepRow> = sqlx::query_as(
             "SELECT w.id, w.node_id, w.name, w.kind, w.state, w.unassigned, w.outcome, w.decision, w.completed_at, w.due_at, w.created_at,
@@ -409,7 +420,9 @@ impl Requests {
                     coalesce((SELECT array_agg(u.display_name ORDER BY u.display_name) FROM work_item_candidates c
                               JOIN memberships m ON m.workspace_id = c.workspace_id AND m.id = c.membership_id JOIN users u ON u.id = m.user_id
                               WHERE c.work_item_id = w.id), '{}'),
-                    w.resolution->'history'
+                    (SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = w.completed_on_behalf_of),
+                    coalesce((SELECT array_agg(c.membership_id ORDER BY c.membership_id) FROM work_item_candidates c WHERE c.work_item_id = w.id), '{}'),
+                    w.resolution
                FROM work_items w WHERE w.instance_id = $1 ORDER BY w.created_at, w.work_key",
         )
         .bind(id)
@@ -435,16 +448,30 @@ impl Requests {
                         comment.as_deref().unwrap_or_default()
                     ),
                     (who, _) => format!(
-                        "{}: {} by {}",
+                        "{}: {} by {}{}",
                         r.2,
                         outcome.replace('_', " "),
-                        who.as_deref().unwrap_or("Someone")
+                        who.as_deref().unwrap_or("Someone"),
+                        r.13.as_ref().map(|n| format!(" on behalf of {n}")).unwrap_or_default()
                     ),
                 };
                 timeline.push(TimelineEntry { at, kind: "decided".into(), text, actor: r.11.clone() });
             }
-            for h in r.13.as_ref().and_then(Value::as_array).into_iter().flatten() {
+            for h in r.15.get("history").and_then(Value::as_array).into_iter().flatten() {
                 timeline.extend(history_entry(&r.2, h));
+            }
+            let open = matches!(r.4.as_str(), "offered" | "claimed");
+            let (away, delegated) = self.step_away(tx, &r.14, &r.15, open, self.today()).await?;
+            for (who, delegate, until) in &delegated {
+                let until = until
+                    .map(|u| format!(" until {}", crate::handler::human_date(u.midnight().assume_utc())))
+                    .unwrap_or_default();
+                timeline.push(TimelineEntry {
+                    at: r.10,
+                    kind: "delegated".into(),
+                    text: format!("{}: {delegate} decides on behalf of {who}, who is away{until}", r.2),
+                    actor: None,
+                });
             }
             steps.push(Step {
                 id: r.0,
@@ -455,6 +482,8 @@ impl Requests {
                 assignees: r.12,
                 unassigned: r.5,
                 decided_by: r.11,
+                on_behalf_of: r.13,
+                away,
                 outcome: r.6,
                 comment,
                 decided_at: r.8,
@@ -535,10 +564,17 @@ impl Requests {
     }
 
     /// Work items for `m`.
+    /// Open items include those offered to someone `m` currently acts for (out of office, BPMS-086);
+    /// each says whom it is decided for in `on_behalf_of`.
     pub async fn work(&self, tx: &mut WsTx<'_>, m: Uuid, state: WorkState) -> R<Vec<WorkView>> {
+        let today = self.today();
+        let principals = match state {
+            WorkState::Open => delegation::acting_for(tx, m, today).await?,
+            _ => vec![m],
+        };
         let filter = match state {
             WorkState::Open => {
-                "w.state IN ('offered', 'claimed') AND EXISTS (SELECT 1 FROM work_item_candidates c WHERE c.work_item_id = w.id AND c.membership_id = $1)"
+                "w.state IN ('offered', 'claimed') AND EXISTS (SELECT 1 FROM work_item_candidates c WHERE c.work_item_id = w.id AND c.membership_id = ANY($3))"
             }
             WorkState::Done => "w.state = 'completed' AND w.completed_by = $1",
             WorkState::Unassigned => "w.state IN ('offered', 'claimed') AND w.unassigned AND $1 = $1",
@@ -551,18 +587,50 @@ impl Requests {
                     p.state->'variables' AS variables, w.state,
                     coalesce((SELECT array_agg(u2.display_name ORDER BY u2.display_name) FROM work_item_candidates c
                               JOIN memberships m2 ON m2.workspace_id = c.workspace_id AND m2.id = c.membership_id
-                              JOIN users u2 ON u2.id = m2.user_id WHERE c.work_item_id = w.id), '{{}}') AS assignees
+                              JOIN users u2 ON u2.id = m2.user_id WHERE c.work_item_id = w.id), '{{}}') AS assignees,
+                    w.completed_on_behalf_of, w.exclude_initiator, w.exclude_actors_of
                FROM work_items w JOIN requests r ON r.workspace_id = w.workspace_id AND r.instance_id = w.instance_id
                JOIN process_instances p ON p.workspace_id = w.workspace_id AND p.id = w.instance_id
                JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.initiator_membership_id JOIN users u ON u.id = m.user_id
-              WHERE {filter} AND $2 = $2 ORDER BY w.due_at NULLS LAST, w.created_at DESC LIMIT {LIST_LIMIT}"
+              WHERE {filter} AND $2 = $2 AND $3 = $3 ORDER BY w.due_at NULLS LAST, w.created_at DESC LIMIT {LIST_LIMIT}"
         ))
         .bind(m)
         .bind(now)
+        .bind(&principals)
         .fetch_all(tx.conn())
         .await?;
         let mut out = Vec::new();
         for r in rows {
+            let for_whom = match state {
+                WorkState::Open => {
+                    match delegation::standing(tx, r.id, m, &principals, r.initiator_membership_id).await? {
+                        Some(delegation::Standing::For(x)) => {
+                            // Separation of duties applies to the delegate: hide what they could not decide.
+                            let excluded = crate::resolve::excluded(
+                                tx,
+                                r.instance_id,
+                                Some(r.initiator_membership_id),
+                                r.exclude_initiator,
+                                &r.exclude_actors_of,
+                            )
+                            .await
+                            .map_err(RequestError::Internal)?;
+                            if excluded.contains(&m) {
+                                continue;
+                            }
+                            Some(x)
+                        }
+                        Some(delegation::Standing::Own) => None,
+                        // Offered to someone `m` acts for, but not passable to `m` (initiator, depth).
+                        None => continue,
+                    }
+                }
+                _ => r.completed_on_behalf_of,
+            };
+            let on_behalf_of = match for_whom {
+                Some(x) => Some(self.away_note(tx, x, today).await?),
+                None => None,
+            };
             let rt = self.type_of(&r.process_key)?;
             let vars: BTreeMap<String, Value> =
                 serde_json::from_value(r.variables.clone()).unwrap_or_default();
@@ -593,9 +661,47 @@ impl Requests {
                 unassigned: r.unassigned,
                 outcome: r.outcome,
                 completed_at: r.completed_at,
+                on_behalf_of,
             });
         }
         Ok(out)
+    }
+
+    /// An away note for `x` (their return date when they are still away).
+    async fn away_note(&self, tx: &mut WsTx<'_>, x: Uuid, on: time::Date) -> R<Away> {
+        if let Some(a) = delegation::away(tx, &[x], on).await?.remove(&x) {
+            return Ok(a);
+        }
+        let name = crate::handler::name(tx, x).await.map_err(RequestError::Internal)?;
+        Ok(Away { id: x, name, until: None, delegate: None })
+    }
+
+    /// For one step: who among its candidates is away today (open steps only), and the
+    /// substitutions made when it was created as `(for, delegate, until)` names.
+    async fn step_away(
+        &self,
+        tx: &mut WsTx<'_>,
+        candidates: &[Uuid],
+        snapshot: &Value,
+        open: bool,
+        on: time::Date,
+    ) -> R<(Vec<Away>, Vec<(String, String, Option<time::Date>)>)> {
+        let away =
+            if open { delegation::away(tx, candidates, on).await?.into_values().collect() } else { vec![] };
+        let mut delegated = Vec::new();
+        for s in
+            snapshot["substitutions"].as_array().into_iter().flatten().filter(|s| s.get("skipped").is_none())
+        {
+            let id = |k: &str| s[k].as_str().and_then(|v| Uuid::parse_str(v).ok());
+            let (Some(f), Some(d)) = (id("for"), id("delegate")) else { continue };
+            let until = s["until"].as_str().and_then(|u| delegation::parse_date("until", u).ok());
+            let names = (
+                crate::handler::name(tx, f).await.map_err(RequestError::Internal)?,
+                crate::handler::name(tx, d).await.map_err(RequestError::Internal)?,
+            );
+            delegated.push((names.0, names.1, until));
+        }
+        Ok((away, delegated))
     }
 
     /// Decides a work item (docs/08 §7.2). Exactly one decision wins: the instance row is locked
@@ -617,20 +723,21 @@ impl Requests {
             .fetch_optional(tx.conn())
             .await?
             .ok_or(RequestError::NotFound)?;
-        let candidate: bool = sqlx::query_scalar(
-            "SELECT EXISTS (SELECT 1 FROM work_item_candidates WHERE work_item_id = $1 AND membership_id = $2)",
-        )
-        .bind(work_id)
-        .bind(actor.membership)
-        .fetch_one(tx.conn())
-        .await?;
-        if !candidate {
+        // A candidate, or the delegate of an away candidate (BPMS-086).
+        let initiator = self.initiator(tx, instance).await?;
+        let principals = delegation::acting_for(tx, actor.membership, self.today()).await?;
+        let standing = delegation::standing(tx, work_id, actor.membership, &principals, initiator).await?;
+        let Some(standing) = standing else {
             return Err(if self.involved(tx, instance, actor.membership).await? {
                 RequestError::Forbidden("this step is not offered to you".into())
             } else {
                 RequestError::NotFound
             });
-        }
+        };
+        let on_behalf_of = match standing {
+            delegation::Standing::For(x) => Some(x),
+            delegation::Standing::Own => None,
+        };
         sqlx::query("SELECT 1 FROM process_instances WHERE id = $1 FOR UPDATE")
             .bind(instance)
             .execute(tx.conn())
@@ -649,7 +756,6 @@ impl Requests {
         if if_match != revision {
             return Err(RequestError::Stale { current: revision });
         }
-        let initiator = self.initiator(tx, instance).await?;
         let excluded = crate::resolve::excluded(tx, instance, Some(initiator), ex_init, &ex_actors)
             .await
             .map_err(RequestError::Internal)?;
@@ -690,7 +796,8 @@ impl Requests {
         let now = self.clock.now();
         let decision = json!({ "comment": comment, "fields": fields });
         sqlx::query(
-            "UPDATE work_items SET state = 'completed', outcome = $2, decision = $3, completed_at = $4, completed_by = $5, revision = revision + 1
+            "UPDATE work_items SET state = 'completed', outcome = $2, decision = $3, completed_at = $4, completed_by = $5,
+                    completed_on_behalf_of = $6, revision = revision + 1
              WHERE id = $1",
         )
         .bind(work_id)
@@ -698,6 +805,7 @@ impl Requests {
         .bind(&decision)
         .bind(now)
         .bind(actor.membership)
+        .bind(on_behalf_of)
         .execute(tx.conn())
         .await?;
         let stimulus =
@@ -713,7 +821,7 @@ impl Requests {
             "work_item.decided",
             "work_item",
             work_id,
-            json!({ "outcome": outcome, "request": instance, "step": node }),
+            json!({ "outcome": outcome, "request": instance, "step": node, "on_behalf_of": on_behalf_of }),
         )
         .await?;
         Ok(Decided {
