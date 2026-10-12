@@ -739,6 +739,39 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .file-preview img { display: block; max-width: 100%; max-height: min(70vh, 45rem); object-fit: contain; border-radius: 0.25rem; background: var(--color-surface); }
 .file-preview iframe { display: block; width: 100%; height: min(70vh, 45rem); border: 1px solid var(--line); border-radius: 0.25rem; background: var(--color-surface); }
 .file-preview > .notice { align-self: stretch; }
+.file-preview > .pdf-view, .file-preview > .sheet-view, .file-preview > .docx-frame { align-self: stretch; }
+.preview-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding-bottom: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--line-subtle); font-size: 0.8125rem; }
+.preview-toolbar .icon-btn:disabled { opacity: 0.4; cursor: default; }
+.preview-status { min-width: 3.5rem; text-align: center; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+.preview-sep { width: 1px; height: 1.25rem; margin: 0 0.25rem; background: var(--line); }
+.preview-chip { height: 2rem; padding: 0 0.625rem; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; cursor: pointer; }
+.preview-chip[aria-pressed="true"] { background: var(--fill-hover); border-color: var(--color-border-strong); font-weight: 600; }
+.preview-chip:focus-visible, .preview-search input:focus-visible, .pdf-pages:focus-visible, .sheet-scroll:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.preview-search { display: inline-flex; align-items: center; gap: 0.375rem; margin-left: auto; color: var(--color-text-secondary); }
+.preview-search input { width: 10rem; height: 2rem; padding: 0 0.5rem; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text); font: inherit; }
+/* pdf.js: one page on a canvas; the text layer above it is transparent but selectable and searchable. */
+.pdf-pages { height: min(68vh, 44rem); overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 1rem; border-radius: 0.25rem; }
+.pdf-page { position: relative; flex: none; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.2); --scale-round-x: 1px; --scale-round-y: 1px; }
+.pdf-page canvas { display: block; }
+.pdf-page .textLayer { position: absolute; inset: 0; overflow: clip; line-height: 1; opacity: 1; text-align: initial; transform-origin: 0 0; forced-color-adjust: none; --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+.pdf-page .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.pdf-page .textLayer > :not(.markedContent), .pdf-page .textLayer .markedContent span:not(.markedContent) { --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height)); --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+.pdf-page .textLayer .markedContent { display: contents; }
+.pdf-page .textLayer ::selection { background: rgb(0 90 200 / 0.3); }
+.pdf-page .textLayer .pdf-hit { background: rgb(255 200 0 / 0.45); border-radius: 1px; }
+.docx-frame { display: block; width: 100%; height: min(70vh, 45rem); border: 1px solid var(--line); border-radius: 0.25rem; }
+/* Spreadsheet preview: a plain, read-only grid with sticky letters and row numbers. */
+.sheet-note { margin: 0 0 0.5rem; font-size: 0.8125rem; }
+.sheet-scroll { max-height: min(62vh, 40rem); overflow: auto; border: 1px solid var(--line); border-radius: 0.25rem; background: var(--color-surface); }
+.sheet-table { border-collapse: separate; border-spacing: 0; font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+.sheet-table th, .sheet-table td { padding: 0.25rem 0.5rem; border-right: 1px solid var(--line-subtle); border-bottom: 1px solid var(--line-subtle); white-space: nowrap; max-width: 20rem; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+.sheet-table thead th, .sheet-table thead td { position: sticky; top: 0; z-index: 1; background: var(--color-surface-muted); color: var(--color-text-on-tinted); font-weight: 500; text-align: center; }
+.sheet-table tbody th { position: sticky; left: 0; background: var(--color-surface-muted); color: var(--color-text-on-tinted); font-weight: 500; text-align: right; }
+.preview-fallback { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 1.5rem 1rem; color: var(--color-text-secondary); text-align: center; }
+.preview-fallback-title { margin: 0; font-weight: 600; color: var(--color-text); }
+.preview-facts { display: grid; grid-template-columns: auto auto; gap: 0.25rem 0.75rem; margin: 0.25rem 0 0; font-size: 0.8125rem; text-align: left; }
+.preview-facts dt { color: var(--color-text-secondary); }
+.preview-facts dd { margin: 0; color: var(--color-text); overflow-wrap: anywhere; }
 
 /* Background audit exports (BPMS-064). */
 .audit-exports { flex-basis: 100%; margin: 0.75rem 0 0; }

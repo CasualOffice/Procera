@@ -58,8 +58,8 @@ test.describe('files @r1 @ui', () => {
     await page.goto(`${WEB}/library/${r.artifact.id}`);
     const list = page.getByRole('region', { name: 'Attachments' });
     await expect(list.getByRole('listitem').filter({ hasText: 'diagram.png' })).toBeVisible();
-    // Only previewable types offer Preview.
-    await expect(list.getByRole('button', { name: 'Preview notes.txt' })).toHaveCount(0);
+    // Every clean file offers Preview; a type without one shows the download fallback (E2E-R1-UI-69).
+    await expect(list.getByRole('button', { name: 'Preview notes.txt' })).toBeVisible();
     const trigger = list.getByRole('button', { name: 'Preview diagram.png' });
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'diagram.png' });

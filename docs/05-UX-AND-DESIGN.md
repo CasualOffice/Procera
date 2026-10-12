@@ -180,7 +180,7 @@ For each screen: **Purpose · User · Components · States · Interactions · Mo
   - Preview opens a dialog titled with the file name and the note "Preview. Links, scripts and forms inside the file are disabled." Images fit the dialog (at most 70 % of the viewport high) on a quiet canvas. PDFs open in the browser's own viewer in a frame of the same height.
   - Footer: Close and Download. Escape, Close or a click outside dismisses it, and focus returns to the Preview button.
   - States: "Loading the preview…" while the link is fetched; an error notice if the link can't be issued (for example the file stopped being clean); "This type of file has no preview" if the server reports `kind: none`.
-  - Office documents have no preview yet (P1, see docs/06 §5.7 spike note).
+  - **0.1 as built (supersedes the type list, PDF frame and no-preview state above):** every clean file offers Preview in one dialog (attachments and Admin › Files); PDFs render with pdf.js (page nav, fit width/100 %/zoom steps, page search, keyboard), DOCX with docx-preview inside a script-less `sandbox="allow-same-origin"` frame whose CSP loads only inline styles and `data:` images (outbound links stripped), XLSX (SheetJS CE, sheet tabs) and CSV as read-only tables of the first 500 rows; other types show "No preview for this type — download it." with name, size and type; the renderers are lazy chunks.
 
 ### 3.5 Designer
 - **Purpose:** build the executable process. It serves both designers (power) and owners (simple edits).

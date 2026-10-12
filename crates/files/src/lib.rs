@@ -9,7 +9,7 @@
 //!   the workspace).
 //! - **Downloads** use short-lived signed tokens bound to the file, workspace and member; the server
 //!   re-authorizes on every request.
-//! - **Previews** (BPMS-061, FR-F04) serve only clean PNG, JPEG, GIF, WebP and PDF files inline,
+//! - **Previews** (BPMS-061, FR-F04) serve only clean PNG, JPEG, GIF, WebP, PDF, DOCX, XLSX and CSV files,
 //!   through their own token purpose (`file-preview`) with a shorter lifetime; JPEG metadata is
 //!   stripped on the way out when `files.exif_strip` is on.
 //! - **Immutability**: a file linked to a version that is no longer a draft cannot be unlinked or
@@ -46,16 +46,22 @@ pub const DOWNLOAD_TTL: Duration = Duration::minutes(5);
 /// Preview links live this long: the dialog loads them at once, so they need not outlast a download link.
 pub const PREVIEW_TTL: Duration = Duration::minutes(2);
 
-/// How a sniffed type previews in the browser: `image` (an `<img>`) or `pdf` (the browser's viewer in
-/// a frame), with the exact content type to serve. A fixed allow-list: SVG, HTML and every other type
-/// are never served inline.
-pub fn preview_kind(sniffed: Option<&str>) -> Option<(&'static str, &'static str)> {
+/// How a sniffed type previews in the app, with the exact content type to serve: `image` (an
+/// `<img>`), `pdf` (pdf.js), `docx` (rendered to inert HTML in an isolated frame), `xlsx` and `csv`
+/// (a read-only table). CSV is plain text named `*.csv`. A fixed allow-list: SVG, HTML and every
+/// other type are never served for preview.
+pub fn preview_kind(sniffed: Option<&str>, name: &str) -> Option<(&'static str, &'static str)> {
     match sniffed? {
         "image/png" => Some(("image", "image/png")),
         "image/jpeg" => Some(("image", "image/jpeg")),
         "image/gif" => Some(("image", "image/gif")),
         "image/webp" => Some(("image", "image/webp")),
         "application/pdf" => Some(("pdf", "application/pdf")),
+        sniff::DOCX => Some(("docx", sniff::DOCX)),
+        sniff::XLSX => Some(("xlsx", sniff::XLSX)),
+        "text/plain" if name.to_ascii_lowercase().ends_with(".csv") => {
+            Some(("csv", "text/csv; charset=utf-8"))
+        }
         _ => None,
     }
 }
@@ -427,11 +433,15 @@ impl Files {
     ) -> Result<(File, &'static str, Vec<u8>), FileError> {
         let (f, data) = self.content(tx, id).await?;
         // The recorded type and a fresh sniff of the stored bytes must agree before anything is inline.
-        let recorded = preview_kind(f.sniffed_type.as_deref());
-        let fresh = preview_kind(Some(sniff::sniff(&data[..data.len().min(4096)])));
-        let Some((_, ct)) = recorded.filter(|r| Some(*r) == fresh) else {
+        let recorded = preview_kind(f.sniffed_type.as_deref(), &f.name);
+        let fresh = preview_kind(Some(sniff::sniff(&data[..data.len().min(4096)])), &f.name);
+        let Some((kind, ct)) = recorded.filter(|r| Some(*r) == fresh) else {
             return Err(FileError::Invalid("this file type has no preview".into()));
         };
+        // An Office file must really be one: its central directory names the main part.
+        if matches!(kind, "docx" | "xlsx") && sniff::ooxml(&data) != Some(ct) {
+            return Err(FileError::Invalid("this file is not a valid Office document".into()));
+        }
         if ct == "image/jpeg" && self.exif_strip(tx).await? {
             let stripped =
                 exif::strip_jpeg(&data).ok_or_else(|| FileError::Invalid("the JPEG is malformed".into()))?;
@@ -839,16 +849,25 @@ mod tests {
 
     #[test]
     fn previews_only_allow_listed_types() {
-        assert_eq!(preview_kind(Some("image/png")), Some(("image", "image/png")));
-        assert_eq!(preview_kind(Some("image/webp")), Some(("image", "image/webp")));
-        assert_eq!(preview_kind(Some("application/pdf")), Some(("pdf", "application/pdf")));
+        assert_eq!(preview_kind(Some("image/png"), "a.png"), Some(("image", "image/png")));
+        assert_eq!(preview_kind(Some("image/webp"), "a.webp"), Some(("image", "image/webp")));
+        assert_eq!(preview_kind(Some("application/pdf"), "a.pdf"), Some(("pdf", "application/pdf")));
+        assert_eq!(preview_kind(Some(sniff::DOCX), "a.docx"), Some(("docx", sniff::DOCX)));
+        assert_eq!(preview_kind(Some(sniff::XLSX), "a.xlsx"), Some(("xlsx", sniff::XLSX)));
+        assert_eq!(preview_kind(Some("text/plain"), "Rota.CSV"), Some(("csv", "text/csv; charset=utf-8")));
         for t in ["image/svg+xml", "text/html", "text/plain", "application/zip", "application/octet-stream"] {
-            assert_eq!(preview_kind(Some(t)), None, "{t}");
+            assert_eq!(preview_kind(Some(t), "a.txt"), None, "{t}");
         }
-        assert_eq!(preview_kind(None), None);
+        assert_eq!(preview_kind(None, "a.csv"), None);
         // An SVG or HTML payload never sniffs as a previewable type, whatever it is named.
-        assert_eq!(preview_kind(Some(sniff::sniff(b"<svg onload=alert(1)>"))), None);
-        assert_eq!(preview_kind(Some(sniff::sniff(b"<html><script>x</script>"))), None);
+        assert_eq!(preview_kind(Some(sniff::sniff(b"<svg onload=alert(1)>")), "x.csv"), None);
+        assert_eq!(preview_kind(Some(sniff::sniff(b"<html><script>x</script>")), "x.csv"), None);
+        // A plain zip is not previewable; a zip that only looks like a document sniffs as one but
+        // fails the central-directory check `preview` applies.
+        let plain = sniff::tests::zip_of(&[("notes.txt", "hi")]);
+        assert_eq!(preview_kind(Some(sniff::sniff(&plain)), "notes.docx"), None);
+        let fake = sniff::tests::zip_of(&[("word/readme.txt", "x")]);
+        assert_eq!(sniff::ooxml(&fake), None);
     }
 
     #[test]

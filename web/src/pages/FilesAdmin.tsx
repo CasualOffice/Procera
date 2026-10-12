@@ -1,4 +1,4 @@
-import { Download, HardDrive, Trash2 } from 'lucide-react';
+import { Download, Eye, HardDrive, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type LoadFailure, type Member, memberMap, toFailure, useItems } from '../lib/data';
@@ -12,6 +12,7 @@ import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
 import { FormDialog } from '../ui/components/FormDialog';
 import { TextField } from '../ui/components/TextField';
+import { FilePreview, canPreview } from './FilePreview';
 
 interface Row { file: FileInfo; links: { object_type: string; object_id: string }[]; retention_class: string | null; retention_set?: boolean }
 type GridRow = Row & { id: string };
@@ -32,6 +33,7 @@ export function FilesAdmin() {
   const [retaining, setRetaining] = useState<string[] | null>(null);
   const [cls, setCls] = useState('');
   const [why, setWhy] = useState('');
+  const [previewing, setPreviewing] = useState<FileInfo | null>(null);
   const [members] = useItems<Member>('/api/v1/members');
   const people = memberMap(members);
   const load = () => {
@@ -77,6 +79,7 @@ export function FilesAdmin() {
             { id: 'uploaded', header: 'Uploaded', type: 'date', optional: true, value: (r) => r.file.created_at, cell: (r) => shortDate(r.file.created_at) },
             { id: 'accessed', header: 'Last accessed', type: 'date', optional: true, value: (r) => r.file.last_accessed_at ?? null, cell: (r) => (r.file.last_accessed_at ? timeAgo(r.file.last_accessed_at) : 'Never') },
             { id: 'actions', header: 'Actions', sortable: false, value: () => '', className: 'cell-actions', cell: (r) => <>
+              {canPreview(r.file) && <button type="button" className="icon-btn" aria-label={`Preview ${r.file.name}`} onClick={() => setPreviewing(r.file)}><Eye aria-hidden="true" size="0.875rem" /></button>}
               {r.file.state === 'clean' && <button type="button" className="icon-btn" aria-label={`Download ${r.file.name}`} onClick={() => void downloadFile(r.file.id).then(() => setRows((all) => all && all.map((x) => (x.file.id === r.file.id ? { ...x, file: { ...x.file, last_accessed_at: new Date().toISOString() } } : x))))}><Download aria-hidden="true" size="0.875rem" /></button>}
               {can('file:delete') && <button type="button" className="icon-btn" aria-label={`Delete ${r.file.name}`} onClick={() => void act(() => api(`/api/v1/files/${r.file.id}`, { method: 'DELETE' }), `${r.file.name} deleted.`)}><Trash2 aria-hidden="true" size="0.875rem" /></button>}
             </> },
@@ -95,6 +98,7 @@ export function FilesAdmin() {
           <TextField label="Reason" value={why} onChange={setWhy} isRequired />
         </div>
       </FormDialog>
+      <FilePreview file={previewing} onClose={() => setPreviewing(null)} />
       <section aria-labelledby="orph-h" style={{ marginTop: '2rem' }}>
         <h2 id="orph-h" style={{ fontSize: '0.9375rem', margin: '0 0 0.5rem' }}>Orphaned files</h2>
         <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.8125rem' }}>Files nothing uses any more, past the orphan period. They can be removed to free space.</p>

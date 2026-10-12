@@ -24,6 +24,7 @@ tokio = { workspace = true, features = ["fs", "io-util", "net"] }
 tracing.workspace = true
 uuid.workspace = true
 zeroize = "1"
+zip = { version = "8", default-features = false }
 
 [dev-dependencies]
 anyhow.workspace = true
