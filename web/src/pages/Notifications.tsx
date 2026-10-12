@@ -1,4 +1,4 @@
-import { Bell, BookOpenCheck, Check, CheckCheck, Megaphone, Settings2, UserPlus } from 'lucide-react';
+import { Bell, BookOpenCheck, Check, CheckCheck, CircleCheck, Inbox, Megaphone, Send, Settings2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type LoadFailure, toFailure } from '../lib/data';
@@ -7,7 +7,7 @@ import { timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
 import { Button } from '../ui/components/Button';
 
-interface Notification { id: string; kind: string; title: string; body: string; link: string | null; read_at: string | null; created_at: string }
+interface Notification { id: string; kind: string; title: string; body: string; link: string | null; read_at: string | null; created_at: string; data?: { request_id?: string; work_item_id?: string } }
 
 const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   member_joined: { icon: UserPlus, tone: 'green' },
@@ -21,7 +21,25 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   announcement_decided: { icon: Megaphone, tone: 'orange' },
   review_requested: { icon: BookOpenCheck, tone: 'blue' },
   review_decided: { icon: BookOpenCheck, tone: 'blue' },
+  work_assigned: { icon: Inbox, tone: 'green' },
+  request_decided: { icon: Send, tone: 'blue' },
+  request_completed: { icon: CircleCheck, tone: 'green' },
 };
+
+/** A link for kinds whose payload has no `link`, from ids in it (requests and work items). */
+function fallbackLink(n: Notification): string | null {
+  const d = n.data ?? {};
+  if (n.kind === 'work_assigned' && d.work_item_id) return `/work/${d.work_item_id}`;
+  if ((n.kind === 'request_decided' || n.kind === 'request_completed' || n.kind === 'work_assigned') && d.request_id) return `/requests/${d.request_id}`;
+  return n.kind === 'announcement' ? '/announcements' : null;
+}
+
+/** Server links may be absolute (email-ready) or API-shaped; the app routes on the path. */
+function appLink(link: string | null): string | null {
+  if (!link) return null;
+  const path = link.replace(/^https?:\/\/[^/]+/, '').replace(/^\/api\/v1/, '');
+  return path.startsWith('/') ? path : null;
+}
 
 /** Kinds that merge when several arrive the same day ("Gia, Finn and 4 others joined Acme"). */
 const MERGEABLE = new Set(['member_joined']);
@@ -87,7 +105,7 @@ export function Notifications() {
               const isRead = unreadIds.length === 0;
               const title = merged ? mergedTitle(group) : n.title;
               const k = KIND[n.kind] ?? { icon: Bell, tone: 'gray' };
-              const target = n.link ?? (n.kind === 'announcement' ? '/announcements' : null);
+              const target = appLink(n.link) ?? fallbackLink(n);
               const expanded = open.has(key);
               return (
                 <li key={key} className="inbox-row rows-link">
