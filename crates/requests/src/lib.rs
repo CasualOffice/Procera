@@ -16,6 +16,7 @@ pub mod catalogue;
 mod escalate;
 pub mod forms;
 pub mod handler;
+mod offer;
 pub mod resolve;
 mod service;
 mod views;
@@ -32,6 +33,7 @@ use uuid::Uuid;
 
 pub use catalogue::{Catalogue, Field, Form, RequestType};
 pub use forms::FieldError;
+pub use offer::Offer;
 pub use service::{Scope, WorkState};
 pub use views::{Decided, Reassigned, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WorkView};
 
@@ -84,7 +86,8 @@ internal_from!(
     procera_audit::AuditError,
     procera_members::MembersError,
     serde_json::Error,
-    procera_engine::EngineError
+    procera_engine::EngineError,
+    procera_settings::SettingsError
 );
 
 /// Who acts: a membership, its audit subject and the client it acts from.

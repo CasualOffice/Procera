@@ -124,6 +124,14 @@ fn history_entry(step: &str, h: &Value) -> Option<TimelineEntry> {
 }
 
 impl Requests {
+    /// A form priced in the currency a request's money values carry (its workspace currency at start).
+    fn priced(form: &Form, vars: &BTreeMap<String, Value>) -> Form {
+        match vars.values().find_map(|v| v.get("amount").and(v.get("currency")).and_then(Value::as_str)) {
+            Some(c) => RequestType::priced(form, c),
+            None => form.clone(),
+        }
+    }
+
     fn type_of(&self, key: &str) -> R<std::sync::Arc<RequestType>> {
         self.catalogue.get(key).cloned().ok_or_else(|| RequestError::UnknownType(key.to_owned()))
     }
@@ -207,7 +215,9 @@ impl Requests {
         if errors.is_empty() { Ok(vals) } else { Err(under(errors)) }
     }
 
-    /// Starts a request of type `key` for `actor` (BPMS-103). Appends `request.started`.
+    /// Starts a request of type `key` for `actor` (BPMS-103). Appends `request.started`. A type the
+    /// workspace does not offer, or whose audience leaves the actor out, is `Forbidden`; money is
+    /// priced in the workspace currency.
     pub async fn start(
         &self,
         tx: &mut WsTx<'_>,
@@ -216,7 +226,19 @@ impl Requests {
         input: &Map<String, Value>,
     ) -> R<Started> {
         let rt = self.type_of(key)?;
-        let vars = self.values(tx, &rt.start_form, input, false, "input").await?;
+        let offer = self.offer(tx).await?;
+        if !offer.enabled(key) {
+            return Err(RequestError::Forbidden(format!("{} is not offered in this workspace", rt.name)));
+        }
+        if !self.may_start(tx, &offer, key, actor.membership).await? {
+            return Err(RequestError::Forbidden(format!("{} is limited to other people", rt.name)));
+        }
+        let program = rt
+            .program_for(&offer.currency)
+            .cloned()
+            .ok_or_else(|| RequestError::Internal(format!("{key} has no build for {}", offer.currency)))?;
+        let form = RequestType::priced(&rt.start_form, &offer.currency);
+        let vars = self.values(tx, &form, input, false, "input").await?;
         if let Some(check) = rt.check {
             let errs = check(&vars);
             if !errs.is_empty() {
@@ -234,7 +256,7 @@ impl Requests {
         )
         .await?;
         let who = actor.runtime();
-        let a = self.engine.start_in(tx, &rt.program, initiator, vars, Some(who)).await?;
+        let a = self.engine.start_in(tx, &program, initiator, vars, Some(who)).await?;
         let started = self.started(tx, a.instance_id).await?;
         self.audit(
             tx,
@@ -476,7 +498,7 @@ impl Requests {
         Ok(RequestDetail {
             summary,
             ended_at,
-            fields: rt.start_form.fields.clone(),
+            fields: Self::priced(&rt.start_form, &vars).fields,
             input,
             steps,
             timeline,
@@ -542,9 +564,9 @@ impl Requests {
         let mut out = Vec::new();
         for r in rows {
             let rt = self.type_of(&r.process_key)?;
-            let form = rt.task_forms.get(&r.node_id).cloned().unwrap_or_default();
             let vars: BTreeMap<String, Value> =
                 serde_json::from_value(r.variables.clone()).unwrap_or_default();
+            let form = Self::priced(&rt.task_forms.get(&r.node_id).cloned().unwrap_or_default(), &vars);
             let values = self.display(tx, &form, &vars).await?;
             let open = matches!(r.state.as_str(), "offered" | "claimed");
             out.push(WorkView {
@@ -657,7 +679,13 @@ impl Requests {
             return Err(RequestError::Invalid(errors));
         }
         let rt = self.type_of(&process_key)?;
-        let form = rt.task_forms.get(&node).cloned().unwrap_or_default();
+        let state: Value =
+            sqlx::query_scalar("SELECT state->'variables' FROM process_instances WHERE id = $1")
+                .bind(instance)
+                .fetch_one(tx.conn())
+                .await?;
+        let current: BTreeMap<String, Value> = serde_json::from_value(state).unwrap_or_default();
+        let form = Self::priced(&rt.task_forms.get(&node).cloned().unwrap_or_default(), &current);
         let vars = self.values(tx, &form, fields, true, "fields").await?;
         let now = self.clock.now();
         let decision = json!({ "comment": comment, "fields": fields });

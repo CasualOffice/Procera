@@ -92,24 +92,25 @@ pub(crate) fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
     }
 }
 
-/// The request types the caller may start, with their start forms.
+/// The request types the caller may start (enabled in this workspace, and the caller is in the
+/// type's audience), with their start forms priced in the workspace currency.
 async fn types(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
+    let (offer, offered) = requests(&s)?.offered(&mut tx, me.actor.membership).await?;
     tx.rollback().await.map_err(internal)?;
-    let items: Vec<Value> = requests(&s)?
-        .catalogue()
-        .list()
+    let items: Vec<Value> = offered
         .iter()
         .map(|t| {
             json!({
-                "key": t.key, "name": t.name, "description": t.description, "category": t.category,
-                "icon": t.icon, "form": t.start_form,
+                "key": t.key, "name": t.name, "description": t.description(&offer.currency),
+                "category": t.category, "icon": t.icon,
+                "form": procera_requests::RequestType::priced(&t.start_form, &offer.currency),
             })
         })
         .collect();
-    Ok(Json(json!({ "items": items })).into_response())
+    Ok(Json(json!({ "items": items, "currency": offer.currency })).into_response())
 }
 
 #[derive(Debug, Deserialize)]

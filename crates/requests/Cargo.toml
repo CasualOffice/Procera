@@ -17,6 +17,7 @@ procera-kernel.workspace = true
 procera-members.workspace = true
 procera-notify.workspace = true
 procera-runtime.workspace = true
+procera-settings.workspace = true
 rust_decimal.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true

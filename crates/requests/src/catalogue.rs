@@ -5,11 +5,17 @@
 //! subset cannot show, fails [`Catalogue::builtin`]: the server refuses to start rather than offer a
 //! broken type. Each program is pinned by checksum, so a request in flight keeps the version it
 //! started on.
+//!
+//! A type with a money field is compiled once per supported currency (`requests.currency`,
+//! [`procera_settings::catalogue::CURRENCIES`]): the IR declares the currency as part of the money
+//! type, while approval thresholds stay plain numbers that read in the workspace's currency. The
+//! variants share key and version and differ by checksum, which [`Programs`] loads by.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use procera_engine::{Executable, ProgramRef, StaticPrograms};
+use procera_db::WsCtx;
+use procera_engine::{BoxFuture, Executable, ProgramRef, ProgramSource};
 use procera_ir::model::{ScalarType, VarType};
 use procera_ir::{CompileContext, compile};
 use procera_runtime::Program;
@@ -30,7 +36,7 @@ pub struct Field {
     /// Allowed values; sent as `[{value, label}]` with a readable label ("unpaid" → "Unpaid").
     #[serde(skip_serializing_if = "Option::is_none", serialize_with = "options_with_labels")]
     pub options: Option<Vec<String>>,
-    /// Fixed currency of a money field; `None` lets the requester choose.
+    /// Currency of a money field: the workspace's `requests.currency` when served.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
@@ -63,11 +69,17 @@ pub struct RequestType {
     /// Display-id prefix (`LR` → `LR-2026-000123`).
     pub prefix: &'static str,
     pub name: &'static str,
-    pub description: &'static str,
+    /// `{currency}` stands for the workspace currency; see [`RequestType::description`].
+    description: &'static str,
     pub category: &'static str,
     pub icon: &'static str,
+    /// The program as authored (its IR currency); see [`RequestType::program_for`].
     pub program: ProgramRef,
     pub exe: Arc<Executable>,
+    /// The currency the IR declares for its money fields, when it has any.
+    pub money: Option<String>,
+    /// The program per currency, for types with money fields.
+    variants: BTreeMap<String, ProgramRef>,
     pub start_form: Form,
     /// Editable fields of human steps, by node id.
     pub task_forms: BTreeMap<String, Form>,
@@ -84,6 +96,28 @@ impl RequestType {
         let t = (self.title)(input);
         let t: String = t.chars().take(300).collect();
         if t.trim().is_empty() { self.name.to_owned() } else { t }
+    }
+
+    /// The description, with thresholds read in `currency`.
+    pub fn description(&self, currency: &str) -> String {
+        self.description.replace("{currency}", currency)
+    }
+
+    /// The program that prices money in `currency` (the authored one for types without money).
+    pub fn program_for(&self, currency: &str) -> Option<&ProgramRef> {
+        match &self.money {
+            None => Some(&self.program),
+            Some(_) => self.variants.get(currency),
+        }
+    }
+
+    /// A form with its money fields in `currency`.
+    pub fn priced(form: &Form, currency: &str) -> Form {
+        let mut f = form.clone();
+        for field in f.fields.iter_mut().filter(|x| x.ty == "money") {
+            field.currency = Some(currency.to_owned());
+        }
+        f
     }
 
     /// The display name of a node, or its id.
@@ -172,7 +206,7 @@ const DEFS: &[Def] = &[
         key: "hr.expense-claim",
         prefix: "EC",
         name: "Expense claim",
-        description: "Claim back money you spent for work. Your manager approves it; claims over 500 EUR also go to finance.",
+        description: "Claim back money you spent for work. Your manager approves it; claims over 500 {currency} also go to finance.",
         category: "HR",
         icon: "receipt",
         ir: include_str!("../builtin/hr.expense-claim.json"),
@@ -192,7 +226,7 @@ const DEFS: &[Def] = &[
         key: "fin.purchase-requisition",
         prefix: "PR",
         name: "Purchase requisition",
-        description: "Ask to buy goods or services. Your manager approves; finance above 50,000 INR and the CFO above 500,000 INR.",
+        description: "Ask to buy goods or services. Your manager approves; finance above 5,000 {currency} and the CFO above 50,000 {currency}.",
         category: "Finance",
         icon: "cart",
         ir: include_str!("../builtin/fin.purchase-requisition.json"),
@@ -264,24 +298,82 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
     })
 }
 
+/// Every compiled program, by key and version; several builds of one key and version (currency
+/// variants) are told apart by checksum. A reference without a checksum gets the authored build.
+#[derive(Debug, Default)]
+pub struct Programs(BTreeMap<(String, u32), Vec<Arc<Executable>>>);
+
+impl Programs {
+    fn insert(&mut self, exe: Executable) -> (ProgramRef, Arc<Executable>) {
+        let ir = exe.program.ir();
+        let r = ProgramRef {
+            process_key: ir.process.key.clone(),
+            version: ir.process.version,
+            checksum: exe.program.checksum().map(str::to_owned),
+        };
+        let exe = Arc::new(exe);
+        self.0.entry((r.process_key.clone(), r.version)).or_default().push(exe.clone());
+        (r, exe)
+    }
+}
+
+impl ProgramSource for Programs {
+    fn load<'a>(&'a self, _ctx: WsCtx, p: &'a ProgramRef) -> BoxFuture<'a, Result<Arc<Executable>, String>> {
+        let builds = self.0.get(&(p.process_key.clone(), p.version));
+        let found = match &p.checksum {
+            None => builds.and_then(|b| b.first()).cloned(),
+            Some(want) => {
+                builds.and_then(|b| b.iter().find(|e| e.program.checksum() == Some(want.as_str()))).cloned()
+            }
+        };
+        Box::pin(async move {
+            found.ok_or_else(|| {
+                format!("program {}@{} ({:?}) not found", p.process_key, p.version, p.checksum)
+            })
+        })
+    }
+}
+
+/// The IR currency of the first money variable, if any.
+fn money_currency(doc: &Value) -> Option<String> {
+    doc["variables"]
+        .as_array()?
+        .iter()
+        .find_map(|v| v["type"]["money"]["currency"].as_str().map(str::to_owned))
+}
+
+/// The document with every money variable priced in `currency`.
+fn in_currency(doc: &Value, currency: &str) -> Value {
+    let mut d = doc.clone();
+    if let Some(vars) = d["variables"].as_array_mut() {
+        for v in vars.iter_mut().filter(|v| v["type"]["money"].is_object()) {
+            v["type"]["money"]["currency"] = Value::String(currency.to_owned());
+        }
+    }
+    d
+}
+
+fn build(key: &str, doc: &Value) -> Result<Program, String> {
+    let out = compile(doc, &CompileContext::default());
+    let compiled = out.compiled.ok_or_else(|| format!("{key} does not compile: {:?}", out.diagnostics))?;
+    Program::from_compiled(&compiled).map_err(|e| format!("{key}: {e}"))
+}
+
 /// The built-in request types and the programs they run.
 #[derive(Debug)]
 pub struct Catalogue {
     types: Vec<Arc<RequestType>>,
-    programs: Arc<StaticPrograms>,
+    programs: Arc<Programs>,
 }
 
 impl Catalogue {
     /// Compiles every built-in. Any failure is fatal at boot.
     pub fn builtin() -> Result<Self, String> {
-        let mut programs = StaticPrograms::default();
+        let mut programs = Programs::default();
         let mut types = Vec::new();
         for d in DEFS {
             let doc: Value = serde_json::from_str(d.ir).map_err(|e| format!("{}: {e}", d.key))?;
-            let out = compile(&doc, &CompileContext::default());
-            let compiled =
-                out.compiled.ok_or_else(|| format!("{} does not compile: {:?}", d.key, out.diagnostics))?;
-            let program = Program::from_compiled(&compiled).map_err(|e| format!("{}: {e}", d.key))?;
+            let program = build(d.key, &doc)?;
             let start_form = Form {
                 fields: d.labels.iter().map(|(n, l)| field(&program, n, l)).collect::<Result<_, _>>()?,
             };
@@ -315,12 +407,19 @@ impl Catalogue {
             if let Some(e) = ends.iter().find(|e| !d.end_status.iter().any(|(k, _)| k == *e)) {
                 return Err(format!("{}: end node {e} has no request status", d.key));
             }
-            let pinned = programs.insert_pinned(Executable::new(program));
-            let exe = programs
-                .0
-                .get(&(pinned.process_key.clone(), pinned.version))
-                .cloned()
-                .ok_or("lost program")?;
+            let money = money_currency(&doc);
+            let (pinned, exe) = programs.insert(Executable::new(program));
+            let mut variants = BTreeMap::new();
+            if let Some(authored) = &money {
+                for cur in procera_settings::catalogue::CURRENCIES {
+                    let r = if cur == authored {
+                        pinned.clone()
+                    } else {
+                        programs.insert(Executable::new(build(d.key, &in_currency(&doc, cur))?)).0
+                    };
+                    variants.insert((*cur).to_owned(), r);
+                }
+            }
             types.push(Arc::new(RequestType {
                 key: d.key,
                 prefix: d.prefix,
@@ -330,6 +429,8 @@ impl Catalogue {
                 icon: d.icon,
                 program: pinned,
                 exe,
+                money,
+                variants,
                 start_form,
                 task_forms,
                 revise_node: d.revise,
@@ -350,7 +451,7 @@ impl Catalogue {
     }
 
     /// The program source for the engine.
-    pub fn programs(&self) -> Arc<StaticPrograms> {
+    pub fn programs(&self) -> Arc<Programs> {
         self.programs.clone()
     }
 }
@@ -373,7 +474,21 @@ mod tests {
         assert_eq!(kinds, ["enum", "date", "date", "text"]);
         assert!(!leave.start_form.fields[3].required);
         let pr = c.get("fin.purchase-requisition").unwrap_or_else(|| panic!("pr"));
-        assert_eq!(pr.start_form.fields[0].currency.as_deref(), Some("INR"));
+        assert_eq!(pr.start_form.fields[0].currency.as_deref(), Some("EUR"));
+        assert!(pr.description("USD").contains("5,000 USD"));
+        // One build per currency, each with its own checksum; types without money have one.
+        let usd = pr.program_for("USD").unwrap_or_else(|| panic!("usd"));
+        assert_ne!(usd.checksum, pr.program.checksum);
+        assert_eq!(pr.program_for("EUR"), Some(&pr.program));
+        assert!(pr.program_for("XXX").is_none());
+        assert_eq!(leave.program_for("USD"), Some(&leave.program));
+        let keys: Vec<&str> =
+            c.list().iter().map(|t| t.key).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        assert_eq!(
+            keys,
+            procera_settings::catalogue::REQUEST_TYPES,
+            "the settings catalogue lists every type"
+        );
         let ar = c.get("it.access-request").unwrap_or_else(|| panic!("ar"));
         assert_eq!(ar.task_forms["provision"].fields[0].name, "ticket_ref");
     }

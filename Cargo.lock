@@ -2865,6 +2865,7 @@ dependencies = [
  "procera-members",
  "procera-notify",
  "procera-runtime",
+ "procera-settings",
  "rust_decimal",
  "serde",
  "serde_json",
