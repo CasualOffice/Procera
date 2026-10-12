@@ -132,6 +132,19 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/members/import', () => own.post('/api/v1/members/import?mode=apply', { headers: { ...oh, 'content-type': 'text/csv' }, data: `email,title\n${adamEmail},Reviewer\n` }));
   await step('DELETE', '/api/v1/departments/{id}', () => own.delete(`/api/v1/departments/${dept.id}`, { headers: oh }));
 
+  // Requests and approvals (BPMS-103): Adam asks for leave, the owner (his manager) approves; a second
+  // request is cancelled.
+  const ownerMembership = ((await (await own.get('/api/v1/members', { headers: oh })).json()).items as { id: string }[]).find((m) => m.id !== joined.membership_id)!.id;
+  await own.patch(`/api/v1/members/${joined.membership_id}`, { headers: oh, data: { manager_membership_id: ownerMembership } });
+  const adamReqWs = await (await adam.post('/api/v1/session/workspace', { headers: bearer(adamLogin.access_token), data: { workspace_id: ws.id } })).json();
+  const rh = bearer(adamReqWs.access_token);
+  const leave = { type: 'hr.leave-request', input: { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' } };
+  await step('POST', '/api/v1/requests', () => adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-1` }, data: leave }));
+  const [item] = (await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items;
+  await step('POST', '/api/v1/work/{id}/decisions', () => own.post(`/api/v1/work/${item.id}/decisions`, { headers: { ...oh, 'if-match': `"${item.revision}"` }, data: { outcome: 'approved' } }));
+  const second = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-2` }, data: leave })).json();
+  await step('POST', '/api/v1/requests/{id}/cancel', () => adam.post(`/api/v1/requests/${second.id}/cancel`, { headers: rh, data: { reason: 'plans changed' } }));
+
   // Library: Adam reviews as a reviewer (granted outside the contract steps).
   await own.post('/api/v1/role-grants', { headers: oh, data: { membership_id: joined.membership_id, role_key: 'reviewer' } });
   const adamWs = await (await adam.post('/api/v1/session/workspace', { headers: bearer(adamLogin.access_token), data: { workspace_id: ws.id } })).json();
