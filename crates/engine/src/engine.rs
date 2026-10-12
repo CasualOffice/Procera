@@ -68,41 +68,65 @@ pub trait ProgramSource: Send + Sync + Debug {
     ) -> BoxFuture<'a, Result<Arc<Executable>, String>>;
 }
 
-/// A fixed set of programs keyed by process key and version (tests, and until BPMS-084).
+/// A fixed set of programs (tests, and until BPMS-084). `.0` holds the current build per process key
+/// and version: what new instances start on. `.1` keeps **every** build registered, by checksum, so
+/// an instance pinned to an earlier build keeps advancing on it after a newer build of the same key
+/// (and even the same version) is registered (V-04; A-46 (6)).
 #[derive(Debug, Default)]
-pub struct StaticPrograms(pub BTreeMap<(String, u32), Arc<Executable>>);
+pub struct StaticPrograms(
+    pub BTreeMap<(String, u32), Arc<Executable>>,
+    pub BTreeMap<String, Arc<Executable>>,
+);
 
 impl StaticPrograms {
+    /// Registers a build as the current one for its key and version. The returned reference is
+    /// unpinned: it runs whatever build is current. A previous build stays loadable by checksum.
     pub fn insert(&mut self, exe: Executable) -> ProgramRef {
         let ir = exe.program.ir();
         let r =
             ProgramRef { process_key: ir.process.key.clone(), version: ir.process.version, checksum: None };
-        self.0.insert((r.process_key.clone(), r.version), Arc::new(exe));
+        let exe = Arc::new(exe);
+        if let Some(sum) = exe.program.checksum() {
+            self.1.insert(sum.to_owned(), exe.clone());
+        }
+        self.0.insert((r.process_key.clone(), r.version), exe);
         r
     }
-}
 
-impl StaticPrograms {
-    /// Like [`StaticPrograms::insert`], but the returned reference pins the compiled checksum, so an
-    /// instance started from it refuses to run on a different build of the same key and version.
+    /// Like [`StaticPrograms::insert`], but the returned reference pins the compiled checksum: an
+    /// instance started from it always runs this build, never a different one of the same key.
     pub fn insert_pinned(&mut self, exe: Executable) -> ProgramRef {
         let checksum = exe.program.checksum().map(str::to_owned);
         ProgramRef { checksum, ..self.insert(exe) }
+    }
+
+    /// Every registered build of `process_key`, by checksum.
+    pub fn builds(&self, process_key: &str) -> Vec<(&str, u32)> {
+        self.1
+            .iter()
+            .filter(|(_, e)| e.program.ir().process.key == process_key)
+            .map(|(sum, e)| (sum.as_str(), e.program.ir().process.version))
+            .collect()
     }
 }
 
 impl ProgramSource for StaticPrograms {
     fn load<'a>(&'a self, _ctx: WsCtx, p: &'a ProgramRef) -> BoxFuture<'a, Result<Arc<Executable>, String>> {
-        let found = self.0.get(&(p.process_key.clone(), p.version)).cloned();
+        let found = match &p.checksum {
+            // A pinned instance runs exactly its build, whatever is current now.
+            Some(want) => self.1.get(want).cloned().filter(|e| {
+                let ir = e.program.ir();
+                ir.process.key == p.process_key && ir.process.version == p.version
+            }),
+            None => self.0.get(&(p.process_key.clone(), p.version)).cloned(),
+        };
         Box::pin(async move {
-            let exe = found.ok_or_else(|| format!("program {}@{} not found", p.process_key, p.version))?;
-            match (&p.checksum, exe.program.checksum()) {
-                (Some(want), Some(have)) if want != have => Err(format!(
-                    "program {}@{} checksum {have} does not match the pinned {want}",
-                    p.process_key, p.version
-                )),
-                _ => Ok(exe),
-            }
+            found.ok_or_else(|| match &p.checksum {
+                Some(want) => {
+                    format!("program {}@{} build {want} is not registered", p.process_key, p.version)
+                }
+                None => format!("program {}@{} not found", p.process_key, p.version),
+            })
         })
     }
 }
@@ -437,7 +461,13 @@ impl Engine {
         };
         let mut ev = AuditEvent::new(who, actor_kind, Category::Runtime, action, Outcome::Allowed)
             .object("process_instance", st.instance_id);
-        ev.diff = Some(json!({ "event": kind, "revision": st.revision, "status": stored_status(st.status) }));
+        // The build that ran, so an audit shows which checksum each instance advanced on (V-04).
+        ev.diff = Some(json!({
+            "event": kind,
+            "revision": st.revision,
+            "status": stored_status(st.status),
+            "program": { "key": program.process_key, "version": program.version, "checksum": program.checksum },
+        }));
         if let Some(a) = actor {
             ev.ip = a.ip;
             ev.user_agent = a.user_agent;
