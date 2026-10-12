@@ -9,6 +9,8 @@
 //! 3. When nobody is left, expand the `fallback` the same way (SoD still applies).
 //! 4. When still nobody is left the work item is created **unassigned**: visible to admins, never
 //!    lost. The strategy is claim (first decision wins), quorum one.
+//! 5. A candidate who is out of office is replaced by their delegate (see [`crate::delegation`]);
+//!    the snapshot lists each substitution under `substitutions`.
 //!
 //! The snapshot of what each source resolved to is stored on the work item.
 
@@ -218,11 +220,18 @@ pub async fn resolve(
             .into_iter()
             .collect();
     }
+    // 5. Out of office (BPMS-086): an away candidate's step goes to their delegate (SoD applies).
+    let (left, substitutions) = if sod {
+        crate::delegation::substitute(tx, at, left, &excluded, initiator).await?
+    } else {
+        (left, vec![])
+    };
     let snapshot = json!({
         "sources": sources,
         "excluded": excluded,
         "fallback_used": fallback_used,
         "strategy": "claim",
+        "substitutions": substitutions,
     });
     Ok(Resolution { candidates: left, snapshot })
 }

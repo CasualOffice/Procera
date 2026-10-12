@@ -13,6 +13,7 @@
 //! the lifecycle and "involved" visibility facts.
 
 pub mod catalogue;
+pub mod delegation;
 mod escalate;
 pub mod forms;
 pub mod handler;
@@ -32,6 +33,7 @@ use procera_notify::Notify;
 use uuid::Uuid;
 
 pub use catalogue::{Catalogue, Field, Form, RequestType};
+pub use delegation::{Away, OutOfOffice, SetOutOfOffice};
 pub use forms::FieldError;
 pub use offer::Offer;
 pub use service::{Scope, WorkState};
