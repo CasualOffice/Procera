@@ -49,7 +49,7 @@ export function LeaveDialog({ member, members, managerId, onClose, onDone }: {
   const [busy, setBusy] = useState(false);
   const people = members.filter((m) => m.status === 'active' && m.id !== member.id);
   const options = people.map((m) => ({ id: m.id, label: m.id === membershipId ? `${m.display_name} (you)` : m.display_name }));
-  const nameOf = (id: string | null) => people.find((m) => m.id === id)?.display_name ?? 'nobody';
+  const nameOf = (id: string | null) => { const m = people.find((x) => x.id === id); return m ? (m.id === membershipId ? `${m.display_name} (you)` : m.display_name) : 'nobody'; };
   const theirManager = managerId && managerId !== member.id && people.some((m) => m.id === managerId) ? managerId : null;
 
   // Defaults follow "When someone leaves" (directory.deactivation.reassign_strategy).
