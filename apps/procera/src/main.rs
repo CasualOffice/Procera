@@ -60,6 +60,13 @@ enum Command {
     },
     /// Print a new random master key (base64) for PROCERA_MASTER_KEY.
     Keygen,
+    /// Exit 0 if the server answers `GET /healthz` with 200, else 1. For container health checks
+    /// (the runtime image has no shell or curl).
+    Healthcheck {
+        /// Address of the running server.
+        #[arg(long, env = "PROCERA_BIND", default_value = "127.0.0.1:8080")]
+        bind: SocketAddr,
+    },
     /// Apply database migrations. Run with the `procera_migrator` role, never the app role.
     Migrate {
         #[arg(long, env = "PROCERA_MIGRATOR_URL")]
@@ -83,6 +90,17 @@ async fn main() -> anyhow::Result<()> {
             );
             std::io::Write::write_all(&mut std::io::stdout(), format!("{key}\n").as_bytes())?;
         }
+        Command::Healthcheck { bind } => {
+            // Probe over loopback when bound to every interface.
+            let addr = if bind.ip().is_unspecified() {
+                SocketAddr::new(std::net::Ipv4Addr::LOCALHOST.into(), bind.port())
+            } else {
+                bind
+            };
+            if !healthcheck(addr).await {
+                std::process::exit(1);
+            }
+        }
         Command::Migrate { migrator_url } => {
             procera_db::migrate(&migrator_url).await?;
             tracing::info!("migrations applied");
@@ -100,6 +118,11 @@ async fn main() -> anyhow::Result<()> {
             smtp_url,
             mail_from,
         } => {
+            // An empty variable (e.g. `PROCERA_SMTP_URL=` in a compose file) means "not set".
+            let unset_empty = |v: Option<String>| v.filter(|s| !s.trim().is_empty());
+            let (cache_url, database_url, master_key) =
+                (unset_empty(cache_url), unset_empty(database_url), unset_empty(master_key));
+            let (webauthn_rp_id, smtp_url) = (unset_empty(webauthn_rp_id), unset_empty(smtp_url));
             let db = match database_url.as_deref() {
                 Some(url) => {
                     let db = procera_db::Db::connect(url, 20).await?;
@@ -327,8 +350,43 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Stops on Ctrl-C (SIGINT) or SIGTERM, which `docker stop` and Kubernetes send.
 async fn shutdown_signal() {
-    if let Err(err) = tokio::signal::ctrl_c().await {
-        tracing::error!(%err, "failed to listen for shutdown signal");
+    let ctrl_c = async {
+        if let Err(err) = tokio::signal::ctrl_c().await {
+            tracing::error!(%err, "failed to listen for shutdown signal");
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(unix)]
+    let term = async {
+        match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+            Ok(mut s) => {
+                s.recv().await;
+            }
+            Err(err) => {
+                tracing::error!(%err, "failed to listen for SIGTERM");
+                std::future::pending::<()>().await;
+            }
+        }
+    };
+    #[cfg(not(unix))]
+    let term = std::future::pending::<()>();
+    tokio::select! {
+        () = ctrl_c => {}
+        () = term => {}
     }
+    tracing::info!("shutting down");
+}
+
+async fn healthcheck(addr: SocketAddr) -> bool {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let probe = async {
+        let mut stream = tokio::net::TcpStream::connect(addr).await.ok()?;
+        stream.write_all(b"GET /healthz HTTP/1.0\r\nHost: localhost\r\n\r\n").await.ok()?;
+        let mut head = [0u8; 12];
+        stream.read_exact(&mut head).await.ok()?;
+        Some(head.starts_with(b"HTTP/1.") && &head[9..12] == b"200")
+    };
+    matches!(tokio::time::timeout(std::time::Duration::from_secs(3), probe).await, Ok(Some(true)))
 }
