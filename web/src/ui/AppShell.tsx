@@ -12,6 +12,7 @@ import { Avatar } from './Avatar';
 import { CommandPalette, shortcutLabel } from './CommandPalette';
 import { type NavItem, type NavKey, adminNav, isAdminPage, workNav } from './nav';
 import './shell.css';
+import { AuthArt } from './AuthArt';
 import { ShellSkeleton } from './States';
 
 export type { NavKey } from './nav';
@@ -313,10 +314,8 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
 }
 
 /** Pages outside a workspace (sign-in, chooser): one focused, centred card on the paper background. */
-export function PlainShell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="auth">
-      <a className="skip-link" href="#main">Skip to main content</a>
+export function PlainShell({ children, art = true }: { children: React.ReactNode; art?: boolean }) {
+  const column = (
       <div className="auth-column">
         <div className="auth-brand">
           <img src="/procera-symbol.svg" alt="" width={28} height={28} />
@@ -325,6 +324,11 @@ export function PlainShell({ children }: { children: React.ReactNode }) {
         <main id="main" className="auth-card" tabIndex={-1}>{children}</main>
         <p className="auth-legal">Policies, procedures and approvals, with a tamper-evident record of every change.</p>
       </div>
+  );
+  return (
+    <div className={art ? 'auth auth-split' : 'auth'}>
+      <a className="skip-link" href="#main">Skip to main content</a>
+      {art ? <><div className="auth-form-side">{column}</div><AuthArt /></> : column}
     </div>
   );
 }

@@ -83,7 +83,7 @@ export function App() {
 
   // Public pages.
   if (path === '/design') return <AppShellPublic><DesignGallery /></AppShellPublic>;
-  if (status === 'loading') return <PlainShell><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
+  if (status === 'loading') return <PlainShell art={false}><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   // The invitation link works signed in or out (it creates the account or joins with one click).
   if (path === '/invite') return <PlainShell><Invite /></PlainShell>;
   // First-run setup (FR-S01): the one-time bootstrap token creates the first system owner.
