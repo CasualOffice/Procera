@@ -828,7 +828,8 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .setup-heading p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
 .setup-bar { height: 0.25rem; margin: var(--space-4) 0; border-radius: 0.125rem; background: var(--color-surface-muted); overflow: hidden; }
 .setup-bar span { display: block; height: 100%; background: var(--color-text); transition: width 300ms ease; }
-.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: var(--space-3) var(--space-8); }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3) var(--space-8); }
+@media (max-width: 48rem) { .setup-steps { grid-template-columns: minmax(0, 1fr); } }
 .setup-steps li { display: grid; grid-template-columns: 1rem 1fr; column-gap: var(--space-2); align-items: start; font-size: 0.875rem; }
 .setup-steps li.is-done > span:first-of-type { color: var(--color-text-secondary); text-decoration: line-through; }
 .setup-hint { grid-column: 2; display: block; font-size: 0.75rem; color: var(--color-text-secondary); text-decoration: none; }
@@ -891,3 +892,5 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .home-attention a:hover { text-decoration: underline; }
 .home-attention .sev-high { color: var(--color-danger); margin-top: 0.125rem; }
 .home-attention .sev-medium { color: var(--color-warning); margin-top: 0.125rem; }
+
+.home-rail > section + section { margin-top: var(--space-8); }
