@@ -43,7 +43,7 @@ BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backen
 BPMS-062,FILE,"Workspace Files view, quotas, orphan cleanup",P0,R1,FE,FR-F06/F07,Held files undeletable,M,"BPMS-060,028",In progress
 BPMS-063,ADMIN,Workspace overview dashboard + people & access monitor,P0,R1,FE,FR-A01/A06,Every tile drills down,L,BPMS-028,Done
 BPMS-064,AUD,"Audit explorer, timelines, saved queries, export",P0,R1,Fullstack,FR-T03/T04,P95<2s @10M,L,BPMS-026,Done
-BPMS-065,PLAT,"System console: workspaces grid, quotas, health, system audit",P0,R1,FE,FR-S02–S09,—,M,BPMS-020,In progress
+BPMS-065,PLAT,"System console: workspaces grid, quotas, health, system audit",P0,R1,FE,FR-S02–S09,—,M,BPMS-020,Done
 BPMS-120,PILOT,"Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks",P0,R1,Product,G3,G3 checklist,L,M6,Not started
 BPMS-080,RT,"IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",P0,R2,Runtime,"11, ADR-0003",All checks covered,L,BPMS-009,In progress
 BPMS-081,RT,"Expression engine integration (typed, budgeted, WASM build)",P0,R2,Runtime,ADR-0010,Budget exhaustion = incident,M,BPMS-009,In progress
