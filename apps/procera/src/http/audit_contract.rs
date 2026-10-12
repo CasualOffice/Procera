@@ -171,6 +171,11 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/artifacts/{id}/change-requests", &[&["change_request.opened"]]),
     emits("POST", "/api/v1/change-requests/{id}/resolve", &[&["change_request.resolved"]]),
     emits("PUT", "/api/v1/me/notification-preferences", &[&["notification_preferences.changed"]]),
+    // Out of office (BPMS-086): your own, or someone's as an admin or their manager.
+    emits("PUT", "/api/v1/me/out-of-office", &[&["member.ooo_set"]]),
+    emits("DELETE", "/api/v1/me/out-of-office", &[&["member.ooo_cleared"]]),
+    emits("PUT", "/api/v1/members/{id}/out-of-office", &[&["member.ooo_set"]]),
+    emits("DELETE", "/api/v1/members/{id}/out-of-office", &[&["member.ooo_cleared"]]),
     // Collections, owners, RACI (BPMS-041).
     emits("POST", "/api/v1/collections", &[&["collection.created"]]),
     emits("PATCH", "/api/v1/collections/{id}", &[&["collection.updated"]]),
@@ -346,6 +351,7 @@ mod tests {
             ("/api/v1", include_str!("files.rs")),
             ("/api/v1", include_str!("views.rs")),
             ("/api/v1", include_str!("profile.rs")),
+            ("/api/v1", include_str!("delegation.rs")),
             ("/api/v1", include_str!("requests.rs")),
             ("/api/v1", include_str!("work.rs")),
             ("/sysapi/v1", include_str!("system.rs")),

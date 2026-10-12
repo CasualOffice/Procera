@@ -13,6 +13,7 @@ pub mod audit;
 pub mod audit_contract;
 pub mod auth;
 pub mod campaigns;
+pub mod delegation;
 pub mod directory;
 pub mod encryption;
 pub mod error;
@@ -350,6 +351,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", profile::router())
         .nest("/api/v1", requests::router())
         .nest("/api/v1", work::router())
+        .nest("/api/v1", delegation::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
