@@ -1,4 +1,4 @@
-import { Lock, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
+import { Link2, Lock, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../../lib/api';
@@ -10,6 +10,7 @@ import { FormDialog } from '../../ui/components/FormDialog';
 import { Notice } from '../../ui/components/Notice';
 import { TextField } from '../../ui/components/TextField';
 import { Drawer } from '../../ui/Drawer';
+import { InviteLinkDialog } from '../../ui/InviteLinkDialog';
 import { Empty, LoadError, Skeleton } from '../../ui/States';
 import { useStepUp } from '../../ui/StepUp';
 import { useSystem } from '../../ui/SystemShell';
@@ -65,7 +66,10 @@ export function SystemWorkspaces() {
       </div>
       {created && (
         <div className="sys-created">
-          <Notice tone="success" title={`${created.name} was created`}>We emailed {created.ownerEmail} an invitation to own it. The workspace shows as Provisioning until they accept.</Notice>
+          <Notice tone="success" title={`${created.name} was created`}>
+            We emailed {created.ownerEmail} an invitation to own it. The workspace shows as Provisioning until they accept.
+            {canWrite && <> If email isn’t set up yet, copy the link and send it yourself.<div style={{ marginTop: 'var(--space-2)' }}><OwnerLinkButton workspaceId={created.id} /></div></>}
+          </Notice>
         </div>
       )}
       <div className="sys-toolbar">
@@ -149,6 +153,7 @@ function WorkspaceDrawer({ w, canWrite, canAudit, onChanged, onClose }: { w: Con
             {(w.state === 'active' || w.state === 'provisioning' || w.state === 'suspended_ro') && <Button variant="secondary" onPress={() => setAction('locked')}><Lock aria-hidden="true" size="1rem" /> Lock</Button>}
             {(suspended || w.state === 'pending_deletion') && <Button variant="secondary" onPress={() => setAction('restore')}><PlayCircle aria-hidden="true" size="1rem" /> Reactivate</Button>}
             {live && <Button variant="secondary" onPress={() => setAction('quotas')}>Edit quotas</Button>}
+            {w.state === 'provisioning' && w.owner_invite_email && <OwnerLinkButton workspaceId={w.id} />}
             {live && <Button variant="danger" onPress={() => setAction('delete')}><Trash2 aria-hidden="true" size="1rem" /> Schedule deletion</Button>}
           </div>
         </>
@@ -175,6 +180,30 @@ function WorkspaceDrawer({ w, canWrite, canAudit, onChanged, onClose }: { w: Con
       )}
       {action && <ActionDialog w={w} action={action} onClose={() => setAction(null)} onDone={changed} />}
     </Drawer>
+  );
+}
+
+/**
+ * Copies a fresh link to the owner's pending invitation, for when email isn't set up. Issuing it
+ * needs a recent sign-in and makes any earlier link stop working.
+ */
+function OwnerLinkButton({ workspaceId }: { workspaceId: string }) {
+  const [shared, setShared] = useState<{ email: string; link: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const { guard, dialog } = useStepUp((e) => setError(toFailure(e).message));
+  const issue = () => {
+    setError(null);
+    void guard(async () => {
+      setShared(await api<{ email: string; link: string }>(`/sysapi/v1/workspaces/${workspaceId}/owner-invitation/link`, { method: 'POST' }));
+    });
+  };
+  return (
+    <>
+      <Button variant="secondary" onPress={issue}><Link2 aria-hidden="true" size="1rem" /> Copy owner invite link</Button>
+      {error && <Notice tone="danger" title={error} />}
+      {shared && <InviteLinkDialog email={shared.email} link={shared.link} onClose={() => setShared(null)} />}
+      {dialog}
+    </>
   );
 }
 
