@@ -74,6 +74,7 @@ export const PLACES: Record<string, Place> = {
 
   'requests.types.enabled': B('requests', 'Request types'),
   'requests.types.audience': B('requests', 'Request types'),
+  'requests.types.policy': B('requests', 'Request types'),
   'requests.currency': B('requests', 'Money'),
   'access.delegation.self_service_ooo': B('requests', 'Out of office'),
   'access.delegation.max_depth': A('requests'),
@@ -187,6 +188,7 @@ export const LABELS: Record<string, [string, string?]> = {
   'access.delegation.self_service_ooo': ['People can set their own out of office', 'They choose dates and who decides their requests while they’re away. Admins and managers can always set it for them.'],
   'requests.types.enabled': ['Request types people can use'],
   'requests.types.audience': ['Who can ask for each type'],
+  'requests.types.policy': ['Policy for each type', 'The published policy or SOP approvers see when they decide.'],
   'requests.currency': ['Currency for amounts', 'Used for expense claims and purchase requests, and for their approval limits. Requests already sent keep their currency.'],
   'access.admin_content_access_log': ['Log when admins open content', 'Each time an admin opens someone else’s content, it’s recorded in the audit log.'],
   'governance.review.required_for': ['Independent review required for', 'Someone other than the author must approve these documents before they’re published.'],

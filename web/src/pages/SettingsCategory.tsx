@@ -15,8 +15,9 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, '-');
 function RequestTypes({ items, editable, onSaved }: { items: Setting[]; editable: (s: Setting) => boolean; onSaved: () => void }) {
   const enabled = items.find((s) => s.key === 'requests.types.enabled');
   const audience = items.find((s) => s.key === 'requests.types.audience');
+  const policy = items.find((s) => s.key === 'requests.types.policy');
   if (!enabled || !audience) return null;
-  return <RequestTypesSettings enabled={enabled} audience={audience} canEdit={editable(enabled) && editable(audience)} onSaved={onSaved} />;
+  return <RequestTypesSettings enabled={enabled} audience={audience} policy={policy} canEdit={editable(enabled) && editable(audience)} onSaved={onSaved} />;
 }
 
 /**
