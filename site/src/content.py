@@ -132,6 +132,7 @@ FEATURES = [
                   "Step builder and canvas designer, form builder (planned)",
                   "Out of office: one click from the account menu; colleagues see who's away and who covers on hover; a delegate decides your approvals, recorded on your behalf, and separation of duties still applies to them",
                   "Admins choose which request types are offered, who can ask for each, and the currency approval limits are read in",
+                  "Before sending, the form says who will approve it; files (receipts, quotes, photos) attach to requests and decisions, virus-scanned and previewable; each decision records the policy version the approver saw",
                   "Parallel and quorum approvals (planned)"],
          epics=["BPMS-080", "BPMS-081", "BPMS-082", "BPMS-083", "BPMS-085", "BPMS-086", "BPMS-088", "BPMS-100", "BPMS-101", "BPMS-103", "BPMS-105"],
          aside="Built-in request types only for now: you can't design your own workflow yet.", shot="work"),
