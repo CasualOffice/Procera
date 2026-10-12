@@ -44,13 +44,21 @@ fn identity(s: &AppState) -> Result<&Identity, ApiError> {
     s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
+/// How many reverse proxies in front of the server append to `X-Forwarded-For`
+/// (`PROCERA_TRUSTED_PROXY_HOPS`, default 1). 0 ignores the header.
+pub static TRUSTED_PROXY_HOPS: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+
 pub fn client_info(headers: &HeaderMap) -> ClientInfo {
-    // Behind a trusted proxy the first X-Forwarded-For hop is the client (docs/06 §5).
-    let ip = headers
-        .get("x-forwarded-for")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.split(',').next())
-        .map(|s| s.trim().to_owned())
+    // Each trusted proxy appends the address it saw, so the client is the entry `hops` from the
+    // end; anything before it may be forged by the client (docs/06 §5).
+    let hops = *TRUSTED_PROXY_HOPS.get().unwrap_or(&1);
+    let ip = (hops > 0)
+        .then(|| headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()))
+        .flatten()
+        .and_then(|v| {
+            let hops_seen: Vec<&str> = v.split(',').map(str::trim).collect();
+            hops_seen.len().checked_sub(hops).map(|i| hops_seen[i].to_owned())
+        })
         .filter(|s| s.parse::<std::net::IpAddr>().is_ok());
     let user_agent =
         headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(|s| s.chars().take(300).collect());
@@ -345,4 +353,23 @@ async fn remove_passkey(
     require_recent_auth(&s, &c)?;
     identity(&s)?.passkey_remove(c.sub, id, &client_info(&headers)).await?;
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+#[cfg(test)]
+mod client_ip_tests {
+    use super::*;
+
+    fn ip(xff: &str) -> Option<String> {
+        let mut h = HeaderMap::new();
+        h.insert("x-forwarded-for", HeaderValue::from_str(xff).unwrap());
+        client_info(&h).ip
+    }
+
+    #[test]
+    fn the_client_is_the_entry_the_trusted_proxy_appended() {
+        // One proxy (the default): a forged first entry is ignored.
+        assert_eq!(ip("6.6.6.6, 203.0.113.9").as_deref(), Some("203.0.113.9"));
+        assert_eq!(ip("203.0.113.9").as_deref(), Some("203.0.113.9"));
+        assert_eq!(ip("not-an-ip"), None);
+    }
 }

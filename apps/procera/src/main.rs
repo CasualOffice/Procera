@@ -40,6 +40,9 @@ enum Command {
         /// Use non-Secure cookies without the __Host- prefix. ONLY for local HTTP development and E2E.
         #[arg(long, env = "PROCERA_INSECURE_COOKIES", default_value_t = false)]
         insecure_cookies: bool,
+        /// Reverse proxies in front of the server that append to X-Forwarded-For (0 = ignore the header).
+        #[arg(long, env = "PROCERA_TRUSTED_PROXY_HOPS", default_value_t = 1)]
+        trusted_proxy_hops: usize,
         /// Per-IP login attempts per minute (docs/06 §3.6). Raise only for test environments behind one IP.
         #[arg(long, env = "PROCERA_LOGIN_RATE_PER_MIN", default_value_t = 30)]
         login_rate_per_min: u32,
@@ -112,6 +115,7 @@ async fn main() -> anyhow::Result<()> {
             database_url,
             master_key,
             insecure_cookies,
+            trusted_proxy_hops,
             login_rate_per_min,
             public_url,
             webauthn_rp_id,
@@ -179,6 +183,7 @@ async fn main() -> anyhow::Result<()> {
                 ),
                 _ => None,
             };
+            let _ = http::auth::TRUSTED_PROXY_HOPS.set(trusted_proxy_hops);
             if insecure_cookies {
                 tracing::warn!("insecure cookies enabled: local HTTP development / E2E only");
             }
