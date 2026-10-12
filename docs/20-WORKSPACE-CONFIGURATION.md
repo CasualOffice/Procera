@@ -190,6 +190,16 @@ As built (BPMS-045): `governance.reack.policy` applies to SOPs and policies alik
 | `exec.cancel.allowed_for_initiator` | bool | true | workspace:settings.manage | per process | P0 |
 | `exec.test_run.retention` | duration | 7 d | workspace:settings.manage | – | P0 |
 
+### 2.7a Requests (as built, Procera 0.2)
+
+| Key | Type | Default | Perm | Ph |
+|---|---|---|---|---|
+| `requests.types.enabled` | set of built-in request type keys, or `["*"]` for all | all | workspace:settings.manage | P0 |
+| `requests.types.audience` | per type key: an audience (`all`, `departments`, `groups`, `roles`, `locations`, the campaign/announcement model); a type missing from the map is open to everyone | `{}` (everyone) | workspace:settings.manage | P0 |
+| `requests.currency` | ISO 4217 code from a curated list of 30 (EUR, USD, GBP, INR, JPY, …) | EUR | workspace:settings.manage | P0 |
+
+As built (BPMS-103): `GET /request-types` lists only enabled types the caller is in the audience of (still behind `request:start`), and `POST /requests` refuses any other type with 403. An audience must name everyone or at least one department, group, role or location; unknown departments or groups are refused (422). Money fields take the workspace currency (a different one is refused, a missing one is filled in) and the approval thresholds in the built-ins are plain numbers read in that currency. Each money-bearing type is compiled once per listed currency at boot, so a request keeps the currency it started in when the setting changes later. Settings › Requests shows the types with an on/off switch and a "Who can ask" picker, and the currency.
+
 ### 2.8 Calendars
 
 | Key | Type | Default | Perm | Ph |
