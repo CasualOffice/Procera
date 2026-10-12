@@ -343,6 +343,12 @@ Work item state machine (outcome is separate from state; this fixes v0.1 gap A2)
 | any open | token cancelled / instance cancelled | cancelled | — |
 | any open | escalation `outcome`/deadline | expired | Process policy allows it. |
 
+**As built (BPMS-085, migration 0040, `crates/requests`).** A subset:
+- `work_items` keeps `work_key` (the runtime activation key), `name`, `outcomes`, `form`, a `resolution` snapshot (what each candidate source resolved to, who SoD excluded, whether the fallback was used), `unassigned`, `exclude_initiator`, `exclude_actors_of` and `revision` (starts at 1). States are `offered`, `completed` and `cancelled`; claim, unclaim, delegation and `expired` are not built. `completed_by` is the deciding membership.
+- `requests` (keyed by instance id) is the listing view: `display_id` (`LR-2026-000123`, per-workspace sequence per prefix and year in `request_sequences`), title, initiator, status (`in_progress`, `changes_requested`, `approved`, `rejected`, `cancelled`, derived after every stimulus from the end node reached or the open revise step) and current step.
+- Work items are created, cancelled and notified by the engine's effect port inside the advance transaction (§4.4 *As built*). Resolution follows §4.6 with these limits: strategy is claim with quorum one; OOO substitution is not built; `directory_rule` resolves to nobody; when nobody is left after SoD and the fallback, the item is created **unassigned** (visible to admins through `GET /work?state=unassigned`) instead of raising `NO_ASSIGNEE` (A-45).
+- A decision locks the instance, then the item: a decided item is `already_decided`, a stale `If-Match` is `precondition_failed`, candidacy and SoD are re-checked, a comment is required to reject or send back.
+
 ### 2.7 Campaigns: acknowledgements, signatures, announcements
 
 ```sql
@@ -722,10 +728,10 @@ Lateness goes to `Lateness`, a histogram with buckets of 0.1, 1, 5, 15, 60 and 3
 - Each transition updates `sla_clocks`, arms or cancels the breach timer (`<clock key>/breach`) and emits `sla.{started,paused,resumed,stopped}`. On resume, the due date moves by the paused working time (business) or the paused wall time.
 - A breach fires once. It emits `sla.breached`, records the breach actions as a pending `sla_breach` effect, and appends an `sla.breached` audit record.
 
+**Wired (Procera 0.2):** `serve --all` runs `Scheduler::run_once` every second (lease owner `procera-<pid>`) and `/__test/drain` drains it. The `EffectHandler` port consumes `create_work_item`, `cancel_work_item` and `notify` in the advance transaction (BPMS-085) and marks them `done`. `start_in`/`apply_in_as` record the user (subject, IP, user agent) as the runtime audit actor (A-28 (4)). `StaticPrograms::insert_pinned` pins the compiled checksum. Each workspace gets `calendar:default@1` (Monday to Friday, 09:00–17:00 UTC) the first time a request starts (A-45).
+
 **Not yet:**
-- HTTP API and UI (BPMS-084/085+).
-- Wiring into the `procera` scheduler loop.
-- Executing pending effects (BPMS-085 work items, connectors, BPMS-088 incidents).
+- Connectors, subprocesses, cases and incidents (BPMS-088) as effects; escalations and claim/delegate.
 - Envelope encryption of restricted variables.
 - `instance_events` partitions.
 - IANA time zones.
