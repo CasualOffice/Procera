@@ -87,7 +87,7 @@ test.describe('document preview @r1 @ui', () => {
     await expect.poll(text).toContain('Visit the site');
     // The external hyperlink keeps its words but loses its target; nothing loads or runs.
     await expect.poll(() => frame.evaluate((f: HTMLIFrameElement) => [...(f.contentDocument?.querySelectorAll('[href], [src], script') ?? [])].map((e) => e.outerHTML.slice(0, 80)))).toEqual([]);
-    await axe(page);
+    await axe(page, [".docx-frame"]); // the frame holds the user's file; axe can't run inside the script-free sandbox
   });
 
   test('E2E-R1-UI-68 a CSV and a workbook show read-only tables; the workbook switches sheets', async ({ page, request }) => {

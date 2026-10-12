@@ -5,8 +5,11 @@ import { PW } from './accounts';
 export const WEB = process.env.WEB_BASE_URL ?? 'http://127.0.0.1:14173';
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
-export async function axe(page: Page) {
-  const r = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+/** `exclude`: selectors to skip, e.g. a sandboxed preview frame (the user's file, where axe can't run). */
+export async function axe(page: Page, exclude: string[] = []) {
+  let b = new AxeBuilder({ page }).withTags(WCAG);
+  for (const sel of exclude) b = b.exclude(sel);
+  const r = await b.analyze();
   expect(r.violations, JSON.stringify(r.violations, null, 2)).toEqual([]);
 }
 

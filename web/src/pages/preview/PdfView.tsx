@@ -37,9 +37,10 @@ export default function PdfView({ data, name, onError }: { data: ArrayBuffer; na
   useEffect(() => {
     // pdf.js takes ownership of the buffer it is given, so hand it a copy.
     const task = getDocument({ data: new Uint8Array(data.slice(0)), enableXfa: false, stopAtErrors: false });
-    task.promise.then(setDoc, () => fail.current('This PDF could not be displayed. Download it to open it.'));
+    let live = true; // a load destroyed by cleanup (e.g. StrictMode's second run) must not report an error
+    task.promise.then((d) => { if (live) setDoc(d); }, () => { if (live) fail.current('This PDF could not be displayed. Download it to open it.'); });
     texts.current = new Map();
-    return () => { void task.destroy(); };
+    return () => { live = false; void task.destroy(); };
   }, [data]);
 
   useEffect(() => {
