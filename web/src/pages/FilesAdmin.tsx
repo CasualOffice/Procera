@@ -75,7 +75,7 @@ export function FilesAdmin() {
           columns={[
             { id: 'name', header: 'Name', value: (r) => r.file.name, cell: (r) => <>{r.file.name}<span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.sniffed_type ?? ''}</span></> },
             { id: 'owner', header: 'Uploaded by', optional: true, value: (r) => people.get(r.file.uploaded_by)?.display_name ?? '' },
-            { id: 'used', header: 'Used by', value: (r) => (r.links.length ? `${r.links.length} ${r.links.some((l) => l.object_type === 'audit_export') ? 'audit export' : `document version${r.links.length === 1 ? '' : 's'}`}` : 'Not attached') },
+            { id: 'used', header: 'Used by', value: (r) => (r.links.length ? `${r.links.length} ${r.links.some((l) => l.object_type === 'audit_export') ? 'audit export' : r.links.every((l) => l.object_type === 'request') ? `request${r.links.length === 1 ? '' : 's'}` : `document version${r.links.length === 1 ? '' : 's'}`}` : 'Not attached') },
             { id: 'class', header: 'Retention class', type: 'enum', optional: true, value: (r) => `${CLASS[r.retention_class ?? ''] ?? 'Orphan rules'}${r.retention_set ? ' (set by an admin)' : ''}` },
             { id: 'size', header: 'Size', type: 'number', value: (r) => r.file.size, cell: (r) => formatBytes(r.file.size), className: 'num' },
             { id: 'scan', header: 'Scan', type: 'enum', value: (r) => STATE[r.file.state]?.[0] ?? r.file.state, cell: (r) => <><Tag color={STATE[r.file.state]?.[1] ?? 'gray'} dot>{STATE[r.file.state]?.[0] ?? r.file.state}</Tag>{r.file.scan_result && r.file.state !== 'clean' && <span className="cell-muted" style={{ display: 'block', fontSize: '0.75rem' }}>{r.file.scan_result}</span>}</> },

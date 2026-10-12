@@ -80,7 +80,7 @@ test.describe('requests @r2 @requests', () => {
     const types = (await (await ann.c.get('/api/v1/request-types', { headers: ann.headers })).json()).items;
     expect(types.map((t: { key: string }) => t.key)).toEqual(expect.arrayContaining(['hr.leave-request', 'hr.expense-claim', 'fin.purchase-requisition', 'it.access-request']));
     const lr = types.find((t: { key: string }) => t.key === 'hr.leave-request');
-    expect(lr.form.fields.map((f: { name: string; type: string }) => `${f.name}:${f.type}`)).toEqual(['leave_type:enum', 'start_date:date', 'end_date:date', 'reason:text']);
+    expect(lr.form.fields.map((f: { name: string; type: string }) => `${f.name}:${f.type}`)).toEqual(['leave_type:enum', 'start_date:date', 'end_date:date', 'reason:text', 'supporting_document:file', 'attachments:file']);
 
     const r = await started(ann, 'hr.leave-request', leave);
     expect(r.display_id).toMatch(/^LR-\d{4}-\d{6}$/);
