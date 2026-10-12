@@ -5,6 +5,7 @@ import { Checkbox } from '../ui/components/Checkbox';
 import { RadioCards } from '../ui/components/RadioCards';
 import { Select } from '../ui/components/Select';
 import { TextField } from '../ui/components/TextField';
+import { FileField, type PickedFile, fileProblem, pickedFrom } from './requestFiles';
 
 /*
  * A request form rendered from its schema (BPMS-103): one React Aria control per field type. Errors
@@ -21,7 +22,8 @@ export function valuesFrom(fields: FormField[], input: Record<string, unknown> =
   const out: Values = {};
   for (const f of fields) {
     const v = input[f.name];
-    if (f.type === 'money') out[f.name] = v && typeof v === 'object' ? Number((v as { amount?: string }).amount) : v === undefined || v === null || v === '' ? NaN : Number(v);
+    if (f.type === 'file') out[f.name] = pickedFrom(v);
+    else if (f.type === 'money') out[f.name] = v && typeof v === 'object' ? Number((v as { amount?: string }).amount) : v === undefined || v === null || v === '' ? NaN : Number(v);
     else if (f.type === 'number') out[f.name] = v === undefined || v === null || v === '' ? NaN : Number(v);
     else if (f.type === 'boolean') out[f.name] = v === true;
     else out[f.name] = v === undefined || v === null ? '' : String(v);
@@ -29,12 +31,17 @@ export function valuesFrom(fields: FormField[], input: Record<string, unknown> =
   return out;
 }
 
-const empty = (f: FormField, v: unknown) => (f.type === 'number' || f.type === 'money' ? typeof v !== 'number' || Number.isNaN(v) : f.type === 'boolean' ? v !== true : v === undefined || v === null || String(v).trim() === '');
+const empty = (f: FormField, v: unknown) => (f.type === 'file' ? !Array.isArray(v) || v.length === 0 : f.type === 'number' || f.type === 'money' ? typeof v !== 'number' || Number.isNaN(v) : f.type === 'boolean' ? v !== true : v === undefined || v === null || String(v).trim() === '');
 
 /** Client-side required checks: `{field: message}` for each required field left empty. */
 export function requiredErrors(fields: FormField[], values: Values): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const f of fields) if (f.required && empty(f, values[f.name])) out[f.name] = f.type === 'boolean' ? 'Tick this to continue.' : `Enter ${f.label.toLowerCase()}.`;
+  for (const f of fields) if (f.required && empty(f, values[f.name])) out[f.name] = f.type === 'boolean' ? 'Tick this to continue.' : f.type === 'file' ? 'Attach a file.' : `Enter ${f.label.toLowerCase()}.`;
+  // Files still scanning (or blocked) hold the form back, whether the field is required or not.
+  for (const f of fields) {
+    const p = f.type === 'file' && Array.isArray(values[f.name]) ? fileProblem(values[f.name] as PickedFile[]) : null;
+    if (p && !out[f.name]) out[f.name] = p;
+  }
   return out;
 }
 
@@ -43,6 +50,8 @@ export function toInput(fields: FormField[], values: Values): Record<string, unk
   const out: Record<string, unknown> = {};
   for (const f of fields) {
     const v = values[f.name];
+    // File fields always go (an empty list clears them on a resubmit).
+    if (f.type === 'file') { const ids = (Array.isArray(v) ? (v as PickedFile[]) : []).flatMap((x) => (x.id ? [x.id] : [])); out[f.name] = f.multiple === false ? (ids[0] ?? null) : ids; continue; }
     if (f.type !== 'boolean' && empty(f, v)) continue;
     if (f.type === 'money') out[f.name] = f.currency ? { amount: String(v), currency: f.currency } : String(v);
     else if (f.type === 'string' || f.type === 'text') out[f.name] = String(v).trim();
@@ -102,6 +111,8 @@ export function RequestFields({ fields, values, onChange, members, errors = {}, 
                 <FieldError className="field-error" />
               </NumberField>
             );
+          case 'file':
+            return <FileField key={f.name} field={f} value={v} onChange={(x) => onChange(f.name, x)} error={errors[f.name]} />;
           case 'date':
             return <TextField key={f.name} {...common} type="date" label={f.label} description={f.help} value={String(v ?? '')} onChange={(x) => onChange(f.name, x)} />;
           case 'boolean':

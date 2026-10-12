@@ -8,6 +8,8 @@ import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
 import { Tag } from '../ui/Tag';
 import { RequestFields, type Values, requiredErrors, toInput, valuesFrom } from './requestFields';
+import { AttachmentList, FileDrop, type PickedFile, fileProblem } from './requestFiles';
+import { PolicyLine } from './requestPolicy';
 
 const ICON = { primary: Check, secondary: CornerUpLeft, reject: X } as const;
 
@@ -21,6 +23,7 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
   const editable = item.fields ?? [];
   const [values, setValues] = useState<Values>(() => valuesFrom(editable, detail?.input));
   const [comment, setComment] = useState('');
+  const [files, setFiles] = useState<PickedFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -35,6 +38,8 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
     setProblem(null);
     const errs: Record<string, string> = outcome.startsWith('reject') || outcome.startsWith('cancel') ? {} : requiredErrors(editable, values);
     if (needsComment(outcome) && !comment.trim()) errs.comment = `Say why you ${outcome.startsWith('reject') ? 'are rejecting it' : 'are sending it back'}, so ${item.request.initiator.name} knows what to do.`;
+    const fp = fileProblem(files);
+    if (fp) errs.files = fp;
     setErrors(errs);
     if (Object.keys(errs).length) { if (errs.comment) commentRef.current?.focus(); return; }
     setBusy(outcome);
@@ -42,7 +47,7 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
       await api(`/api/v1/work/${item.id}/decisions`, {
         method: 'POST',
         headers: { 'if-match': `"${item.revision}"`, 'idempotency-key': crypto.randomUUID() },
-        body: { outcome, comment: comment.trim() || undefined, fields: editable.length ? toInput(editable, values) : undefined },
+        body: { outcome, comment: comment.trim() || undefined, fields: editable.length ? toInput(editable, values) : undefined, files: files.flatMap((f) => (f.id ? [f.id] : [])), policy_version: item.policy?.version_id },
       });
       workChanged();
       onDecided(outcome);
@@ -61,6 +66,8 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
         {due && <Tag color={due.color} dot={due.overdue}>{due.label}</Tag>}
       </div>
       {item.why_you && <p className="decide-why"><span className="decide-why-label">Why you:</span> {item.why_you}.</p>}
+      {item.policy && <PolicyLine policy={item.policy} />}
+      {!detail && <AttachmentList items={item.attachments ?? []} heading="Files on this request" headingLevel={3} />}
       {stale ? (
         <Notice tone="warning" title="Someone already decided this — refresh">
           <p className="decide-note">The request moved on while you had it open. Refresh to see where it is now.</p>
@@ -81,6 +88,8 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
             {commentWhy.length > 0 && <Text slot="description" className="field-description">Optional to {outcomeVerb(item.outcomes.find((o) => !needsComment(o)) ?? 'approve').toLowerCase()}; required to {commentWhy.join(' or ')}.</Text>}
             <FieldError className="field-error" />
           </AriaTextField>
+          {!editable.some((f) => f.type === 'file') && <FileDrop label="Attach files to your decision" description="Optional, for example a signed quote. Everyone who can see the request can open them." value={files}
+            onChange={(x) => { setFiles(x); if (errors.files) setErrors(({ files: _, ...rest }) => rest); }} error={errors.files} />}
           <div className="decide-actions">
             {[...item.outcomes].sort((a, b) => order(a) - order(b)).map((o) => {
               const tone = outcomeTone(o);

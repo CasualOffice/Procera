@@ -11,6 +11,7 @@ import { Notice } from '../ui/components/Notice';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { RequestFields, type Values, requiredErrors, toInput, valuesFrom } from './requestFields';
 import { categoryTone, typeIcon } from './Requests';
+import { WhoApproves } from './requestPreview';
 import './requests.css';
 
 /**
@@ -79,7 +80,8 @@ export function RequestNew({ typeKey }: { typeKey: string }) {
             {fields.some((f) => f.required) && <span className="req-form-hint"><span aria-hidden="true">*</span> Required</span>}
           </div>
         </Form>
-        <aside className="req-next" aria-labelledby="req-next-title">
+        <aside className="req-next" aria-label="Before you send">
+          <WhoApproves typeKey={type.key} fields={fields} values={values} />
           <h2 id="req-next-title">What happens next</h2>
           <ol>
             <li><UserCheck aria-hidden="true" size="1rem" /><span>It goes to the right approver for this request, usually your manager first.</span></li>

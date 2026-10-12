@@ -174,3 +174,24 @@
 .req-why-release { margin: var(--space-3) 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
 .decide-why { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }
 .decide-why-label { font-weight: var(--font-weight-semibold); color: var(--color-text); }
+
+/* Who approves this (BPMS-103): the routing preview above "What happens next". */
+.req-who { margin: 0 0 var(--space-4); padding-bottom: var(--space-4); border-bottom: 1px solid var(--line); }
+.req-who h2 { display: flex; align-items: center; gap: var(--space-2); }
+.req-who-summary { margin: 0; font-size: 0.875rem; line-height: 1.5; font-weight: var(--font-weight-semibold); color: var(--color-text); }
+.req-who-nobody .req-who-summary { color: var(--color-danger); }
+.req-who-skipped { list-style: none; margin: var(--space-2) 0 0; padding: 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+
+/* Files on requests (BPMS-060/101): a drop zone, picked files with thumbnails and scan chips. */
+.file-drop { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3); border: 1px dashed var(--color-border-strong); border-radius: 0.5rem; background: var(--color-bg); font-size: 0.875rem; color: var(--color-text-secondary); }
+.file-drop-over { border-color: var(--color-focus); background: var(--fill-hover); }
+.file-drop-hint { flex-basis: 100%; font-size: 0.75rem; }
+.file-picked { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.file-picked li { display: flex; align-items: center; gap: var(--space-2); font-size: 0.875rem; }
+.file-picked-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.file-thumb { width: 2.25rem; height: 2.25rem; flex: none; border-radius: 0.375rem; object-fit: cover; border: 1px solid var(--line); background: var(--color-surface); }
+.file-thumb-icon { display: inline-flex; align-items: center; justify-content: center; color: var(--color-text-secondary); }
+.req-attachments { margin: var(--space-4) 0; }
+.req-attachments h2, .req-attachments h3 { display: flex; align-items: center; gap: var(--space-2); font-size: 0.875rem; margin: 0 0 var(--space-2); }
+.req-timeline-files { flex-basis: 100%; padding-left: var(--space-4); }
+.req-policy { display: flex; align-items: center; gap: var(--space-1); margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }

@@ -15,6 +15,8 @@ import { Notice } from '../ui/components/Notice';
 import { LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
 import { DecisionPanel } from './workDecision';
+import { AttachmentList, TimelineFiles } from './requestFiles';
+import { PolicyLine } from './requestPolicy';
 import './requests.css';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
@@ -67,9 +69,10 @@ export function RequestDetail({ id }: { id: string }) {
           {mine && <DecisionPanel key={mine.id} item={mine} detail={r} onDecided={(o) => { setNotice(`${outcomePast(o)}. ${r.display_id} is off your list.`); reload(); reloadWork(); }} />}
           <section aria-labelledby="req-details" className="req-section">
             <h2 id="req-details">Details</h2>
+            {r.policy && <PolicyLine policy={r.policy} />}
             {r.form.fields.length === 0 ? <p className="muted">No answers were needed for this request.</p> : (
               <dl className="req-values">
-                {r.form.fields.map((f) => (
+                {r.form.fields.filter((f) => f.type !== 'file').map((f) => (
                   <div key={f.name} className={f.type === 'text' ? 'req-value req-value-wide' : 'req-value'}>
                     <dt>{f.label}</dt>
                     <dd>{displayValue(f, r.input[f.name], names)}</dd>
@@ -78,6 +81,7 @@ export function RequestDetail({ id }: { id: string }) {
               </dl>
             )}
           </section>
+          <AttachmentList items={r.attachments ?? []} />
           {(r.why ?? []).length > 0 && (
             <details className="req-section req-why">
               <summary><h2>Why this route</h2></summary>
@@ -96,6 +100,7 @@ export function RequestDetail({ id }: { id: string }) {
                     <span className="req-timeline-dot" aria-hidden="true" />
                     <span className="req-timeline-text">{t.actor && !t.text.includes(t.actor) && <strong>{t.actor} </strong>}{t.text}</span>
                     <time dateTime={t.at} title={when(t.at)}>{timeAgo(t.at)}</time>
+                    {(t.files ?? []).length > 0 && <TimelineFiles items={t.files ?? []} />}
                   </li>
                 ))}
               </ol>

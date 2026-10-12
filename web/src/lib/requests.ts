@@ -7,8 +7,8 @@ import type { TagColor } from '../ui/Tag';
  * as the API returns them (docs/08). Shared by the Requests area, My work, the request page and Home.
  */
 
-export type FieldType = 'string' | 'text' | 'enum' | 'money' | 'date' | 'number' | 'boolean' | 'principal';
-export interface FormField { name: string; label: string; type: FieldType; required?: boolean; options?: { value: string; label: string }[]; help?: string; currency?: string }
+export type FieldType = 'string' | 'text' | 'enum' | 'money' | 'date' | 'number' | 'boolean' | 'principal' | 'file';
+export interface FormField { name: string; label: string; type: FieldType; required?: boolean; options?: { value: string; label: string }[]; help?: string; currency?: string; multiple?: boolean }
 export interface RequestType { key: string; name: string; description: string; category: string; icon?: string; form: { fields: FormField[] } }
 export type RequestStatus = 'in_progress' | 'approved' | 'rejected' | 'cancelled' | 'changes_requested';
 export interface Person { id: string; name: string }
@@ -17,9 +17,16 @@ export type StepState = 'waiting' | 'active' | 'done' | 'skipped' | 'cancelled';
 /** Someone out of office (BPMS-086): their last day away (null once back) and who decides for them. */
 export interface Away { id: string; name: string; until: string | null; delegate: Person | null }
 export interface Step { name: string; state: StepState; assignees: string[]; decided_by?: string | null; on_behalf_of?: string | null; away?: Away[]; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
-export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string }[]; sla_due_at?: string | null; can_cancel: boolean; why?: WhyLine[]; release?: { version: number; checksum: string | null } }
-export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[]; on_behalf_of?: Away | null; why_you?: string | null }
+export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string; files?: Attachment[] }[]; attachments?: Attachment[]; policy?: PolicyRef | null; sla_due_at?: string | null; can_cancel: boolean; why?: WhyLine[]; release?: { version: number; checksum: string | null } }
+export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[]; on_behalf_of?: Away | null; why_you?: string | null; attachments?: Attachment[]; policy?: PolicyRef | null }
 /** One "why this route" line (PR-08): a routing decision or why a step went to its people. */
+/** A file on a request: from a form field (`field`) or attached with a decision (`source` names the step). */
+export interface Attachment { id: string; name: string; size: number; state: string; sniffed_type: string | null; source: string; field: string | null }
+/** The published policy or SOP version linked to a request type. */
+export interface PolicyRef { artifact_id: string; version_id: string; kind: 'policy' | 'sop'; title: string; version: string }
+/** "Who approves this" (POST /requests/preview). */
+export interface PreviewStep { node: string; name: string; first: boolean; who: string; unassigned: boolean; condition: string | null; applies: boolean | null }
+export interface RoutePreview { summary: string; unassigned: boolean; steps: PreviewStep[] }
 export interface WhyLine { at: string; step: string; text: string; facts: { kind?: string } & Record<string, unknown> }
 
 /** "Away until Fri 16 Oct" (or just "Away"), for the Away chip's text. */
@@ -89,6 +96,7 @@ export function displayValue(f: FormField, v: unknown, names: Map<string, string
       return m.currency ? new Intl.NumberFormat(undefined, { style: 'currency', currency: m.currency }).format(n) : n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     case 'number': return Number(v).toLocaleString();
+    case 'file': { const list = Array.isArray(v) ? v : [v]; return list.length ? list.map((x) => (x as { name?: string }).name ?? 'A file').join(', ') : '—'; }
     default: return String(v);
   }
 }
