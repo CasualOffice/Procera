@@ -55,12 +55,12 @@
 .art .a-burst { opacity: 0; }
 .art .a-fan { transform-origin: 50% 100%; }
 @media (prefers-reduced-motion: no-preference) {
-  .art .a-rise { animation: art-rise 420ms var(--motion-easing) var(--d, 0ms) both; }
-  .art .a-pop { animation: art-pop 380ms cubic-bezier(.3, 1.6, .5, 1) var(--d, 0ms) both; }
-  .art .a-draw { stroke-dasharray: 1; animation: art-draw 520ms ease-out var(--d, 0ms) both; }
-  .art .a-sway { animation: art-sway 820ms ease-in-out var(--d, 0ms) both; }
-  .art .a-fan { animation: art-fan 520ms var(--motion-easing) var(--d, 0ms) both; }
-  .art .a-burst { animation: art-burst 700ms ease-out var(--d, 0ms) both; }
+  .art .a-rise { animation: art-rise 340ms var(--motion-easing) calc(var(--d, 0ms) * 0.55) both; }
+  .art .a-pop { animation: art-pop 320ms cubic-bezier(.3, 1.6, .5, 1) calc(var(--d, 0ms) * 0.55) both; }
+  .art .a-draw { stroke-dasharray: 1; animation: art-draw 420ms ease-out calc(var(--d, 0ms) * 0.55) both; }
+  .art .a-sway { animation: art-sway 560ms ease-in-out calc(var(--d, 0ms) * 0.55) both; }
+  .art .a-fan { animation: art-fan 420ms var(--motion-easing) calc(var(--d, 0ms) * 0.55) both; }
+  .art .a-burst { animation: art-burst 520ms ease-out calc(var(--d, 0ms) * 0.55) both; }
   .art .a-float { animation: art-float 5.2s ease-in-out 1s infinite; }
 }
 @keyframes art-rise { from { opacity: 0; transform: translateY(0.375rem); } }
