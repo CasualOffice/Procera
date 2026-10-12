@@ -36,6 +36,7 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Works on phones:** a bottom bar for the everyday pages.
 
 - **Requests and approvals (0.2, first slice):** leave, expense, purchase and access requests with forms; approvals routed to the requester's manager, finance, the CFO or IT; a My Work inbox to approve, reject or send back; a request page with steps and timeline. Designing your own workflows, e-signing and cases are planned, **not built yet**.
+- **Out of office and request settings (0.2):** set an out-of-office with a delegate (or an admin or manager sets it for you); new approvals go to the delegate, who can also decide what's already waiting, recorded "on behalf of". Admins choose which request types are offered, who can ask for each, and the currency amounts are in.
 - **Reminders and escalations (0.2):** approvers are reminded before and at the due date; an overdue manager approval moves up to the next manager; admins see unassigned and overdue steps under Admin › Requests oversight and reassign them with a reason.
 
 **Evidence, not just status:** everything above is covered by automated end-to-end tests that run on every full test pass; nothing has been validated in a pilot with outside users yet. The [tracker](trackers/README.md) shows status and evidence separately.
@@ -107,7 +108,7 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 | Version | What it adds |
 |---|---|
 | **0.1** (done) | The governed-document loop above, polished for small companies |
-| **0.2** (now) | Requests and approvals: built-in leave, expense, purchase and access requests are in; onboarding, delegation, reminders and escalations next |
+| **0.2** (now) | Requests and approvals: built-in leave, expense, purchase and access requests, reminders, escalations, out of office and request settings are in; onboarding next |
 | 0.3 | Visual workflow designer and template gallery |
 | 0.4 | Automation and integrations: SSO/SCIM, webhooks and API, email approvals, e-signing |
 | 0.5 | Analytics and improvement: reports, process insights, cases and investigations |
