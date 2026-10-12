@@ -162,7 +162,7 @@ FEATURES = [
          bullets=["Resumable uploads, SHA-256 and content-based type detection; executables, scripts, HTML and SVG are refused",
                   "Malware scanning through ClamAV, with quarantine",
                   "Per-file encryption under the workspace key; short-lived signed links",
-                  "Image and PDF previews in a sandbox; retention classes honoured by jobs"],
+                  "In-app previews of images, PDF (pages, zoom, search), Word and spreadsheets in a sandbox; retention classes honoured by jobs"],
          epics=["BPMS-060", "BPMS-061", "BPMS-062", "BPMS-066"], shot="files"),
     dict(id="encryption", pillar="govern", title="Envelope encryption with key rotation",
          summary="Each workspace has its own versioned key-encryption key. Rotation rewraps data keys without re-encrypting the data.",

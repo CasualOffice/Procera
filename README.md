@@ -29,11 +29,13 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Review and publish:** reviewers never approve their own work, step-up for controlled documents, scheduled go-live, reason for change.
 - **Acknowledgements:** campaigns bound to the exact version, reminders and manager escalation, new joiners included, evidence export; announcements with confirm-by dates.
 - **Audit:** every change in a tamper-evident hash chain, an audit explorer with filters, timelines and exports.
-- **Running a workspace:** guided setup, people, departments and groups, roles (built-in, custom and job presets), settings by category, branding, files with malware scanning, encryption keys, retention.
-- **Accounts:** passwords with reset links, two-step verification (authenticator apps, passkeys), admin account controls.
-- **Self-hosting:** many workspaces on one server, a system console, PostgreSQL row-level isolation per workspace.
+- **Running a workspace:** guided setup, people, departments and groups, roles (built-in, custom and job presets), settings by category, branding, encryption keys, retention; leaving the organisation hands documents and reports over and closes their acknowledgements as "left".
+- **Files:** attachments with malware scanning, in-app preview of PDF, Word and spreadsheet files.
+- **Accounts:** passwords with reset links, two-step verification (authenticator apps, passkeys), admin account controls; invitation links can be copied when email isn't set up.
+- **Self-hosting:** Docker Compose stack and guides, email (SMTP) set up from the system console, many workspaces on one server, PostgreSQL row-level isolation per workspace.
+- **Works on phones:** a bottom bar for the everyday pages.
 
-Workflows, e-signing and cases are designed (see the docs) but **not built yet**.
+**In progress (0.2):** requests and approvals — leave, expense, purchase and access requests routed to managers and roles, with a My Work inbox. E-signing and cases are designed but **not built yet**.
 
 ## Try it
 
