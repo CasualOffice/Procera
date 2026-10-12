@@ -138,6 +138,31 @@ pub trait EffectHandler: Send + Sync + Debug {
         tx: &'a mut WsTx<'b>,
         cx: EffectContext<'a>,
     ) -> BoxFuture<'a, Result<(), String>>;
+
+    /// Runs a due timer the handler armed itself ([`crate::arm_timer`]: work-item reminders and
+    /// escalations), inside the scheduler's firing transaction. A returned stimulus is applied to
+    /// the timer's instance by an `advance` job (idempotency key `fired:<timer key>`), e.g. an
+    /// escalation `outcome` completing the work item. The default ignores the timer.
+    fn fire<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        timer: FiredTimer<'a>,
+    ) -> BoxFuture<'a, Result<Option<Stimulus>, String>> {
+        let _ = (tx, timer);
+        Box::pin(async { Ok(None) })
+    }
+}
+
+/// A handler timer that came due (see [`EffectHandler::fire`]).
+#[derive(Debug, Clone, Copy)]
+pub struct FiredTimer<'a> {
+    pub key: &'a str,
+    pub instance: Option<Uuid>,
+    /// `reminder` or `escalation`.
+    pub purpose: &'a str,
+    pub due_at: time::OffsetDateTime,
+    /// The firing instant (the scheduler clock).
+    pub at: time::OffsetDateTime,
 }
 
 /// The result of an accepted stimulus.

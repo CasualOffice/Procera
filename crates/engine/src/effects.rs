@@ -15,7 +15,8 @@
 
 use procera_db::WsTx;
 use procera_db::outbox::{self, OutboxEvent};
-use procera_runtime::{Command, Event, InstanceState, Stimulus, TimerDue};
+use procera_kernel::IdGen;
+use procera_runtime::{Command, Event, InstanceState, Stimulus, TimerDue, TimerPurpose};
 use serde_json::Value;
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -91,6 +92,63 @@ pub(crate) async fn insert_timer(
     Ok(())
 }
 
+/// A timer armed by an [`crate::EffectHandler`] rather than by a runtime command: work-item
+/// reminders and escalations (BPMS-085). It fires through [`crate::EffectHandler::fire`], not as a
+/// `timer_fired` stimulus, because the interpreter does not know it.
+#[derive(Debug, Clone, Copy)]
+pub struct HandlerTimer<'a> {
+    /// Unique per workspace; by convention `<work key>/esc/<n>`.
+    pub key: &'a str,
+    pub instance: Uuid,
+    pub node: &'a str,
+    pub purpose: TimerPurpose,
+    pub due_at: OffsetDateTime,
+    /// The pinned calendar version when `due_at` is a business duration.
+    pub calendar_version: Option<Uuid>,
+    pub source_tz: Option<&'a str>,
+    pub rule: &'a str,
+}
+
+/// Arms a handler timer once (an existing key is left as it is).
+pub async fn arm_timer(
+    tx: &mut WsTx<'_>,
+    ids: &dyn IdGen,
+    now: OffsetDateTime,
+    t: HandlerTimer<'_>,
+) -> Result<(), EngineError> {
+    sqlx::query(
+        "INSERT INTO timers (workspace_id, id, timer_key, instance_id, node_id, purpose, due_at,
+                             calendar_version_id, source_tz, rule, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) ON CONFLICT (workspace_id, timer_key) DO NOTHING",
+    )
+    .bind(tx.ctx.workspace_id)
+    .bind(ids.new_id())
+    .bind(t.key)
+    .bind(t.instance)
+    .bind(t.node)
+    .bind(t.purpose.as_str())
+    .bind(t.due_at)
+    .bind(t.calendar_version)
+    .bind(t.source_tz)
+    .bind(t.rule)
+    .bind(now)
+    .execute(tx.conn())
+    .await?;
+    Ok(())
+}
+
+/// Cancels every scheduled timer whose key starts with `prefix` (a work item's reminders and
+/// escalations when it completes or is cancelled). Returns how many were cancelled.
+pub async fn cancel_timers_under(tx: &mut WsTx<'_>, prefix: &str) -> Result<u64, EngineError> {
+    Ok(sqlx::query(
+        "UPDATE timers SET state = 'cancelled' WHERE starts_with(timer_key, $1) AND state = 'scheduled'",
+    )
+    .bind(prefix)
+    .execute(tx.conn())
+    .await?
+    .rows_affected())
+}
+
 pub(crate) async fn cancel_timer(tx: &mut WsTx<'_>, key: &str) -> Result<(), EngineError> {
     sqlx::query("UPDATE timers SET state = 'cancelled' WHERE timer_key = $1 AND state = 'scheduled'")
         .bind(key)
@@ -124,8 +182,7 @@ pub(crate) async fn apply(
         }
         match cmd {
             Command::ScheduleTimer { key, token, node, purpose, due } => {
-                let purpose = serde_json::to_value(purpose)?;
-                let purpose = purpose.as_str().unwrap_or("wait");
+                let purpose = purpose.as_str();
                 let base = NewTimer {
                     key,
                     instance: iid,

@@ -165,6 +165,24 @@ pub enum TimerPurpose {
     Boundary,
     /// The `timeout` of a `wait.signal`.
     SignalTimeout,
+    /// A work-item reminder armed by the effect port from the node's `escalations` (BPMS-085);
+    /// never produced by the interpreter.
+    Reminder,
+    /// Any other work-item escalation (`reassign`, `notify`, `outcome`), armed by the effect port.
+    Escalation,
+}
+
+impl TimerPurpose {
+    /// The stored `timers.purpose` value.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Wait => "wait",
+            Self::Boundary => "boundary",
+            Self::SignalTimeout => "signal_timeout",
+            Self::Reminder => "reminder",
+            Self::Escalation => "escalation",
+        }
+    }
 }
 
 /// When a timer is due. Calendar arithmetic is the scheduler's job (BPMS-083), so business
