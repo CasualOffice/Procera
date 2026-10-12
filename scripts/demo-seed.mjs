@@ -136,4 +136,31 @@ const a2 = await call('POST', '/api/v1/announcements', { token: o, body: { title
 await call('POST', `/api/v1/announcements/${a2.id}/publish`, { token: o });
 await call('POST', '/__test/drain');
 
-console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, note: 'Password only — the demo workspace does not require two-step verification.', system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test' }, null, 2));
+// Requests and approvals (0.2): a manager hierarchy, approver groups, and requests at different stages.
+const oid = (await call('GET', '/api/v1/me/permissions', { token: o })).membership_id;
+const mgr = { 'ben@acme.test': oid, 'cara@acme.test': oid, 'ema@acme.test': oid, 'finn@acme.test': oid, 'dev@acme.test': ids['cara@acme.test'], 'gia@acme.test': ids['cara@acme.test'] };
+for (const [email, m] of Object.entries(mgr)) await call('PATCH', `/api/v1/members/${ids[email]}`, { token: o, body: { manager_membership_id: m } });
+for (const [name, members] of [['Finance', ['finn@acme.test']], ['IT', ['dev@acme.test']], ['Security', ['ben@acme.test']]]) {
+  const g = await call('POST', '/api/v1/groups', { token: o, body: { name } });
+  for (const e of members) await call('POST', `/api/v1/groups/${g.id}/members`, { token: o, body: { membership_id: ids[e] } });
+}
+const as = async (email) => {
+  const l = await call('POST', '/api/v1/auth/login', { body: { email, password: PW }, headers: CSRF });
+  return (await call('POST', '/api/v1/session/workspace', { token: l.access_token, body: { workspace_id: ws.id } })).access_token;
+};
+const ask = async (token, type, input) => call('POST', '/api/v1/requests', { token, body: { type, input }, headers: { 'idempotency-key': crypto.randomUUID() } });
+const decide = async (token, requestId, outcome, comment) => {
+  await call('POST', '/__test/drain');
+  const item = (await call('GET', '/api/v1/work?state=open', { token })).items.find((w) => w.request.id === requestId);
+  if (item) await call('POST', `/api/v1/work/${item.id}/decisions`, { token, body: { outcome, comment }, headers: { 'if-match': `"${item.revision}"` } });
+};
+const [gia, ema, dev, finn] = [await as('gia@acme.test'), await as('ema@acme.test'), await as('dev@acme.test'), await as('finn@acme.test')];
+await ask(gia, 'hr.leave-request', { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-31', reason: 'Winter break with family' });
+const exp = await ask(ema, 'hr.expense-claim', { amount: { amount: '640.00', currency: 'EUR' }, category: 'travel', description: 'Client workshop in Porto: train and hotel', expense_date: '2026-10-08' });
+await decide(o, exp.id, 'approved', 'Thanks for keeping it under budget.');
+await ask(dev, 'fin.purchase-requisition', { amount: { amount: '72000.00', currency: 'INR' }, vendor: 'Northwind Laptops', cost_center: 'OPS-IT', justification: 'Replacement laptop for the support team' });
+const own = await ask(finn, 'hr.leave-request', { leave_type: 'sick', start_date: '2026-10-05', end_date: '2026-10-06', reason: 'Flu' });
+await decide(o, own.id, 'approved', 'Get well soon.');
+await call('POST', '/__test/drain');
+
+console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, note: 'Password only — the demo workspace does not require two-step verification.', system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test', try_requests: 'cara@acme.test has a leave and a purchase to approve; finn@acme.test has an expense at the finance step; gia@acme.test and dev@acme.test can follow their requests' }, null, 2));
