@@ -200,7 +200,7 @@ Process visibility is set per catalogue entry: `everyone in workspace`, `departm
 |---|---|---|---|
 | Per-item delegation | Assignee | One work item | Delegate must pass the node's SoD rules; delegator keeps visibility |
 | Out-of-office substitution | User, or their manager/admin | Date range, optional process filter | New work routes to the substitute; moving existing work is optional; expires automatically |
-| Admin reassignment | Process Owner, Team Manager (own department), Admin | Work items | Reason required; audited; both parties notified |
+| Admin reassignment | Process Owner, Team Manager (own department), Admin | Work items | Reason required; audited; both parties notified. *As built (0.2):* a manager in the directory may move a step held only by people in their reporting line to someone in it, or take it, without `work:reassign`; the workload view of their team needs no grant either |
 
 Hard invariants (SEC-08):
 - Delegation never grants more than the delegator holds.
