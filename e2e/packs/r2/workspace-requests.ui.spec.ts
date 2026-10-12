@@ -111,4 +111,43 @@ test.describe('workspace requests and out of office @r2 @ui', () => {
     await expect(del.getByRole('list', { name: 'Approval steps' })).toContainText('Approved by Dan Delegate on behalf of Ana Manager');
     await expect(del.getByRole('region', { name: 'Timeline' })).toContainText('Dan Delegate decides on behalf of Ana Manager, who is away');
   });
+
+  test('E2E-R2-UI-12 status from the account menu: away shows on your avatar and Home, and to others on People and Members', async ({ page, browser, request }) => {
+    const { ws, owner, ownerEmail } = await workspaceWithOwner(request);
+    const ben = await person(request, owner, ws.id, 'Ben Employee');
+    await person(request, owner, ws.id, 'Dan Delegate');
+    const now = await serverNow(ben.session.c);
+    const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+
+    // Ben sets out of office from the account menu, without visiting Profile.
+    await signIn(page, ben.email, ben.recovery[0]!);
+    await page.getByRole('button', { name: /^Account: Ben Employee$/ }).click();
+    await page.getByRole('menuitem', { name: 'Out of office' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Out of office' });
+    await dialog.getByLabel('First day away').fill(day(now));
+    await dialog.getByLabel('Last day away').fill(day(now + 7 * 86_400_000));
+    await dialog.getByRole('button', { name: /Delegate/ }).click();
+    await page.getByRole('option', { name: 'Dan Delegate' }).click();
+    await dialog.getByRole('button', { name: 'Save out of office' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Account: Ben Employee, out of office' })).toBeVisible();
+    await nav(page, 'Home');
+    const banner = page.getByRole('status').filter({ hasText: 'You’re out of office until' });
+    await expect(banner).toContainText('Dan Delegate is deciding your requests');
+    await axe(page);
+
+    // Others see it: a hover card on Home › People, and a tag on Members.
+    const other = await (await browser.newContext()).newPage();
+    await signIn(other, ownerEmail, owner.recovery![0]!);
+    const avatar = other.getByRole('group', { name: /active members/ }).locator('.person-hover').filter({ hasText: 'Ben Employee' });
+    await avatar.hover();
+    await expect(other.getByRole('tooltip').filter({ hasText: 'Ben Employee' })).toContainText('Dan Delegate covers');
+    await other.goto(`${WEB}/admin/members`);
+    await expect(other.getByRole('row').filter({ hasText: 'Ben Employee' })).toContainText('Out of office until');
+
+    // Back early: one press on Home clears it everywhere.
+    await banner.getByRole('button', { name: 'I’m back' }).click();
+    await expect(banner).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Account: Ben Employee$/ })).toBeVisible();
+  });
 });

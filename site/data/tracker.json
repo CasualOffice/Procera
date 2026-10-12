@@ -5,13 +5,13 @@
  "totals": {
   "Done": 35,
   "In review": 0,
-  "In progress": 17,
+  "In progress": 18,
   "Blocked": 0,
-  "Not started": 57,
+  "Not started": 56,
   "Deferred": 0,
   "all": 109
  },
- "e2e_scenarios": 228,
+ "e2e_scenarios": 237,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -235,12 +235,21 @@
   "E2E-R2-21",
   "E2E-R2-22",
   "E2E-R2-23",
+  "E2E-R2-24",
+  "E2E-R2-30",
+  "E2E-R2-31",
+  "E2E-R2-32",
+  "E2E-R2-33",
+  "E2E-R2-34",
   "E2E-R2-ISO",
   "E2E-R2-UI-01",
   "E2E-R2-UI-02",
   "E2E-R2-UI-03",
   "E2E-R2-UI-04",
-  "E2E-R2-UI-05"
+  "E2E-R2-UI-05",
+  "E2E-R2-UI-10",
+  "E2E-R2-UI-11",
+  "E2E-R2-UI-12"
  ],
  "releases": [
   {
@@ -326,8 +335,8 @@
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
    "total": 17,
    "done": 0,
-   "in_progress": 10,
-   "not_started": 7,
+   "in_progress": 11,
+   "not_started": 6,
    "epics": [
     "BPMS-080",
     "BPMS-081",
@@ -888,7 +897,7 @@
    "title": "Delegation, OOO substitution, SoD re-check, send-back",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-087",

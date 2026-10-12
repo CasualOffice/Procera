@@ -6,9 +6,10 @@ import { Link, navigate } from '../lib/router';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { SetupChecklist } from './onboarding';
+import { AwayBanner } from './AwayBanner';
+import { PersonAvatar } from '../ui/PersonAvatar';
 import './requests.css';
 import { RoleCards } from './homeCards';
-import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag } from '../ui/Tag';
@@ -129,6 +130,7 @@ export function Home() {
         )}
       </div>
 
+      <AwayBanner />
       <SetupChecklist />
 
       {firstRun && !can('workspace:settings.manage') && (
@@ -223,8 +225,8 @@ export function Home() {
           {members && members.length > 0 && (
             <section aria-labelledby="people" className="section-gap">
               <div className="section-head"><h2 id="people">People</h2>{can('member:invite') && <Link className="section-link" to="/admin/members">Manage</Link>}</div>
-              <div className="avatar-stack" role="img" aria-label={`${members.filter((m) => m.status === 'active').length} active members`}>
-                {members.filter((m) => m.status === 'active').slice(0, 9).map((m) => <span key={m.id} title={m.display_name}><Avatar name={m.display_name} size="1.875rem" /></span>)}
+              <div className="avatar-stack" role="group" aria-label={`${members.filter((m) => m.status === 'active').length} active members`}>
+                {members.filter((m) => m.status === 'active').slice(0, 9).map((m) => <PersonAvatar key={m.id} member={m} size="1.875rem" />)}
               </div>
               <p className="rail-note">{((n) => `${n} ${n === 1 ? 'person' : 'people'}`)(members.filter((m) => m.status === 'active').length)} in this workspace</p>
             </section>

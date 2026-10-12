@@ -18,11 +18,13 @@ import { InviteLinkDialog } from '../ui/InviteLinkDialog';
 import { DirectoryImport } from './DirectoryImport';
 import type { Department, Group } from '../lib/directory';
 import { type BulkRow, BulkAddToGroup, BulkSetDepartment } from './membersBulk';
+import { PersonAvatar } from '../ui/PersonAvatar';
+import { dayText } from './outOfOffice';
 
 /** Specialist roles add to the employee basics, so invites pair them with Member (narrow custom roles stay possible through the API). */
 const BASE_ROLES = new Set(['member', 'workspace.owner', 'workspace.admin']);
 
-interface PersonRow { id: string; name: string; email: string; roles: string[]; title: string | null; status: string; date: string; invite: boolean }
+interface PersonRow { id: string; name: string; email: string; roles: string[]; title: string | null; status: string; date: string; invite: boolean; away?: Member['away'] }
 interface Invitation { id: string; email: string; role_keys: string[]; expires_at: string }
 const ROLE_COLOR: Record<string, TagColor> = { 'workspace.owner': 'red', 'workspace.admin': 'orange', reviewer: 'blue', 'compliance.officer': 'purple', member: 'gray' };
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
@@ -72,7 +74,7 @@ export function Members() {
   };
   useEffect(() => { if (query.get('invite') === '1') setInviting(true); }, [query]);
   const people = useMemo<PersonRow[]>(() => [
-    ...(members ?? []).map((m) => ({ id: m.id, name: m.display_name, email: m.email, roles: m.roles, title: m.title, status: m.status === 'active' ? 'Active' : 'Deactivated', date: m.joined_at, invite: false })),
+    ...(members ?? []).map((m) => ({ id: m.id, name: m.display_name, email: m.email, roles: m.roles, title: m.title, status: m.status === 'active' ? 'Active' : 'Deactivated', date: m.joined_at, invite: false, away: m.away })),
     ...(invites ?? []).map((i) => ({ id: i.id, name: i.email, email: i.email, roles: i.role_keys, title: null, status: 'Invited', date: i.expires_at, invite: true })),
   ], [members, invites]);
   const active = (members ?? []).filter((m) => m.status === 'active').length;
@@ -96,10 +98,10 @@ export function Members() {
           </>}
           initialSearch={query.get('q') ?? ''} initialSort={[{ id: 'name', desc: false }]}
           columns={[
-            { id: 'name', header: 'Name', value: (p) => `${p.name} ${p.email}`, cell: (p) => <span className="cell-entity"><Avatar name={p.name} size="1.75rem" tone={p.invite ? 'neutral' : 'person'} /><span style={{ minWidth: 0 }}>{p.invite ? <span style={{ display: 'block' }}>{p.name}</span> : <Link to={`/members/${p.id}`} style={{ display: 'block' }}>{p.name}</Link>}{!p.invite && <span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{p.email}</span>}</span></span> },
+            { id: 'name', header: 'Name', value: (p) => `${p.name} ${p.email}`, cell: (p) => <span className="cell-entity">{p.invite ? <Avatar name={p.name} size="1.75rem" tone="neutral" /> : <PersonAvatar member={{ display_name: p.name, title: p.title, email: p.email, away: p.away }} card={false} />}<span style={{ minWidth: 0 }}>{p.invite ? <span style={{ display: 'block' }}>{p.name}</span> : <Link to={`/members/${p.id}`} style={{ display: 'block' }}>{p.name}</Link>}{!p.invite && <span className="cell-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>{p.email}</span>}</span></span> },
             { id: 'roles', header: 'Roles', type: 'enum', options: [...new Set(people.flatMap((p) => p.roles.map(roleLabel)))].sort(), value: (p) => p.roles.map(roleLabel).join(', '), cell: (p) => <span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}>{p.roles.map((r) => <Tag key={r} color={ROLE_COLOR[r] ?? 'gray'}>{roleLabel(r)}</Tag>)}</span> },
             { id: 'title', header: 'Title', optional: true, value: (p) => p.title ?? '' },
-            { id: 'status', header: 'Status', type: 'enum', value: (p) => p.status, cell: (p) => <Tag color={p.status === 'Active' ? 'green' : p.status === 'Invited' ? 'yellow' : 'gray'} dot>{p.status}</Tag> },
+            { id: 'status', header: 'Status', type: 'enum', value: (p) => p.status, cell: (p) => <span style={{ display: 'inline-flex', gap: '0.25rem', flexWrap: 'wrap' }}><Tag color={p.status === 'Active' ? 'green' : p.status === 'Invited' ? 'yellow' : 'gray'} dot>{p.status}</Tag>{p.away && <Tag color="orange" dot>Out of office until {dayText(p.away.until)}</Tag>}</span> },
             { id: 'date', header: 'Joined', type: 'date', optional: true, value: (p) => p.date, cell: (p) => <span className="cell-muted">{p.invite ? `expires ${shortDate(p.date)}` : shortDate(p.date)}</span> },
             ...(can('member:invite') ? [{ id: 'invitation', header: 'Invitation', sortable: false, value: (p: PersonRow) => (p.invite ? 'pending' : ''), cell: (p: PersonRow) => p.invite && (
               <span className="actions" style={{ flexWrap: 'nowrap' }}>

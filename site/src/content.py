@@ -130,7 +130,7 @@ FEATURES = [
                   "Reminders before and at the due date; overdue manager approvals move up to the next manager, others alert the requester's manager",
                   "Admins see unassigned and overdue steps and reassign them with a reason (separation of duties still applies)",
                   "Step builder and canvas designer, form builder (planned)",
-                  "Out of office: a delegate decides your approvals while you're away, recorded on your behalf; separation of duties still applies to them",
+                  "Out of office: one click from the account menu; colleagues see who's away and who covers on hover; a delegate decides your approvals, recorded on your behalf, and separation of duties still applies to them",
                   "Admins choose which request types are offered, who can ask for each, and the currency approval limits are read in",
                   "Parallel and quorum approvals (planned)"],
          epics=["BPMS-080", "BPMS-081", "BPMS-082", "BPMS-083", "BPMS-085", "BPMS-086", "BPMS-088", "BPMS-100", "BPMS-101", "BPMS-103", "BPMS-105"],

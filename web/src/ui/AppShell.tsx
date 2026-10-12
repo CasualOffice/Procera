@@ -4,6 +4,8 @@ import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger,
 import { ApiError, api, blobUrl } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { statusChanged, useMyStatus } from '../lib/status';
+import { OutOfOfficeDialog, dayText } from '../pages/outOfOffice';
 import { useOpenWork } from '../lib/requests';
 import { setTerms, useTerms } from '../lib/terms';
 import { Avatar } from './Avatar';
@@ -38,6 +40,9 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   const [logo, setLogo] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [palette, setPalette] = useState(false);
+  const [oooOpen, setOooOpen] = useState(false);
+  const status = useMyStatus(!!workspace);
+  const away = !!status.ooo?.active;
   const openWork = useOpenWork(!!workspace && can('work:view_assigned'), current);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
@@ -181,11 +186,14 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
         </nav>
 
         <MenuTrigger>
-          <AriaButton className="user-btn" aria-label={`Account: ${user.display_name}`}>
-            <Avatar name={user.display_name} size="1.75rem" />
+          <AriaButton className="user-btn" aria-label={`Account: ${user.display_name}${away ? ', out of office' : ''}`}>
+            <span className="avatar-status">
+              <Avatar name={user.display_name} size="1.75rem" />
+              {status.loaded && <span className={`status-dot ${away ? 'is-away' : 'is-on'}`} aria-hidden="true" />}
+            </span>
             <span className="user-btn-text">
               <span className="user-btn-name">{user.display_name}</span>
-              <span className="user-btn-email">{user.email}</span>
+              <span className={away ? 'user-btn-email user-btn-away' : 'user-btn-email'}>{away && status.ooo ? `Out of office until ${dayText(status.ooo.ends_on)}` : user.email}</span>
             </span>
           </AriaButton>
           <Popover className="menu-popover" placement="top start">
@@ -199,9 +207,25 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                 } else if (key === 'security') navigate('/account/security');
                 else if (key === 'profile') navigate('/account/profile');
                 else if (key === 'activity') navigate('/admin/audit');
+                else if (key === 'status-ooo') setOooOpen(true);
+                else if (key === 'status-available') { if (away) await api('/api/v1/me/out-of-office', { method: 'DELETE' }).then(statusChanged).catch(() => undefined); }
                 else setTheme(String(key).replace('theme-', '') as Theme);
               }}
             >
+              {status.canSet && (
+                <MenuSection>
+                  <Header className="menu-header">Status</Header>
+                  <MenuItem id="status-available" className="menu-item" textValue="Available">
+                    <span className="status-dot is-on" aria-hidden="true" /> Available
+                    {!away && <span className="menu-item-meta"><Check aria-hidden="true" size="1rem" /><span className="visually-hidden">Selected</span></span>}
+                  </MenuItem>
+                  <MenuItem id="status-ooo" className="menu-item" textValue={away ? 'Change out of office' : 'Out of office'}>
+                    <span className="status-dot is-away" aria-hidden="true" /> {away ? 'Change out of office…' : 'Out of office…'}
+                    {away && <span className="menu-item-meta"><Check aria-hidden="true" size="1rem" /><span className="visually-hidden">Selected</span></span>}
+                  </MenuItem>
+                </MenuSection>
+              )}
+              {status.canSet && <Separator className="menu-separator" />}
               <MenuItem id="profile" className="menu-item" textValue="Profile">
                 <UserRound aria-hidden="true" size="1rem" /> Profile
               </MenuItem>
@@ -283,6 +307,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
         </MenuTrigger>
       </nav>
       <CommandPalette isOpen={palette} onOpenChange={setPalette} />
+      {oooOpen && <OutOfOfficeDialog base="/api/v1/me/out-of-office" current={status.ooo} you onClose={() => setOooOpen(false)} onSaved={() => { setOooOpen(false); statusChanged(); }} />}
     </div>
   );
 }

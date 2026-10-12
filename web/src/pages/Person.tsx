@@ -9,7 +9,6 @@ import { type Member, useItems, useResource } from '../lib/data';
 import { type Department, type Group, type MemberDirectory, deptPath, problemText } from '../lib/directory';
 import { shortDate } from '../lib/format';
 import { Link } from '../lib/router';
-import { Avatar } from '../ui/Avatar';
 import { setCrumb } from '../ui/AppShell';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
@@ -18,6 +17,8 @@ import { AddToGroup, EditProfile, Reactivate } from './personProfile';
 import { LeaveDialog } from './personLeave';
 import { OutOfOfficeSection } from './outOfOffice';
 import '../ui/directory.css';
+import { PersonAvatar } from '../ui/PersonAvatar';
+import { dayText } from './outOfOffice';
 
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 type Dialog = 'edit' | 'group' | 'deactivate' | 'reactivate' | null;
@@ -69,10 +70,11 @@ export function Person({ id }: { id: string }) {
   return (
     <div className="person">
       <div className="person-head">
-        <Avatar name={m.display_name} size="3.5rem" />
+        <PersonAvatar member={m} size="3.5rem" card={false} />
         <div>
           <h1>{m.display_name}</h1>
           <p className="muted">{m.title ?? 'No title'}{!active && <> · <Tag color="gray">Deactivated</Tag></>}</p>
+          {m.away && <p className="person-away"><Tag color="orange" dot>Out of office until {dayText(m.away.until)}</Tag> <span className="muted">{m.away.delegate} covers their requests</span></p>}
         </div>
       </div>
       {notice && <Notice tone={notice.tone} title={notice.title}>{notice.details?.length ? <ul style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>{notice.details.map((d) => <li key={d}>{d}</li>)}</ul> : null}</Notice>}

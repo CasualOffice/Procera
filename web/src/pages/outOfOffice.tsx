@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type Member, useItems, useResource } from '../lib/data';
 import { fieldErrors } from '../lib/requests';
+import { statusChanged } from '../lib/status';
 import { useSession } from '../lib/session';
 import { Button } from '../ui/components/Button';
 import { FormDialog } from '../ui/components/FormDialog';
@@ -31,7 +32,7 @@ export function OutOfOfficeSection({ memberId, name }: { memberId?: string; name
   const o = data.out_of_office;
   const you = !memberId;
   const end = async () => {
-    try { await api(base, { method: 'DELETE' }); setNotice({ tone: 'success', title: 'Out of office ended.' }); reload(); }
+    try { await api(base, { method: 'DELETE' }); setNotice({ tone: 'success', title: 'Out of office ended.' }); reload(); if (you) statusChanged(); }
     catch (e) { setNotice({ tone: 'danger', title: e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'Could not end it. Try again.' }); }
   };
   return (
@@ -58,12 +59,12 @@ export function OutOfOfficeSection({ memberId, name }: { memberId?: string; name
           </div>
         ) : you && <p className="muted">Ask an admin or your manager to set it for you.</p>}
       </div>
-      {editing && <OutOfOfficeDialog base={base} current={o} you={you} self={memberId} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice({ tone: 'success', title: 'Out of office saved.' }); reload(); }} />}
+      {editing && <OutOfOfficeDialog base={base} current={o} you={you} self={memberId} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); setNotice({ tone: 'success', title: 'Out of office saved.' }); reload(); if (you) statusChanged(); }} />}
     </section>
   );
 }
 
-function OutOfOfficeDialog({ base, current, you, self, onClose, onSaved }: { base: string; current: OutOfOffice | null; you: boolean; self?: string; onClose: () => void; onSaved: () => void }) {
+export function OutOfOfficeDialog({ base, current, you, self, onClose, onSaved }: { base: string; current: OutOfOffice | null; you: boolean; self?: string; onClose: () => void; onSaved: () => void }) {
   const [members] = useItems<Member>('/api/v1/members');
   const [from, setFrom] = useState(current?.starts_on ?? today());
   const [to, setTo] = useState(current?.ends_on ?? today());

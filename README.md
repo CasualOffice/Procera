@@ -36,7 +36,7 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Works on phones:** a bottom bar for the everyday pages.
 
 - **Requests and approvals (0.2, first slice):** leave, expense, purchase and access requests with forms; approvals routed to the requester's manager, finance, the CFO or IT; a My Work inbox to approve, reject or send back; a request page with steps and timeline. Designing your own workflows, e-signing and cases are planned, **not built yet**.
-- **Out of office and request settings (0.2):** set an out-of-office with a delegate (or an admin or manager sets it for you); new approvals go to the delegate, who can also decide what's already waiting, recorded "on behalf of". Admins choose which request types are offered, who can ask for each, and the currency amounts are in.
+- **Out of office and request settings (0.2):** set an out-of-office with a delegate from the account menu (your avatar shows it, and colleagues see it on hover cards and Members) (or an admin or manager sets it for you); new approvals go to the delegate, who can also decide what's already waiting, recorded "on behalf of". Admins choose which request types are offered, who can ask for each, and the currency amounts are in.
 - **Why this route (0.2):** every request page explains in plain words why it went where it went ("Sent to Finance approval because the amount 640.00 EUR is over 500") and why each person decides; approvers see why a step is theirs.
 - **Reminders and escalations (0.2):** approvers are reminded before and at the due date; an overdue manager approval moves up to the next manager; admins see unassigned and overdue steps under Admin › Requests oversight and reassign them with a reason.
 
