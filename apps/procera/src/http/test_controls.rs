@@ -405,6 +405,12 @@ async fn drain(State(s): State<AppState>) -> Response {
     {
         return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
     }
+    // Runtime timers and jobs that are due (request steps, deadlines, continuations).
+    if let Some(r) = s.requests.as_ref()
+        && let Err(e) = procera_engine::Scheduler::new(r.engine().clone(), "e2e-drain").drain().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
+    }
     // Scheduled announcements that are due.
     if let Some(a) = s.announcements.as_ref()
         && let Err(e) = a.publish_due().await

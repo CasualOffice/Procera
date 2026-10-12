@@ -49,6 +49,35 @@ pub async fn put_calendar(
     Ok(id)
 }
 
+/// Stores a calendar version unless one with this reference exists (seeding a workspace default
+/// lazily; concurrent seeders wait on the unique reference and then do nothing). `true` when stored.
+pub async fn put_calendar_if_absent(
+    tx: &mut WsTx<'_>,
+    clock: &dyn Clock,
+    ids: &dyn IdGen,
+    calendar_ref: &str,
+    version_label: &str,
+    spec: &CalendarSpec,
+) -> Result<bool, EngineError> {
+    Calendar::from_spec(spec)?;
+    let n = sqlx::query(
+        "INSERT INTO calendar_versions (workspace_id, id, calendar_ref, version_label, timezone, working_hours, holidays, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (workspace_id, calendar_ref) DO NOTHING",
+    )
+    .bind(tx.ctx.workspace_id)
+    .bind(ids.new_id())
+    .bind(calendar_ref)
+    .bind(version_label)
+    .bind(&spec.timezone)
+    .bind(serde_json::to_value(&spec.working_hours)?)
+    .bind(&spec.holidays)
+    .bind(clock.now())
+    .execute(tx.conn())
+    .await?
+    .rows_affected();
+    Ok(n == 1)
+}
+
 type Row = (Uuid, String, String, Value, Vec<Date>);
 
 fn version(row: Row) -> Result<CalendarVersion, EngineError> {

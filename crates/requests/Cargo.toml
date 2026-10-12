@@ -1,0 +1,39 @@
+[package]
+name = "procera-requests"
+description = "Requests and approvals: built-in request types, start-form validation, assignment resolution with SoD, work items and their notifications around the runtime engine (BPMS-085, BPMS-101, BPMS-103)."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-audit.workspace = true
+procera-db.workspace = true
+procera-engine.workspace = true
+procera-ir.workspace = true
+procera-kernel.workspace = true
+procera-members.workspace = true
+procera-notify.workspace = true
+procera-runtime.workspace = true
+rust_decimal.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+anyhow.workspace = true
+tokio.workspace = true
+procera-access.workspace = true
+procera-crypto.workspace = true
+procera-identity.workspace = true
+procera-kernel = { workspace = true, features = ["test-clock"] }
+procera-db = { workspace = true, features = ["test-support"] }
+
+[lints]
+workspace = true

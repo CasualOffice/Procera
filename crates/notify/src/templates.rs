@@ -282,6 +282,74 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
 {% block footer %}You receive this because you wrote this announcement.{% endblock %}"#,
     ),
+    // Requests and approvals (BPMS-085). Common vars: display_id, title, type_name, link.
+    // work_assigned adds step, initiator, due (or none).
+    ("work_assigned.title", "{{ step }}: {{ display_id }}"),
+    ("work_assigned.body", "{{ initiator }} asked for {{ title }}.{% if due %} Due {{ due }}.{% endif %}"),
+    ("work_assigned.subject", "{{ step }} needed: {{ display_id }} {{ title }}"),
+    (
+        "work_assigned.text",
+        "{{ initiator }} submitted a {{ type_name | lower }} ({{ display_id }}): {{ title }}.\n\nYou are asked for: {{ step }}{% if due %}, by {{ due }}{% endif %}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "work_assigned.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ initiator }}</strong> submitted a {{ type_name | lower }} (<strong>{{ display_id }}</strong>): {{ title }}.</p>
+<p style="margin:0 0 16px">You are asked for: <strong>{{ step }}</strong>{% if due %}, by <strong>{{ due }}</strong>{% endif %}.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because a step of this {{ terms.request.lower }} is offered to you.{% endblock %}"#,
+    ),
+    // request_decided adds step, outcome (approved | rejected | changes_requested), decided_by, comment (or none).
+    (
+        "request_decided.title",
+        "{{ display_id }}: {% if outcome == 'approved' %}{{ step }} approved{% elif outcome == 'changes_requested' %}changes requested{% else %}{{ step }} rejected{% endif %}",
+    ),
+    (
+        "request_decided.body",
+        "{{ decided_by }} {% if outcome == 'approved' %}approved{% elif outcome == 'changes_requested' %}sent it back to you{% else %}rejected it{% endif %}.{% if comment %} “{{ comment }}”{% endif %}",
+    ),
+    (
+        "request_decided.subject",
+        "{{ display_id }} {{ title }}: {% if outcome == 'approved' %}{{ step }} approved{% elif outcome == 'changes_requested' %}changes requested{% else %}{{ step }} rejected{% endif %}",
+    ),
+    (
+        "request_decided.text",
+        "{{ decided_by }} {% if outcome == 'approved' %}approved {{ step }} for{% elif outcome == 'changes_requested' %}sent back{% else %}rejected{% endif %} your {{ type_name | lower }} {{ display_id }} ({{ title }}).\n{% if comment %}\n{{ comment }}\n{% endif %}\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "request_decided.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ decided_by }}</strong> {% if outcome == 'approved' %}approved {{ step }} for{% elif outcome == 'changes_requested' %}sent back{% else %}rejected{% endif %} your {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}).</p>
+{% if comment %}<p style="margin:0 0 16px;padding:12px 16px;background:#f4f4f2;border-radius:6px">{{ comment }}</p>{% endif %}
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because you submitted this {{ terms.request.lower }}.{% endblock %}"#,
+    ),
+    // request_completed adds status (approved | rejected).
+    ("request_completed.title", "{{ display_id }} {{ status }}"),
+    ("request_completed.body", "Your {{ type_name | lower }} {{ title }} was {{ status }}."),
+    ("request_completed.subject", "{{ display_id }} {{ title }} was {{ status }}"),
+    (
+        "request_completed.text",
+        "Your {{ type_name | lower }} {{ display_id }} ({{ title }}) was {{ status }}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "request_completed.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Your {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}) was <strong>{{ status }}</strong>.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because you submitted this {{ terms.request.lower }}.{% endblock %}"#,
+    ),
+    // request_notice: a notify step of a process. Adds step (the notify step's name).
+    ("request_notice.title", "{{ step }}: {{ display_id }}"),
+    ("request_notice.body", "{{ title }}"),
+    ("request_notice.subject", "{{ step }}: {{ display_id }} {{ title }}"),
+    (
+        "request_notice.text",
+        "{{ step }}: {{ type_name }} {{ display_id }} ({{ title }}).\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "request_notice.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ step }}</strong>: {{ type_name }} <strong>{{ display_id }}</strong> ({{ title }}).</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because this {{ terms.request.lower }} concerns you.{% endblock %}"#,
+    ),
     // BPMS-044: an artifact's review date passed. Vars: title.
     ("review_overdue.title", "{{ title }} is due for review"),
     (
@@ -342,6 +410,38 @@ pub fn in_app(kind: &str, ctx: &Value) -> Result<RenderedInApp, NotifyError> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn request_templates_render() {
+        let base = json!({"display_id": "LR-2026-000001", "title": "Annual <leave>", "type_name": "Leave request", "link": "https://x.test/r"});
+        let mut w = base.clone();
+        w["step"] = json!("Manager approval");
+        w["initiator"] = json!("Ann");
+        w["due"] = json!(null);
+        let r = email("work_assigned", &w).expect("renders");
+        assert!(r.text.contains("Ann submitted a leave request") && !r.text.contains("by "));
+        assert!(r.html.contains("Annual &lt;leave&gt;"));
+        assert!(in_app("work_assigned", &w).expect("renders").title.starts_with("Manager approval"));
+        for (outcome, comment) in
+            [("approved", None), ("rejected", Some("No budget")), ("changes_requested", Some("Dates"))]
+        {
+            let mut d = base.clone();
+            d["step"] = json!("Manager approval");
+            d["outcome"] = json!(outcome);
+            d["decided_by"] = json!("Bob");
+            d["comment"] = json!(comment);
+            let r = email("request_decided", &d).expect("renders");
+            assert!(r.text.contains("Bob"), "{outcome}");
+            assert_eq!(r.text.contains("No budget"), comment == Some("No budget"));
+            in_app("request_decided", &d).expect("renders");
+        }
+        let mut c = base.clone();
+        c["status"] = json!("approved");
+        assert!(email("request_completed", &c).expect("renders").subject.ends_with("was approved"));
+        let mut n = base;
+        n["step"] = json!("Access granted");
+        assert!(in_app("request_notice", &n).expect("renders").title.starts_with("Access granted"));
+    }
 
     #[test]
     fn invitation_renders_and_escapes_html() {

@@ -451,6 +451,19 @@ A CAPA is a **case** (FR-C01), not a fixed flow. Investigations vary, but closur
 
 `qms.capa` depends on case management (P1). If case management slips past pilot, it moves to Wave 2 and the pilot set is the first 12. This covers the five pilot processes from 07-ROADMAP: purchase, onboarding, access, SOP recertification, incident/exception (via `grc.policy-exception`).
 
+### 5.6 As built: built-in request types (Procera 0.2)
+
+Until the template gallery installs processes, four simplified Wave 1 templates ship as built-in request types (`crates/requests/builtin/*.json`, compiled at boot and pinned by checksum; A-45). Routing uses CEL decisions, not rule tables. Every approval excludes the initiator; later levels exclude earlier deciders; the fallback is role `process.owner`; changes requested loop to a `revise` task for the requester (`maxIterations: 5`).
+
+| Key (display id) | Start form | Routing |
+|---|---|---|
+| `hr.leave-request` (LR) | type (annual, sick, unpaid, other), first day, last day, reason | Manager (P2D business) |
+| `hr.expense-claim` (EC) | amount (EUR), category, description, date | Manager; then finance (role `finance.approver` or group `Finance`) when the amount is over 500 |
+| `fin.purchase-requisition` (PR) | amount (INR), vendor, cost centre, justification | Manager; finance above 50,000; then the `CFO` position above 500,000 (§5.2 simplified: no line items, no PO task) |
+| `it.access-request` (AR) | system, access level, sensitivity, beneficiary (a member), justification | Beneficiary's manager, or role `system.owner` then group `Security` for high sensitivity; then group `IT` provisions (a human task with a ticket reference) and the beneficiary is notified |
+
+Onboarding (§5.1) is deferred: it needs parallel tasks and a start-date timer in the request UI.
+
 ## 6. Quality bar and governance of templates
 
 | Gate | Requirement |

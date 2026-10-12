@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "hr.leave-request", "version": 1, "name": { "en": "Leave request" }, "criticality": "standard" },
+  "variables": [
+    { "name": "leave_type", "type": { "enum": ["annual", "sick", "unpaid", "other"] }, "classification": "internal", "required": true },
+    { "name": "start_date", "type": "date", "classification": "internal", "required": true },
+    { "name": "end_date", "type": "date", "classification": "internal", "required": true },
+    { "name": "reason", "type": "text", "classification": "internal" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start", "name": { "en": "Request leave" }, "trigger": "manual", "inputForm": "request" },
+    {
+      "id": "manager_approval",
+      "kind": "human.approval",
+      "name": { "en": "Manager approval" },
+      "assignment": {
+        "candidates": [{ "type": "user", "ref": "expr:cel: initiator.manager" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P2D", "business": true }
+    },
+    {
+      "id": "revise",
+      "kind": "human.task",
+      "name": { "en": "Revise request" },
+      "form": "request",
+      "assignment": { "candidates": [{ "type": "user", "ref": "expr:cel: initiator" }] },
+      "maxIterations": 5
+    },
+    { "id": "end_approved", "kind": "end", "name": { "en": "Approved" }, "result": "completed" },
+    { "id": "end_rejected", "kind": "end", "name": { "en": "Rejected" }, "result": "completed" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "manager_approval" },
+    { "id": "e2", "from": "manager_approval", "to": "end_approved", "on": "approved" },
+    { "id": "e3", "from": "manager_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e4", "from": "manager_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e5", "from": "revise", "to": "manager_approval", "on": "submitted" }
+  ],
+  "sla": [{ "id": "sla_total", "scope": "instance", "target": "P2D", "business": true, "pauseWhile": ["revise"] }],
+  "refs": {
+    "forms": { "request": "form:hr.leave-request@1" },
+    "calendars": { "default": "calendar:default@1" }
+  },
+  "meta": { "sourceFormat": "template", "templateRef": "tpl:hr.leave-request@1.0.0" }
+}

@@ -82,13 +82,62 @@ impl StaticPrograms {
     }
 }
 
+impl StaticPrograms {
+    /// Like [`StaticPrograms::insert`], but the returned reference pins the compiled checksum, so an
+    /// instance started from it refuses to run on a different build of the same key and version.
+    pub fn insert_pinned(&mut self, exe: Executable) -> ProgramRef {
+        let checksum = exe.program.checksum().map(str::to_owned);
+        ProgramRef { checksum, ..self.insert(exe) }
+    }
+}
+
 impl ProgramSource for StaticPrograms {
     fn load<'a>(&'a self, _ctx: WsCtx, p: &'a ProgramRef) -> BoxFuture<'a, Result<Arc<Executable>, String>> {
         let found = self.0.get(&(p.process_key.clone(), p.version)).cloned();
-        Box::pin(
-            async move { found.ok_or_else(|| format!("program {}@{} not found", p.process_key, p.version)) },
-        )
+        Box::pin(async move {
+            let exe = found.ok_or_else(|| format!("program {}@{} not found", p.process_key, p.version))?;
+            match (&p.checksum, exe.program.checksum()) {
+                (Some(want), Some(have)) if want != have => Err(format!(
+                    "program {}@{} checksum {have} does not match the pinned {want}",
+                    p.process_key, p.version
+                )),
+                _ => Ok(exe),
+            }
+        })
     }
+}
+
+/// Who caused a stimulus, for the runtime audit record (A-28 (4)): a user's audit subject and the
+/// client they acted from. Timer and job driven advances have none and are recorded as the system.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Actor {
+    pub subject_ref: Uuid,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
+}
+
+/// What an [`EffectHandler`] sees after the interpreter accepted a stimulus.
+#[derive(Debug, Clone, Copy)]
+pub struct EffectContext<'a> {
+    pub program: &'a ProgramRef,
+    pub exe: &'a Executable,
+    /// The state before the stimulus; `None` when the instance just started.
+    pub before: Option<&'a InstanceState>,
+    pub state: &'a InstanceState,
+    pub commands: &'a [Command],
+    pub stimulus: &'a Stimulus,
+    pub actor: Option<&'a Actor>,
+}
+
+/// The port that consumes the commands the engine leaves `pending` (work items, notifications;
+/// BPMS-085). It runs inside the advance transaction, after the engine's own effects, so a work
+/// item exists exactly when the state that waits for it commits.
+pub trait EffectHandler: Send + Sync + Debug {
+    fn apply<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        cx: EffectContext<'a>,
+    ) -> BoxFuture<'a, Result<(), String>>;
 }
 
 /// The result of an accepted stimulus.
@@ -140,6 +189,7 @@ pub struct Engine {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) ids: Arc<dyn IdGen>,
     pub(crate) programs: Arc<dyn ProgramSource>,
+    pub(crate) effects: Option<Arc<dyn EffectHandler>>,
 }
 
 impl Debug for Engine {
@@ -150,7 +200,26 @@ impl Debug for Engine {
 
 impl Engine {
     pub fn new(db: Db, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>, programs: Arc<dyn ProgramSource>) -> Self {
-        Self { db, clock, ids, programs }
+        Self { db, clock, ids, programs, effects: None }
+    }
+
+    /// Installs the consumer of pending commands (work items, notifications).
+    pub fn with_effects(mut self, handler: Arc<dyn EffectHandler>) -> Self {
+        self.effects = Some(handler);
+        self
+    }
+
+    pub fn clock(&self) -> &Arc<dyn Clock> {
+        &self.clock
+    }
+
+    pub fn ids(&self) -> &Arc<dyn IdGen> {
+        &self.ids
+    }
+
+    /// Stamps an event with the engine clock.
+    pub fn stamp(&self, event: Event) -> Stimulus {
+        Stimulus::stamp(self.clock.as_ref(), event)
     }
 
     pub fn db(&self) -> &Db {
@@ -169,6 +238,22 @@ impl Engine {
         initiator: Value,
         variables: BTreeMap<String, Value>,
     ) -> Result<Advanced, EngineError> {
+        let mut tx = self.db.begin_ws(ctx).await?;
+        let out = self.start_in(&mut tx, program, initiator, variables, None).await?;
+        tx.commit().await?;
+        Ok(out)
+    }
+
+    /// [`Engine::start`] inside the caller's transaction, recording `actor` as the user who started it.
+    pub async fn start_in(
+        &self,
+        tx: &mut WsTx<'_>,
+        program: &ProgramRef,
+        initiator: Value,
+        variables: BTreeMap<String, Value>,
+        actor: Option<Actor>,
+    ) -> Result<Advanced, EngineError> {
+        let ctx = tx.ctx;
         let exe = self.executable(ctx, program).await?;
         // Restricted values need envelope encryption at rest, which is not built yet (A-28).
         if let Some(v) = exe.program.ir().variables.iter().find(|v| v.is_restricted()) {
@@ -180,7 +265,6 @@ impl Engine {
             .start(&stimulus)
             .map_err(EngineError::Rejected)?;
         let id = step.state.instance_id;
-        let mut tx = self.db.begin_ws(ctx).await?;
         let now = self.clock.now();
         sqlx::query(
             "INSERT INTO process_instances (workspace_id, id, display_id, process_key, process_version, program_checksum,
@@ -202,9 +286,7 @@ impl Engine {
         .bind(step.state.ended_at)
         .execute(tx.conn())
         .await?;
-        let out = self.persist(&mut tx, &exe, None, step, &stimulus).await?;
-        tx.commit().await?;
-        Ok(out)
+        self.persist(tx, program, &exe, None, step, &stimulus, actor).await
     }
 
     /// Applies an event to an instance, stamped now. `expected_revision` is the optimistic check
@@ -231,6 +313,18 @@ impl Engine {
         instance_id: Uuid,
         stimulus: &Stimulus,
         expected_revision: Option<u64>,
+    ) -> Result<Advanced, EngineError> {
+        self.apply_in_as(tx, instance_id, stimulus, expected_revision, None).await
+    }
+
+    /// [`Engine::apply_in`] recording `actor` as the user who caused the stimulus (A-28 (4)).
+    pub async fn apply_in_as(
+        &self,
+        tx: &mut WsTx<'_>,
+        instance_id: Uuid,
+        stimulus: &Stimulus,
+        expected_revision: Option<u64>,
+        actor: Option<Actor>,
     ) -> Result<Advanced, EngineError> {
         let rec = load(tx, instance_id, true).await?;
         let current = u64::try_from(rec.revision).unwrap_or_default();
@@ -262,16 +356,19 @@ impl Engine {
         if updated != 1 {
             return Err(EngineError::Conflict { expected: current, actual: current + 1 });
         }
-        self.persist(tx, &exe, Some(&rec.state), step, stimulus).await
+        self.persist(tx, &rec.program, &exe, Some(&rec.state), step, stimulus, actor).await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn persist(
         &self,
         tx: &mut WsTx<'_>,
+        program: &ProgramRef,
         exe: &Executable,
         before: Option<&InstanceState>,
         step: Step,
         stimulus: &Stimulus,
+        actor: Option<Actor>,
     ) -> Result<Advanced, EngineError> {
         let st = &step.state;
         let kind = event_type(&stimulus.event);
@@ -289,6 +386,18 @@ impl Engine {
         .execute(tx.conn())
         .await?;
         effects::apply(self, tx, exe, st, &step.commands).await?;
+        if let Some(h) = &self.effects {
+            let cx = EffectContext {
+                program,
+                exe,
+                before,
+                state: st,
+                commands: &step.commands,
+                stimulus,
+                actor: actor.as_ref(),
+            };
+            h.apply(tx, cx).await.map_err(EngineError::Effects)?;
+        }
         sla::sync(self, tx, exe, before, st, stimulus.at).await?;
         let action = match (before, st.status) {
             (None, _) => "instance.started",
@@ -297,9 +406,17 @@ impl Engine {
             (Some(_), InstanceStatus::Failed) => "instance.failed",
             (Some(_), _) => "instance.advanced",
         };
-        let mut ev = AuditEvent::new(None, ActorKind::System, Category::Runtime, action, Outcome::Allowed)
+        let (who, actor_kind) = match &actor {
+            Some(a) => (Some(a.subject_ref), ActorKind::User),
+            None => (None, ActorKind::System),
+        };
+        let mut ev = AuditEvent::new(who, actor_kind, Category::Runtime, action, Outcome::Allowed)
             .object("process_instance", st.instance_id);
         ev.diff = Some(json!({ "event": kind, "revision": st.revision, "status": stored_status(st.status) }));
+        if let Some(a) = actor {
+            ev.ip = a.ip;
+            ev.user_agent = a.user_agent;
+        }
         append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
         Ok(Advanced {
             instance_id: st.instance_id,

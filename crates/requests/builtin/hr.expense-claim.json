@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "hr.expense-claim", "version": 1, "name": { "en": "Expense claim" }, "criticality": "standard" },
+  "variables": [
+    { "name": "amount", "type": { "money": { "currency": "EUR" } }, "classification": "internal", "required": true },
+    { "name": "category", "type": { "enum": ["travel", "meals", "accommodation", "supplies", "training", "other"] }, "classification": "internal", "required": true },
+    { "name": "description", "type": "text", "classification": "internal", "required": true },
+    { "name": "expense_date", "type": "date", "classification": "internal", "required": true }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start", "name": { "en": "Submit claim" }, "trigger": "manual", "inputForm": "claim" },
+    {
+      "id": "manager_approval",
+      "kind": "human.approval",
+      "name": { "en": "Manager approval" },
+      "assignment": {
+        "candidates": [{ "type": "user", "ref": "expr:cel: initiator.manager" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P2D", "business": true }
+    },
+    {
+      "id": "by_amount",
+      "kind": "decision",
+      "name": { "en": "Above the finance threshold?" },
+      "branches": [{ "name": "finance", "when": "expr:cel: amount.amount > 500.0" }]
+    },
+    {
+      "id": "finance_approval",
+      "kind": "human.approval",
+      "name": { "en": "Finance approval" },
+      "assignment": {
+        "candidates": [
+          { "type": "role", "ref": "finance.approver" },
+          { "type": "group", "ref": "Finance" }
+        ],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "excludeActorsOf": ["manager_approval"],
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P3D", "business": true }
+    },
+    {
+      "id": "revise",
+      "kind": "human.task",
+      "name": { "en": "Revise claim" },
+      "form": "claim",
+      "assignment": { "candidates": [{ "type": "user", "ref": "expr:cel: initiator" }] },
+      "maxIterations": 5
+    },
+    { "id": "end_approved", "kind": "end", "name": { "en": "Approved" }, "result": "completed" },
+    { "id": "end_rejected", "kind": "end", "name": { "en": "Rejected" }, "result": "completed" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "manager_approval" },
+    { "id": "e2", "from": "manager_approval", "to": "by_amount", "on": "approved" },
+    { "id": "e3", "from": "manager_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e4", "from": "manager_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e5", "from": "by_amount", "to": "finance_approval", "on": "finance" },
+    { "id": "e6", "from": "by_amount", "to": "end_approved", "on": "default" },
+    { "id": "e7", "from": "finance_approval", "to": "end_approved", "on": "approved" },
+    { "id": "e8", "from": "finance_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e9", "from": "finance_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e10", "from": "revise", "to": "manager_approval", "on": "submitted" }
+  ],
+  "sla": [{ "id": "sla_total", "scope": "instance", "target": "P5D", "business": true, "pauseWhile": ["revise"] }],
+  "refs": {
+    "forms": { "claim": "form:hr.expense-claim@1" },
+    "calendars": { "default": "calendar:default@1" }
+  },
+  "meta": { "sourceFormat": "template", "templateRef": "tpl:hr.expense-claim@1.0.0" }
+}

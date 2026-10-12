@@ -2471,6 +2471,7 @@ dependencies = [
  "procera-campaigns",
  "procera-crypto",
  "procera-db",
+ "procera-engine",
  "procera-files",
  "procera-identity",
  "procera-kernel",
@@ -2479,6 +2480,7 @@ dependencies = [
  "procera-members",
  "procera-notify",
  "procera-platform",
+ "procera-requests",
  "procera-search",
  "procera-settings",
  "rust_xlsxwriter",
@@ -2844,6 +2846,33 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "procera-requests"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-access",
+ "procera-audit",
+ "procera-crypto",
+ "procera-db",
+ "procera-engine",
+ "procera-identity",
+ "procera-ir",
+ "procera-kernel",
+ "procera-members",
+ "procera-notify",
+ "procera-runtime",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
  "uuid",
 ]
 

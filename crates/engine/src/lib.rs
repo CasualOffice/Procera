@@ -24,12 +24,12 @@ pub mod store;
 
 pub use calendar::{BusinessDuration, Calendar, CalendarError, CalendarSpec};
 pub use engine::{
-    Advanced, BoxFuture, Engine, Executable, InstanceRecord, ProgramRef, ProgramSource, StaticPrograms,
-    stored_status,
+    Actor, Advanced, BoxFuture, EffectContext, EffectHandler, Engine, Executable, InstanceRecord, ProgramRef,
+    ProgramSource, StaticPrograms, stored_status,
 };
 pub use lease::{Lease, Stale};
 pub use scheduler::{Lateness, LatenessSnapshot, Pass, Scheduler};
-pub use store::{CalendarVersion, calendar_by_id, calendar_by_ref, put_calendar};
+pub use store::{CalendarVersion, calendar_by_id, calendar_by_ref, put_calendar, put_calendar_if_absent};
 
 use procera_runtime::EventError;
 use uuid::Uuid;
@@ -48,6 +48,9 @@ pub enum EngineError {
     /// Restricted variables need envelope encryption at rest, which is not built yet (A-28).
     #[error("variable {0} is restricted; restricted instance data is not supported yet")]
     Restricted(String),
+    /// The effect handler (work items, notifications) failed; the advance rolls back.
+    #[error("effects failed: {0}")]
+    Effects(String),
     #[error("calendar {0} not found")]
     CalendarMissing(String),
     #[error(transparent)]

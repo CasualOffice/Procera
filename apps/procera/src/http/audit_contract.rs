@@ -310,6 +310,15 @@ pub const CONTRACT: &[Entry] = &[
     emits("DELETE", "/api/v1/audit/saved-queries/{id}", &[&["audit.query_deleted"]]),
     emits("POST", "/api/v1/audit/exports", &[&["audit.exported"], &["audit.export_requested"]]),
     exempt("POST", "/api/v1/audit/query", "read-only query; POST only carries the structured filter body"),
+    // Requests and approvals (BPMS-103/085): the user's record plus the runtime record of the same
+    // stimulus, both with the user as actor (A-28 (4)).
+    emits("POST", "/api/v1/requests", &[&["instance.started", "request.started"]]),
+    emits("POST", "/api/v1/requests/{id}/cancel", &[&["instance.cancelled", "request.cancelled"]]),
+    emits(
+        "POST",
+        "/api/v1/work/{id}/decisions",
+        &[&["instance.advanced", "work_item.decided"], &["instance.completed", "work_item.decided"]],
+    ),
 ];
 
 #[cfg(test)]
@@ -336,6 +345,8 @@ mod tests {
             ("/api/v1", include_str!("files.rs")),
             ("/api/v1", include_str!("views.rs")),
             ("/api/v1", include_str!("profile.rs")),
+            ("/api/v1", include_str!("requests.rs")),
+            ("/api/v1", include_str!("work.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

@@ -364,6 +364,10 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R2-14 | Failed step raises an incident → admin retries → instance continues; exactly one open incident | FR-E13 |
 | E2E-R2-15 | My Work: j/k/a triage, decision in ≤ 3 interactions, acks tab shows pending campaigns | FR-R03 |
 | E2E-R2-16 | Restricted variable (salary) hidden from approver without grant in UI, API, export, email body and search | SEC-03 |
+| E2E-R2-17 | Leave request (built-in): requester starts it → manager gets the step and a `work_assigned` notice → approves → request approved, timeline submitted/decided/completed, requester gets `request_completed` (API: `e2e/packs/r2/requests.api.spec.ts`) | FR-E04, BPMS-103 |
+| E2E-R2-18 | Separation of duties: the requester is never a candidate and gets 403 deciding her own request; an outsider gets 404; a step left with nobody after exclusions is unassigned and listed for admins (`GET /work?state=unassigned`) | 12 §10, BPMS-085 |
+| E2E-R2-19 | Built-in request types are listed with their start forms (`GET /request-types`); unknown, missing and mistyped fields are refused with 422 and one `errors[]` entry each | FR-E03 (subset), BPMS-101 |
+| E2E-R2-20 | Requester cancels a running request: open steps close, the manager's inbox empties, a second cancel is 409; others than the requester need `request:cancel` | BPMS-103 |
 | E2E-R2-ISO | Isolation sweep incl. work items, requests, forms, rule tables | SEC-01/02 |
 | E2E-R2-UI-01 | Browser (packs/r2/requests.ui.spec.ts): employee submits a leave request from Requests › New request; the manager sees it on Home ("Approve … from …") and as "My work, 1 open", approves with a comment; the employee sees Approved with "Approved by …" and the comment in the steps | FR-R01/R02/R03, J3 |
 | E2E-R2-UI-02 | Browser: manager sends an expense back (comment required, shown on the field when missing); the employee sees Sent back with the comment, edits and resubmits from the decision panel on the request page; it returns to the manager's My work | FX-E05, FR-R03 |
