@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
-import { BookOpenCheck, CircleCheck, FilePlus2, FileText, LayoutTemplate, Megaphone, ScrollText, SquarePen, UserPlus } from 'lucide-react';
+import { BookOpenCheck, CircleCheck, FilePlus2, FileText, Inbox, LayoutTemplate, Megaphone, ScrollText, Send, SquarePen, UserPlus } from 'lucide-react';
 import { type Artifact, type Member, useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { SetupChecklist } from './onboarding';
+import './requests.css';
 import { RoleCards } from './homeCards';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag } from '../ui/Tag';
 import { term, useTerms } from '../lib/terms';
+import { type RequestRow, type WorkItem, STATUS_TAG, dueInfo, people } from '../lib/requests';
 
 interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; acknowledged_at: string | null; subject: { artifact_id?: string; announcement_id?: string; kind: string; title: string; version_no?: number; link?: string } }
 interface FeedItem { id: string; title: string; priority: string; pinned: boolean; require_ack: boolean; published_at: string | null; read_at: string | null; acked_at: string | null }
@@ -44,6 +46,9 @@ export function Home() {
   const [feed] = useItems<FeedItem>(can('announcement:view') ? '/api/v1/announcements/feed' : null);
   const [docs] = useItems<Artifact>(canLibrary ? '/api/v1/artifacts' : null);
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
+  // Requests and approvals (BPMS-103/105): decisions waiting for me, and my requests still moving.
+  const [work] = useItems<WorkItem>(can('work:view_assigned') ? '/api/v1/work?state=open' : null);
+  const [myRequests] = useItems<RequestRow>(can('request:start') || can('request:view_own') ? '/api/v1/requests?scope=mine&status=in_progress' : null);
 
   // Reviews I can actually do: the server leaves out documents I wrote (authors never review their own).
   const [reviewable, setReviewable] = useState<Set<string> | null>(null);
@@ -58,6 +63,15 @@ export function Home() {
   const reviews = (docs ?? []).filter((d) => reviewable?.has(d.id));
   const news = (feed ?? []).filter((f) => (f.require_ack && !f.acked_at) || !f.read_at);
   const todo = [
+    ...(work ?? []).map((w) => {
+      const d = dueInfo(w.due_at);
+      return {
+        key: `work-${w.id}`, kind: 'work', icon: Inbox, tone: 'green', sort: d?.overdue ? 0 : 1,
+        group: d?.overdue ? 0 : !w.due_at || Date.parse(w.due_at) - Date.now() < 7 * DAY ? 1 : 2,
+        title: w.outcomes.some((o) => o.startsWith('resubmit')) ? `Update and resubmit “${w.request.title}”` : `Approve ${w.request.type_name} from ${w.request.initiator.name}`, meta: `${w.request.display_id} · ${w.request.title} · ${w.step}`,
+        tag: d ? <Tag color={d.color} dot={d.overdue}>{d.label}</Tag> : null, label: 'Open', to: `/work/${w.id}`,
+      };
+    }),
     // Announcement acknowledgements already appear from the feed below.
     ...(acks ?? []).filter((a) => a.subject.kind !== 'announcement').map((a) => ({
       key: `ack-${a.id}`, kind: 'ack', icon: BookOpenCheck, tone: 'purple', sort: a.overdue ? 0 : 1,
@@ -82,14 +96,16 @@ export function Home() {
     })),
   ].sort((a, b) => a.group - b.group || a.sort - b.sort);
   const groups = GROUPS.map((label, i) => ({ label, items: todo.filter((t) => t.group === i) })).filter((g) => g.items.length);
-  const loading = acks === null || (canLibrary && (docs === null || reviewable === null)) || (can('announcement:view') && feed === null);
-  const overdue = (acks ?? []).filter((a) => a.overdue).length;
+  const loading = acks === null || (can('work:view_assigned') && work === null) || (canLibrary && (docs === null || reviewable === null)) || (can('announcement:view') && feed === null);
+  const overdue = (acks ?? []).filter((a) => a.overdue).length + (work ?? []).filter((w) => dueInfo(w.due_at)?.overdue).length;
+  const moving = [...(myRequests ?? [])].filter((r) => r.status === 'in_progress' || r.status === 'changes_requested').sort((a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)).slice(0, 3);
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   const summary = loading ? ' ' : todo.length === 0 ? 'Nothing needs you right now.' : `${todo.length} ${todo.length === 1 ? 'thing needs' : 'things need'} you${overdue ? `, ${overdue} overdue` : ''}.`;
   const published = (docs ?? []).filter((d) => d.state === 'published').slice(0, 5);
   const receipts = (done ?? []).filter((a) => a.acknowledged_at).slice(0, 3);
 
   const create = [
+    can('request:start') && { to: '/requests', icon: Send, tone: 'green', label: 'New request' },
     can('policy:create') && { to: '/library?new=policy', icon: FilePlus2, tone: 'purple', label: 'New policy' },
     can('sop:create') && { to: '/library?new=sop', icon: ScrollText, tone: 'blue', label: `New ${term('sop')}` },
     (can('announcement:create') || can('announcement:manage')) && { to: '/admin/announcements?new=1', icon: SquarePen, tone: 'orange', label: 'New announcement' },
@@ -133,7 +149,7 @@ export function Home() {
             {todo.length > 0 && <span className="count-pill">{todo.length}</span>}
           </div>
           {acksError ? <LoadError error={acksError} onRetry={reloadAcks} what="your tasks" /> : loading ? <Skeleton rows={3} label="Loading your tasks" /> : todo.length === 0 ? (
-            <Empty art="caught-up" title="You’re all caught up">Documents to acknowledge, drafts to review and new announcements will appear here.</Empty>
+            <Empty art="caught-up" title="You’re all caught up">Requests to approve, documents to acknowledge, drafts to review and new announcements will appear here.</Empty>
           ) : (
             groups.map((g) => (
               <div key={g.label} className="task-group">
@@ -172,6 +188,19 @@ export function Home() {
         </section>
 
         <aside className="home-rail" aria-label="Workspace">
+          {moving.length > 0 && (
+            <section aria-labelledby="home-requests">
+              <div className="section-head"><h2 id="home-requests">My requests in progress</h2><Link className="section-link" to="/requests?view=mine">All</Link></div>
+              <ul className="home-reqs">
+                {moving.map((r) => (
+                  <li key={r.id}>
+                    <Link to={`/requests/${r.id}`}>{r.title}</Link>
+                    <span className="home-card-meta"><Tag color={STATUS_TAG[r.status]?.color}>{STATUS_TAG[r.status]?.label ?? r.status}</Tag> {r.current_step ? `${r.current_step}${r.assignees.length ? ` · with ${people(r.assignees)}` : ''}` : r.type_name}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <RoleCards />
           {canLibrary && (
             <section aria-labelledby="published">

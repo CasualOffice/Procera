@@ -86,6 +86,7 @@ Documents, Announcements and Cases are **modules** that a workspace can switch o
 - **Announcements tabs:** Feed · Manage (with compose or approve permission; `/admin/announcements` opens this tab).
 - **Admin mode:** `/admin` is a hub. On any admin page the sidebar switches to the admin groups, with "Back to workspace" at the top: **Overview** · **People** (Members, Departments, Groups, Roles & access, People & access) · **Content & communication** (Templates) · **Data & security** (Audit log, Files, Retention, Encryption) · **Workspace** (Settings). Members who only have `audit:view_own` reach their own history from the account menu ("My activity"), not from Admin.
 - **Home:** "Needs you" first (acknowledgements, reviews, announcements to confirm), grouped Overdue / This week / Later; then role cards. Owners and admins see a **Set up your workspace** checklist until it is complete (§3.1).
+- **Requests and My work (0.2):** **Requests** (`request:start`/`view_own`; tabs New request · My requests · All requests with `request:view_all`) and **My work** (`work:view_assigned`, with an open-items count on the link, "My work, N open") join the everyday sidebar and the phone More menu; "New request" is in ⌘K and Home's quick actions, and approvals waiting for me sit in Home's "Needs you".
 - Old URLs keep working.
 
 ### 2.2 Workspace Admin console (`/admin`)

@@ -4,6 +4,7 @@ import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger,
 import { ApiError, api, blobUrl } from '../lib/api';
 import { Link, navigate } from '../lib/router';
 import { useSession } from '../lib/session';
+import { useOpenWork } from '../lib/requests';
 import { setTerms, useTerms } from '../lib/terms';
 import { Avatar } from './Avatar';
 import { CommandPalette, shortcutLabel } from './CommandPalette';
@@ -37,6 +38,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   const [logo, setLogo] = useState<string | null>(null);
   const [memberCount, setMemberCount] = useState<number | null>(null);
   const [palette, setPalette] = useState(false);
+  const openWork = useOpenWork(!!workspace && can('work:view_assigned'), current);
   const [theme, setTheme] = useState<Theme>(() => {
     try {
       return (localStorage.getItem('procera.theme') as Theme) || 'auto';
@@ -99,9 +101,10 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
   const adminMode = isAdminPage(current) && adminGroups.length > 0;
   const item = (i: NavItem) => (
     <li key={i.key}>
-      <Link to={i.to} aria-current={i.key === current ? 'page' : undefined}>
+      <Link to={i.to} aria-current={i.key === current ? 'page' : undefined} aria-label={i.key === 'work' && openWork ? `${i.label}, ${openWork} open` : undefined}>
         <i.icon aria-hidden="true" size="1rem" />
         <span>{i.label}</span>
+        {i.key === 'work' && openWork > 0 && <span className="nav-count" aria-hidden="true">{openWork > 99 ? '99+' : openWork}</span>}
       </Link>
     </li>
   );
@@ -266,7 +269,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
             <Menu className="menu" aria-label="More destinations" onAction={(key) => { const to = [...workNav(can), ...adminGroups.flatMap((g) => g.items)].find((i) => i.key === key)?.to; if (to) navigate(to); }}>
               <MenuSection>
                 {workNav(can).filter((i) => !['home', 'library', 'announcements', 'admin'].includes(i.key)).map((i) => (
-                  <MenuItem key={i.key} id={i.key} className="menu-item" textValue={i.label}><i.icon aria-hidden="true" size="1rem" /> {i.label}</MenuItem>
+                  <MenuItem key={i.key} id={i.key} className="menu-item" textValue={i.label}><i.icon aria-hidden="true" size="1rem" /> {i.label}{i.key === 'work' && openWork > 0 && <span className="menu-item-meta">{openWork} open</span>}</MenuItem>
                 ))}
               </MenuSection>
               {adminGroups.map((g) => (
