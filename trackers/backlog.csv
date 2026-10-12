@@ -51,7 +51,7 @@ BPMS-082,RT,"Interpreter: advance loop, tokens, splits/joins, end/terminate",P0,
 BPMS-083,RT,Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks,P0,R2,Runtime,"04 §4.4, FR-E12",T06; lateness SLO,L,BPMS-082,In progress,Code merged
 BPMS-084,RT,Release bundles + publish integration,P0,R2,Runtime,ADR-0012,T03 passes,M,"BPMS-040,080",Not started,—
 BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",In progress,Automated tests
-BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,Not started,—
+BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,In progress,Automated tests
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started,—
 BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,In progress,Automated tests
 BPMS-089,QA,Conformance suite + model-based tests + deterministic simulation harness,P0,R2,SDET/Runtime,15 §4–6,Nightly chaos green,L,BPMS-082,Not started,—

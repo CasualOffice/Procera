@@ -56,6 +56,11 @@ pub enum Kind {
         max: i64,
         max_items: usize,
     },
+    /// Who may use each listed item, as `{item: audience}` (see `crate::audiences`); an item that is
+    /// not in the map is open to everyone.
+    Audiences {
+        items: &'static [&'static str],
+    },
 }
 
 /// How "stricter" is decided for a floor-bound key (docs/20 §1 rule 2).
@@ -149,6 +154,17 @@ const fn sec(
 const fn dept(d: Def) -> Def {
     Def { department: true, ..d }
 }
+
+/// The built-in request types (`procera-requests` asserts this matches its catalogue).
+pub const REQUEST_TYPES: &[&str] =
+    &["fin.purchase-requisition", "hr.expense-claim", "hr.leave-request", "it.access-request"];
+
+/// Currencies a workspace can price requests in (ISO 4217). Each money-bearing request type is
+/// compiled once per currency at boot, so the list is curated rather than open.
+pub const CURRENCIES: &[&str] = &[
+    "AED", "AUD", "BRL", "CAD", "CHF", "CNY", "CZK", "DKK", "EUR", "GBP", "HKD", "HUF", "IDR", "ILS", "INR",
+    "JPY", "KRW", "MXN", "MYR", "NOK", "NZD", "PHP", "PLN", "SAR", "SEK", "SGD", "THB", "TRY", "USD", "ZAR",
+];
 
 const MIN: i64 = 60;
 const HOUR: i64 = 3_600;
@@ -327,6 +343,23 @@ pub const CATALOGUE: &[Def] = &[
     }),
     def("exec.bulk_approve.allowed", "execution", Kind::Bool, Some(SETTINGS), || json!(true)),
     def("exec.cancel.allowed_for_initiator", "execution", Kind::Bool, Some(SETTINGS), || json!(true)),
+    // 2.7a Requests (BPMS-103, docs/20 §2.7): which built-in types are offered, who may start each,
+    // and the currency money fields and approval thresholds use.
+    def(
+        "requests.types.enabled",
+        "requests",
+        Kind::Set { values: REQUEST_TYPES, allow_all: true },
+        Some(SETTINGS),
+        || json!(["*"]),
+    ),
+    def(
+        "requests.types.audience",
+        "requests",
+        Kind::Audiences { items: REQUEST_TYPES },
+        Some(SETTINGS),
+        || json!({}),
+    ),
+    def("requests.currency", "requests", Kind::Enum { values: CURRENCIES }, Some(SETTINGS), || json!("EUR")),
     // 2.9 Notifications
     def(
         "notify.channels.enabled",

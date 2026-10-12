@@ -334,6 +334,27 @@ async fn update(
         return Err(ApiError::new(422, "validation_failed", "Validation failed")
             .detail("the logo must be a clean PNG, JPEG, GIF or WebP image uploaded to this workspace"));
     }
+    // Per-item audiences must name departments and groups of this workspace.
+    if matches!(d.kind, procera_settings::catalogue::Kind::Audiences { .. }) {
+        let (deps, groups) = procera_settings::audiences::referenced(&r.value);
+        let known: (i64, i64) = sqlx::query_as(
+            "SELECT (SELECT count(*) FROM departments WHERE id = ANY($1)), (SELECT count(*) FROM groups WHERE id = ANY($2))",
+        )
+        .bind(&deps)
+        .bind(&groups)
+        .fetch_one(tx.conn())
+        .await
+        .map_err(internal)?;
+        if known
+            != (
+                i64::try_from(deps.len()).unwrap_or(i64::MAX),
+                i64::try_from(groups.len()).unwrap_or(i64::MAX),
+            )
+        {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("the audience names a department or group that is not in this workspace"));
+        }
+    }
     let expected = headers
         .get(header::IF_MATCH)
         .and_then(|v| v.to_str().ok())

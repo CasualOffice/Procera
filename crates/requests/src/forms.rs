@@ -178,7 +178,7 @@ mod tests {
             false,
         )
         .unwrap_or_else(|e| panic!("{e:?}"));
-        assert_eq!(pr["amount"]["currency"], "INR", "a fixed currency fills in");
+        assert_eq!(pr["amount"]["currency"], "EUR", "the form currency fills in");
     }
 
     #[test]

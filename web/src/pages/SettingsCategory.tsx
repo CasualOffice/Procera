@@ -6,9 +6,18 @@ import { useSession } from '../lib/session';
 import { LoadError, Skeleton } from '../ui/States';
 import { type Setting, SettingRow, WorkspaceName } from './Settings';
 import { DepartmentChip, useDepartmentScope } from './SettingsScopes';
+import { RequestTypesSettings } from './settingsRequests';
 import { anchorOf, categoryById, hiddenChoice, isHidden, placeOf } from './settingsMeta';
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z]+/g, '-');
+
+/** The request-type list replaces the two raw rows (enabled set and audience map) it edits. */
+function RequestTypes({ items, editable, onSaved }: { items: Setting[]; editable: (s: Setting) => boolean; onSaved: () => void }) {
+  const enabled = items.find((s) => s.key === 'requests.types.enabled');
+  const audience = items.find((s) => s.key === 'requests.types.audience');
+  if (!enabled || !audience) return null;
+  return <RequestTypesSettings enabled={enabled} audience={audience} canEdit={editable(enabled) && editable(audience)} onSaved={onSaved} />;
+}
 
 /**
  * One Settings category (docs/05 §3.16, docs/design/ia-competitive-analysis.md §6.2): everyday
@@ -62,7 +71,8 @@ export function SettingsCategory({ id }: { id: string }) {
           {sections.map((g) => (
             <section key={g.name} className="settings-group" aria-labelledby={`sec-${slug(g.name)}`}>
               <h2 id={`sec-${slug(g.name)}`}>{g.name}</h2>
-              <ul className="settings-list">{g.items.map(row)}</ul>
+              {cat.id === 'requests' && g.name === 'Request types' ? <RequestTypes items={g.items} editable={editable} onSaved={reload} />
+                : <ul className="settings-list">{g.items.map(row)}</ul>}
             </section>
           ))}
           {advanced.length > 0 && (

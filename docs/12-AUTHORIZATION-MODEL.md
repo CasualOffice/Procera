@@ -209,6 +209,8 @@ Hard invariants (SEC-08):
 - Expired delegation fails closed (T05).
 - Delegated decisions record "X on behalf of Y".
 
+As built (BPMS-086, Procera 0.2): out-of-office substitution only (per-item delegation and admin reassignment come later). A member sets an out-of-office on Account › Profile (dates, a delegate, an optional note) when `access.delegation.self_service_ooo` is on; an admin with `work:delegate` + `work:reassign`, or the member's manager, can set it on the Person page. Ranges are inclusive UTC dates. While active, the resolver replaces the away candidate with the delegate for new work items and records `{for, delegate, until}` in the work item's resolution snapshot; existing open items stay with the member and the delegate may decide them too. The chain follows at most `access.delegation.max_depth` hops (default 1; an item held as someone's delegate is not passed on again at depth 1), and stops at a cycle. A delegate excluded by SoD is never substituted (the member keeps the item) and is refused at decision time; the initiator's own steps are never handed on. Decisions store `completed_by` = delegate and `completed_on_behalf_of` = member. Delegation grants no permissions: the delegate still needs `work:complete`.
+
 ## 10. Segregation of duties (non-negotiable invariants + configurable rules)
 
 Always enforced:

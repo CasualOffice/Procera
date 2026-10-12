@@ -147,6 +147,13 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const [open] = ((await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items as { id: string; request: { id: string } }[]).filter((w) => w.request.id === second.id);
   await step('POST', '/api/v1/work/{id}/reassign', () => own.post(`/api/v1/work/${open.id}/reassign`, { headers: oh, data: { membership_id: ownerMembership, reason: 'audit drill' } }));
   await step('POST', '/api/v1/requests/{id}/cancel', () => adam.post(`/api/v1/requests/${second.id}/cancel`, { headers: rh, data: { reason: 'plans changed' } }));
+  // Out of office (BPMS-086): Adam sets and clears his own; the owner sets and clears Adam's.
+  const serverDay = await serverNow(own); // the shared e2e clock may be ahead of the wall clock
+  const ooo = { starts_on: new Date(serverDay).toISOString().slice(0, 10), ends_on: new Date(serverDay + 7 * 86_400_000).toISOString().slice(0, 10), delegate: ownerMembership };
+  await step('PUT', '/api/v1/me/out-of-office', () => adam.put('/api/v1/me/out-of-office', { headers: rh, data: ooo }));
+  await step('DELETE', '/api/v1/me/out-of-office', () => adam.delete('/api/v1/me/out-of-office', { headers: rh }));
+  await step('PUT', '/api/v1/members/{id}/out-of-office', () => own.put(`/api/v1/members/${joined.membership_id}/out-of-office`, { headers: oh, data: ooo }));
+  await step('DELETE', '/api/v1/members/{id}/out-of-office', () => own.delete(`/api/v1/members/${joined.membership_id}/out-of-office`, { headers: oh }));
 
   // Library: Adam reviews as a reviewer (granted outside the contract steps).
   await own.post('/api/v1/role-grants', { headers: oh, data: { membership_id: joined.membership_id, role_key: 'reviewer' } });

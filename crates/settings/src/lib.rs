@@ -2,6 +2,7 @@
 //! override, clamped by the platform floor. Collection overrides arrive with collections;
 //! process-level values live in release bundles (ADR-0012).
 
+pub mod audiences;
 pub mod branding;
 pub mod cache;
 pub mod catalogue;
@@ -143,6 +144,7 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             Some(s) if uuid::Uuid::parse_str(s).is_ok() => Ok(json!(s.to_lowercase())),
             _ => Err(invalid(d, "expected the id of an uploaded image, or empty for none")),
         },
+        Kind::Audiences { items } => audiences::validate(items, v).map_err(|m| invalid(d, m)),
         // The catalogue bounds and `terms` agree (asserted in the catalogue test).
         Kind::Terms { .. } => terms::validate(v).map_err(|m| invalid(d, m)),
         Kind::DurationList { min, max, max_items } => {

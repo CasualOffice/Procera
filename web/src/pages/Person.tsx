@@ -16,6 +16,7 @@ import { Tag } from '../ui/Tag';
 import { AccountSecurity } from './personSecurity';
 import { AddToGroup, EditProfile, Reactivate } from './personProfile';
 import { LeaveDialog } from './personLeave';
+import { OutOfOfficeSection } from './outOfOffice';
 import '../ui/directory.css';
 
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
@@ -34,7 +35,7 @@ function Source({ dir, field }: { dir: MemberDirectory; field: string }) {
 export function Person({ id }: { id: string }) {
   const [members, reload, error] = useItems<Member>('/api/v1/members');
   const m = members?.find((x) => x.id === id) ?? null;
-  const { can, user } = useSession();
+  const { can, user, membershipId } = useSession();
   const view = can('directory:view');
   const manage = can('directory:manage');
   const [dir, reloadDir] = useResource<MemberDirectory>(view ? `/api/v1/members/${id}/directory` : null, [members]);
@@ -113,6 +114,7 @@ export function Person({ id }: { id: string }) {
         <dd>{shortDate(m.joined_at)}</dd>
       </dl>
       {can('member:security.manage') && active && <AccountSecurity membershipId={m.id} name={m.display_name} />}
+      {can('work:delegate') && (can('work:reassign') || (!!membershipId && dir?.resolved_manager.membership_id === membershipId)) && active && m.user_id !== user?.id && <OutOfOfficeSection key={m.id} memberId={m.id} name={m.display_name} />}
       {dialog === 'edit' && dir && <EditProfile member={m} dir={dir} members={members} departments={departments ?? []} onClose={() => setDialog(null)} onSaved={() => finish('Profile saved.')} />}
       {dialog === 'group' && <AddToGroup member={m} groups={groups ?? []} current={dir?.group_ids ?? []} onClose={() => setDialog(null)} onAdded={(g) => finish(`${m.display_name} added to ${g.name}.`)} />}
       {dialog === 'reactivate' && <Reactivate member={m} roleNames={m.roles.map((r) => roleOf(r)?.name ?? roleLabel(r))} onClose={() => setDialog(null)} onDone={finish} />}

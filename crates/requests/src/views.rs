@@ -6,6 +6,7 @@ use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::catalogue::Field;
+use crate::delegation::Away;
 
 /// `{id, name}` of a member.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -54,6 +55,10 @@ pub struct Step {
     /// Nobody could be resolved: an admin must step in.
     pub unassigned: bool,
     pub decided_by: Option<String>,
+    /// The away member the decider acted for ("X on behalf of Y").
+    pub on_behalf_of: Option<String>,
+    /// Candidates of an open step who are out of office today, with their delegate.
+    pub away: Vec<Away>,
     pub outcome: Option<String>,
     pub comment: Option<String>,
     #[serde(with = "time::serde::rfc3339::option")]
@@ -68,7 +73,7 @@ pub struct Step {
 pub struct TimelineEntry {
     #[serde(with = "time::serde::rfc3339")]
     pub at: OffsetDateTime,
-    /// `submitted`, `decided`, `reminded`, `escalated`, `reassigned`, `cancelled`, `timer`, `completed`.
+    /// `submitted`, `decided`, `delegated`, `reminded`, `escalated`, `reassigned`, `cancelled`, `timer`, `completed`.
     pub kind: String,
     pub text: String,
     pub actor: Option<String>,
@@ -133,6 +138,8 @@ pub struct WorkView {
     pub outcome: Option<String>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub completed_at: Option<OffsetDateTime>,
+    /// The away member this item is (or was) decided for, when the caller acts as their delegate.
+    pub on_behalf_of: Option<Away>,
 }
 
 /// The result of an admin reassignment.

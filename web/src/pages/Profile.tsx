@@ -8,6 +8,7 @@ import { Notice } from '../ui/components/Notice';
 import { Select } from '../ui/components/Select';
 import { TextField } from '../ui/components/TextField';
 import { LoadError, Skeleton } from '../ui/States';
+import { OutOfOfficeSection } from './outOfOffice';
 
 interface ProfileData { email: string; display_name: string; timezone: string; locale: string; locales: string[] }
 
@@ -100,6 +101,7 @@ export function Profile() {
           </div>
         </Form>
       </section>
+      <OutOfOfficeSection />
     </>
   );
 }

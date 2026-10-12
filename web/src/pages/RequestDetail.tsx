@@ -5,7 +5,7 @@ import { ApiError, api } from '../lib/api';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { navigate, useRoute } from '../lib/router';
-import { type RequestDetail as Detail, type Step, type WorkItem, STATUS_TAG, displayValue, dueInfo, normalizeDetail, outcomePast, people } from '../lib/requests';
+import { type RequestDetail as Detail, type Step, type WorkItem, STATUS_TAG, awayUntil, displayValue, dueInfo, normalizeDetail, outcomePast, people } from '../lib/requests';
 import { useSession } from '../lib/session';
 import { setCrumb } from '../ui/AppShell';
 import { Avatar } from '../ui/Avatar';
@@ -119,12 +119,15 @@ export function Stepper({ steps }: { steps: Step[] }) {
             <div className="step-body">
               <p className="step-name"><span className="visually-hidden">{STATE_WORD[s.state]}: </span>{s.name}</p>
               {s.state === 'done' ? (
-                <p className="step-meta">{s.outcome ? outcomePast(s.outcome) : 'Done'}{s.decided_by ? ` by ${s.decided_by}` : ''}{s.decided_at && <> · <time dateTime={s.decided_at}>{when(s.decided_at)}</time></>}</p>
+                <p className="step-meta">{s.outcome ? outcomePast(s.outcome) : 'Done'}{s.decided_by ? ` by ${s.decided_by}` : ''}{s.on_behalf_of ? ` on behalf of ${s.on_behalf_of}` : ''}{s.decided_at && <> · <time dateTime={s.decided_at}>{when(s.decided_at)}</time></>}</p>
               ) : s.state === 'active' ? (
                 <p className="step-meta">{s.assignees.length ? `Waiting for ${people(s.assignees)}` : 'Waiting to be picked up'}{due && <> <Tag color={due.color} dot={due.overdue}>{due.label}</Tag></>}</p>
               ) : s.state === 'waiting' ? (
                 <p className="step-meta">{s.assignees.length ? `Then ${people(s.assignees)}` : 'Not started'}</p>
               ) : <p className="step-meta">{STATE_WORD[s.state]}</p>}
+              {s.state === 'active' && (s.away ?? []).map((a) => (
+                <p key={a.id} className="step-meta step-away"><Tag color="orange">Away</Tag> {a.name}: {awayUntil(a).replace('Away until', 'away until')}{a.delegate ? `; delegate: ${a.delegate.name}` : ''}</p>
+              ))}
               {s.comment && <blockquote className="step-comment">{s.comment}</blockquote>}
             </div>
           </li>

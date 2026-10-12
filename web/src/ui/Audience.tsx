@@ -60,7 +60,7 @@ function Chips<T>({ label, icon: Icon, items, selected, id, name, hint, onToggle
  * Audience picker (docs/05 §3.23-3.24): everyone, or any mix of departments, groups, roles and locations.
  * A department includes its sub-departments (server rule). Choices are toggle buttons (aria-pressed).
  */
-export function AudiencePicker({ value, onChange, reach }: { value: Audience; onChange: (a: Audience) => void; reach?: React.ReactNode }) {
+export function AudiencePicker({ value, onChange, reach, legend = 'Audience', summary = 'Sends to' }: { value: Audience; onChange: (a: Audience) => void; reach?: React.ReactNode; legend?: string; summary?: string }) {
   const dir = useDirectory();
   const toggle = (field: 'departments' | 'groups' | 'roles' | 'locations') => (id: string) => {
     const cur = value[field] ?? [];
@@ -70,7 +70,7 @@ export function AudiencePicker({ value, onChange, reach }: { value: Audience; on
   const noDirectory = !dir.loading && !dir.departments.length && !dir.groups.length && !dir.roles.length && !dir.locations.length;
   return (
     <fieldset className="aud">
-      <legend className="field-label">Audience</legend>
+      <legend className="field-label">{legend}</legend>
       <div className="segmented aud-mode" role="group" aria-label="Who receives it">
         <button type="button" aria-pressed={value.all} onClick={() => onChange(EVERYONE)}>Everyone</button>
         <button type="button" aria-pressed={!value.all} onClick={() => onChange({ ...value, all: false })}>Specific people</button>
@@ -85,7 +85,7 @@ export function AudiencePicker({ value, onChange, reach }: { value: Audience; on
           </div>
         )
       )}
-      <p className="aud-summary" aria-live="polite">Sends to: <strong>{audienceSummary(value, dir)}</strong>{reach}</p>
+      <p className="aud-summary" aria-live="polite">{summary}: <strong>{audienceSummary(value, dir)}</strong>{reach}</p>
     </fieldset>
   );
 }

@@ -458,8 +458,8 @@ Until the template gallery installs processes, four simplified Wave 1 templates 
 | Key (display id) | Start form | Routing |
 |---|---|---|
 | `hr.leave-request` (LR) | type (annual, sick, unpaid, other), first day, last day, reason | Manager (P2D business) |
-| `hr.expense-claim` (EC) | amount (EUR), category, description, date | Manager; then finance (role `finance.approver` or group `Finance`) when the amount is over 500 |
-| `fin.purchase-requisition` (PR) | amount (INR), vendor, cost centre, justification | Manager; finance above 50,000; then the `CFO` position above 500,000 (§5.2 simplified: no line items, no PO task) |
+| `hr.expense-claim` (EC) | amount (workspace currency), category, description, date | Manager; then finance (role `finance.approver` or group `Finance`) when the amount is over 500 |
+| `fin.purchase-requisition` (PR) | amount (workspace currency), vendor, cost centre, justification | Manager; finance above 5,000; then the `CFO` position above 50,000 (§5.2 simplified: no line items, no PO task) |
 | `it.access-request` (AR) | system, access level, sensitivity, beneficiary (a member), justification | Beneficiary's manager, or role `system.owner` then group `Security` for high sensitivity; then group `IT` provisions (a human task with a ticket reference) and the beneficiary is notified |
 
 Reminders and escalations (BPMS-085), one business day = the default calendar's working day; a step's reminders go to whoever holds it:
@@ -469,6 +469,8 @@ Reminders and escalations (BPMS-085), one business day = the default calendar's 
 - `fin.purchase-requisition`: manager approval (P1D) reminds at P1D and at P2D is reassigned to the manager's manager; finance and CFO approvals (P1D) remind at P1D and at P2D notify the requester's manager.
 - `it.access-request`: manager approval (P2D) reminds at P1D and P2D, at P3D is reassigned to the beneficiary's manager's manager; system owner and security approvals (P2D) remind at P1D and P2D and at P3D notify the requester's manager; provisioning (P1D) reminds at P1D and at P2D notifies the requester's manager.
 - No built-in completes a step automatically (`outcome` escalations are not used); revise tasks have no due date and no escalations.
+
+Money is in the workspace currency (`requests.currency`, default EUR, docs/20 §2.7a); thresholds are plain numbers read in it. Admins choose which types are offered and who may start each (`requests.types.enabled`, `requests.types.audience`).
 
 Onboarding (§5.1) is deferred: it needs parallel tasks and a start-date timer in the request UI.
 
