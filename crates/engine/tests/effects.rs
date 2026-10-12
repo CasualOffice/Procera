@@ -167,7 +167,7 @@ async fn handler_timers_fire_through_the_handler_once_and_can_be_cancelled() {
     w.clock.advance(time::Duration::minutes(25));
     sched.run_once().await.unwrap();
     sched.run_once().await.unwrap();
-    // The reminder fired once; the failing escalation was skipped and its write rolled back.
+    // The reminder fired once; the failing escalation's write rolled back and it waits to retry.
     assert_eq!(*arms.fired.lock().unwrap(), ["reminder:0"]);
     let rules = w
         .strings(
@@ -175,12 +175,41 @@ async fn handler_timers_fire_through_the_handler_once_and_can_be_cancelled() {
             a.instance_id,
         )
         .await;
-    assert_eq!(rules, ["touched:fired", "test:fired", "test:scheduled"]);
+    assert_eq!(rules, ["touched:fired", "test:scheduled", "test:scheduled"]);
     // Cancelling under the prefix stops the rest.
     let mut tx = w.db().begin_ws(w.ctx).await.unwrap();
-    assert_eq!(cancel_timers_under(&mut tx, &format!("{}/esc/", a.instance_id)).await.unwrap(), 1);
+    assert_eq!(cancel_timers_under(&mut tx, &format!("{}/esc/", a.instance_id)).await.unwrap(), 2);
     tx.commit().await.unwrap();
     w.clock.advance(time::Duration::hours(1));
     sched.run_once().await.unwrap();
     assert_eq!(arms.fired.lock().unwrap().len(), 1);
+}
+
+#[tokio::test]
+async fn a_failing_handler_timer_is_retried_with_backoff_then_marked_failed() {
+    let Some(mut w) = world(vec![sla_process("p.retry", "P1D", false)]).await else { return };
+    let arms = Arc::new(Arms::default());
+    w.engine = w.engine.clone().with_effects(arms.clone());
+    let a =
+        w.engine.start(w.ctx, w.program("p.retry"), json!({ "id": "u1" }), BTreeMap::new()).await.unwrap();
+    let sched = w.scheduler("t");
+    let q = "SELECT state || ':' || attempts || ':' || coalesce(last_error, '') FROM timers
+             WHERE instance_id = $1 AND timer_key LIKE '%/esc/1'";
+    w.clock.advance(time::Duration::minutes(25));
+    sched.run_once().await.unwrap();
+    assert_eq!(w.strings(q, a.instance_id).await, ["scheduled:1:refused"]);
+    // Not before the backoff: one minute after the first failure.
+    w.clock.advance(time::Duration::seconds(30));
+    sched.run_once().await.unwrap();
+    assert_eq!(w.strings(q, a.instance_id).await, ["scheduled:1:refused"]);
+    // Five retries in all, then it stops and keeps the error.
+    for _ in 0..5 {
+        w.clock.advance(time::Duration::hours(5));
+        sched.run_once().await.unwrap();
+    }
+    assert_eq!(w.strings(q, a.instance_id).await, ["failed:6:refused"]);
+    w.clock.advance(time::Duration::hours(5));
+    sched.run_once().await.unwrap();
+    assert_eq!(w.strings(q, a.instance_id).await, ["failed:6:refused"], "a failed timer is not fired again");
+    assert_eq!(*arms.fired.lock().unwrap(), ["reminder:0", "escalation:2"]);
 }

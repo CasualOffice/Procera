@@ -30,6 +30,15 @@ use crate::{EngineError, sla};
 
 /// Upper bounds (ms) of the lateness buckets; the last bucket is unbounded.
 pub const LATENESS_BOUNDS_MS: [u64; 6] = [100, 1_000, 5_000, 15_000, 60_000, 300_000];
+/// Waits before retrying a failed reminder or escalation; after the last, the timer is `failed`.
+pub const HANDLER_RETRY: [time::Duration; 5] = [
+    time::Duration::minutes(1),
+    time::Duration::minutes(5),
+    time::Duration::minutes(15),
+    time::Duration::hours(1),
+    time::Duration::hours(4),
+];
+
 /// The timer SLO: fired within 60 s of due (docs/04 §4.4, docs/06).
 pub const LATENESS_SLO: Duration = Duration::seconds(60);
 
@@ -166,8 +175,8 @@ impl Scheduler {
     pub async fn fire_timers(&self, ctx: WsCtx, now: OffsetDateTime) -> Result<Pass, EngineError> {
         let eng = &self.engine;
         let mut tx = eng.db.begin_ws(ctx).await?;
-        let due: Vec<(Uuid, String, Option<Uuid>, String, OffsetDateTime)> = sqlx::query_as(
-            "SELECT id, timer_key, instance_id, purpose, due_at FROM timers
+        let due: Vec<(Uuid, String, Option<Uuid>, String, OffsetDateTime, i32)> = sqlx::query_as(
+            "SELECT id, timer_key, instance_id, purpose, due_at, attempts FROM timers
              WHERE state = 'scheduled' AND due_at <= $1 ORDER BY due_at, id LIMIT $2 FOR UPDATE SKIP LOCKED",
         )
         .bind(now)
@@ -175,7 +184,7 @@ impl Scheduler {
         .fetch_all(tx.conn())
         .await?;
         let mut pass = Pass::default();
-        for (id, key, instance, purpose, due_at) in due {
+        for (id, key, instance, purpose, due_at, attempts) in due {
             sqlx::query("UPDATE timers SET state = 'fired', fired_at = $2 WHERE id = $1")
                 .bind(id)
                 .bind(now)
@@ -190,7 +199,7 @@ impl Scheduler {
                     }
                 }
                 ("reminder" | "escalation", _) => {
-                    self.fire_handler(&mut tx, (&key, instance, &purpose, due_at), now).await?;
+                    self.fire_handler(&mut tx, (id, &key, instance, &purpose, due_at, attempts), now).await?;
                 }
                 (_, Some(iid)) => {
                     let stimulus = Stimulus { at: now, event: Event::TimerFired { key: key.clone() } };
@@ -207,11 +216,13 @@ impl Scheduler {
     }
 
     /// Hands a reminder or escalation timer to the effect handler under a savepoint: a failing
-    /// handler is logged and rolled back alone, so one bad timer never blocks the others.
+    /// handler is rolled back alone, so one bad timer never blocks the others, and the timer is
+    /// rescheduled with backoff ([`HANDLER_RETRY`]); after the last retry it is marked `failed`
+    /// with its error.
     async fn fire_handler(
         &self,
         tx: &mut procera_db::WsTx<'_>,
-        (key, instance, purpose, due_at): (&str, Option<Uuid>, &str, OffsetDateTime),
+        (id, key, instance, purpose, due_at, attempts): (Uuid, &str, Option<Uuid>, &str, OffsetDateTime, i32),
         now: OffsetDateTime,
     ) -> Result<(), EngineError> {
         let eng = &self.engine;
@@ -227,7 +238,26 @@ impl Scheduler {
             }
             Err(e) => {
                 sqlx::query("ROLLBACK TO SAVEPOINT handler_timer").execute(tx.conn()).await?;
-                tracing::error!(timer = key, error = %e, "handler timer failed; skipped");
+                let retry = usize::try_from(attempts).ok().and_then(|n| HANDLER_RETRY.get(n));
+                let (state, due) = match retry {
+                    Some(wait) => ("scheduled", now + *wait),
+                    None => ("failed", due_at),
+                };
+                sqlx::query(
+                    "UPDATE timers SET state = $2, due_at = $3, attempts = attempts + 1, last_error = $4,
+                            fired_at = CASE WHEN $2 = 'failed' THEN fired_at END WHERE id = $1",
+                )
+                .bind(id)
+                .bind(state)
+                .bind(due)
+                .bind(&e)
+                .execute(tx.conn())
+                .await?;
+                if retry.is_some() {
+                    tracing::warn!(timer = key, attempt = attempts + 1, error = %e, "handler timer failed; retrying");
+                } else {
+                    tracing::error!(timer = key, attempts = attempts + 1, error = %e, "handler timer failed; giving up");
+                }
             }
         }
         Ok(())
