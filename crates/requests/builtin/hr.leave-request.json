@@ -20,7 +20,12 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P2D", "business": true }
+      "due": { "after": "P2D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "reassign", "to": { "type": "user", "ref": "expr:cel: initiator.manager.manager" }, "reason": "escalated after due" }
+      ]
     },
     {
       "id": "revise",

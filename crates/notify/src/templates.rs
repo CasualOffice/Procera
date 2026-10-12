@@ -298,6 +298,54 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
 {% block footer %}You receive this because a step of this {{ terms.request.lower }} is offered to you.{% endblock %}"#,
     ),
+    // work_reminder: same vars as work_assigned (BPMS-085 reminders).
+    (
+        "work_reminder.title",
+        "Reminder: {{ display_id }} is waiting for your decision{% if due %}, due {{ due }}{% endif %}",
+    ),
+    ("work_reminder.body", "{{ step }} for {{ title }}, from {{ initiator }}."),
+    ("work_reminder.subject", "Reminder: {{ display_id }} {{ title }} is waiting for your decision"),
+    (
+        "work_reminder.text",
+        "Reminder: {{ type_name }} {{ display_id }} ({{ title }}) from {{ initiator }} is waiting for your decision: {{ step }}{% if due %}, due {{ due }}{% endif %}.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "work_reminder.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Reminder: {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}) from {{ initiator }} is waiting for your decision.</p>
+<p style="margin:0 0 16px">{{ step }}{% if due %}, due <strong>{{ due }}</strong>{% endif %}.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because a step of this {{ terms.request.lower }} is offered to you.{% endblock %}"#,
+    ),
+    // work_escalated: work_assigned vars plus reason (or none). To whoever an escalation names.
+    ("work_escalated.title", "Overdue: {{ step }} for {{ display_id }}"),
+    (
+        "work_escalated.body",
+        "{{ initiator }}’s {{ title }} is still waiting{% if due %} (due {{ due }}){% endif %}.",
+    ),
+    ("work_escalated.subject", "Overdue: {{ step }} for {{ display_id }} {{ title }}"),
+    (
+        "work_escalated.text",
+        "{{ step }} for {{ type_name | lower }} {{ display_id }} ({{ title }}) from {{ initiator }} is overdue{% if due %}: it was due {{ due }}{% endif %}.\nYou are told because the process escalates overdue steps to you.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "work_escalated.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ step }}</strong> for {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}) from {{ initiator }} is overdue{% if due %}: it was due <strong>{{ due }}</strong>{% endif %}.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because this process escalates overdue steps to you.{% endblock %}"#,
+    ),
+    // work_reassigned: work_assigned vars plus to (names) and reason. To the people taken off a step.
+    ("work_reassigned.title", "{{ display_id }} moved to {{ to }}"),
+    ("work_reassigned.body", "{{ step }} for {{ title }} is no longer waiting for you: {{ reason }}."),
+    ("work_reassigned.subject", "{{ display_id }} {{ title }}: {{ step }} moved to {{ to }}"),
+    (
+        "work_reassigned.text",
+        "{{ step }} for {{ type_name | lower }} {{ display_id }} ({{ title }}) is now with {{ to }} ({{ reason }}). You don’t need to do anything.\n\n{{ link }}\n",
+    ),
+    (
+        "work_reassigned.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ step }}</strong> for {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}) is now with <strong>{{ to }}</strong> ({{ reason }}). You don’t need to do anything.</p>{% endblock %}
+{% block footer %}You receive this because this step was offered to you.{% endblock %}"#,
+    ),
     // request_decided adds step, outcome (approved | rejected | changes_requested), decided_by, comment (or none).
     (
         "request_decided.title",
@@ -422,6 +470,26 @@ mod tests {
         assert!(r.text.contains("Ann submitted a leave request") && !r.text.contains("by "));
         assert!(r.html.contains("Annual &lt;leave&gt;"));
         assert!(in_app("work_assigned", &w).expect("renders").title.starts_with("Manager approval"));
+        w["due"] = json!("14 Oct 2026");
+        assert_eq!(
+            in_app("work_reminder", &w).expect("renders").title,
+            "Reminder: LR-2026-000001 is waiting for your decision, due 14 Oct 2026"
+        );
+        assert!(email("work_reminder", &w).expect("renders").text.contains("due 14 Oct 2026"));
+        w["reason"] = json!("overdue");
+        assert!(
+            in_app("work_escalated", &w).expect("renders").title.starts_with("Overdue: Manager approval")
+        );
+        email("work_escalated", &w).expect("renders");
+        w["to"] = json!("Cleo");
+        w["reason"] = json!("escalated after due");
+        assert!(
+            email("work_reassigned", &w)
+                .expect("renders")
+                .text
+                .contains("now with Cleo (escalated after due)")
+        );
+        in_app("work_reassigned", &w).expect("renders");
         for (outcome, comment) in
             [("approved", None), ("rejected", Some("No budget")), ("changes_requested", Some("Dates"))]
         {

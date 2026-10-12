@@ -20,7 +20,11 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P1D", "business": true }
+      "due": { "after": "P1D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "reassign", "to": { "type": "user", "ref": "expr:cel: initiator.manager.manager" }, "reason": "escalated after due" }
+      ]
     },
     {
       "id": "needs_finance",
@@ -43,7 +47,11 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P1D", "business": true }
+      "due": { "after": "P1D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator.manager" }, "reason": "overdue" }
+      ]
     },
     {
       "id": "needs_cfo",
@@ -63,7 +71,11 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P1D", "business": true }
+      "due": { "after": "P1D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator.manager" }, "reason": "overdue" }
+      ]
     },
     {
       "id": "revise",

@@ -28,7 +28,12 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P2D", "business": true }
+      "due": { "after": "P2D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "reassign", "to": { "type": "user", "ref": "expr:cel: beneficiary.manager.manager" }, "reason": "escalated after due" }
+      ]
     },
     {
       "id": "owner_approval",
@@ -41,7 +46,12 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P2D", "business": true }
+      "due": { "after": "P2D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator.manager" }, "reason": "overdue" }
+      ]
     },
     {
       "id": "security_approval",
@@ -55,7 +65,12 @@
         "fallback": { "type": "role", "ref": "process.owner" }
       },
       "quorum": "one",
-      "due": { "after": "P2D", "business": true }
+      "due": { "after": "P2D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator.manager" }, "reason": "overdue" }
+      ]
     },
     {
       "id": "provision",
@@ -68,7 +83,11 @@
         "excludeInitiator": true,
         "fallback": { "type": "role", "ref": "process.owner" }
       },
-      "due": { "after": "P1D", "business": true }
+      "due": { "after": "P1D", "business": true },
+      "escalations": [
+        { "at": "P1D", "action": "remind" },
+        { "at": "P2D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator.manager" }, "reason": "overdue" }
+      ]
     },
     {
       "id": "revise",
