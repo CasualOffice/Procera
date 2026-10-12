@@ -876,3 +876,18 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .inbox-more:hover { text-decoration: underline; }
 .inbox-sub { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.125rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
 .props.props-split dt, .props.props-split dd { align-self: start; }
+/* Home role cards: active campaigns, needs attention. */
+.home-rail > section:first-child { margin-top: 0; }
+.home-cards { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.home-card-title { font-size: 0.875rem; font-weight: var(--font-weight-medium); color: var(--color-text); text-decoration: none; }
+.home-card-title:hover { text-decoration: underline; }
+.home-card-bar { height: 0.3125rem; margin: var(--space-1) 0; border-radius: 0.25rem; background: var(--color-surface-muted); overflow: hidden; }
+.home-card-bar span { display: block; height: 100%; background: var(--color-success); }
+.home-card-meta { margin: 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.home-card-warn { color: var(--color-danger); font-weight: var(--font-weight-medium); }
+.home-attention { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); font-size: 0.8125rem; }
+.home-attention li { display: grid; grid-template-columns: 1rem 1fr; gap: var(--space-2); align-items: start; }
+.home-attention a { color: var(--color-text); text-decoration: none; }
+.home-attention a:hover { text-decoration: underline; }
+.home-attention .sev-high { color: var(--color-danger); margin-top: 0.125rem; }
+.home-attention .sev-medium { color: var(--color-warning); margin-top: 0.125rem; }

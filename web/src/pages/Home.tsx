@@ -6,6 +6,7 @@ import { Link, navigate } from '../lib/router';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { SetupChecklist } from './onboarding';
+import { RoleCards } from './homeCards';
 import { Avatar } from '../ui/Avatar';
 import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
@@ -171,6 +172,7 @@ export function Home() {
         </section>
 
         <aside className="home-rail" aria-label="Workspace">
+          <RoleCards />
           {canLibrary && (
             <section aria-labelledby="published">
               <div className="section-head"><h2 id="published">Published documents</h2><Link className="section-link" to="/library">Library</Link></div>
