@@ -24,6 +24,9 @@ SHOTS = {
     "library": "The library data grid with search, filter, columns, density and export controls above a sortable table of policies and SOPs",
     "home": "Home for a workspace owner with the things that need them: acknowledgements, a review and announcements",
     "phone-home": "Procera on a phone: Home lists an announcement and a policy to read and acknowledge",
+    "requests": "New request: leave, expense, purchase and access request types grouped by department, each saying who approves it",
+    "request": "A leave request, LR-2026-000001, with its details, approval steps waiting for the manager with a due date, and a timeline",
+    "work": "My work: open approvals on the left; the selected leave request with its details and Approve, Send back and Reject",
 }
 
 CROPS = {
@@ -41,6 +44,9 @@ CROPS = {
     "members": (360, 90, 1960, 1000),
     "audit": (360, 90, 1960, 1250),
     "campaign": (360, 90, 1960, 1250),
+    "requests": (360, 90, 1960, 1000),
+    "request": (360, 90, 1960, 1000),
+    "work": (360, 90, 1960, 1200),
     # Phone: keep the top (Home and the To-do list), above the duplicated demo document.
     "phone-home": (0, 0, 924, 1530),
 }
@@ -124,7 +130,7 @@ FEATURES = [
                   "Step builder and canvas designer, form builder (planned)",
                   "Parallel and quorum approvals, delegation, reminders and escalations (planned)"],
          epics=["BPMS-080", "BPMS-081", "BPMS-082", "BPMS-083", "BPMS-100", "BPMS-101", "BPMS-103", "BPMS-105"],
-         aside="Built-in request types only for now: you can't design your own workflow yet."),
+         aside="Built-in request types only for now: you can't design your own workflow yet.", shot="work"),
     dict(id="esign", pillar="execute", title="Employee e-signing",
          summary="Send documents to people or groups for signature, with an accessible signing ceremony and a certificate of completion.",
          bullets=["PDF, recipients and routing, bulk send, fields, consent step and certificate"],
