@@ -292,7 +292,7 @@ impl Requests {
         Ok(Started { id, display_id, status })
     }
 
-    async fn audit(
+    pub(crate) async fn audit(
         &self,
         tx: &mut WsTx<'_>,
         actor: &Actor,

@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
         .route("/work-items/backdate", post(backdate_work_item))
+        .route("/incidents", post(plant_incident))
         .route("/library/backdate", post(backdate_artifact))
         .route("/library/due", post(make_version_due))
         .route("/announcements/expire", post(expire_announcement))
@@ -105,6 +106,35 @@ async fn backdate_work_item(State(s): State<AppState>, Json(b): Json<WorkItemBac
     match r {
         Ok(1) => StatusCode::NO_CONTENT.into_response(),
         Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct PlantIncident {
+    workspace: uuid::Uuid,
+    request: uuid::Uuid,
+}
+
+/// Plants a dead-lettered advance job for a request (an incident for the Ops view): its payload
+/// can't be read, so a retry fails again and is dead-lettered after its attempts. Returns its id.
+async fn plant_incident(State(s): State<AppState>, Json(b): Json<PlantIncident>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let id = uuid::Uuid::now_v7();
+    let r: Result<(), String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        sqlx::query("INSERT INTO jobs (workspace_id, id, kind, instance_id, payload, run_at, attempts, max_attempts, state, idempotency_key, created_at, finished_at, last_error)
+                     VALUES ($1, $2, 'advance', $3, '{\"e2e\": \"unreadable\"}', now(), 10, 10, 'dead', $4, now(), now(), '{\"message\": \"e2e: the stimulus could not be read\"}')")
+            .bind(b.workspace).bind(id).bind(b.request).bind(format!("e2e-incident-{id}"))
+            .execute(tx.conn()).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())
+    }
+    .await;
+    match r {
+        Ok(()) => (StatusCode::CREATED, Json(serde_json::json!({ "id": id }))).into_response(),
         Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
     }
 }

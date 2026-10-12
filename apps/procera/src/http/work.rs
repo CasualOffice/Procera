@@ -31,6 +31,9 @@ pub fn router() -> Router<AppState> {
         .route("/work", get(list))
         .route("/work/workload", get(workload))
         .route("/work/workload/{member}", get(held))
+        .route("/operations/incidents", get(incidents))
+        .route("/operations/incidents/{source}/{id}/retry", post(retry_incident))
+        .route("/operations/incidents/{source}/{id}/dismiss", post(dismiss_incident))
         .route("/work/{id}/decisions", post(decide))
         .route("/work/{id}/reassign", post(reassign))
 }
@@ -133,6 +136,68 @@ async fn held(
     let items = svc.work(&mut tx, me.actor.membership, WorkState::HeldBy(member)).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": items })).into_response())
+}
+
+/// Technical incidents (docs/05 §3.18 Ops monitor): `monitoring:view_dashboards` or `request:retry`.
+async fn incidents(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    if !allowed(&s, &me, &mut tx, "request:retry").await? {
+        me.require(m, &mut tx, "monitoring:view_dashboards", Resource::Workspace).await?;
+    }
+    let items = requests(&s)?.incidents(&mut tx).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SettleReq {
+    reason: String,
+}
+
+async fn settle_incident(
+    s: &AppState,
+    headers: &HeaderMap,
+    me: &WsMember,
+    (source, id): (String, Uuid),
+    body: &Bytes,
+    retry: bool,
+) -> Result<Response, ApiError> {
+    let r: SettleReq = serde_json::from_slice(body).map_err(bad_body)?;
+    let m = members(s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "request:retry", Resource::Workspace).await?;
+    let svc = requests(s)?;
+    if retry {
+        svc.retry_incident(&mut tx, &actor(me, headers), &source, id, &r.reason).await?;
+    } else {
+        svc.dismiss_incident(&mut tx, &actor(me, headers), &source, id, &r.reason).await?;
+    }
+    tx.commit().await.map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// Runs an incident again (audited `incident.retried`, a reason required).
+async fn retry_incident(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(key): Path<(String, Uuid)>,
+    body: Bytes,
+) -> Result<Response, ApiError> {
+    settle_incident(&s, &headers, &me, key, &body, true).await
+}
+
+/// Gives up on an incident (audited `incident.dismissed`, a reason required).
+async fn dismiss_incident(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(key): Path<(String, Uuid)>,
+    body: Bytes,
+) -> Result<Response, ApiError> {
+    settle_incident(&s, &headers, &me, key, &body, false).await
 }
 
 #[derive(Debug, Deserialize)]

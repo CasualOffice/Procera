@@ -1,9 +1,9 @@
-import { Archive, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Archive, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
-  | 'admin' | 'overview' | 'request-oversight' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'overview' | 'request-oversight' | 'operations' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -43,6 +43,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     ]) },
     { label: 'Work', items: pick([
+      (can('request:retry') || can('monitoring:view_dashboards')) && { key: 'operations', label: 'Operations', to: '/admin/operations', icon: Activity, keywords: 'incidents failed jobs errors retry dismiss ops monitor exceptions stuck' },
       can('request:view_all') && can('work:reassign') && { key: 'request-oversight', label: 'Requests oversight', to: '/admin/requests', icon: ListChecks, keywords: 'unassigned overdue stuck approvals reassign escalate work items' },
     ]) },
     { label: 'Content & communication', items: pick([
