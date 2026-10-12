@@ -52,6 +52,23 @@ pub fn sniff(head: &[u8]) -> &'static str {
     }
 }
 
+pub const DOCX: &str = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+pub const XLSX: &str = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/// The Office Open XML type of a whole file, from its zip central directory rather than a peek at the
+/// first entry: a Word document has a `word/document.xml` part, a workbook an `xl/workbook.xml` part.
+/// Any other zip (or a broken one) is `None`, whatever it is named.
+pub fn ooxml(data: &[u8]) -> Option<&'static str> {
+    let zip = zip::ZipArchive::new(std::io::Cursor::new(data)).ok()?;
+    if zip.index_for_name("word/document.xml").is_some() {
+        Some(DOCX)
+    } else if zip.index_for_name("xl/workbook.xml").is_some() {
+        Some(XLSX)
+    } else {
+        None
+    }
+}
+
 fn is_text(head: &[u8]) -> bool {
     !head.is_empty()
         && std::str::from_utf8(&head[..head.len().min(1024).min(head.len())]).is_ok()
@@ -72,8 +89,37 @@ pub fn denied(sniffed: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+    use std::io::Write;
+
+    /// A stored (uncompressed) zip with these parts.
+    pub(crate) fn zip_of(parts: &[(&str, &str)]) -> Vec<u8> {
+        let mut w = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+        let opts =
+            zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (name, body) in parts {
+            w.start_file(*name, opts).expect("part");
+            w.write_all(body.as_bytes()).expect("write");
+        }
+        w.finish().expect("zip").into_inner()
+    }
+
+    #[test]
+    fn office_types_come_from_the_central_directory() {
+        let docx = zip_of(&[("[Content_Types].xml", "<Types/>"), ("word/document.xml", "<w:document/>")]);
+        assert_eq!(sniff(&docx), DOCX);
+        assert_eq!(ooxml(&docx), Some(DOCX));
+        let xlsx = zip_of(&[("[Content_Types].xml", "<Types/>"), ("xl/workbook.xml", "<workbook/>")]);
+        assert_eq!(ooxml(&xlsx), Some(XLSX));
+        // A plain zip, and a zip that merely mentions `word/` without the main part, are not documents.
+        assert_eq!(ooxml(&zip_of(&[("notes.txt", "hi")])), None);
+        let fake = zip_of(&[("word/readme.txt", "not a document")]);
+        assert_eq!(sniff(&fake), DOCX, "the head sniff alone would accept it");
+        assert_eq!(ooxml(&fake), None);
+        assert_eq!(ooxml(b"PK\x03\x04 truncated"), None);
+        assert_eq!(ooxml(b"%PDF-1.7"), None);
+    }
 
     #[test]
     fn sniffs_by_content_and_denies_active_types() {

@@ -1,6 +1,6 @@
 //! Files API (BPMS-060/062; FR-F01–F03, F05–F07): resumable upload, attachments to document drafts,
-//! signed downloads re-authorized on every request, sandboxed inline previews of images and PDFs
-//! (BPMS-061, FR-F04), and the workspace Files view (usage, orphans).
+//! signed downloads re-authorized on every request, sandboxed previews of images, PDFs, DOCX, XLSX
+//! and CSV (BPMS-061, FR-F04), and the workspace Files view (usage, orphans).
 
 use axum::body::Bytes;
 use axum::extract::{DefaultBodyLimit, Path, Query, State};
@@ -398,7 +398,8 @@ async fn download(
 /// nothing but itself (FR-F04 "no preview runs active content").
 const PREVIEW_CSP: &str = "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'";
 
-/// A signed preview link for a clean image or PDF (`kind: image|pdf`), or `kind: none` and no URL.
+/// A signed preview link for a clean previewable file (`kind: image|pdf|docx|xlsx|csv`), or
+/// `kind: none` and no URL.
 /// Same permission rules as `download-url`.
 async fn preview_url(
     State(s): State<AppState>,
@@ -417,7 +418,7 @@ async fn preview_url(
         return Err(ApiError::new(409, "state_conflict", "Not allowed in the current state")
             .detail(format!("the file is {}", f.state)));
     }
-    let Some((kind, _)) = preview_kind(f.sniffed_type.as_deref()) else {
+    let Some((kind, _)) = preview_kind(f.sniffed_type.as_deref(), &f.name) else {
         tx.rollback().await.map_err(internal)?;
         return Ok(Json(json!({ "url": null, "kind": "none", "expires_at": null })));
     };
@@ -430,7 +431,7 @@ async fn preview_url(
     })))
 }
 
-/// Serves an image or PDF inline for a valid preview token, re-authorized on every request, under a
+/// Serves a previewable file for a valid preview token, re-authorized on every request, under a
 /// strict sandboxing CSP. Anything not on the preview allow-list is 415.
 async fn preview(
     State(s): State<AppState>,
