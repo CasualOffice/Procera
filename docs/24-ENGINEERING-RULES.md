@@ -49,6 +49,8 @@ These rules are how Procera stays consistent with its design.
 - run `python3 scripts/build_tracker.py`;
 - commit the regenerated outputs.
 
+2.3 **Evidence is separate from status.** Levels: code merged → automated tests → demonstrated → user validated → released. The generator derives the first two (a note citing E2E ids means automated tests); raise an epic in the `EVIDENCE` map only with a link to the demo, study or release. Public claims (README, site) never exceed the evidence level.
+
 CI checks that the outputs are up to date: it regenerates them and fails on diff.
 
 2.3 An item may be marked `Done` only when:

@@ -214,6 +214,17 @@ STATUS = {
 }
 def status_of(i): return STATUS.get(i, ("Not started", ""))
 
+# Evidence is separate from status (owner decision 2026-10-13): what is *proven*, not what is merged.
+# Levels: Code merged -> Automated tests -> Demonstrated -> User validated -> Released.
+# Default: "Automated tests" when the note cites E2E ids (they run in scripts/test-all.sh), else
+# "Code merged" for started work. Raise an epic here only with a link to the demo, study or release.
+EVIDENCE = {}
+def evidence_of(i):
+    if i in EVIDENCE: return EVIDENCE[i]
+    st, note = status_of(i)
+    if st == "Not started": return "—"
+    return "Automated tests" if "E2E-" in note else "Code merged"
+
 RISKS = [
  ("R1","Execution correctness","Critical","High","IR spec, conformance, property/model tests, chaos","Runtime lead"),
  ("R2","Scope creep (BPMN/features)","High","High","Non-goals, catalogue change process, scope-cut list","Product"),
@@ -288,15 +299,15 @@ def write_md():
      "Release = phased release in 07 v0.3 (domain backlogs below still cite old M-codes; map them with: M0–M1→P0, M2–M4→R1, M5–M6→R2, M7→R3, M8→R4, M9→R5, M10–M11→GA, M12+→POST, except items moved per 07 §2). Status values: `Not started · In progress · Blocked · In review · Done · Deferred`. Size: S ≤ 3 d · M ≤ 2 wk · L ≤ 4 wk · XL > 4 wk (split before start).","",
      "## Releases (phased; see 07)","","| Release | Name | Start | End | Gate | Scope |","|---|---|---|---|---|---|"]
     out+= [f"| {m[0]} | {m[1]} | {m[2]} | {m[3]} | {m[4]} | {m[5]} |" for m in MILESTONES]
-    out+=["","## Core backlog (epics)","","| ID | Area | Work item | Pri | Release | Owner | Refs | Acceptance | Size | Depends | Status |","|---|---|---|---|---|---|---|---|---|---|---|"]
-    out+= [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]} | {r[9]} | {status_of(r[0])[0]} |" for r in CORE]
+    out+=["","## Core backlog (epics)","","| ID | Area | Work item | Pri | Release | Owner | Refs | Acceptance | Size | Depends | Status | Evidence |","|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    out+= [f"| {r[0]} | {r[1]} | {r[2]} | {r[3]} | {r[4]} | {r[5]} | {r[6]} | {r[7]} | {r[8]} | {r[9]} | {status_of(r[0])[0]} | {evidence_of(r[0])} |" for r in CORE]
     from collections import Counter
     cnt=Counter(status_of(r[0])[0] for r in CORE)
     out+=["","**Progress:** "+" · ".join(f"{k}: {cnt.get(k,0)}" for k in ["Done","In review","In progress","Blocked","Not started","Deferred"])+f" (of {len(CORE)})"]
     active=[r for r in CORE if status_of(r[0])[0]!="Not started"]
     if active:
-        out+=["","### Active and recently completed","","| ID | Work item | Status | Note |","|---|---|---|---|"]
-        out+=[f"| {r[0]} | {r[2]} | {status_of(r[0])[0]} | {status_of(r[0])[1]} |" for r in active]
+        out+=["","### Active and recently completed","","| ID | Work item | Status | Evidence | Note |","|---|---|---|---|---|"]
+        out+=[f"| {r[0]} | {r[2]} | {status_of(r[0])[0]} | {evidence_of(r[0])} | {status_of(r[0])[1]} |" for r in active]
     out+=["","## Domain backlogs (detail, owned by their docs)",""]
     for k,v in DOMAIN.items():
         ids=[r[1] for r in v]
@@ -334,8 +345,8 @@ def write_xlsx():
         ov.append([s,c])
     ov.column_dimensions["A"].width=20; ov.column_dimensions["B"].width=70
     sheet(wb,"Milestones",["M","Name","Start","End","Gate","Scope","Status"],[m+("Not started",) for m in MILESTONES],[7,32,12,12,8,70,14])
-    ws=sheet(wb,"Backlog",["ID","Area","Work item","Pri","Release","Owner role","Refs","Acceptance","Size","Depends","Status","Assignee","Start","Due","Notes"],
-             [r+(status_of(r[0])[0],"","","",status_of(r[0])[1]) for r in CORE],[10,8,60,5,8,14,26,34,6,16,13,14,11,11,30])
+    ws=sheet(wb,"Backlog",["ID","Area","Work item","Pri","Release","Owner role","Refs","Acceptance","Size","Depends","Status","Evidence","Assignee","Start","Due","Notes"],
+             [r+(status_of(r[0])[0],evidence_of(r[0]),"","","",status_of(r[0])[1]) for r in CORE],[10,8,60,5,8,14,26,34,6,16,13,15,14,11,11,30])
     from openpyxl.worksheet.datavalidation import DataValidation
     dv=DataValidation(type="list",formula1='"Not started,In progress,Blocked,In review,Done,Deferred"',allow_blank=True); ws.add_data_validation(dv); dv.add(f"K2:K{len(CORE)+1}")
     red=PatternFill("solid",fgColor="FECACA"); green=PatternFill("solid",fgColor="BBF7D0"); amber=PatternFill("solid",fgColor="FDE68A")
@@ -362,7 +373,7 @@ def write_xlsx():
     for c in bd[1]: c.font=HDR; c.fill=FILL
     out=ROOT/"trackers"; out.mkdir(exist_ok=True); wb.save(out/"Delivery_Tracker.xlsx")
     with open(out/"backlog.csv","w",newline="") as f:
-        w=csv.writer(f); w.writerow(["ID","Area","Work item","Pri","Release","Owner","Refs","Acceptance","Size","Depends","Status"]); [w.writerow(list(r)+[status_of(r[0])[0]]) for r in CORE]
+        w=csv.writer(f); w.writerow(["ID","Area","Work item","Pri","Release","Owner","Refs","Acceptance","Size","Depends","Status","Evidence"]); [w.writerow(list(r)+[status_of(r[0])[0],evidence_of(r[0])]) for r in CORE]
     with open(out/"domain_backlog.csv","w",newline="") as f:
         w=csv.writer(f); w.writerow(["Domain","ID","Details","Source"]); [w.writerow(r[:4]) for r in drows]
 
@@ -403,7 +414,10 @@ def write_dashboard():
          f"Tests     {e2e_count()} automated E2E scenarios · {rust_test_count()} Rust tests (incl. property tests)",
          f"Status    done {done} · in review {cnt.get('In review',0)} · in progress {cnt.get('In progress',0)} · blocked {cnt.get('Blocked',0)} · not started {cnt.get('Not started',0)} · deferred {cnt.get('Deferred',0)}",
          f"Now       {current[0]} — {current[1]}  ({current[2]} → {current[3]}, gate {current[4]})",
-         "```", "", "## Releases", "", "| Release | Name | Window | Gate | Progress | Done |", "|---|---|---|---|---|---|"]
+         "Evidence  " + " · ".join(f"{k.lower()} {v}" for k, v in sorted(Counter(evidence_of(r[0]) for r in CORE if evidence_of(r[0]) != "—").items())) + "  (separate from status; none user-validated yet)",
+         "```",
+         "",
+         "> **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.", "", "## Releases", "", "| Release | Name | Window | Gate | Progress | Done |", "|---|---|---|---|---|---|"]
     for m in MILESTONES:
         items = by_rel[m[0]]; d = sum(1 for r in items if status_of(r[0])[0] == "Done")
         marker = " ◀ now" if m[0] == current[0] else ""
@@ -411,8 +425,8 @@ def write_dashboard():
     active = [r for r in CORE if status_of(r[0])[0] in ("In progress", "In review", "Blocked")]
     o += ["", "## Active right now", ""]
     if active:
-        o += ["| ID | Item | Status | Note |", "|---|---|---|---|"]
-        o += [f"| {r[0]} | {r[2]} | **{status_of(r[0])[0]}** | {status_of(r[0])[1]} |" for r in active]
+        o += ["| ID | Item | Status | Evidence | Note |", "|---|---|---|---|---|"]
+        o += [f"| {r[0]} | {r[2]} | **{status_of(r[0])[0]}** | {evidence_of(r[0])} | {status_of(r[0])[1]} |" for r in active]
     else:
         o.append("_Nothing in progress._")
     # No git-derived section: a generated file must be reproducible from the sources alone (CI checks

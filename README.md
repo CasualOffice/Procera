@@ -37,6 +37,8 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 
 - **Requests and approvals (0.2, first slice):** leave, expense, purchase and access requests with forms; approvals routed to the requester's manager, finance, the CFO or IT; a My Work inbox to approve, reject or send back; a request page with steps and timeline. Designing your own workflows, e-signing and cases are planned, **not built yet**.
 
+**Evidence, not just status:** everything above is covered by automated end-to-end tests that run on every full test pass; nothing has been validated in a pilot with outside users yet. The [tracker](trackers/README.md) shows status and evidence separately.
+
 ## Try it
 
 Needs Rust (see `rust-toolchain.toml`), Node 20+ and PostgreSQL 16 binaries on your PATH.
