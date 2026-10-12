@@ -19,7 +19,7 @@ const ICON = { primary: Check, secondary: CornerUpLeft, reject: X } as const;
  * decision made elsewhere first is refused (409/412) instead of overwritten. Used on My work and on
  * the request page. Approve is the primary action; Reject stays an outlined neutral (docs/05 §7.1.1).
  */
-export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; detail?: RequestDetail | null; onDecided: (outcome: string) => void }) {
+export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { item: WorkItem; detail?: RequestDetail | null; onDecided: (outcome: string) => void; /** The request page lists the files itself. */ showFiles?: boolean }) {
   const editable = item.fields ?? [];
   const [values, setValues] = useState<Values>(() => valuesFrom(editable, detail?.input));
   const [comment, setComment] = useState('');
@@ -67,7 +67,7 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
       </div>
       {item.why_you && <p className="decide-why"><span className="decide-why-label">Why you:</span> {item.why_you}.</p>}
       {item.policy && <PolicyLine policy={item.policy} />}
-      {!detail && <AttachmentList items={item.attachments ?? []} heading="Files on this request" headingLevel={3} />}
+      {showFiles && <AttachmentList items={item.attachments ?? []} heading="Files on this request" headingLevel={3} />}
       {stale ? (
         <Notice tone="warning" title="Someone already decided this — refresh">
           <p className="decide-note">The request moved on while you had it open. Refresh to see where it is now.</p>

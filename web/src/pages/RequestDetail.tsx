@@ -66,7 +66,7 @@ export function RequestDetail({ id }: { id: string }) {
 
       <div className="req-grid">
         <div className="req-main">
-          {mine && <DecisionPanel key={mine.id} item={mine} detail={r} onDecided={(o) => { setNotice(`${outcomePast(o)}. ${r.display_id} is off your list.`); reload(); reloadWork(); }} />}
+          {mine && <DecisionPanel key={mine.id} item={mine} detail={r} showFiles={false} onDecided={(o) => { setNotice(`${outcomePast(o)}. ${r.display_id} is off your list.`); reload(); reloadWork(); }} />}
           <section aria-labelledby="req-details" className="req-section">
             <h2 id="req-details">Details</h2>
             {r.policy && <PolicyLine policy={r.policy} />}
