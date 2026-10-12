@@ -17,7 +17,7 @@ type RequestType = { key: string; name: string; category: string; form: { fields
 
 /** A member who joined by invitation with a display name; returns what a browser sign-in needs. */
 async function person(request: APIRequestContext, owner: Session, ws: string, name: string) {
-  const email = uniqueEmail(name.toLowerCase());
+  const email = uniqueEmail(name.toLowerCase().replace(/\s+/g, '-'));
   expect((await owner.c.post('/api/v1/members/invitations', { headers: owner.headers, data: { email, roles: ['member'] } })).ok()).toBe(true);
   const token = await inviteToken(request, ws, email);
   expect((await (await client()).post('/api/v1/invitations/register', { data: { token, display_name: name, password: PW } })).status()).toBe(201);
@@ -51,17 +51,20 @@ const inTwoWeeks = () => new Date(Date.now() + 14 * 86_400_000).toISOString().sl
 async function fill(page: Page, form: Locator, fields: Field[], extra: Record<string, string> = {}) {
   for (const f of fields) {
     if (!f.required && !(f.label in extra)) continue;
-    const name = new RegExp(`^${f.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`);
+    const escaped = f.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const name = new RegExp(`^${escaped}`);
+    const trigger = new RegExp(escaped); // a select's name is "<chosen value> <label>"
+
     const value = extra[f.label];
     switch (f.type) {
       case 'enum': {
         const opt = f.options?.find((o) => o.label === value) ?? f.options![0]!;
-        if (f.options!.length <= 4) await form.getByRole('radio', { name: opt.label, exact: true }).check();
-        else { await form.getByRole('button', { name }).click(); await page.getByRole('option', { name: opt.label, exact: true }).click(); }
+        if (f.options!.length <= 4) await form.getByRole('radiogroup', { name: trigger }).getByText(opt.label, { exact: true }).click(); // the input is visually hidden
+        else { await form.getByRole('button', { name: trigger }).click(); await page.getByRole('option', { name: opt.label, exact: true }).click(); }
         break;
       }
       case 'principal':
-        await form.getByRole('button', { name }).click();
+        await form.getByRole('button', { name: trigger }).click();
         await page.getByRole('option').first().click();
         break;
       case 'boolean':

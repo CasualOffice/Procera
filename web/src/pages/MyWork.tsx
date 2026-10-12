@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate, useRoute } from '../lib/router';
-import { type RequestDetail, type WorkItem, displayValue, dueInfo, outcomePast } from '../lib/requests';
+import { type RequestDetail, type WorkItem, displayValue, dueInfo, normalizeDetail, outcomePast } from '../lib/requests';
 import { setCrumb } from '../ui/AppShell';
 import { Avatar } from '../ui/Avatar';
 import { Notice } from '../ui/components/Notice';
@@ -23,6 +23,8 @@ export function MyWork({ selected }: { selected: string | null }) {
   const { query } = useRoute();
   const state = query.get('state') === 'done' ? 'done' : 'open';
   const [items, reload, error] = useItems<WorkItem>(`/api/v1/work?state=${state}`);
+  // A decision (here or on a request page) changes the list even though its address stays the same.
+  useEffect(() => { const on = () => reload(); window.addEventListener('procera:work-changed', on); return () => window.removeEventListener('procera:work-changed', on); }, [reload]);
   const suffix = state === 'done' ? '?state=done' : '';
   const sorted = useMemo(() => [...(items ?? [])].sort((a, b) => (state === 'open' ? due(a) - due(b) : Date.parse(b.decided_at ?? b.created_at) - Date.parse(a.decided_at ?? a.created_at))), [items, state]);
   const current = sorted.find((w) => w.id === selected) ?? null;
@@ -95,7 +97,8 @@ export function MyWork({ selected }: { selected: string | null }) {
 const due = (w: WorkItem) => (w.due_at ? Date.parse(w.due_at) : Number.MAX_SAFE_INTEGER);
 
 function WorkPane({ item, open, suffix }: { item: WorkItem; open: boolean; suffix: string }) {
-  const [r, reload, error] = useResource<RequestDetail>(`/api/v1/requests/${item.request.id}`);
+  const [raw, reload, error] = useResource<RequestDetail>(`/api/v1/requests/${item.request.id}`);
+  const r = useMemo(() => (raw ? normalizeDetail(raw) : null), [raw]);
   const [members] = useItems<Member>(r?.form.fields.some((f) => f.type === 'principal') ? '/api/v1/members' : null, [r?.id]);
   const names = useMemo(() => new Map((members ?? []).map((m) => [m.id, m.display_name])), [members]);
   useEffect(() => { setCrumb(item.request.display_id); return () => setCrumb(null); }, [item]);

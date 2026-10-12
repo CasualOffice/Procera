@@ -5,7 +5,7 @@ import { ApiError, api } from '../lib/api';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { navigate, useRoute } from '../lib/router';
-import { type RequestDetail as Detail, type Step, type WorkItem, STATUS_TAG, displayValue, dueInfo, outcomePast, people } from '../lib/requests';
+import { type RequestDetail as Detail, type Step, type WorkItem, STATUS_TAG, displayValue, dueInfo, normalizeDetail, outcomePast, people } from '../lib/requests';
 import { useSession } from '../lib/session';
 import { setCrumb } from '../ui/AppShell';
 import { Avatar } from '../ui/Avatar';
@@ -27,7 +27,8 @@ const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefi
 export function RequestDetail({ id }: { id: string }) {
   const { can } = useSession();
   const { query } = useRoute();
-  const [r, reload, error] = useResource<Detail>(`/api/v1/requests/${id}`);
+  const [raw, reload, error] = useResource<Detail>(`/api/v1/requests/${id}`);
+  const r = useMemo(() => (raw ? normalizeDetail(raw) : null), [raw]);
   const [work, reloadWork] = useItems<WorkItem>(can('work:view_assigned') ? '/api/v1/work?state=open' : null);
   const [members] = useItems<Member>(r?.form.fields.some((f) => f.type === 'principal') ? '/api/v1/members' : null, [r?.id]);
   const [notice, setNotice] = useState<string | null>(null);

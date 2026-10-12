@@ -27,11 +27,25 @@ pub struct Field {
     #[serde(rename = "type")]
     pub ty: &'static str,
     pub required: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Allowed values; sent as `[{value, label}]` with a readable label ("unpaid" → "Unpaid").
+    #[serde(skip_serializing_if = "Option::is_none", serialize_with = "options_with_labels")]
     pub options: Option<Vec<String>>,
     /// Fixed currency of a money field; `None` lets the requester choose.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
+}
+
+fn options_with_labels<S: serde::Serializer>(opts: &Option<Vec<String>>, ser: S) -> Result<S::Ok, S::Error> {
+    use serde::ser::SerializeSeq;
+    let opts = opts.as_deref().unwrap_or_default();
+    let mut seq = ser.serialize_seq(Some(opts.len()))?;
+    for o in opts {
+        let words = o.replace(['_', '-'], " ");
+        let mut c = words.chars();
+        let label = c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default();
+        seq.serialize_element(&serde_json::json!({ "value": o, "label": label }))?;
+    }
+    seq.end()
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize)]

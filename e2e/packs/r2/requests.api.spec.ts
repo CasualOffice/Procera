@@ -205,7 +205,7 @@ test.describe('requests @r2 @requests', () => {
     // Finance: Ann (initiator) and Boss (decided the manager step) are both excluded, nobody is left,
     // the fallback role is unheld, so the step is unassigned and visible to admins.
     const d = await detail(ann, r.id);
-    expect(d.steps[1]).toMatchObject({ name: 'Finance approval', unassigned: true, assignees: [] });
+    expect(d.steps.find((s: { name: string }) => s.name === 'Finance approval')).toMatchObject({ name: 'Finance approval', unassigned: true, assignees: [] });
     const unassigned = await (await owner.c.get('/api/v1/work?state=unassigned', { headers: owner.headers })).json();
     expect(unassigned.items.map((w: Work) => w.request.id)).toContain(r.id);
     expect((await ann.c.get('/api/v1/work?state=unassigned', { headers: ann.headers })).status()).toBe(403);

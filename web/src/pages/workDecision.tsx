@@ -74,7 +74,7 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
               <RequestFields fields={editable} values={values} onChange={(n, v) => setValues((s) => ({ ...s, [n]: v }))} members={members} errors={errors} idPrefix={`w${item.id}`} />
             </fieldset>
           )}
-          <AriaTextField name="comment" className="field" value={comment} onChange={setComment}>
+          <AriaTextField name="comment" className="field" value={comment} onChange={(v) => { setComment(v); if (errors.comment) setErrors(({ comment: _, ...rest }) => rest); }}>
             <Label className="field-label">Comment</Label>
             <TextArea ref={commentRef} className="field-input req-textarea" rows={3} />
             {commentWhy.length > 0 && <Text slot="description" className="field-description">Optional to {outcomeVerb(item.outcomes.find((o) => !needsComment(o)) ?? 'approve').toLowerCase()}; required to {commentWhy.join(' or ')}.</Text>}

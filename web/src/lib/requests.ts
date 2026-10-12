@@ -119,3 +119,16 @@ export function useOpenWork(enabled: boolean, key: unknown): number {
 
 /** Tells the shell (badge) and Home that a work item was decided. */
 export const workChanged = () => window.dispatchEvent(new Event('procera:work-changed'));
+
+/**
+ * The server reports steps with work-item states (offered, completed, cancelled) and the start
+ * form as `fields`; the pages speak in waiting/active/done and `form.fields`.
+ */
+export function normalizeDetail(d: RequestDetail & { fields?: RequestDetail['form']['fields'] }): RequestDetail {
+  const STATE: Record<string, StepState> = { offered: 'active', claimed: 'active', completed: 'done', cancelled: 'cancelled', expired: 'cancelled' };
+  return {
+    ...d,
+    form: d.form ?? { fields: d.fields ?? [] },
+    steps: (d.steps ?? []).map((s) => ({ ...s, state: STATE[s.state as string] ?? s.state })),
+  };
+}
