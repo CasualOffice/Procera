@@ -4,7 +4,7 @@
  * them for people and decides which category page shows each one. A key missing here still renders,
  * humanised, under its most plausible category's Advanced section.
  */
-export type CategoryId = 'general' | 'security' | 'people' | 'documents' | 'acknowledgements' | 'notifications' | 'data';
+export type CategoryId = 'general' | 'security' | 'people' | 'documents' | 'acknowledgements' | 'requests' | 'notifications' | 'data';
 export interface Category { id: CategoryId; label: string; about: string; sections: string[] }
 
 /** The Settings index (§6.2): one page per category, in this order. */
@@ -14,6 +14,7 @@ export const CATEGORIES: Category[] = [
   { id: 'people', label: 'People & directory', about: 'Who can join, what happens when someone leaves, positions', sections: ['Who can join', 'When someone leaves'] },
   { id: 'documents', label: 'Documents & reviews', about: 'Who must review before publishing, review cycles, numbering', sections: ['Reviews'] },
   { id: 'acknowledgements', label: 'Acknowledgements & announcements', about: 'When people must re-acknowledge, campaign reminders and escalation, announcement rules', sections: ['Acknowledgements', 'Campaigns', 'Announcements'] },
+  { id: 'requests', label: 'Requests', about: 'Which request types people can use, who can ask for each, the currency, and out-of-office cover', sections: ['Request types', 'Money', 'Out of office'] },
   { id: 'notifications', label: 'Notifications', about: 'Which channels Procera uses, digests and quiet hours', sections: ['Channels and digests', 'Quiet hours'] },
   { id: 'data', label: 'Data, retention & files', about: 'Upload limits, malware scanning, and how long records are kept', sections: ['Files', 'Retention'] },
 ];
@@ -71,6 +72,12 @@ export const PLACES: Record<string, Place> = {
   'announcements.expiry.default': B('acknowledgements', 'Announcements'),
   'announcements.channels': B('acknowledgements', 'Announcements'),
 
+  'requests.types.enabled': B('requests', 'Request types'),
+  'requests.types.audience': B('requests', 'Request types'),
+  'requests.currency': B('requests', 'Money'),
+  'access.delegation.self_service_ooo': B('requests', 'Out of office'),
+  'access.delegation.max_depth': A('requests'),
+
   'notify.channels.enabled': B('notifications', 'Channels and digests'),
   'notify.digest.schedule': B('notifications', 'Channels and digests'),
   'notify.quiet_hours.enabled': B('notifications', 'Quiet hours'),
@@ -90,10 +97,10 @@ export const PLACES: Record<string, Place> = {
 };
 
 /**
- * Keys for features that haven't shipped (§6.2 "H"): requests, monitoring, delegation, API tokens.
+ * Keys for features that haven't shipped (§6.2 "H"): execution tuning, monitoring, API tokens.
  * They are only left off the screen; their stored values are untouched.
  */
-const HIDDEN_PREFIXES = ['exec.', 'monitoring.', 'access.delegation.'];
+const HIDDEN_PREFIXES = ['exec.', 'monitoring.'];
 const HIDDEN_KEYS = new Set(['api.tokens.max_ttl']);
 export const isHidden = (key: string) => HIDDEN_KEYS.has(key) || HIDDEN_PREFIXES.some((p) => key.startsWith(p));
 
@@ -111,7 +118,7 @@ export function hiddenChoice(key: string, value: string): boolean {
 /** A key the table doesn't know yet goes to the most plausible category's Advanced section, never dropped. */
 const FALLBACK: [string, CategoryId][] = [
   ['branding.', 'general'], ['locale.', 'general'], ['terminology.', 'general'], ['auth.', 'security'], ['api.', 'security'], ['access.', 'security'],
-  ['directory.', 'people'], ['governance.', 'documents'], ['policies.', 'documents'], ['campaign.', 'acknowledgements'], ['announcements.', 'acknowledgements'],
+  ['directory.', 'people'], ['governance.', 'documents'], ['policies.', 'documents'], ['campaign.', 'acknowledgements'], ['announcements.', 'acknowledgements'], ['requests.', 'requests'],
   ['notify.', 'notifications'], ['files.', 'data'], ['retention.', 'data'],
 ];
 export const placeOf = (key: string): Place => PLACES[key] ?? A(FALLBACK.find(([p]) => key.startsWith(p))?.[1] ?? 'general');
@@ -159,6 +166,9 @@ export const SYNONYMS: Record<string, string> = {
   'branding.accent': 'color colour brand',
   'notify.digest.schedule': 'digest summary email',
   'notify.quiet_hours.enabled': 'do not disturb night',
+  'requests.types.enabled': 'request types leave expense purchase access catalogue',
+  'requests.currency': 'currency money euro dollar amount',
+  'access.delegation.self_service_ooo': 'out of office ooo away holiday vacation delegate cover',
 };
 
 /** Outcome-phrased label and a one-line help per key (§6.3 rule 1). */
@@ -173,8 +183,11 @@ export const LABELS: Record<string, [string, string?]> = {
   'auth.allowed_email_domains': ['Allowed email domains', 'One per line. Leave empty to allow any domain.'],
   'auth.invite_only': ['Invitation only', 'People can join only through an invitation from an admin.'],
   'api.tokens.max_ttl': ['Longest lifetime for API tokens'],
-  'access.delegation.max_depth': ['How far delegation can be passed on', 'Number of hops.'],
-  'access.delegation.self_service_ooo': ['People can set their own out-of-office delegate'],
+  'access.delegation.max_depth': ['How far cover can be passed on', 'When the person covering is away too, whether their own cover takes over. 1 means it stops at the first person.'],
+  'access.delegation.self_service_ooo': ['People can set their own out of office', 'They choose dates and who decides their requests while they’re away. Admins and managers can always set it for them.'],
+  'requests.types.enabled': ['Request types people can use'],
+  'requests.types.audience': ['Who can ask for each type'],
+  'requests.currency': ['Currency for amounts', 'Used for expense claims and purchase requests, and for their approval limits. Requests already sent keep their currency.'],
   'access.admin_content_access_log': ['Log when admins open content', 'Each time an admin opens someone else’s content, it’s recorded in the audit log.'],
   'governance.review.required_for': ['Independent review required for', 'Someone other than the author must approve these documents before they’re published.'],
   'governance.review.min_reviewers': ['Approvals needed before publishing', 'How many reviewers must approve.'],

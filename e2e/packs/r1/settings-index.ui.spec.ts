@@ -8,7 +8,7 @@ import { workspaceWithOwner } from '../../fixtures/workspace';
 // for unshipped features hidden, department overrides on the setting, the starting-point banner and
 // old anchors redirected (BPMS-027; docs/05 §3.16; docs/design/ia-competitive-analysis.md §6).
 
-const CATEGORIES = ['General & branding', 'Sign-in & security', 'People & directory', 'Documents & reviews', 'Acknowledgements & announcements', 'Notifications', 'Data, retention & files'];
+const CATEGORIES = ['General & branding', 'Sign-in & security', 'People & directory', 'Documents & reviews', 'Acknowledgements & announcements', 'Requests', 'Notifications', 'Data, retention & files'];
 
 test.describe('settings index @r1 @ui', () => {
   test.beforeEach(async ({ request }) => {
@@ -25,7 +25,7 @@ test.describe('settings index @r1 @ui', () => {
     await signIn(page, ownerEmail, owner.recovery![0]!);
     await nav(page, 'Settings');
     await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible();
-    // The index: seven categories, each with its one-line description, and the starting point once.
+    // The index: eight categories, each with its one-line description, and the starting point once.
     const cats = page.getByRole('navigation', { name: 'Settings categories' });
     await expect(cats.getByRole('link')).toHaveCount(CATEGORIES.length);
     for (const c of CATEGORIES) await expect(cats.getByRole('link', { name: c, exact: true })).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('settings index @r1 @ui', () => {
 
     // Search covers labels, help, keys and synonyms; settings for unshipped features never match.
     const search = page.getByRole('searchbox', { name: 'Search settings' });
-    for (const hidden of ['request numbering', 'API tokens', 'out-of-office delegate', 'stuck']) {
+    for (const hidden of ['request numbering', 'API tokens', 'several requests at once', 'stuck']) {
       await search.fill(hidden);
       await expect(page.getByRole('status').filter({ hasText: 'No settings match' })).toBeVisible();
     }

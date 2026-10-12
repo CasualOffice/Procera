@@ -1,4 +1,4 @@
-import { Archive, Bell, Check, ChevronDown, ChevronRight, FileText, Lock, Megaphone, Palette, Search, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
+import { Archive, Bell, Check, ChevronDown, ChevronRight, ClipboardCheck, FileText, Lock, Megaphone, Palette, Search, ShieldCheck, Users, type LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Input, SearchField } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
@@ -20,7 +20,7 @@ export type Kind =
   | { type: 'bool' } | { type: 'int'; min: number; max: number } | { type: 'duration'; min: number; max: number } | { type: 'size'; min: number; max: number }
   | { type: 'enum'; values: string[] } | { type: 'set'; values: string[]; allow_all: boolean } | { type: 'list'; max_items: number; max_len: number }
   | { type: 'text'; max_len: number } | { type: 'colour' } | { type: 'image' } | { type: 'duration_list'; min: number; max: number; max_items: number }
-  | { type: 'terms'; terms: string[]; max_len: number };
+  | { type: 'terms'; terms: string[]; max_len: number } | { type: 'audiences'; items: string[] };
 export interface Setting { key: string; value: unknown; source: string; clamped: boolean; layers: { layer: string; value: unknown }[]; editable_with: string | null; immediate: boolean; step_up: boolean; kind: Kind; revision: number; department_scopable?: boolean }
 
 /** A value as a short sentence fragment, for read-only display and the explainer. */
@@ -35,6 +35,7 @@ export function show(kind: Kind, v: unknown): string {
     case 'duration_list': { const a = (v as number[]) ?? []; return a.length ? a.map(durationText).join(', ') : 'None'; }
     case 'text': return String(v ?? '') || 'Not set';
     case 'image': return v ? 'Uploaded image' : 'Not set';
+    case 'audiences': { const n = Object.keys((v as object) ?? {}).length; return n ? `${n} limited to some people` : 'Everyone'; }
     case 'terms': { const e = Object.entries((v as Record<string, Label>) ?? {}); return e.length ? e.map(([t, l]) => `${TERM_DEFAULTS[t as keyof typeof TERM_DEFAULTS]?.singular ?? t} → ${l.singular}`).join(', ') : 'Product defaults'; }
     default: return String(v ?? '');
   }
@@ -44,7 +45,7 @@ export function show(kind: Kind, v: unknown): string {
 export const isChanged = (s: Setting) => s.layers.some((l) => l.layer === 'workspace');
 
 export const CATEGORY_ICON: Record<CategoryId, LucideIcon> = {
-  general: Palette, security: ShieldCheck, people: Users, documents: FileText, acknowledgements: Megaphone, notifications: Bell, data: Archive,
+  general: Palette, security: ShieldCheck, people: Users, documents: FileText, acknowledgements: Megaphone, requests: ClipboardCheck, notifications: Bell, data: Archive,
 };
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

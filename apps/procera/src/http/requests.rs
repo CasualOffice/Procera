@@ -92,24 +92,52 @@ pub(crate) fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
     }
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TypesQuery {
+    scope: Option<String>,
+}
+
 /// The request types the caller may start (enabled in this workspace, and the caller is in the
-/// type's audience), with their start forms priced in the workspace currency.
-async fn types(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+/// type's audience), with their start forms priced in the workspace currency. `?scope=all` lists
+/// every built-in with `enabled` and `audience`, for Settings › Requests (`workspace:settings.view`).
+async fn types(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<TypesQuery>,
+) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
-    me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
-    let (offer, offered) = requests(&s)?.offered(&mut tx, me.actor.membership).await?;
+    let r = requests(&s)?;
+    let (offer, listed, all) = match q.scope.as_deref() {
+        None | Some("mine") => {
+            me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
+            let (offer, offered) = r.offered(&mut tx, me.actor.membership).await?;
+            (offer, offered, false)
+        }
+        Some("all") => {
+            me.require(m, &mut tx, "workspace:settings.view", Resource::Workspace).await?;
+            (r.offer(&mut tx).await?, r.catalogue().list().to_vec(), true)
+        }
+        Some(other) => {
+            return Err(ApiError::new(400, "bad_request", "Unknown scope")
+                .detail(format!("{other}: use mine or all")));
+        }
+    };
     tx.rollback().await.map_err(internal)?;
-    let items: Vec<Value> = offered
-        .iter()
-        .map(|t| {
-            json!({
-                "key": t.key, "name": t.name, "description": t.description(&offer.currency),
-                "category": t.category, "icon": t.icon,
-                "form": procera_requests::RequestType::priced(&t.start_form, &offer.currency),
-            })
-        })
-        .collect();
+    let mut items = Vec::new();
+    for t in &listed {
+        let mut item = json!({
+            "key": t.key, "name": t.name, "description": t.description(&offer.currency),
+            "category": t.category, "icon": t.icon,
+            "form": procera_requests::RequestType::priced(&t.start_form, &offer.currency),
+        });
+        if all {
+            item["enabled"] = json!(offer.enabled(t.key));
+            item["audience"] = serde_json::to_value(offer.audience(t.key)?).map_err(internal)?;
+        }
+        items.push(item);
+    }
     Ok(Json(json!({ "items": items, "currency": offer.currency })).into_response())
 }
 
