@@ -26,6 +26,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/request-types", get(types))
         .route("/requests", get(list).post(start))
+        .route("/requests/preview", post(preview))
         .route("/requests/{id}", get(detail))
         .route("/requests/{id}/cancel", post(cancel))
 }
@@ -204,6 +205,18 @@ async fn start(
     tx.commit().await.map_err(internal)?;
     Ok((StatusCode::CREATED, [("location", format!("/api/v1/requests/{}", started.id))], Json(body))
         .into_response())
+}
+
+/// "Who approves this" before sending (`request:start`): a dry run of the routing for the answers
+/// so far. A read: nothing is written, nothing is audited, the transaction rolls back.
+async fn preview(State(s): State<AppState>, me: WsMember, body: Bytes) -> Result<Response, ApiError> {
+    let r: StartReq = serde_json::from_slice(&body).map_err(bad_body)?;
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
+    let p = requests(&s)?.preview(&mut tx, me.actor.membership, &r.ty, &r.input).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(p).into_response())
 }
 
 #[derive(Debug, Deserialize)]

@@ -318,6 +318,11 @@ pub const CONTRACT: &[Entry] = &[
     // Requests and approvals (BPMS-103/085): the user's record plus the runtime record of the same
     // stimulus, both with the user as actor (A-28 (4)).
     emits("POST", "/api/v1/requests", &[&["instance.started", "request.started"]]),
+    exempt(
+        "POST",
+        "/api/v1/requests/preview",
+        "read-only dry run of the routing (who approves); POST only carries the draft answers, nothing is written",
+    ),
     emits("POST", "/api/v1/requests/{id}/cancel", &[&["instance.cancelled", "request.cancelled"]]),
     emits(
         "POST",

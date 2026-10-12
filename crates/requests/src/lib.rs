@@ -18,6 +18,7 @@ mod escalate;
 pub mod forms;
 pub mod handler;
 mod offer;
+pub mod preview;
 pub mod resolve;
 mod service;
 mod views;
@@ -37,6 +38,7 @@ pub use catalogue::{Catalogue, Field, Form, RequestType};
 pub use delegation::{Away, OutOfOffice, SetOutOfOffice};
 pub use forms::FieldError;
 pub use offer::Offer;
+pub use preview::Preview;
 pub use service::{Scope, WorkState};
 pub use views::{
     Decided, Reassigned, Release, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WhyLine,

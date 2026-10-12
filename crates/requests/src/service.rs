@@ -137,7 +137,7 @@ impl Requests {
         }
     }
 
-    fn type_of(&self, key: &str) -> R<std::sync::Arc<RequestType>> {
+    pub(crate) fn type_of(&self, key: &str) -> R<std::sync::Arc<RequestType>> {
         self.catalogue.get(key).cloned().ok_or_else(|| RequestError::UnknownType(key.to_owned()))
     }
 
