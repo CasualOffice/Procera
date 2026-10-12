@@ -149,7 +149,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
           </Popover>
         </MenuTrigger>
 
-        <nav className="nav" aria-label="Main">
+        <nav className={adminMode ? 'nav is-admin' : 'nav'} aria-label="Main">
           <div className="nav-tools">
             <AriaButton className="search-btn" onPress={() => setPalette(true)} aria-keyshortcuts={shortcutLabel() === '⌘K' ? 'Meta+K' : 'Control+K'}>
               <Search aria-hidden="true" size="0.9375rem" />
@@ -167,7 +167,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
               <p className="nav-mode">Admin</p>
               {adminGroups.map((g) => (
                 <div key={g.label}>
-                  <p className="nav-group-label">{g.label}</p>
+                  {!(g.items.length === 1 && g.items[0]!.label === g.label) && <p className="nav-group-label">{g.label}</p>}
                   <ul>{g.items.map(item)}</ul>
                 </div>
               ))}

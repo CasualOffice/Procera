@@ -135,7 +135,7 @@ export function LibraryDoc({ id }: { id: string }) {
       </div>
       <h1 className="doc-title">{a.title}</h1>
 
-      <dl className="props">
+      <dl className="props props-split">
         <dt><CircleDot aria-hidden="true" size="0.9375rem" /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
         <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>{v.semver ? `v${v.semver}` : `v${v.version_no}`}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <OwnerRow artifactId={a.id} owner={owner} canEdit={p('publish')} act={act} />
@@ -200,7 +200,7 @@ export function LibraryDoc({ id }: { id: string }) {
             <Button variant="secondary" onPress={() => setEditing(false)}>Cancel</Button>
           </div>
         </div>
-      ) : <DocBody blocks={blocks} />}
+      ) : <article className="doc-paper" aria-label="Document text"><DocBody blocks={blocks} /></article>}
 
       {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={directory} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
 

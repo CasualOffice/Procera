@@ -23,6 +23,32 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   review_decided: { icon: BookOpenCheck, tone: 'blue' },
 };
 
+/** Kinds that merge when several arrive the same day ("Gia, Finn and 4 others joined Acme"). */
+const MERGEABLE = new Set(['member_joined']);
+interface Row { key: string; items: Notification[] }
+
+/** Consecutive notifications of a mergeable kind from the same day become one row. */
+function groupRows(items: Notification[]): Row[] {
+  const rows: Row[] = [];
+  for (const n of items) {
+    const last = rows[rows.length - 1];
+    const head = last?.items[0];
+    if (head && MERGEABLE.has(n.kind) && head.kind === n.kind && head.created_at.slice(0, 10) === n.created_at.slice(0, 10)) last.items.push(n);
+    else rows.push({ key: n.id, items: [n] });
+  }
+  return rows;
+}
+
+/** "Gia Nguyen, Finn Walsh and 4 others joined Acme" from titles like "Gia Nguyen joined Acme". */
+function mergedTitle(group: Notification[]): string {
+  const m = /^(.*) joined (.*)$/.exec(group[0]!.title);
+  if (!m) return `${group[0]!.title} and ${group.length - 1} more`;
+  const names = group.map((n) => /^(.*) joined /.exec(n.title)?.[1] ?? n.title);
+  const rest = names.length - 2;
+  const who = rest <= 0 ? names.join(' and ') : `${names[0]}, ${names[1]} and ${rest} ${rest === 1 ? 'other' : 'others'}`;
+  return `${who} joined ${m[2]}`;
+}
+
 /** The member's inbox (FR-N01): opening an item marks it read. */
 export function Notifications() {
   const [items, setItems] = useState<Notification[] | null>(null);
@@ -30,7 +56,8 @@ export function Notifications() {
   const load = useCallback(() => api<{ items: Notification[] }>('/api/v1/notifications').then((r) => { setItems(r.items); setError(null); }).catch((e: unknown) => setError(toFailure(e))), []);
   useEffect(() => { void load(); }, [load]);
   const unread = items?.filter((n) => !n.read_at).length ?? 0;
-  const markRead = async (id: string) => { await api(`/api/v1/notifications/${id}/read`, { method: 'POST' }); await load(); };
+  const markRead = async (...ids: string[]) => { await Promise.all(ids.map((id) => api(`/api/v1/notifications/${id}/read`, { method: 'POST' }))); await load(); };
+  const [open, setOpen] = useState<Set<string>>(new Set());
   return (
     <>
       <div className="page-head">
@@ -39,7 +66,7 @@ export function Notifications() {
           <p>{unread ? `${unread} unread` : 'All caught up'}</p>
         </div>
         <div className="page-actions">
-          <Link to="/notifications/preferences" className="btn btn-secondary btn-md"><Settings2 aria-hidden="true" size="1rem" /> Preferences</Link>
+          <Link to="/notifications/preferences" className="btn btn-secondary btn-md link-btn"><Settings2 aria-hidden="true" size="1rem" /> Preferences</Link>
           {unread > 0 && (
             <Button variant="secondary" onPress={async () => { await api('/api/v1/notifications/read-all', { method: 'POST' }); await load(); }}>
               <CheckCheck aria-hidden="true" size="1rem" /> Mark all as read
@@ -53,23 +80,36 @@ export function Notifications() {
       <section className="card" aria-label="Notifications">
         {(
           <ul className="rows">
-            {items.map((n) => {
+            {groupRows(items).map(({ key, items: group }) => {
+              const n = group[0]!;
+              const merged = group.length > 1;
+              const unreadIds = group.filter((x) => !x.read_at).map((x) => x.id);
+              const isRead = unreadIds.length === 0;
+              const title = merged ? mergedTitle(group) : n.title;
               const k = KIND[n.kind] ?? { icon: Bell, tone: 'gray' };
               const target = n.link ?? (n.kind === 'announcement' ? '/announcements' : null);
+              const expanded = open.has(key);
               return (
-                <li key={n.id} className="inbox-row rows-link">
-                  <span className={n.read_at ? 'read-dot' : 'unread-dot'} aria-hidden="true" />
+                <li key={key} className="inbox-row rows-link">
+                  <span className={isRead ? 'read-dot' : 'unread-dot'} aria-hidden="true" />
                   <span className={`task-icon tag-${k.tone}`}><k.icon aria-hidden="true" size="1rem" /></span>
                   <div className="row-main">
-                    <p className="row-title" style={{ fontWeight: n.read_at ? 500 : 600 }}>
-                      {!n.read_at && <span className="visually-hidden">Unread: </span>}
-                      {target ? <Link to={target} onClick={() => { if (!n.read_at) void markRead(n.id); }}>{n.title}</Link> : n.title}
+                    <p className="row-title" style={{ fontWeight: isRead ? 500 : 600 }}>
+                      {!isRead && <span className="visually-hidden">Unread: </span>}
+                      {target && !merged ? <Link to={target} onClick={() => { if (!isRead) void markRead(...unreadIds); }}>{title}</Link> : title}
                     </p>
-                    <p className="row-sub">{n.body}</p>
+                    {merged ? (
+                      <>
+                        <button type="button" className="inbox-more" aria-expanded={expanded} onClick={() => setOpen((o) => { const x = new Set(o); if (x.has(key)) x.delete(key); else x.add(key); return x; })}>
+                          {expanded ? 'Hide' : `Show all ${group.length}`}
+                        </button>
+                        {expanded && <ul className="inbox-sub">{group.map((g) => <li key={g.id}>{g.title}<span className="row-meta"> · {timeAgo(g.created_at)}</span></li>)}</ul>}
+                      </>
+                    ) : <p className="row-sub">{n.body}</p>}
                   </div>
                   <span className="row-meta"><time dateTime={n.created_at}>{timeAgo(n.created_at)}</time></span>
-                  {!n.read_at && (
-                    <button type="button" className="icon-btn mark-read" onClick={() => void markRead(n.id)} aria-label={`Mark “${n.title}” as read`} title="Mark as read">
+                  {!isRead && (
+                    <button type="button" className="icon-btn mark-read" onClick={() => void markRead(...unreadIds)} aria-label={`Mark “${title}” as read`} title="Mark as read">
                       <Check aria-hidden="true" size="1rem" />
                     </button>
                   )}

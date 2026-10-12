@@ -821,14 +821,14 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .task-group + .task-group { margin-top: var(--space-4); }
 .task-group-label { margin: 0 0 var(--space-2); font-size: 0.75rem; font-weight: var(--font-weight-semibold); letter-spacing: .02em; color: var(--color-text-secondary); }
 /* Workspace onboarding (docs/05 §3.1): checklist on Home and the /welcome steps. */
-.setup { padding: var(--space-5); margin-bottom: var(--space-6); }
+.setup.card { padding: var(--space-5) var(--space-6); margin-bottom: var(--space-6); }
 .setup-head { display: flex; align-items: center; gap: var(--space-3); }
 .setup-heading { flex: 1; min-width: 0; }
 .setup-heading h2 { margin: 0; font-size: 1rem; }
 .setup-heading p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
 .setup-bar { height: 0.25rem; margin: var(--space-4) 0; border-radius: 0.125rem; background: var(--color-surface-muted); overflow: hidden; }
 .setup-bar span { display: block; height: 100%; background: var(--color-text); transition: width 300ms ease; }
-.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: var(--space-2) var(--space-6); }
+.setup-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr)); gap: var(--space-3) var(--space-8); }
 .setup-steps li { display: grid; grid-template-columns: 1rem 1fr; column-gap: var(--space-2); align-items: start; font-size: 0.875rem; }
 .setup-steps li.is-done > span:first-of-type { color: var(--color-text-secondary); text-decoration: line-through; }
 .setup-hint { grid-column: 2; display: block; font-size: 0.75rem; color: var(--color-text-secondary); text-decoration: none; }
@@ -864,3 +864,15 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .preset-does { margin: var(--space-1) 0 0; padding-left: 1.125rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
 .preset-scope { margin: var(--space-1) 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
 .preset-added { display: inline-flex; align-items: center; gap: var(--space-1); font-size: 0.8125rem; color: var(--color-success); }
+
+/* Document page: properties in two columns on wide screens, the text on its own paper surface. */
+@media (min-width: 64rem) {
+  .props.props-split { grid-template-columns: 7.5rem minmax(0, 1fr) 7.5rem minmax(0, 1fr); column-gap: var(--space-6); }
+}
+.doc-paper { margin-top: var(--space-4); padding: var(--space-8) 2.5rem; background: var(--color-surface); border: 1px solid var(--line); border-radius: 0.75rem; box-shadow: var(--shadow-xs); }
+@media (max-width: 40rem) { .doc-paper { padding: var(--space-5) var(--space-4); } }
+/* Merged notifications ("… and 4 others joined"): expandable list of the individual items. */
+.inbox-more { margin-top: 0.125rem; padding: 0; font: inherit; font-size: 0.8125rem; color: var(--color-accent-text); background: none; border: 0; cursor: pointer; }
+.inbox-more:hover { text-decoration: underline; }
+.inbox-sub { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.125rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.props.props-split dt, .props.props-split dd { align-self: start; }

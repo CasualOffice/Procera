@@ -124,7 +124,7 @@ export function App() {
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
   const person = match('/members/:id', path);
-  if (person) return <AppShell current="home" crumbs={[['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
+  if (person) return <AppShell current="members" crumbs={[ADMIN, ['Members', '/admin/members'], 'Person']}><Person id={person.id!} /></AppShell>;
   if (path === '/admin/members' || path === '/members') return <AppShell current="members" crumbs={[ADMIN, 'Members']}><Members /></AppShell>;
   if (path === '/admin/departments') return <AppShell current="departments" crumbs={[ADMIN, 'Departments']}><Departments /></AppShell>;
   if (path === '/admin/groups') return <AppShell current="groups" crumbs={[ADMIN, 'Groups']}><Groups /></AppShell>;
