@@ -442,8 +442,9 @@ test.describe('R1 gate @r1 @ui', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Saved.' })).toBeVisible();
     await page.getByRole('button', { name: 'Submit for review' }).click();
     await expect(page.getByText('In review', { exact: true }).first()).toBeVisible();
-    await page.getByRole('button', { name: 'Approve' }).click();
-    await expect(page.getByText(/cannot review their own/i)).toBeVisible();
+    // The author isn't offered Approve and is told why (the server refuses it too: E2E-R1-LIB-02).
+    await expect(page.getByRole('button', { name: 'Approve' })).toHaveCount(0);
+    await expect(page.getByText(/You wrote this version, so someone else reviews it/)).toBeVisible();
 
     // The reviewer approves; their sign-in is not recent, so they confirm it's them.
     const rp = await (await browser.newContext()).newPage();

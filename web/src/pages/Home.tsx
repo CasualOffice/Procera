@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { BookOpenCheck, CircleCheck, FilePlus2, FileText, LayoutTemplate, Megaphone, ScrollText, SquarePen, UserPlus } from 'lucide-react';
 import { type Artifact, type Member, useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate } from '../lib/router';
+import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { SetupChecklist } from './onboarding';
 import { Avatar } from '../ui/Avatar';
@@ -42,7 +44,17 @@ export function Home() {
   const [docs] = useItems<Artifact>(canLibrary ? '/api/v1/artifacts' : null);
   const [members] = useItems<Member>(can('member:view') ? '/api/v1/members' : null);
 
-  const reviews = (docs ?? []).filter((d) => d.state === 'in_review' && (can(`${d.kind}:review`) || can(`${d.kind}:approve`)));
+  // Reviews I can actually do: the server leaves out documents I wrote (authors never review their own).
+  const [reviewable, setReviewable] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    const candidates = (docs ?? []).filter((d) => d.state === 'in_review' && (can(`${d.kind}:review`) || can(`${d.kind}:approve`)));
+    if (!candidates.length) { setReviewable(new Set()); return; }
+    let live = true;
+    void Promise.all(candidates.map((d) => api<{ my_actions?: string[] }>(`/api/v1/artifacts/${d.id}`).then((r) => ((r.my_actions ?? []).some((x) => x === 'review' || x === 'approve') ? d.id : null)).catch(() => null)))
+      .then((ids) => { if (live) setReviewable(new Set(ids.filter((x): x is string => !!x))); });
+    return () => { live = false; };
+  }, [docs, can]);
+  const reviews = (docs ?? []).filter((d) => reviewable?.has(d.id));
   const news = (feed ?? []).filter((f) => (f.require_ack && !f.acked_at) || !f.read_at);
   const todo = [
     // Announcement acknowledgements already appear from the feed below.
@@ -69,7 +81,7 @@ export function Home() {
     })),
   ].sort((a, b) => a.group - b.group || a.sort - b.sort);
   const groups = GROUPS.map((label, i) => ({ label, items: todo.filter((t) => t.group === i) })).filter((g) => g.items.length);
-  const loading = acks === null || (canLibrary && docs === null) || (can('announcement:view') && feed === null);
+  const loading = acks === null || (canLibrary && (docs === null || reviewable === null)) || (can('announcement:view') && feed === null);
   const overdue = (acks ?? []).filter((a) => a.overdue).length;
   const date = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' });
   const summary = loading ? ' ' : todo.length === 0 ? 'Nothing needs you right now.' : `${todo.length} ${todo.length === 1 ? 'thing needs' : 'things need'} you${overdue ? `, ${overdue} overdue` : ''}.`;

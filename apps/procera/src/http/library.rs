@@ -290,7 +290,11 @@ async fn get_artifact(
     let a = authorize_artifact(&s, &me, &mut tx, id, "view").await?;
     let full = full_kinds_for(&s, &me, &mut tx, &a).await?;
     let reader = Reader { membership: me.actor.membership, full_kinds: &full };
-    let versions: Vec<Value> = lib.versions(&mut tx, id).await?.into_iter()
+    let all_versions = lib.versions(&mut tx, id).await?;
+    // Authors never review their own version (SoD): don't offer it.
+    let my_draft_in_review =
+        all_versions.iter().any(|v| v.lifecycle == "in_review" && v.created_by == me.actor.membership);
+    let versions: Vec<Value> = all_versions.into_iter()
         .filter(|v| Library::version_visible(&a.kind, &v.lifecycle, &reader))
         // Serialise through `Version` so timestamps are RFC 3339 (json! on OffsetDateTime is a tuple).
         .filter_map(|v| serde_json::to_value(&v).ok())
@@ -300,6 +304,9 @@ async fn get_artifact(
     let resource = artifact_resource(&mut tx, &a).await?;
     let mut actions = vec![];
     for action in ["edit_draft", "submit_review", "review", "approve", "publish", "retire"] {
+        if my_draft_in_review && matches!(action, "review" | "approve") {
+            continue;
+        }
         if let Ok(p) = permission(&a.kind, action)
             && members(&s)?.access().check(&mut tx, me.actor.membership, p, &resource).await?.allowed
         {
