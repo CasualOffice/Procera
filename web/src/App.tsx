@@ -39,6 +39,7 @@ import { AckLink } from './pages/AckLink';
 import { Person } from './pages/Person';
 import { SystemAudit } from './pages/system/SystemAudit';
 import { SystemEmail } from './pages/system/SystemEmail';
+import { SystemFloors } from './pages/system/SystemFloors';
 import { SystemHealth } from './pages/system/SystemHealth';
 import { SystemQuotas } from './pages/system/SystemQuotas';
 import { SystemSetup } from './pages/system/SystemSetup';
@@ -63,6 +64,7 @@ function SystemRoutes({ path }: { path: string }) {
   if (path === '/system' || path === '/system/') return <Redirect to="/system/workspaces" />;
   if (path === '/system/workspaces') return <SystemShell current="workspaces" title="Workspaces"><SystemWorkspaces /></SystemShell>;
   if (path === '/system/quotas') return <SystemShell current="quotas" title="Quotas & usage"><SystemQuotas /></SystemShell>;
+  if (path === '/system/floors') return <SystemShell current="floors" title="Policy floors"><SystemFloors /></SystemShell>;
   if (path === '/system/health') return <SystemShell current="health" title="Platform health"><SystemHealth /></SystemShell>;
   if (path === '/system/email') return <SystemShell current="email" title="Email & platform"><SystemEmail /></SystemShell>;
   if (path === '/system/setup') return <SystemShell current="setup" title="Finish setting up"><SystemSetup /></SystemShell>;
