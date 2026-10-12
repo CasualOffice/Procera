@@ -73,7 +73,8 @@ test.describe('workspace requests and out of office @r2 @ui', () => {
     const now = await serverNow(ana.session.c);
     const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
     await signIn(page, ana.email, ana.recovery[0]!);
-    await page.goto(`${WEB}/account/profile`);
+    await page.getByRole('button', { name: /^Account: Ana Manager/ }).click();
+    await page.getByRole('menuitem', { name: 'Profile' }).click();
     const section = page.getByRole('region', { name: 'Out of office' });
     await section.getByRole('button', { name: 'Set out of office' }).click();
     const dialog = page.getByRole('dialog', { name: 'Out of office' });

@@ -137,7 +137,7 @@ test.describe('requests slice 3 @r2 @requests', () => {
     const ok = await decide(olivia, w, { outcome: 'approved', files: [signed.id] });
     expect(ok.status(), await ok.text()).toBe(200);
     const d = await detail(ann, id);
-    const decided = d.timeline.filter((t: { kind: string }) => t.kind === 'decided').pop();
+    const decided = d.timeline.find((t: { kind: string; text: string }) => t.kind === 'decided' && /approved/.test(t.text));
     expect(decided.files.map((f: { name: string }) => f.name)).toEqual(['signed.pdf']);
     expect(d.attachments.map((x: { source: string; name: string }) => `${x.source}: ${x.name}`)).toContain('Manager approval decision: signed.pdf');
     // The requester may open what the approver attached.

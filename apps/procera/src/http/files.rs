@@ -215,7 +215,17 @@ async fn delete_file(
     let svc = files(&s)?;
     let f = svc.get(&mut tx, id).await?;
     // The uploader may delete their own unattached file; otherwise `file:delete`.
-    let own_loose = f.uploaded_by == me.actor.membership && svc.links_of(&mut tx, id).await?.is_empty();
+    let own = f.uploaded_by == me.actor.membership;
+    let linked = !svc.links_of(&mut tx, id).await?.is_empty();
+    // Your own file that's now part of a record (say, a request) says why it stays, not "forbidden".
+    if own && linked && !allowed(&s, &mut tx, me.actor.membership, "file:delete").await? {
+        return Err(ApiError::new(
+            409,
+            "file_linked",
+            "This file is attached to a record and is kept with it",
+        ));
+    }
+    let own_loose = own && !linked;
     if !own_loose && !allowed(&s, &mut tx, me.actor.membership, "file:delete").await? {
         return Err(if can_view(&s, &mut tx, me.actor.membership, id).await? {
             ApiError::new(403, "forbidden", "Forbidden")
