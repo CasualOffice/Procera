@@ -85,7 +85,7 @@ export function RequestDetail({ id }: { id: string }) {
                 {[...r.timeline].reverse().map((t, i) => (
                   <li key={`${t.at}-${i}`}>
                     <span className="req-timeline-dot" aria-hidden="true" />
-                    <span className="req-timeline-text">{t.actor && <strong>{t.actor} </strong>}{t.text}</span>
+                    <span className="req-timeline-text">{t.actor && !t.text.includes(t.actor) && <strong>{t.actor} </strong>}{t.text}</span>
                     <time dateTime={t.at} title={when(t.at)}>{timeAgo(t.at)}</time>
                   </li>
                 ))}
