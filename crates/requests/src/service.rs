@@ -14,7 +14,8 @@ use uuid::Uuid;
 use crate::catalogue::{Form, RequestType};
 use crate::forms::{self, FieldError};
 use crate::views::{
-    Decided, Person, RequestDetail, RequestSummary, Sla, Started, Step, TimelineEntry, WorkRequest, WorkView,
+    Decided, Person, Reassigned, RequestDetail, RequestSummary, Sla, Started, Step, TimelineEntry,
+    WorkRequest, WorkView,
 };
 use crate::{Actor, DEFAULT_CALENDAR, RequestError, Requests, default_calendar};
 
@@ -39,6 +40,8 @@ pub enum WorkState {
     Done,
     /// Open items nobody could be resolved for (admins).
     Unassigned,
+    /// Open items past their due date, whoever holds them (admins).
+    Overdue,
 }
 
 const SUMMARY: &str = "SELECT r.instance_id, r.display_id, r.process_key, r.title, r.status, r.current_step, r.created_at, r.updated_at,
@@ -88,10 +91,37 @@ struct WorkListRow {
     initiator_name: String,
     variables: Value,
     state: String,
+    assignees: Vec<String>,
 }
 
 /// What the decision path reads under the row lock.
 type WorkRow = (Uuid, String, String, String, Vec<String>, i64, bool, Vec<String>, String);
+
+/// A timeline line for one `resolution.history` entry of a step (reminders, escalations, reassignment).
+fn history_entry(step: &str, h: &Value) -> Option<TimelineEntry> {
+    let at = OffsetDateTime::parse(h["at"].as_str()?, &time::format_description::well_known::Rfc3339).ok()?;
+    let list = |k: &str| {
+        let v: Vec<&str> = h[k].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
+        if v.is_empty() { "nobody".to_owned() } else { v.join(", ") }
+    };
+    let by = h["by"].as_str().map(str::to_owned);
+    let reason = h["reason"].as_str().unwrap_or_default();
+    let (kind, text) = match (h["action"].as_str()?, &by) {
+        ("reminded", _) => ("reminded", format!("Reminded: {} ({})", step, list("to"))),
+        ("notified", _) => ("escalated", format!("Escalated: {} is overdue; {} told", step, list("to"))),
+        ("escalation_skipped", _) => {
+            ("escalated", format!("Escalated: {step} is overdue; nobody to reassign it to"))
+        }
+        ("reassigned", None) => {
+            ("escalated", format!("Escalated: {} reassigned to {} ({reason})", step, list("to")))
+        }
+        ("reassigned", Some(b)) => {
+            ("reassigned", format!("Reassigned: {} to {} by {b} ({reason})", step, list("to")))
+        }
+        _ => return None,
+    };
+    Some(TimelineEntry { at, kind: kind.into(), text, actor: by })
+}
 
 impl Requests {
     fn type_of(&self, key: &str) -> R<std::sync::Arc<RequestType>> {
@@ -349,13 +379,15 @@ impl Requests {
             OffsetDateTime,
             Option<String>,
             Vec<String>,
+            Option<Value>,
         );
         let rows: Vec<StepRow> = sqlx::query_as(
             "SELECT w.id, w.node_id, w.name, w.kind, w.state, w.unassigned, w.outcome, w.decision, w.completed_at, w.due_at, w.created_at,
                     (SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = w.completed_by),
                     coalesce((SELECT array_agg(u.display_name ORDER BY u.display_name) FROM work_item_candidates c
                               JOIN memberships m ON m.workspace_id = c.workspace_id AND m.id = c.membership_id JOIN users u ON u.id = m.user_id
-                              WHERE c.work_item_id = w.id), '{}')
+                              WHERE c.work_item_id = w.id), '{}'),
+                    w.resolution->'history'
                FROM work_items w WHERE w.instance_id = $1 ORDER BY w.created_at, w.work_key",
         )
         .bind(id)
@@ -372,13 +404,25 @@ impl Requests {
             let comment =
                 r.7.as_ref().and_then(|d| d.get("comment")).and_then(Value::as_str).map(str::to_owned);
             if let (Some(outcome), Some(at)) = (&r.6, r.8) {
-                let who = r.11.clone().unwrap_or_else(|| "Someone".into());
-                timeline.push(TimelineEntry {
-                    at,
-                    kind: "decided".into(),
-                    text: format!("{}: {} by {who}", r.2, outcome.replace('_', " ")),
-                    actor: r.11.clone(),
-                });
+                let auto = r.7.as_ref().is_some_and(|d| d.get("auto") == Some(&Value::Bool(true)));
+                let text = match (&r.11, auto) {
+                    (None, true) => format!(
+                        "{}: {} automatically ({})",
+                        r.2,
+                        outcome.replace('_', " "),
+                        comment.as_deref().unwrap_or_default()
+                    ),
+                    (who, _) => format!(
+                        "{}: {} by {}",
+                        r.2,
+                        outcome.replace('_', " "),
+                        who.as_deref().unwrap_or("Someone")
+                    ),
+                };
+                timeline.push(TimelineEntry { at, kind: "decided".into(), text, actor: r.11.clone() });
+            }
+            for h in r.13.as_ref().and_then(Value::as_array).into_iter().flatten() {
+                timeline.extend(history_entry(&r.2, h));
             }
             steps.push(Step {
                 id: r.0,
@@ -476,17 +520,23 @@ impl Requests {
             }
             WorkState::Done => "w.state = 'completed' AND w.completed_by = $1",
             WorkState::Unassigned => "w.state IN ('offered', 'claimed') AND w.unassigned AND $1 = $1",
+            WorkState::Overdue => "w.state IN ('offered', 'claimed') AND w.due_at < $2 AND $1 = $1",
         };
+        let now = self.clock.now();
         let rows: Vec<WorkListRow> = sqlx::query_as(&format!(
             "SELECT w.id, w.node_id, w.name, w.kind, w.outcomes, w.due_at, w.created_at, w.revision, w.unassigned, w.outcome, w.completed_at,
                     r.instance_id, r.display_id, r.process_key, r.title, r.initiator_membership_id, u.display_name AS initiator_name,
-                    p.state->'variables' AS variables, w.state
+                    p.state->'variables' AS variables, w.state,
+                    coalesce((SELECT array_agg(u2.display_name ORDER BY u2.display_name) FROM work_item_candidates c
+                              JOIN memberships m2 ON m2.workspace_id = c.workspace_id AND m2.id = c.membership_id
+                              JOIN users u2 ON u2.id = m2.user_id WHERE c.work_item_id = w.id), '{{}}') AS assignees
                FROM work_items w JOIN requests r ON r.workspace_id = w.workspace_id AND r.instance_id = w.instance_id
                JOIN process_instances p ON p.workspace_id = w.workspace_id AND p.id = w.instance_id
                JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.initiator_membership_id JOIN users u ON u.id = m.user_id
-              WHERE {filter} ORDER BY w.due_at NULLS LAST, w.created_at DESC LIMIT {LIST_LIMIT}"
+              WHERE {filter} AND $2 = $2 ORDER BY w.due_at NULLS LAST, w.created_at DESC LIMIT {LIST_LIMIT}"
         ))
         .bind(m)
+        .bind(now)
         .fetch_all(tx.conn())
         .await?;
         let mut out = Vec::new();
@@ -496,7 +546,10 @@ impl Requests {
             let vars: BTreeMap<String, Value> =
                 serde_json::from_value(r.variables.clone()).unwrap_or_default();
             let values = self.display(tx, &form, &vars).await?;
+            let open = matches!(r.state.as_str(), "offered" | "claimed");
             out.push(WorkView {
+                overdue: open && r.due_at.is_some_and(|d| d < now),
+                assignees: r.assignees,
                 id: r.id,
                 request: WorkRequest {
                     id: r.instance_id,
@@ -641,5 +694,96 @@ impl Requests {
             outcome: outcome.to_owned(),
             request: self.started(tx, instance).await?,
         })
+    }
+
+    /// Reassigns an open work item to one member (admin oversight, docs/08 §7.3). Separation of
+    /// duties is re-run: the initiator (when the step excludes them) and earlier deciders it names
+    /// are refused with a field error. The candidates are replaced, the history keeps who held it,
+    /// the new assignee hears `work_assigned`, the previous ones `work_reassigned`. Appends
+    /// `work_item.reassigned`.
+    pub async fn reassign(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        work_id: Uuid,
+        to: Uuid,
+        reason: &str,
+    ) -> R<Reassigned> {
+        let reason = reason.trim();
+        if reason.is_empty() || reason.chars().count() > 500 {
+            return Err(RequestError::Invalid(vec![FieldError::new(
+                "reason",
+                "required",
+                "Say why it is reassigned (up to 500 characters)",
+            )]));
+        }
+        let instance: Uuid = sqlx::query_scalar("SELECT instance_id FROM work_items WHERE id = $1")
+            .bind(work_id)
+            .fetch_optional(tx.conn())
+            .await?
+            .ok_or(RequestError::NotFound)?;
+        sqlx::query("SELECT 1 FROM process_instances WHERE id = $1 FOR UPDATE")
+            .bind(instance)
+            .execute(tx.conn())
+            .await?;
+        let cat = self.catalogue.clone();
+        let it = crate::escalate::item(tx, |k| cat.get(k).map(|r| r.name.to_owned()), Ok(work_id))
+            .await
+            .map_err(RequestError::Internal)?
+            .ok_or(RequestError::NotFound)?;
+        if !it.open {
+            return Err(RequestError::AlreadyDecided);
+        }
+        let active: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM memberships WHERE id = $1 AND status = 'active')",
+        )
+        .bind(to)
+        .fetch_one(tx.conn())
+        .await?;
+        let field =
+            |code: &str, m: &str| RequestError::Invalid(vec![FieldError::new("membership_id", code, m)]);
+        if !active {
+            return Err(field("unknown_member", "Choose an active member of this workspace"));
+        }
+        let excluded = crate::resolve::excluded(
+            tx,
+            instance,
+            Some(it.initiator),
+            it.exclude_initiator,
+            &it.exclude_actors_of,
+        )
+        .await
+        .map_err(RequestError::Internal)?;
+        if excluded.contains(&to) {
+            return Err(field(
+                "sod_excluded",
+                if to == it.initiator {
+                    "They started this request, so separation of duties keeps them off this step"
+                } else {
+                    "They decided an earlier step of this request, so separation of duties keeps them off this one"
+                },
+            ));
+        }
+        let tag = format!("admin:{}", self.ids.new_id());
+        let from = self
+            .effects
+            .reassign(tx, &it, &[to], Some(actor.membership), reason, self.clock.now(), &tag)
+            .await
+            .map_err(RequestError::Internal)?;
+        self.audit(
+            tx,
+            actor,
+            "work_item.reassigned",
+            "work_item",
+            work_id,
+            json!({ "request": instance, "step": it.node, "from": from, "to": [to], "reason": reason }),
+        )
+        .await?;
+        let revision: i64 = sqlx::query_scalar("SELECT revision FROM work_items WHERE id = $1")
+            .bind(work_id)
+            .fetch_one(tx.conn())
+            .await?;
+        let name = crate::handler::name(tx, to).await.map_err(RequestError::Internal)?;
+        Ok(Reassigned { id: work_id, revision, assignees: vec![name] })
     }
 }

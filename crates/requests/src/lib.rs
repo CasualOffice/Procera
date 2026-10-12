@@ -13,6 +13,7 @@
 //! the lifecycle and "involved" visibility facts.
 
 pub mod catalogue;
+mod escalate;
 pub mod forms;
 pub mod handler;
 pub mod resolve;
@@ -32,7 +33,7 @@ use uuid::Uuid;
 pub use catalogue::{Catalogue, Field, Form, RequestType};
 pub use forms::FieldError;
 pub use service::{Scope, WorkState};
-pub use views::{Decided, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WorkView};
+pub use views::{Decided, Reassigned, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WorkView};
 
 /// The calendar every built-in names (`refs.calendars.default`), seeded per workspace on first use.
 pub const DEFAULT_CALENDAR: &str = "calendar:default@1";
@@ -113,6 +114,7 @@ pub struct Requests {
     pub(crate) members: Members,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) ids: Arc<dyn IdGen>,
+    pub(crate) effects: handler::Effects,
 }
 
 impl std::fmt::Debug for Requests {
@@ -136,11 +138,12 @@ impl Requests {
             catalogue: catalogue.clone(),
             notify,
             ids: ids.clone(),
+            clock: clock.clone(),
             public_url: public_url.trim_end_matches('/').to_owned(),
         };
         let engine = Engine::new(db.clone(), clock.clone(), ids.clone(), catalogue.programs())
-            .with_effects(Arc::new(effects));
-        Ok(Self { db, engine, catalogue, members, clock, ids })
+            .with_effects(Arc::new(effects.clone()));
+        Ok(Self { db, engine, catalogue, members, clock, ids, effects })
     }
 
     pub fn engine(&self) -> &Engine {
