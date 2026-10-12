@@ -229,7 +229,10 @@ test.describe('directory @r1 @ui', () => {
 
     await page.goto(`${WEB}/members/${nina.id}`);
     await page.getByRole('button', { name: 'Deactivate' }).click();
-    await page.getByRole('dialog', { name: 'Deactivate Nina?' }).getByRole('button', { name: 'Deactivate' }).click();
+    const leave = page.getByRole('dialog', { name: 'Deactivate Nina?' });
+    await leave.getByRole('button', { name: 'Next' }).click(); // review (the leaving flow is E2E-R1-UI-74)
+    await leave.getByRole('button', { name: 'Next' }).click(); // hand over
+    await leave.getByRole('button', { name: 'Deactivate' }).click();
     await expect(page.getByText('Nina can no longer sign in to this workspace.')).toBeVisible();
 
     // Reactivation restores access, so it asks for a reason (and step-up once the sign-in is older than

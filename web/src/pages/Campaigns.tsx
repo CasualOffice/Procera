@@ -184,7 +184,8 @@ export function CampaignDetail({ id }: { id: string }) {
   if (!c) return <Skeleton variant="doc" label="Loading campaign" />;
   const p = c.progress;
   const rows = (recipients ?? []).filter((r) => filter === 'all' || (filter === 'overdue' ? r.overdue : filter === 'pending' ? r.state === 'pending' && !r.overdue : r.state === 'completed'));
-  const byDept = Object.values((recipients ?? []).reduce<Record<string, { label: string; value: number; total: number }>>((acc, r) => {
+  // People who left the organisation stay listed as evidence but are outside the counts (docs/22 A-44).
+  const byDept = Object.values((recipients ?? []).filter((r) => r.state !== 'left').reduce<Record<string, { label: string; value: number; total: number }>>((acc, r) => {
     const k = r.department ?? 'No department';
     acc[k] ??= { label: k, value: 0, total: 0 };
     acc[k].total++; if (r.state === 'completed') acc[k].value++;
@@ -245,7 +246,7 @@ export function CampaignDetail({ id }: { id: string }) {
                     {rows.map((r) => (
                       <tr key={r.id}>
                         <td><span className="cell-entity"><Avatar name={r.name} size="1.5rem" /><span className="cell-stack"><span>{r.name}</span><span className="cell-sub">{r.email}</span></span></span></td>
-                        <td>{r.state === 'completed' ? <Tag color="green" dot>Done</Tag> : r.overdue ? <Tag color="red" dot>Overdue</Tag> : <Tag color="yellow" dot>Pending</Tag>}</td>
+                        <td>{r.state === 'completed' ? <Tag color="green" dot>Done</Tag> : r.state === 'left' ? <Tag color="gray" dot>Left organisation</Tag> : r.overdue ? <Tag color="red" dot>Overdue</Tag> : <Tag color="yellow" dot>Pending</Tag>}</td>
                         <td className="col-optional cell-muted">{r.department ?? ''}</td>
                         <td className="col-optional cell-muted">{r.acknowledged_at ? shortDate(r.acknowledged_at) : `due ${shortDate(r.due_at)}`}</td>
                         <td className="col-optional cell-muted">{r.reminders_sent || ''}</td>
