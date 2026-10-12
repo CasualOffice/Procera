@@ -23,7 +23,7 @@ use serde_json::json;
 use time::{Duration, OffsetDateTime};
 use uuid::Uuid;
 
-use crate::engine::Engine;
+use crate::engine::{Engine, FiredTimer};
 use crate::jobs::{self, ADVANCE, Claimed};
 use crate::lease::JobState;
 use crate::{EngineError, sla};
@@ -189,6 +189,9 @@ impl Scheduler {
                         pass.sla_breached += 1;
                     }
                 }
+                ("reminder" | "escalation", _) => {
+                    self.fire_handler(&mut tx, (&key, instance, &purpose, due_at), now).await?;
+                }
                 (_, Some(iid)) => {
                     let stimulus = Stimulus { at: now, event: Event::TimerFired { key: key.clone() } };
                     jobs::enqueue_advance(eng, &mut tx, iid, &format!("fired:{key}"), &stimulus, now).await?;
@@ -201,6 +204,33 @@ impl Scheduler {
             tracing::debug!(workspace = %ctx.workspace_id, fired = pass.timers_fired, "timers fired");
         }
         Ok(pass)
+    }
+
+    /// Hands a reminder or escalation timer to the effect handler under a savepoint: a failing
+    /// handler is logged and rolled back alone, so one bad timer never blocks the others.
+    async fn fire_handler(
+        &self,
+        tx: &mut procera_db::WsTx<'_>,
+        (key, instance, purpose, due_at): (&str, Option<Uuid>, &str, OffsetDateTime),
+        now: OffsetDateTime,
+    ) -> Result<(), EngineError> {
+        let eng = &self.engine;
+        let Some(h) = &eng.effects else { return Ok(()) };
+        sqlx::query("SAVEPOINT handler_timer").execute(tx.conn()).await?;
+        let fired = FiredTimer { key, instance, purpose, due_at, at: now };
+        match h.fire(tx, fired).await {
+            Ok(stimulus) => {
+                sqlx::query("RELEASE SAVEPOINT handler_timer").execute(tx.conn()).await?;
+                if let (Some(stimulus), Some(iid)) = (stimulus, instance) {
+                    jobs::enqueue_advance(eng, tx, iid, &format!("fired:{key}"), &stimulus, now).await?;
+                }
+            }
+            Err(e) => {
+                sqlx::query("ROLLBACK TO SAVEPOINT handler_timer").execute(tx.conn()).await?;
+                tracing::error!(timer = key, error = %e, "handler timer failed; skipped");
+            }
+        }
+        Ok(())
     }
 
     /// Claims due jobs of one workspace under a lease (committed before they run).

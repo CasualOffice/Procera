@@ -1,9 +1,9 @@
-import { Archive, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Archive, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
-  | 'admin' | 'overview' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'overview' | 'request-oversight' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -41,6 +41,9 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('role:view') && { key: 'roles', label: 'Roles & access', to: '/admin/roles', icon: UserCog, keywords: 'permissions custom role grant scope expiry rbac' },
       can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     ]) },
+    { label: 'Work', items: pick([
+      can('request:view_all') && can('work:reassign') && { key: 'request-oversight', label: 'Requests oversight', to: '/admin/requests', icon: ListChecks, keywords: 'unassigned overdue stuck approvals reassign escalate work items' },
+    ]) },
     { label: 'Content & communication', items: pick([
       can('template:install') && { key: 'templates', label: 'Templates', to: '/templates', icon: LayoutTemplate, keywords: 'gallery starter pack handbook install' },
     ]) },
@@ -56,7 +59,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
   ].filter((g) => g.items.length);
 }
 
-const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'members', 'departments', 'groups', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
+const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'request-oversight', 'members', 'departments', 'groups', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
 /** Pages that show the admin sidebar. */
 export const isAdminPage = (key: NavKey) => ADMIN_KEYS.has(key);
 

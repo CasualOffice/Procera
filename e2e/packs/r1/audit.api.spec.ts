@@ -143,6 +143,9 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const [item] = (await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items;
   await step('POST', '/api/v1/work/{id}/decisions', () => own.post(`/api/v1/work/${item.id}/decisions`, { headers: { ...oh, 'if-match': `"${item.revision}"` }, data: { outcome: 'approved' } }));
   const second = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-2` }, data: leave })).json();
+  // Admin oversight (BPMS-088): the owner reassigns the open step (to themselves; Adam is excluded by SoD).
+  const [open] = ((await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items as { id: string; request: { id: string } }[]).filter((w) => w.request.id === second.id);
+  await step('POST', '/api/v1/work/{id}/reassign', () => own.post(`/api/v1/work/${open.id}/reassign`, { headers: oh, data: { membership_id: ownerMembership, reason: 'audit drill' } }));
   await step('POST', '/api/v1/requests/{id}/cancel', () => adam.post(`/api/v1/requests/${second.id}/cancel`, { headers: rh, data: { reason: 'plans changed' } }));
 
   // Library: Adam reviews as a reviewer (granted outside the contract steps).

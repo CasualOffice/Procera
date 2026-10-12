@@ -68,7 +68,7 @@ pub struct Step {
 pub struct TimelineEntry {
     #[serde(with = "time::serde::rfc3339")]
     pub at: OffsetDateTime,
-    /// `submitted`, `decided`, `cancelled`, `timer`, `completed`.
+    /// `submitted`, `decided`, `reminded`, `escalated`, `reassigned`, `cancelled`, `timer`, `completed`.
     pub kind: String,
     pub text: String,
     pub actor: Option<String>,
@@ -126,9 +126,21 @@ pub struct WorkView {
     pub fields: Vec<Field>,
     pub values: serde_json::Map<String, Value>,
     pub unassigned: bool,
+    /// Open and past its due date (by the server clock).
+    pub overdue: bool,
+    /// Names of the people the step is offered to.
+    pub assignees: Vec<String>,
     pub outcome: Option<String>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub completed_at: Option<OffsetDateTime>,
+}
+
+/// The result of an admin reassignment.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Reassigned {
+    pub id: Uuid,
+    pub revision: i64,
+    pub assignees: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

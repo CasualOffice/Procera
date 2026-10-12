@@ -1,17 +1,17 @@
 {
  "source": "scripts/build_tracker.py",
- "last_updated": "2026-10-12",
+ "last_updated": "2026-10-13",
  "current_release": "P0",
  "totals": {
-  "Done": 33,
+  "Done": 35,
   "In review": 0,
-  "In progress": 14,
+  "In progress": 17,
   "Blocked": 0,
-  "Not started": 62,
+  "Not started": 57,
   "Deferred": 0,
   "all": 109
  },
- "e2e_scenarios": 190,
+ "e2e_scenarios": 228,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -202,7 +202,45 @@
   "E2E-R1-UI-48",
   "E2E-R1-UI-49",
   "E2E-R1-UI-50",
-  "E2E-R1-VIEW-01"
+  "E2E-R1-UI-51",
+  "E2E-R1-UI-52",
+  "E2E-R1-UI-53",
+  "E2E-R1-UI-54",
+  "E2E-R1-UI-55",
+  "E2E-R1-UI-56",
+  "E2E-R1-UI-61",
+  "E2E-R1-UI-62",
+  "E2E-R1-UI-63",
+  "E2E-R1-UI-64",
+  "E2E-R1-UI-65",
+  "E2E-R1-UI-66",
+  "E2E-R1-UI-67",
+  "E2E-R1-UI-68",
+  "E2E-R1-UI-69",
+  "E2E-R1-UI-71",
+  "E2E-R1-UI-72",
+  "E2E-R1-UI-73",
+  "E2E-R1-UI-74",
+  "E2E-R1-UI-75",
+  "E2E-R1-UI-76",
+  "E2E-R1-UI-77",
+  "E2E-R1-VIEW-01",
+  "E2E-R2-02",
+  "E2E-R2-03",
+  "E2E-R2-04",
+  "E2E-R2-09",
+  "E2E-R2-17",
+  "E2E-R2-18",
+  "E2E-R2-20",
+  "E2E-R2-21",
+  "E2E-R2-22",
+  "E2E-R2-23",
+  "E2E-R2-ISO",
+  "E2E-R2-UI-01",
+  "E2E-R2-UI-02",
+  "E2E-R2-UI-03",
+  "E2E-R2-UI-04",
+  "E2E-R2-UI-05"
  ],
  "releases": [
   {
@@ -241,8 +279,8 @@
    "gate": "G-R1",
    "scope": "System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)",
    "total": 32,
-   "done": 22,
-   "in_progress": 9,
+   "done": 24,
+   "in_progress": 7,
    "not_started": 1,
    "epics": [
     "BPMS-020",
@@ -288,8 +326,8 @@
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
    "total": 17,
    "done": 0,
-   "in_progress": 5,
-   "not_started": 12,
+   "in_progress": 10,
+   "not_started": 7,
    "epics": [
     "BPMS-080",
     "BPMS-081",
@@ -570,7 +608,7 @@
    "title": "Memberships, invites, directory (departments/groups/positions/managers), CSV import",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-024",
@@ -786,7 +824,7 @@
    "title": "System console: workspaces grid, quotas, health, system audit",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-120",
@@ -842,7 +880,7 @@
    "title": "Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-086",
@@ -866,7 +904,7 @@
    "title": "Incidents, retry/skip/cancel, instance admin ops",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-089",
@@ -890,7 +928,7 @@
    "title": "Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-103",
@@ -898,7 +936,7 @@
    "title": "Request portal/catalogue, start form, request detail, comments/@mentions/watchers",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-105",
@@ -906,7 +944,7 @@
    "title": "My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-106",

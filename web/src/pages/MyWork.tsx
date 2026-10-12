@@ -65,7 +65,7 @@ export function MyWork({ selected }: { selected: string | null }) {
           <nav className="work-list" aria-label={state === 'open' ? 'Open work' : 'Done work'}>
             <ul>
               {sorted.map((w) => {
-                const d = state === 'open' ? dueInfo(w.due_at) : null;
+                const d = state === 'open' ? (w.overdue ? { label: 'Overdue', color: 'red' as const, overdue: true } : dueInfo(w.due_at, w.overdue === false)) : null;
                 return (
                   <li key={w.id}>
                     <Link to={`/work/${w.id}${suffix}`} data-work={w.id} aria-current={w.id === selected ? 'page' : undefined} className="work-item">

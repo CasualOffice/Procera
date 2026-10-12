@@ -38,16 +38,30 @@ function ActiveCampaigns() {
 
 interface Attention { kind: string; severity: 'high' | 'medium' | 'low'; count: number; title: string; link: string }
 
-/** Admins and IT: the top of Admin › Overview's "Needs attention". */
-function NeedsAttention() {
+/** Steps an admin must unblock (BPMS-088): unassigned and overdue work items, as attention lines. */
+async function stuckWork(): Promise<Attention[]> {
+  const count = (state: string) => api<{ items: unknown[] }>(`/api/v1/work?state=${state}`).then((r) => r.items.length).catch(() => 0);
+  const [unassigned, overdue] = await Promise.all([count('unassigned'), count('overdue')]);
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`;
+  return [
+    unassigned > 0 && { kind: 'work_unassigned', severity: 'high' as const, count: unassigned, title: `${n(unassigned, 'request step has', 'request steps have')} nobody to decide`, link: '/admin/requests?tab=unassigned' },
+    overdue > 0 && { kind: 'work_overdue', severity: 'medium' as const, count: overdue, title: `${n(overdue, 'request step is', 'request steps are')} overdue`, link: '/admin/requests?tab=overdue' },
+  ].filter(Boolean) as Attention[];
+}
+
+/** Admins and IT: the top of Admin › Overview's "Needs attention", with stuck request steps first. */
+function NeedsAttention({ overview, work }: { overview: boolean; work: boolean }) {
   const [items, setItems] = useState<Attention[] | null>(null);
   useEffect(() => {
-    api<{ attention: Attention[] }>('/api/v1/admin/overview?days=30').then((r) => setItems(r.attention.slice(0, 3))).catch(() => setItems([]));
-  }, []);
+    const fromOverview = overview
+      ? api<{ attention: Attention[] }>('/api/v1/admin/overview?days=30').then((r) => r.attention).catch(() => [] as Attention[])
+      : Promise.resolve([] as Attention[]);
+    void Promise.all([work ? stuckWork() : Promise.resolve([] as Attention[]), fromOverview]).then(([w, o]) => setItems([...w, ...o].slice(0, 4)));
+  }, [overview, work]);
   if (!items || items.length === 0) return null;
   return (
     <section aria-labelledby="home-attention" className="section-gap">
-      <div className="section-head"><h2 id="home-attention">Needs attention</h2><Link className="section-link" to="/admin/overview">Overview</Link></div>
+      <div className="section-head"><h2 id="home-attention">Needs attention</h2>{overview && <Link className="section-link" to="/admin/overview">Overview</Link>}</div>
       <ul className="home-attention">
         {items.map((a) => (
           <li key={`${a.kind}-${a.title}`}>
@@ -64,7 +78,9 @@ export function RoleCards() {
   const { can } = useSession();
   return (
     <>
-      {can('monitoring:view_dashboards') && <NeedsAttention />}
+      {(can('monitoring:view_dashboards') || can('work:reassign')) && (
+        <NeedsAttention overview={can('monitoring:view_dashboards')} work={can('work:reassign') && can('request:view_all')} />
+      )}
       {can('campaign:view') && <ActiveCampaigns />}
     </>
   );

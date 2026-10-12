@@ -30,6 +30,7 @@ pub fn router() -> Router<AppState> {
         .route("/mail", get(mail))
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
+        .route("/work-items/backdate", post(backdate_work_item))
         .route("/library/backdate", post(backdate_artifact))
         .route("/library/due", post(make_version_due))
         .route("/announcements/expire", post(expire_announcement))
@@ -63,6 +64,40 @@ async fn backdate_campaign(State(s): State<AppState>, Json(b): Json<CampaignBack
             .bind(b.campaign).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
         sqlx::query("UPDATE campaign_recipients SET assigned_at = assigned_at - make_interval(secs => $2), due_at = due_at - make_interval(secs => $2) WHERE campaign_id = $1 AND state = 'pending'")
             .bind(b.campaign).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkItemBackdate {
+    workspace: uuid::Uuid,
+    work_item: uuid::Uuid,
+    seconds: i64,
+}
+
+/// Moves an open work item's due date and its scheduled reminders and escalations `seconds` into
+/// the past (BPMS-085), so `/drain` fires them without moving the shared clock.
+async fn backdate_work_item(State(s): State<AppState>, Json(b): Json<WorkItemBackdate>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let by = b.seconds as f64;
+        let n = sqlx::query("UPDATE work_items SET due_at = due_at - make_interval(secs => $2) WHERE id = $1 AND state IN ('offered', 'claimed')")
+            .bind(b.work_item).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        sqlx::query("UPDATE timers t SET due_at = t.due_at - make_interval(secs => $2) FROM work_items w
+                     WHERE w.id = $1 AND starts_with(t.timer_key, w.work_key || '/esc/') AND t.state = 'scheduled'")
+            .bind(b.work_item).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?;
         tx.commit().await.map_err(|e| e.to_string())?;
         Ok(n)
     }

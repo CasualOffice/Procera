@@ -15,11 +15,11 @@
 use std::sync::Arc;
 
 use procera_db::WsTx;
-use procera_engine::{BoxFuture, BusinessDuration, EffectContext, EffectHandler, store};
-use procera_kernel::IdGen;
+use procera_engine::{BoxFuture, BusinessDuration, EffectContext, EffectHandler, FiredTimer, store};
+use procera_kernel::{Clock, IdGen};
 use procera_notify::Notify;
 use procera_notify::delivery::Urgency;
-use procera_runtime::{Command, Event, InstanceStatus, TokenState, TraceEvent, WaitKind, WorkKind};
+use procera_runtime::{Command, Event, InstanceStatus, Stimulus, TokenState, TraceEvent, WaitKind, WorkKind};
 use serde_json::{Value, json};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -32,6 +32,7 @@ pub struct Effects {
     pub(crate) catalogue: Arc<Catalogue>,
     pub(crate) notify: Notify,
     pub(crate) ids: Arc<dyn IdGen>,
+    pub(crate) clock: Arc<dyn Clock>,
     pub(crate) public_url: String,
 }
 
@@ -51,6 +52,14 @@ impl EffectHandler for Effects {
             let Some(rt) = self.catalogue.get(&cx.program.process_key).cloned() else { return Ok(()) };
             self.run(tx, &rt, cx).await.map_err(|e| format!("requests: {e}"))
         })
+    }
+
+    fn fire<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        timer: FiredTimer<'a>,
+    ) -> BoxFuture<'a, Result<Option<Stimulus>, String>> {
+        Box::pin(async move { self.fire_timer(tx, timer).await.map_err(|e| format!("requests: {e}")) })
     }
 }
 
@@ -125,6 +134,7 @@ impl Effects {
                     form,
                     outcomes,
                     due,
+                    escalations,
                     ..
                 } => {
                     let res = match assignment {
@@ -181,6 +191,7 @@ impl Effects {
                             )
                             .await?;
                         }
+                        self.arm_escalations(tx, rt, iid, key, node, escalations, due.as_ref(), at).await?;
                         if res.unassigned() {
                             tracing::warn!(instance = %iid, node, "no assignee resolved; work item left unassigned for admins");
                         }
@@ -190,6 +201,7 @@ impl Effects {
                 Command::CancelWorkItem { key } => {
                     sqlx::query("UPDATE work_items SET state = 'cancelled', completed_at = $2, revision = revision + 1 WHERE work_key = $1 AND state IN ('offered', 'claimed')")
                         .bind(key).bind(at).execute(tx.conn()).await.map_err(db)?;
+                    crate::escalate::cancel(tx, key).await?;
                     done(tx, key, "cancel_work_item").await?;
                 }
                 Command::Notify { key, node, to: Some(a), .. } => {
@@ -213,6 +225,9 @@ impl Effects {
                 }
                 _ => {}
             }
+        }
+        if let Event::WorkItemCompleted { key, .. } = &cx.stimulus.event {
+            crate::escalate::cancel(tx, key).await?;
         }
         let status = status(rt, st);
         sqlx::query("UPDATE requests SET status = $2, current_step = $3, updated_at = $4, ended_at = $5 WHERE instance_id = $1")
@@ -322,7 +337,7 @@ impl Effects {
 
     /// In-app notification and email to one member (idempotent on `dedupe`).
     #[allow(clippy::too_many_arguments)]
-    async fn tell(
+    pub(crate) async fn tell(
         &self,
         tx: &mut WsTx<'_>,
         to: Uuid,

@@ -158,6 +158,23 @@ pub async fn excluded(
     Ok(out)
 }
 
+/// One candidate (an escalation `to`, compiled at `field` on `node`) expanded against the current
+/// directory, minus `excluded`. Only active members count.
+#[allow(clippy::too_many_arguments)]
+pub async fn resolve_candidate(
+    tx: &mut WsTx<'_>,
+    exe: &Executable,
+    st: &InstanceState,
+    at: OffsetDateTime,
+    node: &str,
+    field: &str,
+    c: &Candidate,
+    excluded: &BTreeSet<Uuid>,
+) -> Result<Vec<Uuid>, String> {
+    let members = expand(tx, exe, st, at, node, field, c).await?;
+    Ok(members.into_iter().filter(|m| !excluded.contains(m)).collect::<BTreeSet<_>>().into_iter().collect())
+}
+
 /// Resolves an assignment. `sod` is false for notifications (`notify.to`).
 pub async fn resolve(
     tx: &mut WsTx<'_>,

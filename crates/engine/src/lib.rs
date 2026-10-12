@@ -23,9 +23,10 @@ pub mod sla;
 pub mod store;
 
 pub use calendar::{BusinessDuration, Calendar, CalendarError, CalendarSpec};
+pub use effects::{HandlerTimer, arm_timer, cancel_timers_under};
 pub use engine::{
-    Actor, Advanced, BoxFuture, EffectContext, EffectHandler, Engine, Executable, InstanceRecord, ProgramRef,
-    ProgramSource, StaticPrograms, stored_status,
+    Actor, Advanced, BoxFuture, EffectContext, EffectHandler, Engine, Executable, FiredTimer, InstanceRecord,
+    ProgramRef, ProgramSource, StaticPrograms, stored_status,
 };
 pub use lease::{Lease, Stale};
 pub use scheduler::{Lateness, LatenessSnapshot, Pass, Scheduler};

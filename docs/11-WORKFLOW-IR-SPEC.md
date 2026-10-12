@@ -112,6 +112,8 @@ resolution and are recorded separately.
 `outcome` escalations require the process to be in a policy class that permits automatic
 outcomes; controlled (`criticality: controlled`) processes forbid auto-approval.
 
+**As built (0.2, BPMS-085).** `at` counts from the step's activation, in business time on the process calendar when the step's `due` is business time, else wall time. Escalations act only while the work item is open and are cancelled when it is decided or cancelled. `reassign` replaces the candidates with `to` minus the step's SoD exclusions and leaves the step where it is when nobody is left; `notify` tells `to`; `remind` tells the current candidates; `outcome` completes the item as the system. Each action is kept in the work item's history and shown on the request timeline (docs/04 §2.6).
+
 ## 4. Edges
 
 ```jsonc

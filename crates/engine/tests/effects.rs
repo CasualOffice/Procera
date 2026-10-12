@@ -11,9 +11,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use common::{sla_process, timer_process, world};
 use procera_db::WsTx;
-use procera_engine::{Actor, BoxFuture, EffectContext, EffectHandler, Engine, EngineError, StaticPrograms};
+use procera_engine::{
+    Actor, BoxFuture, EffectContext, EffectHandler, Engine, EngineError, FiredTimer, HandlerTimer,
+    StaticPrograms, arm_timer, cancel_timers_under,
+};
 use procera_kernel::UuidV7Gen;
-use procera_runtime::Event;
+use procera_runtime::{Event, TimerPurpose};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -94,4 +97,90 @@ async fn a_pinned_checksum_refuses_another_build() {
     r.checksum = Some("sha256:other".into());
     let err = engine.start(w.ctx, &r, json!({}), BTreeMap::new()).await.unwrap_err();
     assert!(matches!(err, EngineError::Program(_)), "{err}");
+}
+
+/// Arms three handler timers at start (`<instance>/esc/0..2`); records what fires; fails on `/esc/1`.
+#[derive(Debug, Default)]
+struct Arms {
+    fired: std::sync::Mutex<Vec<String>>,
+}
+
+impl EffectHandler for Arms {
+    fn apply<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        cx: EffectContext<'a>,
+    ) -> BoxFuture<'a, Result<(), String>> {
+        Box::pin(async move {
+            if cx.before.is_some() {
+                return Ok(());
+            }
+            let iid = cx.state.instance_id;
+            let purposes = [TimerPurpose::Reminder, TimerPurpose::Escalation, TimerPurpose::Escalation];
+            for (n, purpose) in (1_i64..).zip(purposes) {
+                let key = format!("{iid}/esc/{}", n - 1);
+                let t = HandlerTimer {
+                    key: &key,
+                    instance: iid,
+                    node: "hold",
+                    purpose,
+                    due_at: cx.stimulus.at + time::Duration::minutes(10 * n),
+                    calendar_version: None,
+                    source_tz: None,
+                    rule: "test",
+                };
+                arm_timer(tx, &UuidV7Gen, cx.stimulus.at, t).await.map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        })
+    }
+
+    fn fire<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        t: FiredTimer<'a>,
+    ) -> BoxFuture<'a, Result<Option<procera_runtime::Stimulus>, String>> {
+        Box::pin(async move {
+            // A write that must not survive a failure.
+            sqlx::query("UPDATE timers SET rule = 'touched' WHERE timer_key = $1")
+                .bind(t.key)
+                .execute(tx.conn())
+                .await
+                .map_err(|e| e.to_string())?;
+            if t.key.ends_with("/esc/1") {
+                return Err("refused".into());
+            }
+            let n = t.key.rsplit('/').next().unwrap_or_default();
+            self.fired.lock().unwrap().push(format!("{}:{n}", t.purpose));
+            Ok(None)
+        })
+    }
+}
+
+#[tokio::test]
+async fn handler_timers_fire_through_the_handler_once_and_can_be_cancelled() {
+    let Some(mut w) = world(vec![sla_process("p.arm", "P1D", false)]).await else { return };
+    let arms = Arc::new(Arms::default());
+    w.engine = w.engine.clone().with_effects(arms.clone());
+    let a = w.engine.start(w.ctx, w.program("p.arm"), json!({ "id": "u1" }), BTreeMap::new()).await.unwrap();
+    let sched = w.scheduler("t");
+    w.clock.advance(time::Duration::minutes(25));
+    sched.run_once().await.unwrap();
+    sched.run_once().await.unwrap();
+    // The reminder fired once; the failing escalation was skipped and its write rolled back.
+    assert_eq!(*arms.fired.lock().unwrap(), ["reminder:0"]);
+    let rules = w
+        .strings(
+            "SELECT rule || ':' || state FROM timers WHERE instance_id = $1 AND purpose IN ('reminder', 'escalation') ORDER BY due_at",
+            a.instance_id,
+        )
+        .await;
+    assert_eq!(rules, ["touched:fired", "test:fired", "test:scheduled"]);
+    // Cancelling under the prefix stops the rest.
+    let mut tx = w.db().begin_ws(w.ctx).await.unwrap();
+    assert_eq!(cancel_timers_under(&mut tx, &format!("{}/esc/", a.instance_id)).await.unwrap(), 1);
+    tx.commit().await.unwrap();
+    w.clock.advance(time::Duration::hours(1));
+    sched.run_once().await.unwrap();
+    assert_eq!(arms.fired.lock().unwrap().len(), 1);
 }

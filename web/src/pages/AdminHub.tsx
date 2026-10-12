@@ -10,6 +10,7 @@ const ABOUT: Record<string, string> = {
   groups: 'Flexible sets of people across departments, for access and audiences.',
   roles: 'What each role can do, custom roles, and who holds them.',
   people: 'Two-step verification, dormant accounts and privileged access at a glance.',
+  'request-oversight': 'Steps nobody has, steps past due, and every open request; reassign what’s stuck.',
   templates: 'Starter packs: an employee handbook and policies to adapt and publish.',
   audit: 'Every action, in a tamper-evident record you can filter and export.',
   files: 'Uploads, storage used, malware scan results and how long files are kept.',

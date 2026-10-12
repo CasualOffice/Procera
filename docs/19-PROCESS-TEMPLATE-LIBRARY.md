@@ -462,6 +462,14 @@ Until the template gallery installs processes, four simplified Wave 1 templates 
 | `fin.purchase-requisition` (PR) | amount (INR), vendor, cost centre, justification | Manager; finance above 50,000; then the `CFO` position above 500,000 (§5.2 simplified: no line items, no PO task) |
 | `it.access-request` (AR) | system, access level, sensitivity, beneficiary (a member), justification | Beneficiary's manager, or role `system.owner` then group `Security` for high sensitivity; then group `IT` provisions (a human task with a ticket reference) and the beneficiary is notified |
 
+Reminders and escalations (BPMS-085), one business day = the default calendar's working day; a step's reminders go to whoever holds it:
+
+- `hr.leave-request`: manager approval (P2D) reminds at P1D and P2D; at P3D it is reassigned to the requester's manager's manager (stays put when there is none).
+- `hr.expense-claim`: manager approval as for leave; finance approval (P3D) reminds at P2D and P3D, and at P4D notifies the requester's manager.
+- `fin.purchase-requisition`: manager approval (P1D) reminds at P1D and at P2D is reassigned to the manager's manager; finance and CFO approvals (P1D) remind at P1D and at P2D notify the requester's manager.
+- `it.access-request`: manager approval (P2D) reminds at P1D and P2D, at P3D is reassigned to the beneficiary's manager's manager; system owner and security approvals (P2D) remind at P1D and P2D and at P3D notify the requester's manager; provisioning (P1D) reminds at P1D and at P2D notifies the requester's manager.
+- No built-in completes a step automatically (`outcome` escalations are not used); revise tasks have no due date and no escalations.
+
 Onboarding (§5.1) is deferred: it needs parallel tasks and a start-date timer in the request UI.
 
 ## 6. Quality bar and governance of templates
