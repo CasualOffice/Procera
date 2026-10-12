@@ -30,14 +30,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
       POSTGRES_DB: procera
-      # Read by initdb/20-role-passwords.sh on the first start of an empty volume.
-      PROCERA_MIGRATOR_DB_PASSWORD: ${PROCERA_MIGRATOR_DB_PASSWORD:?set PROCERA_MIGRATOR_DB_PASSWORD in deploy/.env}
-      PROCERA_APP_DB_PASSWORD: ${PROCERA_APP_DB_PASSWORD:?set PROCERA_APP_DB_PASSWORD in deploy/.env}
     volumes:
       - pgdata:/var/lib/postgresql/data
       # Runs only when the data volume is empty: roles (deploy/sql), then their passwords.
       - ./sql/00-roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
-      - ./initdb/20-role-passwords.sh:/docker-entrypoint-initdb.d/20-role-passwords.sh:ro
+    configs:
+      # Generated from deploy/.env (a SQL file, not a script, so host file modes don't matter).
+      - source: role_passwords
+        target: /docker-entrypoint-initdb.d/20-role-passwords.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d procera"]
       interval: 5s
@@ -146,6 +146,14 @@ services:
       interval: 10s
       timeout: 3s
       retries: 6
+
+configs:
+  role_passwords:
+    # Runs once, on the first start of an empty volume, after the roles exist. Use letters and digits
+    # for these passwords (e.g. `openssl rand -hex 24`): they are written into SQL as literals.
+    content: |
+      ALTER ROLE procera_migrator PASSWORD '${PROCERA_MIGRATOR_DB_PASSWORD:?set PROCERA_MIGRATOR_DB_PASSWORD in deploy/.env}';
+      ALTER ROLE procera_app PASSWORD '${PROCERA_APP_DB_PASSWORD:?set PROCERA_APP_DB_PASSWORD in deploy/.env}';
 
 volumes:
   pgdata:
