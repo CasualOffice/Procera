@@ -13,13 +13,14 @@ See also: [Install with Docker Compose](install-docker-compose.md) and [First-ti
 
 ## 1. Server options and environment variables
 
-The `procera` binary has four commands:
+The `procera` binary has five commands:
 
 | Command | What it does |
 |---|---|
 | `procera serve` | Runs the server. Add `--all` to run the API, the background worker (event dispatch, email sending) and the scheduler in one process. Without `--all`, only the API runs: nothing sends email or publishes scheduled versions. Use `--all` today. |
 | `procera migrate` | Applies database migrations. Run it as the `procera_migrator` role, never the app role. |
 | `procera keygen` | Prints a new random master key (base64) for `PROCERA_MASTER_KEY` on standard output. |
+| `procera rotate-master-key` | Moves the database to a new master key. Stop the server, back up, run `procera keygen` for a new key, then run this with `PROCERA_DATABASE_URL`, the current `PROCERA_MASTER_KEY` and the new key in `PROCERA_NEW_MASTER_KEY` (or `--new-key`; the variable keeps it out of the process list). In one transaction it re-seals every value sealed under the master key (workspace keys, two-step secrets, invitation tokens, older email bodies), checks each with the new key, and prints the counts; it refuses a malformed key, the same key, or a current key that doesn't open the data. Then put the new key in `.env` as `PROCERA_MASTER_KEY` and start the server. Access tokens and signed file links issued before stop working (people stay signed in). Keep the old key with backups taken before the rotation. |
 | `procera healthcheck` | Exits 0 if the server on `PROCERA_BIND` answers `GET /healthz` with 200, else 1 (loopback is used when bound to `0.0.0.0`). For container health checks. |
 
 Every option can be given as a flag or as its environment variable; a flag wins. An empty variable

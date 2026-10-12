@@ -9,6 +9,9 @@
 //!   next one; the rewrap job then rewraps every registered envelope column to the active version, and a
 //!   retired KEK that no value references any more is destroyed.
 //! - Crypto-shredding destroys every KEK of the workspace: its envelopes can no longer be opened.
+//! - Root key rotation ([`rotate_root`]) re-seals the KEK rows and the other root-sealed values.
+
+mod root;
 
 use std::sync::Arc;
 
@@ -24,6 +27,8 @@ use serde_json::json;
 use time::OffsetDateTime;
 use uuid::Uuid;
 use zeroize::Zeroizing;
+
+pub use root::{RootRotation, rotate_root};
 
 const PURPOSE: &str = "workspace-kek";
 
@@ -42,6 +47,14 @@ pub enum KeyError {
     Destroyed,
     #[error("crypto: {0}")]
     Crypto(#[from] CryptoError),
+    #[error("the new root key is the same as the current one")]
+    SameRootKey,
+    #[error(
+        "a value in {table} ({row}) does not open with the current root key; is PROCERA_MASTER_KEY the key the server runs with?"
+    )]
+    RootMismatch { table: &'static str, row: String },
+    #[error("a value in {table} ({row}) did not verify under the new root key; nothing was changed")]
+    RootVerify { table: &'static str, row: String },
     #[error("internal error: {0}")]
     Internal(String),
 }
