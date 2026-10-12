@@ -99,6 +99,8 @@ pub struct Member {
     pub roles: Vec<String>,
     #[serde(with = "time::serde::rfc3339")]
     pub joined_at: OffsetDateTime,
+    /// Their department (directory field), for lists that group people.
+    pub department_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -581,9 +583,11 @@ impl Members {
     }
 
     pub async fn list(&self, tx: &mut WsTx<'_>) -> Result<Vec<Member>, MembersError> {
-        let rows: Vec<(Uuid, Uuid, String, String, String, Option<String>, OffsetDateTime, Vec<String>)> = sqlx::query_as(
+        type Row =
+            (Uuid, Uuid, String, String, String, Option<String>, OffsetDateTime, Vec<String>, Option<Uuid>);
+        let rows: Vec<Row> = sqlx::query_as(
             "SELECT m.id, m.user_id, u.email::text, u.display_name, m.status, m.title, m.joined_at,
-                    coalesce(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}')
+                    coalesce(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}'), m.department_id
              FROM memberships m JOIN users u ON u.id = m.user_id
              LEFT JOIN role_grants g ON g.workspace_id = m.workspace_id AND g.membership_id = m.id AND g.scope_kind = 'workspace'
              LEFT JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
@@ -600,6 +604,7 @@ impl Members {
                 title: r.5,
                 joined_at: r.6,
                 roles: r.7,
+                department_id: r.8,
             })
             .collect())
     }

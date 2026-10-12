@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, api } from './api';
 
-export interface Member { id: string; user_id: string; email: string; display_name: string; status: string; title: string | null; roles: string[]; joined_at: string }
+export interface Member { id: string; user_id: string; email: string; display_name: string; status: string; title: string | null; roles: string[]; joined_at: string; department_id?: string | null }
 export interface Artifact { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; created_at: string; revision: number; collection_id?: string | null }
 
 /** A load failure the page can show and retry (docs/05 §3: error state with retry). */

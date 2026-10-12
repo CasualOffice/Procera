@@ -2,7 +2,7 @@ import { CornerDownRight, FileUp, FolderTree, Move, Pencil, Plus, Trash2, UserRo
 import { useMemo, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../lib/api';
-import { type Member, useItems } from '../lib/data';
+import { type Member, useItems, useResource } from '../lib/data';
 import { type Department, deptPath, nameProblem, problemText, treeOrder } from '../lib/directory';
 import { Link } from '../lib/router';
 import { useSession } from '../lib/session';
@@ -17,6 +17,14 @@ import { DirectoryImport } from './DirectoryImport';
 import '../ui/directory.css';
 
 const people = (n: number) => `${n} ${n === 1 ? 'person' : 'people'}`;
+
+/** `GET /departments/{id}/usage`: what refers to a department (docs/08 "Directory"). */
+interface Usage {
+  grants: { id: string; role: string; holder: string | null }[];
+  campaigns: { id: string; title: string; state: string }[];
+  announcements: { id: string; title: string; state: string }[];
+  policies: { id: string; title: string }[];
+}
 type Dialog = 'add' | 'move' | 'head' | 'delete' | null;
 
 /**
@@ -121,6 +129,8 @@ function DepartmentDetail({ d, all, members, manage, onSelect, onOpen, onRenamed
     } catch (e) { setError(problemText(e)); }
   };
   const crumbs = d.path.length > 1 ? deptPath(d.parent_id, all) : null;
+  const here = members.filter((m) => m.department_id === d.id && m.status === 'active');
+  const [usage] = useResource<Usage>(manage ? `/api/v1/departments/${d.id}/usage` : null);
   return (
     <section className="dir-detail" aria-labelledby="dept-title">
       <div className="dir-detail-head">
@@ -153,7 +163,13 @@ function DepartmentDetail({ d, all, members, manage, onSelect, onOpen, onRenamed
           {manage && <Button variant="ghost" className="btn-sm" onPress={() => onOpen('head')}><UserRoundCog aria-hidden="true" size="0.875rem" /> Change head</Button>}
         </dd>
         <dt>People</dt>
-        <dd>{people(d.member_count)}</dd>
+        <dd>
+          {here.length ? (
+            <ul className="chip-list" aria-label={`People in ${d.name}`}>
+              {here.map((m) => <li key={m.id}><Link className="chip-btn" to={`/members/${m.id}`}>{m.display_name}</Link></li>)}
+            </ul>
+          ) : <span className="muted">{d.member_count ? people(d.member_count) : 'Nobody yet'}</span>}
+        </dd>
         <dt>Sub-departments</dt>
         <dd>
           {children.length ? (
@@ -163,7 +179,35 @@ function DepartmentDetail({ d, all, members, manage, onSelect, onOpen, onRenamed
           ) : <span className="muted">None</span>}
         </dd>
       </dl>
+      {manage && <UsedBy usage={usage} />}
       <p className="dir-hint">The head is the manager of everyone here who has no manager of their own; if this department has no head, the nearest head above it is used. Set a person’s department on their page.</p>
+    </section>
+  );
+}
+
+/** Grants scoped to the department and the audiences that name it, so nothing breaks silently. */
+function UsedBy({ usage }: { usage: Usage | null }) {
+  if (!usage) return <Skeleton rows={2} label="Loading where it’s used" />;
+  const rows: [string, React.ReactNode[]][] = [
+    ['Role grants', usage.grants.map((g) => <>{g.role}{g.holder ? <span className="muted"> · {g.holder}</span> : null}</>)],
+    ['Campaigns', usage.campaigns.map((c) => <Link to={`/admin/campaigns/${c.id}`}>{c.title}</Link>)],
+    ['Announcements', usage.announcements.map((a) => <Link to={`/announcements/${a.id}`}>{a.title}</Link>)],
+    ['Policies', usage.policies.map((p) => <Link to={`/library/${p.id}`}>{p.title}</Link>)],
+  ];
+  const used = rows.filter(([, items]) => items.length);
+  return (
+    <section aria-labelledby="dept-used" className="dept-used">
+      <h3 id="dept-used">Used by</h3>
+      {used.length === 0 ? <p className="muted" style={{ margin: 0 }}>No role grants, campaigns, announcements or policies refer to this department.</p> : (
+        <dl className="props">
+          {used.map(([label, items]) => (
+            <div key={label} style={{ display: 'contents' }}>
+              <dt>{label}</dt>
+              <dd><ul className="plain-list" aria-label={label}>{items.map((x, i) => <li key={i}>{x}</li>)}</ul></dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }
