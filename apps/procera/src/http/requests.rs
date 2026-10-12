@@ -1,0 +1,286 @@
+//! Requests API (BPMS-103, docs/08 "Requests", §7.1): the built-in request types a member may
+//! start, starting one (`Idempotency-Key` required), my and all requests, the detail with steps
+//! and timeline, and cancelling. `request:start` lists types and starts; `request:view_own` lists
+//! your own; `request:view_all` lists and opens every request; others open a request only when
+//! involved (started it, are offered a step, or decided one). Cancelling needs to be the initiator
+//! or hold `request:cancel`.
+
+use axum::body::Bytes;
+use axum::extract::{Path, Query, State};
+use axum::http::{HeaderMap, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use procera_access::Resource;
+use procera_db::idempotency::{self, Claim};
+use procera_requests::{Actor, RequestError, Requests, Scope};
+use serde::Deserialize;
+use serde_json::{Map, Value, json};
+use uuid::Uuid;
+
+use super::AppState;
+use super::error::ApiError;
+use super::workspace::{WsMember, members};
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+        .route("/request-types", get(types))
+        .route("/requests", get(list).post(start))
+        .route("/requests/{id}", get(detail))
+        .route("/requests/{id}/cancel", post(cancel))
+}
+
+pub(crate) fn requests(s: &AppState) -> Result<&Requests, ApiError> {
+    s.requests.as_ref().ok_or_else(|| ApiError::unavailable("database"))
+}
+
+pub(crate) fn internal(e: impl std::fmt::Display) -> ApiError {
+    tracing::error!(error = %e, "requests api internal error");
+    ApiError::new(500, "internal", "Internal error")
+}
+
+impl From<RequestError> for ApiError {
+    fn from(e: RequestError) -> Self {
+        let field = |p: &str, code: &str, m: &str| procera_kernel::problem::FieldError {
+            pointer: p.to_owned(),
+            code: code.to_owned(),
+            message: m.to_owned(),
+        };
+        match e {
+            RequestError::NotFound => Self::not_found(),
+            RequestError::UnknownType(t) => {
+                let mut a = Self::new(422, "validation_failed", "Validation failed")
+                    .detail(format!("unknown request type {t}"));
+                a.problem.errors = vec![field("/type", "unknown_type", "Not a request type you can start")];
+                a
+            }
+            RequestError::Invalid(errors) => {
+                let mut a = Self::new(422, "validation_failed", "Validation failed")
+                    .detail(format!("{} field(s) are invalid", errors.len()));
+                a.problem.errors =
+                    errors.into_iter().map(|e| field(&e.pointer, &e.code, &e.message)).collect();
+                a
+            }
+            RequestError::Forbidden(m) => {
+                Self::new(403, "forbidden", "You do not have permission for this action").detail(m)
+            }
+            RequestError::SoD(m) => {
+                Self::new(403, "sod_violation", "Separation of duties does not allow this").detail(m)
+            }
+            RequestError::AlreadyDecided => {
+                Self::new(409, "already_decided", "Someone already decided this step")
+            }
+            RequestError::Stale { current } => {
+                Self::new(412, "precondition_failed", "This step changed; reload it")
+                    .detail(format!("current revision is {current}"))
+            }
+            RequestError::Conflict(m) => {
+                Self::new(409, "state_conflict", "Not allowed in the current state").detail(m)
+            }
+            RequestError::Internal(m) => internal(m),
+        }
+    }
+}
+
+pub(crate) fn actor(me: &WsMember) -> Actor {
+    Actor { membership: me.actor.membership, subject_ref: me.actor.subject_ref }
+}
+
+/// The request types the caller may start, with their start forms.
+async fn types(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
+    tx.rollback().await.map_err(internal)?;
+    let items: Vec<Value> = requests(&s)?
+        .catalogue()
+        .list()
+        .iter()
+        .map(|t| {
+            json!({
+                "key": t.key, "name": t.name, "description": t.description, "category": t.category,
+                "icon": t.icon, "form": t.start_form,
+            })
+        })
+        .collect();
+    Ok(Json(items).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StartReq {
+    #[serde(rename = "type")]
+    ty: String,
+    #[serde(default)]
+    input: Map<String, Value>,
+}
+
+pub(crate) fn idempotency_key(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get("idempotency-key")
+        .and_then(|v| v.to_str().ok())
+        .map(str::trim)
+        .filter(|k| (1..=200).contains(&k.len()))
+        .map(str::to_owned)
+}
+
+pub(crate) fn bad_body(e: impl std::fmt::Display) -> ApiError {
+    ApiError::new(400, "bad_request", "The request body is not valid").detail(e.to_string())
+}
+
+async fn start(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    body: Bytes,
+) -> Result<Response, ApiError> {
+    let key = idempotency_key(&headers).ok_or_else(|| {
+        ApiError::new(400, "idempotency_key_required", "Idempotency-Key header required")
+            .detail("send a unique Idempotency-Key with every new request")
+    })?;
+    let r: StartReq = serde_json::from_slice(&body).map_err(bad_body)?;
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "request:start", Resource::Workspace).await?;
+    let hash = idempotency::request_hash("POST", "/api/v1/requests", &body);
+    match idempotency::claim(&mut tx, me.actor.membership, "requests.start", &key, &hash)
+        .await
+        .map_err(internal)?
+    {
+        Claim::Fresh => {}
+        Claim::Replay { status, response } => {
+            tx.rollback().await.map_err(internal)?;
+            let code = StatusCode::from_u16(u16::try_from(status).unwrap_or(200)).unwrap_or(StatusCode::OK);
+            return Ok((code, Json(response)).into_response());
+        }
+        Claim::Conflict => {
+            return Err(ApiError::new(
+                409,
+                "idempotency_key_reused",
+                "This Idempotency-Key was used for another request",
+            ));
+        }
+    }
+    let started = requests(&s)?.start(&mut tx, actor(&me), &r.ty, &r.input).await?;
+    let body = serde_json::to_value(&started).map_err(internal)?;
+    idempotency::complete(&mut tx, me.actor.membership, "requests.start", &key, 201, &body)
+        .await
+        .map_err(internal)?;
+    tx.commit().await.map_err(internal)?;
+    Ok((StatusCode::CREATED, [("location", format!("/api/v1/requests/{}", started.id))], Json(body))
+        .into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ListQuery {
+    scope: Option<String>,
+    status: Option<String>,
+}
+
+async fn list(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<ListQuery>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let scope = match q.scope.as_deref().unwrap_or("mine") {
+        "mine" => {
+            me.require(m, &mut tx, "request:view_own", Resource::Workspace).await?;
+            Scope::Mine(me.actor.membership)
+        }
+        "all" => {
+            me.require(m, &mut tx, "request:view_all", Resource::Workspace).await?;
+            Scope::All
+        }
+        other => {
+            return Err(ApiError::new(400, "bad_request", "Unknown scope")
+                .detail(format!("{other}: use mine or all")));
+        }
+    };
+    if let Some(st) = q.status.as_deref()
+        && !matches!(st, "in_progress" | "changes_requested" | "approved" | "rejected" | "cancelled")
+    {
+        return Err(ApiError::new(400, "bad_request", "Unknown status").detail(st.to_owned()));
+    }
+    let items = requests(&s)?.list(&mut tx, scope, q.status.as_deref()).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items, "next_cursor": null })).into_response())
+}
+
+/// Whether the caller may open a request: `request:view_all`, or involved in it. Hidden ≡ missing.
+pub(crate) async fn can_view(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut procera_db::WsTx<'_>,
+    id: Uuid,
+) -> Result<(), ApiError> {
+    let r = requests(s)?;
+    r.initiator(tx, id).await?;
+    let m = members(s)?;
+    if m.access().check(tx, me.actor.membership, "request:view_all", &Resource::Workspace).await?.allowed
+        || r.involved(tx, id, me.actor.membership).await?
+    {
+        Ok(())
+    } else {
+        Err(ApiError::not_found())
+    }
+}
+
+async fn may_cancel(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut procera_db::WsTx<'_>,
+    id: Uuid,
+) -> Result<bool, ApiError> {
+    if requests(s)?.initiator(tx, id).await? == me.actor.membership {
+        return Ok(true);
+    }
+    Ok(members(s)?
+        .access()
+        .check(tx, me.actor.membership, "request:cancel", &Resource::Workspace)
+        .await?
+        .allowed)
+}
+
+async fn detail(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    can_view(&s, &me, &mut tx, id).await?;
+    let d = requests(&s)?.detail(&mut tx, id).await?;
+    let open = matches!(d.summary.status.as_str(), "in_progress" | "changes_requested");
+    let can_cancel = open && may_cancel(&s, &me, &mut tx, id).await?;
+    tx.rollback().await.map_err(internal)?;
+    let mut body = serde_json::to_value(&d).map_err(internal)?;
+    body["can_cancel"] = json!(can_cancel);
+    Ok(Json(body).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CancelReq {
+    reason: String,
+}
+
+async fn cancel(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<CancelReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    can_view(&s, &me, &mut tx, id).await?;
+    if !may_cancel(&s, &me, &mut tx, id).await? {
+        return Err(ApiError::new(
+            403,
+            "forbidden",
+            "Only the requester or an administrator can cancel this request",
+        )
+        .detail("request:cancel"));
+    }
+    let out = requests(&s)?.cancel(&mut tx, actor(&me), id, &r.reason).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(out).into_response())
+}

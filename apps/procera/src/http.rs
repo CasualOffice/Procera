@@ -23,6 +23,7 @@ pub mod overview;
 pub mod probe;
 pub mod profile;
 pub mod recovery;
+pub mod requests;
 pub mod retention;
 pub mod search;
 pub mod settings;
@@ -33,6 +34,7 @@ pub mod templates;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
 pub mod views;
+pub mod work;
 pub mod workspace;
 
 /// Deployment facts the system console shows read-only (docs/20 §3): where each comes from.
@@ -71,6 +73,9 @@ pub struct AppState {
     pub files: Option<procera_files::Files>,
     /// Background audit exports (BPMS-064).
     pub audit_exports: Option<crate::audit_exports::AuditExports>,
+    /// Requests and approvals: built-in request types, the runtime engine and its work items
+    /// (BPMS-083/085/103). Its scheduler runs in `serve --all` and in `/__test/drain`.
+    pub requests: Option<procera_requests::Requests>,
     /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
     pub mailers: Option<procera_notify::Mailers>,
     /// What the system console reports about storage, scanning and the public URL (read-only).
@@ -233,6 +238,22 @@ impl AppState {
         self
     }
 
+    /// Compiles the built-in request types and wires the runtime engine. A built-in that does not
+    /// compile is fatal: the server refuses to start rather than offer a broken request type.
+    pub fn with_requests(mut self) -> Result<Self, String> {
+        if let (Some(db), Some(members), Some(notify)) = (&self.db, &self.members, &self.notify) {
+            self.requests = Some(procera_requests::Requests::new(
+                db.clone(),
+                members.clone(),
+                notify.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+                &self.public_url,
+            )?);
+        }
+        Ok(self)
+    }
+
     /// Production state: system clock.
     #[cfg(not(feature = "e2e"))]
     pub fn new(cache: procera_cache::Cache) -> Self {
@@ -252,6 +273,7 @@ impl AppState {
             keys: None,
             files: None,
             audit_exports: None,
+            requests: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -287,6 +309,7 @@ impl AppState {
             keys: None,
             files: None,
             audit_exports: None,
+            requests: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -325,6 +348,8 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", files::router())
         .nest("/api/v1", views::router())
         .nest("/api/v1", profile::router())
+        .nest("/api/v1", requests::router())
+        .nest("/api/v1", work::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));

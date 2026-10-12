@@ -203,7 +203,11 @@ async fn main() -> anyhow::Result<()> {
             if insecure_cookies {
                 tracing::warn!("insecure cookies enabled: local HTTP development / E2E only");
             }
-            let mut state = base.with_identity(identity, !insecure_cookies).with_services(keys, &public_url);
+            let mut state = base
+                .with_identity(identity, !insecure_cookies)
+                .with_services(keys, &public_url)
+                .with_requests()
+                .map_err(|e| anyhow::anyhow!("built-in request types: {e}"))?;
             state.login_rate_per_min = login_rate_per_min;
             state.platform_info.public_url_source = if std::env::var("PROCERA_PUBLIC_URL").is_ok() {
                 "environment"
@@ -361,9 +365,37 @@ async fn main() -> anyhow::Result<()> {
                 }
                 _ => None,
             };
+            // Runtime scheduler (docs/04 §4.4): due timers and jobs every second. The lease owner names
+            // this process so operators can tell workers apart.
+            let runtime = match (&state.requests, all) {
+                (Some(r), true) => {
+                    let owner = format!("procera-{}", std::process::id());
+                    let sched = procera_engine::Scheduler::new(r.engine().clone(), owner);
+                    let mut rx = stop_rx.clone();
+                    tracing::info!("runtime scheduler started");
+                    Some(tokio::spawn(async move {
+                        loop {
+                            match sched.run_once().await {
+                                Ok(p) if p.progressed() => tracing::debug!(
+                                    timers = p.timers_fired,
+                                    jobs = p.jobs_done,
+                                    "runtime pass"
+                                ),
+                                Ok(_) => {}
+                                Err(e) => tracing::error!(error = %e, "runtime scheduler pass failed"),
+                            }
+                            tokio::select! {
+                                _ = rx.wait_for(|stop| *stop) => return,
+                                () = tokio::time::sleep(std::time::Duration::from_secs(1)) => {}
+                            }
+                        }
+                    }))
+                }
+                _ => None,
+            };
             axum::serve(listener, http::router(state)).with_graceful_shutdown(shutdown_signal()).await?;
             let _ = stop_tx.send(true);
-            for w in [worker, mail_worker, scheduler].into_iter().flatten() {
+            for w in [worker, mail_worker, scheduler, runtime].into_iter().flatten() {
                 let _ = w.await;
             }
         }
