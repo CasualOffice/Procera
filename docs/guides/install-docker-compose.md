@@ -57,7 +57,7 @@ cp deploy/.env.example deploy/.env
 Fill in the three database passwords. Hex passwords are safest because they go into connection URLs:
 
 ```bash
-openssl rand -hex 24   # run three times: POSTGRES_PASSWORD, PROCERA_MIGRATOR_DB_PASSWORD, PROCERA_APP_DB_PASSWORD
+openssl rand -hex 24   # run it three times, once per password
 ```
 
 - `POSTGRES_PASSWORD` is the database superuser. Only the init scripts and your backups use it.
