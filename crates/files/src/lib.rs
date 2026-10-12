@@ -476,7 +476,8 @@ impl Files {
     }
 
     /// The record class a file follows (FR-F09, docs/14 §4), from what holds it: an audit export is
-    /// `audit`, a document version past draft `governance_record`, a draft `draft`; none when nothing
+    /// `audit`, a document version past draft `governance_record`, a request `execution_record`, a
+    /// draft `draft`; none when nothing
     /// holds it (orphan rules apply).
     pub async fn retention_class(tx: &mut WsTx<'_>, id: Uuid) -> Result<Option<&'static str>, FileError> {
         let set: Option<String> =
@@ -489,8 +490,9 @@ impl Files {
             return Ok(Some(c));
         }
         let rank: Option<i32> = sqlx::query_scalar(
-            "SELECT max(CASE WHEN l.object_type = 'audit_export' THEN 3
-                             WHEN v.lifecycle IN ('approved', 'scheduled', 'published', 'deprecated', 'retired') THEN 2
+            "SELECT max(CASE WHEN l.object_type = 'audit_export' THEN 4
+                             WHEN v.lifecycle IN ('approved', 'scheduled', 'published', 'deprecated', 'retired') THEN 3
+                             WHEN l.object_type = 'request' THEN 2
                              WHEN v.lifecycle IS NOT NULL THEN 1 END)
              FROM file_links l LEFT JOIN artifact_versions v ON l.object_type = 'artifact_version' AND v.workspace_id = l.workspace_id AND v.id = l.object_id
              WHERE l.file_id = $1",
@@ -499,8 +501,9 @@ impl Files {
         .fetch_one(tx.conn())
         .await?;
         Ok(match rank {
-            Some(3) => Some("audit"),
-            Some(2) => Some("governance_record"),
+            Some(4) => Some("audit"),
+            Some(3) => Some("governance_record"),
+            Some(2) => Some("execution_record"),
             Some(1) => Some("draft"),
             _ => None,
         })
@@ -657,11 +660,13 @@ impl Files {
         .await
     }
 
-    /// Whether the file is held by an object that can no longer change (a version past draft).
+    /// Whether the file is held by an object that can no longer change (a version past draft, or a
+    /// request: its files are part of the execution record).
     async fn held(tx: &mut WsTx<'_>, id: Uuid) -> Result<bool, FileError> {
         Ok(sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM file_links l JOIN artifact_versions v ON v.workspace_id = l.workspace_id AND v.id = l.object_id
-                            WHERE l.file_id = $1 AND l.object_type = 'artifact_version' AND v.lifecycle <> 'draft')",
+                            WHERE l.file_id = $1 AND l.object_type = 'artifact_version' AND v.lifecycle <> 'draft')
+                 OR EXISTS (SELECT 1 FROM file_links l WHERE l.file_id = $1 AND l.object_type = 'request')",
         )
         .bind(id)
         .fetch_one(tx.conn())
