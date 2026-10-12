@@ -160,15 +160,46 @@ async fn profiles_floors_clamping_and_history() -> anyhow::Result<()> {
         "auth.session.idle_timeout",
         &json!(1_200),
         "tighten",
+        None,
         c.clone(),
     )
     .await?;
-    assert!(
-        s.platform_values(&mut sys)
-            .await?
-            .iter()
-            .any(|p| p.key == "auth.session.idle_timeout" && p.value == json!(1_200))
+    let values = s.platform_values(&mut sys).await?;
+    let idle = values.iter().find(|p| p.key == "auth.session.idle_timeout").expect("idle floor listed");
+    assert_eq!(idle.value, json!(1_200));
+    // Every floor-bound key is listed, set or not; an unset one has no value and revision 0.
+    assert_eq!(
+        values.iter().filter(|p| p.comparator.is_some()).count(),
+        CATALOGUE.iter().filter(|d| d.floor.is_some()).count()
     );
+    let unset =
+        values.iter().find(|p| p.key == "retention.governance_record.keep_for").expect("unset floor listed");
+    assert_eq!((&unset.value, unset.revision), (&Value::Null, 0));
+    // A stale If-Match revision is refused; the current one is accepted.
+    let stale = s
+        .set_floor(
+            &mut sys,
+            Uuid::new_v4(),
+            user,
+            "auth.session.idle_timeout",
+            &json!(1_000),
+            "again",
+            Some(idle.revision - 1),
+            c.clone(),
+        )
+        .await;
+    assert!(matches!(stale, Err(SettingsError::StaleRevision { current }) if current == idle.revision));
+    s.set_floor(
+        &mut sys,
+        Uuid::new_v4(),
+        user,
+        "auth.session.idle_timeout",
+        &json!(1_200),
+        "same",
+        Some(idle.revision),
+        c.clone(),
+    )
+    .await?;
     sys.commit().await?;
     let mut tx = t.db.begin_ws(ws).await?;
     let e = s.effective(&mut tx, "auth.session.idle_timeout").await?;

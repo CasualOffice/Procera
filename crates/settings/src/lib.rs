@@ -15,7 +15,7 @@ pub use switch::{PlanItem, ProfilePlan, profile_managed_keys};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use catalogue::{Comparator, Def, Kind};
+use catalogue::{CATALOGUE, Comparator, Def, Kind};
 use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
 use procera_db::{DbError, SYSTEM_WORKSPACE, WsTx};
 use procera_kernel::{Clock, IdGen};
@@ -294,7 +294,8 @@ pub fn resolve_scoped(
     }
 }
 
-/// A platform-plane value or floor.
+/// A platform-plane value or floor. A floor-bound key with no stored floor is listed with
+/// `value: null` and `revision: 0`, so the console can set it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PlatformValue {
     pub key: &'static str,
@@ -302,6 +303,9 @@ pub struct PlatformValue {
     pub is_floor: bool,
     pub revision: i64,
     pub comparator: Option<Comparator>,
+    pub kind: Kind,
+    /// The product default (what a workspace starts from when nothing is set).
+    pub default: Value,
 }
 
 #[derive(Clone)]
@@ -531,24 +535,35 @@ impl Settings {
         self.effective(tx, key).await
     }
 
-    /// Platform values and floors (system plane).
+    /// Platform values and floors (system plane), plus every floor-bound key that has no stored
+    /// floor yet (`value: null`, `revision: 0`), ordered by key.
     pub async fn platform_values(&self, tx: &mut WsTx<'_>) -> Result<Vec<PlatformValue>, SettingsError> {
         let rows: Vec<(String, Value, bool, i64)> =
             sqlx::query_as("SELECT key, value, is_floor, revision FROM platform_settings ORDER BY key")
                 .fetch_all(tx.conn())
                 .await?;
-        Ok(rows
+        let pv = |d: &'static Def, value, is_floor, revision| PlatformValue {
+            key: d.key,
+            value,
+            is_floor,
+            revision,
+            comparator: d.floor,
+            kind: d.kind,
+            default: (d.default)(),
+        };
+        let mut out: Vec<PlatformValue> = rows
             .into_iter()
             .filter_map(|(k, value, is_floor, revision)| {
-                catalogue::get(&k).map(|d| PlatformValue {
-                    key: d.key,
-                    value,
-                    is_floor,
-                    revision,
-                    comparator: d.floor,
-                })
+                catalogue::get(&k).map(|d| pv(d, value, is_floor, revision))
             })
-            .collect())
+            .collect();
+        for d in CATALOGUE.iter().filter(|d| d.floor.is_some()) {
+            if !out.iter().any(|p| p.key == d.key) {
+                out.push(pv(d, Value::Null, false, 0));
+            }
+        }
+        out.sort_by(|a, b| a.key.cmp(b.key));
+        Ok(out)
     }
 
     /// Sets a platform floor (system plane, system-workspace transaction). Raising a floor never
@@ -562,6 +577,7 @@ impl Settings {
         key: &str,
         value: &Value,
         reason: &str,
+        expected_revision: Option<i64>,
         client: (Option<String>, Option<String>),
     ) -> Result<PlatformValue, SettingsError> {
         debug_assert_eq!(tx.ctx.workspace_id, SYSTEM_WORKSPACE);
@@ -573,11 +589,18 @@ impl Settings {
             return Err(SettingsError::ReasonRequired(key.to_owned()));
         }
         let v = validate(d, value)?;
-        let before: Option<Value> =
-            sqlx::query_scalar("SELECT value FROM platform_settings WHERE key = $1 FOR UPDATE")
+        let row: Option<(Value, i64)> =
+            sqlx::query_as("SELECT value, revision FROM platform_settings WHERE key = $1 FOR UPDATE")
                 .bind(key)
                 .fetch_optional(tx.conn())
                 .await?;
+        let current = row.as_ref().map_or(0, |(_, r)| *r);
+        if let Some(exp) = expected_revision
+            && exp != current
+        {
+            return Err(SettingsError::StaleRevision { current });
+        }
+        let before = row.map(|(v, _)| v);
         let revision: i64 = sqlx::query_scalar(
             "INSERT INTO platform_settings (key, value, is_floor, updated_by, updated_at) VALUES ($1, $2, true, $3, $4)
              ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, is_floor = true, updated_by = EXCLUDED.updated_by, updated_at = EXCLUDED.updated_at, revision = platform_settings.revision + 1
@@ -598,7 +621,15 @@ impl Settings {
         )
         .await?;
         Self::changed(tx, &[d.key], None, true).await?;
-        Ok(PlatformValue { key: d.key, value: v, is_floor: true, revision, comparator: Some(cmp) })
+        Ok(PlatformValue {
+            key: d.key,
+            value: v,
+            is_floor: true,
+            revision,
+            comparator: Some(cmp),
+            kind: d.kind,
+            default: (d.default)(),
+        })
     }
 
     /// Change history for one key in the transaction's workspace, newest first.

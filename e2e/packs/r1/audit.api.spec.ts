@@ -266,7 +266,8 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/settings/profile/apply', () => own.post('/api/v1/settings/profile/apply', { headers: { ...fresh, 'if-match': switchPlan.headers()['etag']! }, data: { profile: 'enterprise', reason: 'audit drill' } }));
   const floors = await (await sys.get('/sysapi/v1/settings', { headers: sh })).json();
   const maxSize = floors.items.find((f: { key: string }) => f.key === 'files.max_size').value;
-  await step('PUT', '/sysapi/v1/settings/{key}', () => sys.put('/sysapi/v1/settings/files.max_size', { headers: sh, data: { value: maxSize, reason: 'audit drill (unchanged)' } }));
+  const sysFresh = await freshAuth({ c: sys, headers: sh });
+  await step('PUT', '/sysapi/v1/settings/{key}', () => sys.put('/sysapi/v1/settings/files.max_size', { headers: sysFresh, data: { value: maxSize, reason: 'audit drill (unchanged)' } }));
   const starter = (await (await sys.get('/sysapi/v1/quota-defaults', { headers: sh })).json()).items[0];
   const { profile: _qp, revision: _qr, updated_at: _qu, ...starterLimits } = starter;
   await step('PUT', '/sysapi/v1/quota-defaults/{profile}', () => sys.put(`/sysapi/v1/quota-defaults/${starter.profile}`, { headers: sh, data: starterLimits }));

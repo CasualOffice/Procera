@@ -103,7 +103,7 @@ Content-Type: application/problem+json
 ## 5. Resource map: system API (v1)
 
 `POST /bootstrap` (one-time), `GET /me`, `GET/POST /workspaces`, `GET/PATCH /workspaces/{id}`, `POST /workspaces/{id}/suspend|restore|schedule-deletion`,
-`PUT /workspaces/{id}/quotas`, `POST /workspaces/{id}/owners`, `GET /usage`, `GET /settings` (items carry `group`), `PUT /settings/{key}` `{value, reason}` (platform floors),
+`PUT /workspaces/{id}/quotas`, `POST /workspaces/{id}/owners`, `GET /usage`, `GET /settings` (items carry `group`), `PUT /settings/{key}` `{value, reason}` (platform floors; step-up; `If-Match` with the listed revision is checked when sent, 412 when stale; `GET /settings` also lists floor-bound keys with no stored floor as `value: null`, `revision: 0`, and every item carries `kind` and `default`),
 `GET/POST /templates`, `POST /templates/{key}/versions`, `:deprecate`, `GET /health`, `GET /system-audit/events`,
 `POST /break-glass` → `POST /break-glass/{id}/approve|revoke`, `GET/POST /system-admins`.
 

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { hasDatabase, passwordSession, seedUser, serverNow } from '../../fixtures/accounts';
 import { totp } from '../../fixtures/totp';
-import { enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
+import { enter, freshAuth, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
 // E2E-R1-CFG-01..05 — layered settings, floors and the explainer (BPMS-027; docs/20 §0-§2).
 
@@ -82,16 +82,18 @@ test.describe('settings @r1 @settings', () => {
     expect((await owner.c.put(`/api/v1/settings/${key}`, { headers: owner.headers, data: { value: 30 * 86400, reason: 'shorter tokens' } })).status()).toBe(200);
     const floors = await (await sys.c.get('/sysapi/v1/settings', { headers: sys.headers })).json();
     const original = floors.items.find((f: { key: string }) => f.key === key).value;
+    // Floors need a recent authentication (step-up).
+    const fresh = await freshAuth(sys);
     try {
-      const raise = await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: sys.headers, data: { value: 7 * 86400, reason: 'policy tightening' } });
+      const raise = await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: fresh, data: { value: 7 * 86400, reason: 'policy tightening' } });
       expect(raise.status()).toBe(200);
       const e = await (await owner.c.get(`/api/v1/settings/effective?key=${key}`, { headers: owner.headers })).json();
       expect([e.value, e.source, e.clamped]).toEqual([7 * 86400, 'platform_floor', true]);
       expect(e.layers.find((l: { layer: string }) => l.layer === 'workspace').value).toBe(30 * 86400);
-      expect((await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: sys.headers, data: { value: 7 * 86400, reason: '' } })).status()).toBe(422);
-      expect((await sys.c.put('/sysapi/v1/settings/locale.week_start', { headers: sys.headers, data: { value: 'mon', reason: 'no floor' } })).status()).toBe(422);
+      expect((await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: fresh, data: { value: 7 * 86400, reason: '' } })).status()).toBe(422);
+      expect((await sys.c.put('/sysapi/v1/settings/locale.week_start', { headers: fresh, data: { value: 'mon', reason: 'no floor' } })).status()).toBe(422);
     } finally {
-      await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: sys.headers, data: { value: original, reason: 'restore after E2E-R1-CFG-05' } });
+      await sys.c.put(`/sysapi/v1/settings/${key}`, { headers: fresh, data: { value: original, reason: 'restore after E2E-R1-CFG-05' } });
     }
   });
 });
