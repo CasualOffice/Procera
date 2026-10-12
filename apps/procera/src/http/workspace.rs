@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/members", get(list_members))
         .route("/members/invitations", get(list_invitations).post(invite))
         .route("/members/invitations/{id}", delete(revoke_invitation))
+        .route("/members/invitations/{id}/link", post(copy_invitation_link))
         .route("/members/{id}/deactivate", post(deactivate))
         .route("/members/{id}/reactivate", post(reactivate))
         .route("/roles", get(list_roles).post(create_role))
@@ -429,6 +430,30 @@ async fn revoke_invitation(
     m.revoke_invitation(&mut tx, me.actor, id, &client_info(&headers)).await?;
     tx.commit().await.map_err(internal)?;
     Ok(StatusCode::NO_CONTENT.into_response())
+}
+
+/// A fresh one-time link for a pending invitation, for the inviter to hand over when email isn't set
+/// up. The earlier link stops working. Only this response carries the token; lists never do.
+async fn copy_invitation_link(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "member:invite", Resource::Workspace).await?;
+    let (inv, token) = m.reissue_invitation_link(&mut tx, Some(me.actor), id, &client_info(&headers)).await?;
+    tx.commit().await.map_err(internal)?;
+    let mut res = Json(json!({"invitation": inv, "link": invitation_link(&s, &token)})).into_response();
+    res.headers_mut()
+        .insert(axum::http::header::CACHE_CONTROL, axum::http::HeaderValue::from_static("no-store"));
+    Ok(res)
+}
+
+/// The invitation page link, as the invitation email carries it.
+pub(super) fn invitation_link(s: &AppState, token: &str) -> String {
+    format!("{}/invite?token={token}", s.public_url)
 }
 
 async fn deactivate(

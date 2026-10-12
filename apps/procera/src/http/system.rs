@@ -30,6 +30,7 @@ pub fn router() -> Router<AppState> {
         .route("/workspaces/{id}/restore", post(restore))
         .route("/workspaces/{id}/schedule-deletion", post(schedule_deletion))
         .route("/workspaces/{id}/quotas", put(quotas))
+        .route("/workspaces/{id}/owner-invitation/link", post(owner_invitation_link))
         .route("/settings", get(platform_settings))
         .route("/settings/{key}", put(set_floor))
         .merge(super::system_console::router())
@@ -296,6 +297,28 @@ async fn quotas(
     u.require_step_up(&s)?;
     let ws = platform(&s)?.set_quotas(u.user_id, id, &q, &client_info(&headers)).await?;
     console_response(&s, &ws).await
+}
+
+/// A fresh one-time link to the owner's pending invitation (for when email isn't set up). Handing
+/// over a credential needs a recent authentication; the earlier link stops working.
+async fn owner_invitation_link(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    u: SystemUser,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    u.require(SystemAction::WorkspaceWrite)?;
+    u.require_step_up(&s)?;
+    let (email, token, expires_at) =
+        platform(&s)?.owner_invitation_link(u.user_id, id, &client_info(&headers)).await?;
+    let link = super::workspace::invitation_link(&s, &token);
+    let expires_at = expires_at.format(&time::format_description::well_known::Rfc3339).map_err(|e| {
+        tracing::error!(error = %e, "format expiry");
+        ApiError::new(500, "internal", "Internal error")
+    })?;
+    let mut res = Json(json!({"email": email, "link": link, "expires_at": expires_at})).into_response();
+    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    Ok(res)
 }
 
 async fn platform_settings(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
