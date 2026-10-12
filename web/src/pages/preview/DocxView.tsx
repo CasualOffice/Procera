@@ -65,7 +65,9 @@ export default function DocxView({ data, name, onError }: { data: ArrayBuffer; n
   const done = useRef(false);
   const css = getComputedStyle(document.documentElement);
   const bg = css.getPropertyValue('--color-bg').trim() || '#f4f4f5';
-  const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}"><style>html,body{margin:0;background:${bg}}.docx-wrapper{background:${bg}!important;padding:1rem!important}.docx-wrapper>section.docx{box-shadow:0 1px 3px rgb(0 0 0 / .2)!important}</style></head><body><div id="s"></div><div id="d"></div></body></html>`;
+  const lang = (document.documentElement.lang || 'en').replace(/[^\w-]/g, '');
+  const title = name.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+  const srcDoc = `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${title}</title><meta http-equiv="Content-Security-Policy" content="${FRAME_CSP}"><style>html,body{margin:0;background:${bg}}.docx-wrapper{background:${bg}!important;padding:1rem!important}.docx-wrapper>section.docx{box-shadow:0 1px 3px rgb(0 0 0 / .2)!important}</style></head><body><div id="s"></div><div id="d"></div></body></html>`;
 
   const onLoad = (e: React.SyntheticEvent<HTMLIFrameElement>) => {
     const doc = e.currentTarget.contentDocument;
