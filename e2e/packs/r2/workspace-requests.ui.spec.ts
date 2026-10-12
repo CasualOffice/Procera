@@ -59,7 +59,7 @@ test.describe('workspace requests and out of office @r2 @ui', () => {
     await expect(emp.getByRole('link', { name: 'Leave request', exact: true })).toHaveCount(0);
     // A bookmarked form for the type says it isn't available.
     await emp.goto(`${WEB}/requests/new/hr.leave-request`);
-    await expect(emp.getByRole('heading', { name: 'This request type isn’t available' })).toBeVisible();
+    await expect(emp.getByText('This request type isn’t available', { exact: true })).toBeVisible();
   });
 
   test('E2E-R2-UI-11 a manager sets out of office with a delegate; the delegate approves a new request on their behalf', async ({ page, browser, request, controls }) => {
