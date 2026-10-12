@@ -7,9 +7,9 @@
 
 ```text
 Overall   ██████████░░░░░░░░░░░░░░░░░░░░  35/109 epics done  (32%)
-Partial   ███████████░░░░░░░░░░░░░░░░░░░  38% counting in-progress epics as half done
-Tests     212 automated E2E scenarios · 376 Rust tests (incl. property tests)
-Status    done 35 · in review 0 · in progress 12 · blocked 0 · not started 62 · deferred 0
+Partial   ████████████░░░░░░░░░░░░░░░░░░  39% counting in-progress epics as half done
+Tests     220 automated E2E scenarios · 390 Rust tests (incl. property tests)
+Status    done 35 · in review 0 · in progress 15 · blocked 0 · not started 59 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 ```
 
@@ -40,8 +40,11 @@ Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G
 | BPMS-080 | IR v1 model + compiler (§11 checks, diagnostics, semantic diff) | **In progress** | procera-ir crate: IR v1 model, compiler with the docs/11 §11 checks (IR-E001..E034, E100, W001-W002, I001; JSON-pointer diagnostics), JCS canonical form + sha256 checksum, semantic diff with apply; a test per code, property tests, conformance/compiler fixtures, golden checksums for the reference processes (A-21). Expressions type-checked with procera-expr (check 7 complete; IR-E035/E036, A-26); checked forms in Compiled::expressions; reference fixtures in CEL with regenerated checksums. Remaining: type checking with the BPMS-081 engine, environment wiring at publish (BPMS-084), declared perpetual waits. |
 | BPMS-081 | Expression engine integration (typed, budgeted, WASM build) | **In progress** | procera-expr: a typed CEL subset of our own (A-22): static checker with null policy and exact decimal/money, budgeted pure evaluator (10k steps, 1 MiB, 64 KiB strings, 10k lists; exhaustion is IR-R010), stdlib, read sets with the restricted-in-event-facing check; wasm32 build checked; unit + property tests; docs/11 §6.1. Wired end to end: the IR compiler type-checks with it and the runtime CelEvaluator runs stored checked expressions (injected now/tz, budget → IR-R010). Remaining: business-time functions with calendars (BPMS-083). |
 | BPMS-082 | Interpreter: advance loop, tokens, splits/joins, end/terminate | **In progress** | procera-runtime: pure deterministic interpreter (Program, InstanceState, Stimulus) -> (state, commands) with injected Clock/IdGen; advance loop with a step budget (ContinueAdvance) and loop guard (IR-R004); start/end/terminate, set, decision (+rule tables via the Evaluator port), parallel split/join released exactly once, human.* work items, wait.timer/signal, service.call with typed error boundaries, notify, subprocess.call, case.open, timeout boundaries, cancel; commands with deterministic idempotency keys; unit tests per node kind, the five reference processes end to end, 22 conformance/runtime fixtures, property tests (replay, budgets, joins, terminate); docs/11 §15, A-23. Runs real CEL via CelEvaluator; conformance (24 cases) green on CEL and the stand-in; determinism property over compiled CEL. Remaining: persistence and timers (BPMS-083), work items (BPMS-085), incidents (BPMS-088), E2E once wired to the API. |
-| BPMS-083 | Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks | **In progress** | procera-engine + migration 0031: instances persisted (state JSONB, optimistic revision) with an append-only stimulus log and replay; advance = interpreter + state + log + effects (timers, advance jobs, outbox, pending effects) + SLA clocks + audit in one transaction; jobs with SKIP LOCKED claims, 30 s leases, fencing tokens checked on completion, backoff, dead letter, idempotency keys; scheduler run_once fires due timers once, lateness histogram for the 60 s SLO; business calendars (fixed offset, working days/hours, holidays) with property-tested arithmetic; SLA clocks start/pause/resume/stop/breach; unit, property and PostgreSQL integration tests; docs/04 §4.4, A-27..A-29. Remaining: wiring into the serve scheduler loop and /__test/drain, API/UI and E2E (BPMS-084/085+), encryption of restricted instance data, at-risk SLA state, IANA zones. |
-| BPMS-106 | Template gallery + install wizard + Wave-1 templates (13) | **In progress** | P0 subset (A-38): built-in template packs (employee handbook, starter policies) installed as drafts with the right kind permissions, Templates gallery page; E2E-R1-18. Remaining: install wizard, Wave-1 process templates (need the designer and runtime). |
+| BPMS-083 | Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks | **In progress** | procera-engine + migration 0031: instances persisted (state JSONB, optimistic revision) with an append-only stimulus log and replay; advance = interpreter + state + log + effects (timers, advance jobs, outbox, pending effects) + SLA clocks + audit in one transaction; jobs with SKIP LOCKED claims, 30 s leases, fencing tokens checked on completion, backoff, dead letter, idempotency keys; scheduler run_once fires due timers once, lateness histogram for the 60 s SLO; business calendars (fixed offset, working days/hours, holidays) with property-tested arithmetic; SLA clocks start/pause/resume/stop/breach; unit, property and PostgreSQL integration tests; docs/04 §4.4, A-27..A-29. Wired (0.2): serve --all runs the scheduler every second, /__test/drain drains it, EffectHandler port consumes work items/notifications in the advance transaction, user audit actor (A-28 (4)), pinned checksums, lazy default calendar. Remaining: release bundles (BPMS-084), encryption of restricted instance data, at-risk SLA state, IANA zones. |
+| BPMS-085 | Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group | **In progress** | crates/requests + migration 0040: work items and materialised candidates; assignment resolution (user from principal expressions incl. manager chain, group, role incl. group grants, position; excludeInitiator, excludeActorsOf; fallback; unassigned when nobody remains, A-45); claim strategy, quorum one; decisions lock instance then item (one winner, already_decided, If-Match), SoD re-check; work_assigned/request_decided/request_completed notices; GET /work, POST /work/{id}/decisions; DB tests + E2E-R2-04/-18. Remaining: claim/unclaim, round-robin/least-loaded/all, quorum, DoA matrix, escalations, web inbox (BPMS-105). |
+| BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
+| BPMS-103 | Request portal/catalogue, start form, request detail, comments/@mentions/watchers | **In progress** | Request API (0.2): GET /request-types, POST /requests (Idempotency-Key, display ids LR-2026-000123), GET /requests?scope=mine|all, GET /requests/{id} (steps, timeline, SLA), POST /requests/{id}/cancel; status derived per stimulus; audited request.started/cancelled with the runtime record; DB tests + e2e/packs/r2 (E2E-R2-17, -20, -ISO). Remaining: web portal UI, comments/@mentions/watchers, cursor pages, query endpoint. |
+| BPMS-106 | Template gallery + install wizard + Wave-1 templates (13) | **In progress** | P0 subset (A-38): built-in template packs (employee handbook, starter policies) installed as drafts with the right kind permissions, Templates gallery page; E2E-R1-18. Built-in request types (0.2, docs/19 §5.6): leave, expense claim, purchase requisition, access request compiled at boot and pinned. Remaining: install wizard, the other Wave-1 process templates, role mapping at install. |
 
 ## Done
 
@@ -157,14 +160,14 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-082** (P0, L) Interpreter: advance loop, tokens, splits/joins, end/terminate **[In progress]**
 - [ ] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks **[In progress]**
 - [ ] **BPMS-084** (P0, M) Release bundles + publish integration
-- [ ] **BPMS-085** (P0, L) Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group
+- [ ] **BPMS-085** (P0, L) Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group **[In progress]**
 - [ ] **BPMS-086** (P0, M) Delegation, OOO substitution, SoD re-check, send-back
 - [ ] **BPMS-087** (P0, M) Rule tables (UNIQUE/FIRST/COLLECT)
 - [ ] **BPMS-088** (P0, M) Incidents, retry/skip/cancel, instance admin ops
 - [ ] **BPMS-089** (P0, L) Conformance suite + model-based tests + deterministic simulation harness
 - [ ] **BPMS-100** (P0, XL) Step builder + React Flow canvas + properties + validate/test-run/review/publish
-- [ ] **BPMS-101** (P0, XL) Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)
-- [ ] **BPMS-103** (P0, L) Request portal/catalogue, start form, request detail, comments/@mentions/watchers
+- [ ] **BPMS-101** (P0, XL) Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) **[In progress]**
+- [ ] **BPMS-103** (P0, L) Request portal/catalogue, start form, request detail, comments/@mentions/watchers **[In progress]**
 - [ ] **BPMS-105** (P0, L) My Work 3-pane inbox (tasks, acks, signatures), bulk with preview
 - [ ] **BPMS-106** (P0, XL) Template gallery + install wizard + Wave-1 templates (13) **[In progress]**
 - [ ] **BPMS-111** (P0, L) E2E-R2 pack (R2-01…16 + ISO) + Firefox
@@ -267,7 +270,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 268 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 272 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 15 / 16 / 43 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 15 / 16 / 44 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

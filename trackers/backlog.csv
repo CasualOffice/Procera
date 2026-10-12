@@ -50,14 +50,14 @@ BPMS-081,RT,"Expression engine integration (typed, budgeted, WASM build)",P0,R2,
 BPMS-082,RT,"Interpreter: advance loop, tokens, splits/joins, end/terminate",P0,R2,Runtime,04 §4,Conformance green,L,BPMS-080,In progress
 BPMS-083,RT,Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks,P0,R2,Runtime,"04 §4.4, FR-E12",T06; lateness SLO,L,BPMS-082,In progress
 BPMS-084,RT,Release bundles + publish integration,P0,R2,Runtime,ADR-0012,T03 passes,M,"BPMS-040,080",Not started
-BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",Not started
+BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",In progress
 BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,Not started
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started
 BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,Not started
 BPMS-089,QA,Conformance suite + model-based tests + deterministic simulation harness,P0,R2,SDET/Runtime,15 §4–6,Nightly chaos green,L,BPMS-082,Not started
 BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,Not started
-BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,Not started
-BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,Not started
+BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,In progress
+BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,In progress
 BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",P0,R2,FE,"FR-R03, FR-AK02",Decision ≤3 interactions,L,"BPMS-085,046",Not started
 BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,"BPMS-100,101",In progress
 BPMS-111,E2E,E2E-R2 pack (R2-01…16 + ISO) + Firefox,P0,R2,SDET + feature owners,23 §5,Green; race/restart/timer stable,L,BPMS-032,Not started
