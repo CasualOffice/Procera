@@ -158,7 +158,7 @@ const [gia, ema, dev, finn] = [await as('gia@acme.test'), await as('ema@acme.tes
 await ask(gia, 'hr.leave-request', { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-31', reason: 'Winter break with family' });
 const exp = await ask(ema, 'hr.expense-claim', { amount: { amount: '640.00', currency: 'EUR' }, category: 'travel', description: 'Client workshop in Porto: train and hotel', expense_date: '2026-10-08' });
 await decide(o, exp.id, 'approved', 'Thanks for keeping it under budget.');
-await ask(dev, 'fin.purchase-requisition', { amount: { amount: '72000.00', currency: 'INR' }, vendor: 'Northwind Laptops', cost_center: 'OPS-IT', justification: 'Replacement laptop for the support team' });
+await ask(dev, 'fin.purchase-requisition', { amount: { amount: '7200.00', currency: 'EUR' }, vendor: 'Northwind Laptops', cost_center: 'OPS-IT', justification: 'Replacement laptop for the support team' });
 const own = await ask(finn, 'hr.leave-request', { leave_type: 'sick', start_date: '2026-10-05', end_date: '2026-10-06', reason: 'Flu' });
 await decide(o, own.id, 'approved', 'Get well soon.');
 await call('POST', '/__test/drain');
