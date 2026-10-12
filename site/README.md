@@ -37,6 +37,7 @@ build rewrites its links to absolute `SITE_URL` links.
 |---|---|
 | `build.py` | The generator. `{{ token args }}` in pages and partials expand to the functions in `TOKENS`. |
 | `src/pages/` | One file per page. A comment at the top holds `title`, `description` and `nav`. |
+| `docs/guides/*.md` | The self-hosting guides. `get-started.html` renders them with `{{ guide name }}` through the small Markdown converter in `build.py` (headings, lists, tables, code, links; links between guides become in-page anchors). Edit the guides, not the page. |
 | `src/partials/` | `head`, `header`, `footer`, and `story` (the animated hero, built from product UI fragments). |
 | `src/content.py` | Features, user flows, comparison rows, personas, the core loop, screenshot alt text and crops. |
 | `src/home.py` | Home-page sections (proof numbers, loop, pillars, tour, personas, tamper demo, timeline). |

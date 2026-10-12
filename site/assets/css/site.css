@@ -89,7 +89,7 @@ code, kbd, pre { font-family: var(--mono); font-size: .9em; }
 .logo img { height: 2.25rem; width: auto; }
 .logo .dark { display: none; }
 .nav { display: flex; gap: .25rem; margin-left: auto; align-items: center; }
-.nav a { color: var(--text-2); text-decoration: none; font-size: .9375rem; padding: .5rem .625rem; border-radius: var(--radius-sm); position: relative; }
+.nav a { color: var(--text-2); text-decoration: none; white-space: nowrap; font-size: .9375rem; padding: .5rem .625rem; border-radius: var(--radius-sm); position: relative; }
 .nav a:hover { color: var(--text); background: var(--muted); }
 .nav a[aria-current='page'] { color: var(--text); }
 .nav a[aria-current='page']::after { content: ''; position: absolute; left: .625rem; right: .625rem; bottom: -.8125rem; height: 2px; background: var(--brand); }
@@ -106,7 +106,7 @@ code, kbd, pre { font-family: var(--mono); font-size: .9em; }
 .menu nav a { padding: .625rem .75rem; color: var(--text); text-decoration: none; border-radius: var(--radius-sm); }
 .menu nav a:hover { background: var(--muted); }
 .menu nav a[aria-current='page'] { box-shadow: inset 2px 0 0 var(--brand); }
-@media (max-width: 63.99rem) {
+@media (max-width: 74.99rem) {
   .nav { display: none; }
   .menu { display: block; }
   .header-actions { margin-left: auto; }

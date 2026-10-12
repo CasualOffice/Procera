@@ -1,0 +1,27 @@
+# PROCERA_SITE_ADDRESS: ":80" (default) serves plain HTTP; a domain name such as
+# "procera.example.com" makes Caddy obtain and renew a TLS certificate automatically
+# (ports 80 and 443 must reach this container from the internet).
+{$PROCERA_SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# API, system API and probes go to the procera server. Caddy replaces any client-sent
+	# X-Forwarded-For with the real peer address, which procera uses for rate limits and audit.
+	@api path /api/* /sysapi/* /healthz /readyz /version
+	handle @api {
+		reverse_proxy procera:8080
+	}
+
+	# Everything else is the single-page app; unknown paths fall back to index.html.
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+		-Server
+	}
+}

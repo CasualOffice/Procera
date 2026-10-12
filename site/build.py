@@ -32,7 +32,8 @@ import illustrations as IL  # noqa: E402
 
 esc = html.escape
 NAV = [("index", "Home"), ("features", "Features"), ("flows", "User flows"), ("compare", "Compare"),
-       ("roadmap", "Roadmap"), ("security", "Security"), ("open-source", "Open source")]
+       ("roadmap", "Roadmap"), ("security", "Security"), ("open-source", "Open source"),
+       ("get-started", "Get started")]
 
 ICONS = {
     "github": '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a10.9 10.9 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>',
@@ -238,6 +239,162 @@ def t_stats(_):
             f'<div><b>{n(T["e2e_scenarios"])}</b><span>automated E2E scenarios</span></div></div>')
 
 
+# ---------------------------------------------------------------- guides (docs/guides/*.md)
+GUIDES = ROOT / "docs" / "guides"
+GUIDE_ORDER = ["install-docker-compose", "first-time-setup", "configuration"]
+
+
+def slugify(text):
+    """GitHub-style heading anchor."""
+    s = re.sub(r"<[^>]+>", "", text).lower()
+    s = re.sub(r"[^a-z0-9 _-]", "", s)
+    return s.strip().replace(" ", "-")
+
+
+def guide_href(url, guide):
+    """Rewrites a link in a guide: sibling guides and anchors stay on this page, other repo paths go
+    to GitHub."""
+    if re.match(r"^(https?:|mailto:)", url):
+        return url
+    if url.startswith("#"):
+        return f"#{guide}-{url[1:]}"
+    target, _, frag = url.partition("#")
+    stem = target[:-3] if target.endswith(".md") else None
+    if stem in GUIDE_ORDER and "/" not in target:
+        return f"#{stem}-{frag}" if frag else f"#{stem}"
+    path = pathlib.PurePosixPath("docs/guides") / target
+    parts = []
+    for p in path.parts:  # normalise ../
+        if p == "..":
+            parts.pop()
+        elif p != ".":
+            parts.append(p)
+    return f"{GITHUB}/blob/main/{'/'.join(parts)}" + (f"#{frag}" if frag else "")
+
+
+def md_inline(text, guide):
+    codes = []
+
+    def keep(m):
+        codes.append(f"<code>{esc(m.group(1))}</code>")
+        return f"\x00{len(codes) - 1}\x00"
+    text = re.sub(r"`([^`]+)`", keep, text)
+    text = esc(text, quote=False)
+    text = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)",
+                  lambda m: f'<a href="{esc(guide_href(html.unescape(m.group(2)), guide))}">{m.group(1)}</a>', text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", text)
+    return re.sub(r"\x00(\d+)\x00", lambda m: codes[int(m.group(1))], text)
+
+
+LIST_ITEM = re.compile(r"^(\s*)([-*]|\d+\.)\s+(.*)$")
+
+
+def md_list(lines, guide):
+    """Nested lists from indentation. Continuation lines join the item above."""
+    items = []  # (indent, ordered, text)
+    for ln in lines:
+        m = LIST_ITEM.match(ln)
+        if m:
+            items.append([len(m.group(1)), m.group(2)[0].isdigit(), m.group(3)])
+        elif items:
+            items[-1][2] += " " + ln.strip()
+    out, stack = [], []  # stack of (indent, tag)
+    for indent, ordered, text in items:
+        while stack and indent < stack[-1][0]:
+            out.append(f"</li></{stack.pop()[1]}>")
+        if stack and indent == stack[-1][0]:
+            out.append("</li>")
+        else:
+            tag = "ol" if ordered else "ul"
+            stack.append((indent, tag))
+            out.append(f"<{tag}>")
+        out.append(f"<li>{md_inline(text, guide)}")
+    while stack:
+        out.append(f"</li></{stack.pop()[1]}>")
+    return "".join(out)
+
+
+def md_table(lines, guide, label):
+    rows = [[c.strip() for c in ln.strip().strip("|").split("|")] for ln in lines]
+    rows = [r for r in rows if not all(re.fullmatch(r":?-{3,}:?", c) for c in r)]
+    head = "".join(f'<th scope="col">{md_inline(c, guide)}</th>' for c in rows[0])
+    body = "".join("<tr>" + "".join(f"<td>{md_inline(c, guide)}</td>" for c in r) + "</tr>" for r in rows[1:])
+    return (f'<div class="table-wrap" role="region" aria-label="{esc(label)}" tabindex="0"><table class="guide-table">'
+            f"<thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>")
+
+
+def md_to_html(md, guide):
+    """A small Markdown subset (what the guides use): headings, paragraphs, nested lists, fenced code,
+    tables, blockquotes, inline code, bold, italics and links. Headings drop one level (the guide's
+    title becomes the section's h2) and their ids are prefixed with the guide's name."""
+    lines = md.splitlines()
+    out, i, label = [], 0, guide
+    while i < len(lines):
+        ln = lines[i]
+        if not ln.strip():
+            i += 1
+        elif ln.startswith("```"):
+            j = i + 1
+            while j < len(lines) and not lines[j].startswith("```"):
+                j += 1
+            out.append(f'<pre class="cmd"><code>{esc(chr(10).join(lines[i + 1:j]), quote=False)}</code></pre>')
+            i = j + 1
+        elif m := re.match(r"^(#{1,4})\s+(.*)$", ln):
+            level = len(m.group(1))
+            text = md_inline(m.group(2), guide)
+            label = re.sub(r"<[^>]+>", "", text)
+            anchor = guide if level == 1 else f"{guide}-{slugify(m.group(2).replace('`', ''))}"
+            out.append(f'<h{level + 1} id="{anchor}">{text}</h{level + 1}>')
+            i += 1
+        elif ln.lstrip().startswith("|"):
+            j = i
+            while j < len(lines) and lines[j].lstrip().startswith("|"):
+                j += 1
+            out.append(md_table(lines[i:j], guide, label))
+            i = j
+        elif ln.startswith(">"):
+            j = i
+            while j < len(lines) and lines[j].startswith(">"):
+                j += 1
+            text = " ".join(x[1:].strip() for x in lines[i:j])
+            out.append(f'<div class="guide-note"><p>{md_inline(text, guide)}</p></div>')
+            i = j
+        elif LIST_ITEM.match(ln):
+            j = i + 1
+            while j < len(lines) and lines[j].strip() and (LIST_ITEM.match(lines[j]) or lines[j].startswith(" ")):
+                j += 1
+            out.append(md_list(lines[i:j], guide))
+            i = j
+        else:
+            j = i
+            while (j < len(lines) and lines[j].strip() and not re.match(r"^(#|```|>|\|)", lines[j])
+                   and not LIST_ITEM.match(lines[j])):
+                j += 1
+            out.append(f"<p>{md_inline(' '.join(x.strip() for x in lines[i:j]), guide)}</p>")
+            i = j
+    return "\n".join(out)
+
+
+def guide_title(name):
+    return re.match(r"#\s+(.*)", (GUIDES / f"{name}.md").read_text()).group(1)
+
+
+def t_guide(args):
+    name = args[0]
+    src = GUIDES / f"{name}.md"
+    if name not in GUIDE_ORDER or not src.exists():
+        raise SystemExit(f"build: unknown guide {name}")
+    source = f'{GITHUB}/blob/main/docs/guides/{name}.md'
+    return (f'<article class="guide prose" aria-labelledby="{name}">{md_to_html(src.read_text(), name)}'
+            f'<p class="guide-source">Source: <a href="{source}">docs/guides/{name}.md</a></p></article>')
+
+
+def t_guides_toc(_):
+    return '<ol class="toc">' + "".join(
+        f'<li><a href="#{g}">{esc(guide_title(g))}</a></li>' for g in GUIDE_ORDER) + "</ol>"
+
+
 def simple(value):
     return lambda _: value
 
@@ -245,7 +402,7 @@ def simple(value):
 R1 = REL["R1"]
 TOKENS = {
     "features": t_features, "flows": t_flows,
-    "flows_toc": t_flows_toc, "compare": t_compare, "roadmap": t_roadmap, "stats": t_stats,
+    "flows_toc": t_flows_toc, "compare": t_compare, "guide": t_guide, "guides_toc": t_guides_toc, "roadmap": t_roadmap, "stats": t_stats,
     "shot": lambda a: shot(a[0], cls=" ".join(x for x in a[1:] if x not in ("eager", "full")),
                            eager="eager" in a, crop="full" not in a),
     "icon": lambda a: ICONS[a[0]],
