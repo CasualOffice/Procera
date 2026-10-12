@@ -1,0 +1,39 @@
+<!--
+title: Get started: Procera
+description: Run Procera on your own server with Docker Compose, set it up from the one-time setup token to a first published policy, and configure it.
+nav: get-started
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Get started</span>
+    <h1>Run Procera on your own server</h1>
+    <p class="lede">Procera is pre-release and self-hosted: Docker Compose builds it from the repository and runs PostgreSQL, the server and the web app on one machine. These guides take you from an empty server to a first published policy that everyone has been asked to acknowledge.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="#install-docker-compose">Install with Docker Compose</a>
+      <a class="btn btn-secondary" href="{{ gh }}">{{ icon github }}CasualOffice/Procera on GitHub</a>
+    </div>
+    {{ guides_toc }}
+  </div>
+</section>
+
+<section class="section guide-section">
+  <div class="wrap">
+    <pre class="cmd guide-quick" aria-label="Quick start"><code>git clone {{ gh }}.git &amp;&amp; cd Procera
+cp deploy/.env.example deploy/.env      # fill in the passwords and the master key
+docker compose -f deploy/compose.yml up -d --build
+docker compose -f deploy/compose.yml logs procera | grep bootstrap_token   # then open /setup</code></pre>
+    {{ guide install-docker-compose }}
+  </div>
+</section>
+
+<section class="section guide-section">
+  <div class="wrap">
+    {{ guide first-time-setup }}
+  </div>
+</section>
+
+<section class="section guide-section">
+  <div class="wrap">
+    {{ guide configuration }}
+  </div>
+</section>
