@@ -373,11 +373,17 @@ export function DataGrid<T extends { id: string }>({
                   if (e.key === ' ' && selectable) { e.preventDefault(); selectRow(i, e.shiftKey); }
                 }}>
                 {selectable && <td className="grid-select"><input type="checkbox" aria-label={rowLabel ? `Select ${rowLabel(r)}` : `Select row ${r.id}`} checked={selected.has(r.id)} onClick={(e) => { e.preventDefault(); selectRow(i, e.shiftKey); }} onChange={() => undefined} /></td>}
-                {visibleCols.map((c) => (
-                  <td key={c.id} className={[c.optional ? 'col-optional' : '', c.className ?? ''].join(' ')} data-label={c.header}>
-                    {c.cell ? c.cell(r) : String(c.value(r) ?? '')}
-                  </td>
-                ))}
+                {visibleCols.map((c, ci) => {
+                  const v = c.value(r);
+                  const content = c.cell ? c.cell(r) : String(v ?? '');
+                  const empty = content === '' || content === null || content === undefined || content === false;
+                  return (
+                    <td key={c.id} className={[c.optional ? 'col-optional' : '', ci === 0 ? 'col-first' : '', c.type === 'date' ? 'col-date' : '', c.className ?? ''].join(' ')}
+                      data-label={ci === 0 ? '' : c.header} data-empty={empty ? '' : undefined}>
+                      {content}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>

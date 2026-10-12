@@ -20,6 +20,14 @@
   .grid-table tr { border-top: 1px solid var(--color-border); padding: var(--space-2) 0; }
   .grid-table td { border: 0; padding: var(--space-1) var(--space-4); }
   .grid-table td[data-label]:not([data-label=''])::before { content: attr(data-label) ': '; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); }
+  /* A card leads with its first column (no "Name:" label) and skips empty fields. */
+  .grid-table td[data-empty] { display: none; }
+  .grid-table td.col-first { font-weight: var(--font-weight-medium); }
+}
+/* Wide screens: the first column (usually the name) keeps a readable width; dates stay on one line. */
+@media (min-width: 40.0625rem) {
+  .grid-table td.col-first { min-width: 14rem; }
+  .grid-table td.col-date { white-space: nowrap; }
 }
 
 /* DataGrid v1 (BPMS-028): toolbar, chips, panels, views, density. */
