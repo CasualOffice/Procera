@@ -88,7 +88,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-102 | DATA | Master-data tables (CSV import, lookups, versioned) | P0 | R3 | Fullstack | FX-E02 | Cascading dropdowns | M | BPMS-101 | Not started | — |
 | BPMS-104 | REQ | Recall/withdraw, edit-after-submit, request-on-behalf, numbering | P0 | R3 | Backend | FX-E03/E04/E06 | Audited | M | BPMS-103 | Not started | — |
 | BPMS-107 | SIGN | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | P0 | R3 | Fullstack | FR-DS01–07, FX-S01/02/05/06/07 | J13 passes | XL | BPMS-046,060 | Not started | — |
-| BPMS-108 | ADMIN | All requests / all work / workload / process health / ops monitor | P0 | R3 | FE | FR-A02–A05 | Bulk audited | L | BPMS-063,085 | Not started | — |
+| BPMS-108 | ADMIN | All requests / all work / workload / process health / ops monitor | P0 | R3 | FE | FR-A02–A05 | Bulk audited | L | BPMS-063,085 | In progress | Automated tests |
 | BPMS-109 | UX | PWA (360px) for My Work, requests, acks, signing | P0 | R3 | FE | FR-P07 | Lighthouse PWA pass | M | BPMS-105 | Not started | — |
 | BPMS-110 | LIB | BPMN 2.0 XML import (subset) + compatibility report | P0 | R3 | Runtime | FR-G09, SP-06 | Unsupported listed | M | BPMS-080 | Not started | — |
 | BPMS-112 | E2E | E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit | P0 | R3 | SDET + feature owners | 23 §5 | Green; bulk-sign 1000 | L | BPMS-111 | Not started | — |
@@ -131,7 +131,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started | — |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started | — |
 
-**Progress:** Done: 35 · In review: 0 · In progress: 18 · Blocked: 0 · Not started: 56 · Deferred: 0 (of 109)
+**Progress:** Done: 35 · In review: 0 · In progress: 19 · Blocked: 0 · Not started: 55 · Deferred: 0 (of 109)
 
 ### Active and recently completed
 
@@ -190,6 +190,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-105 | My Work 3-pane inbox (tasks, acks, signatures), bulk with preview | In progress | Automated tests | web: requests catalogue, forms, my/all requests, request page with stepper, My work inbox with decisions (/work list + detail with Open/Done, J/K, decision panel with If-Match and required comment to send back or reject, sidebar count "My work, N open", Home "Needs you" approvals, request notifications); Overdue tag by the server clock; Admin › Requests oversight (Unassigned, Overdue, All open; Reassign… with SoD errors on the field; E2E-R2-UI-05). Bulk with preview and acks/signatures tabs remain. |
 | BPMS-106 | Template gallery + install wizard + Wave-1 templates (13) | In progress | Automated tests | P0 subset (A-38): built-in template packs (employee handbook, starter policies) installed as drafts with the right kind permissions, Templates gallery page; E2E-R1-18. Built-in request types (0.2, docs/19 §5.6): leave, expense claim, purchase requisition, access request compiled at boot and pinned. Remaining: install wizard, the other Wave-1 process templates, role mapping at install. |
 | BPMS-066 | Retention policy per record class (policy only) | Done | Automated tests | Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26. |
+| BPMS-108 | All requests / all work / workload / process health / ops monitor | In progress | Automated tests | Workload (FR-A03) shipped early with 0.2: GET /work/workload?scope=team|all (per person open / overdue / due in 7 days / oldest, away + delegate, coverage gaps) and /work/workload/{member} (their open steps); Team page for managers (team = reporting line, derived from the directory, no grant needed) and Requests oversight › Workload for admins; bulk reassign with a preview, refusals per step; a manager reassigns within their team without work:reassign (docs/12 §6). E2E-R2-UI-13. Not yet: all-requests/process health/ops monitor. |
 
 ## Domain backlogs (detail, owned by their docs)
 
@@ -198,7 +199,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 299 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 300 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

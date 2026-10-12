@@ -44,6 +44,8 @@ pub enum WorkState {
     Unassigned,
     /// Open items past their due date, whoever holds them (admins).
     Overdue,
+    /// Open items offered to this member themselves (workload; no delegation).
+    HeldBy(Uuid),
 }
 
 const SUMMARY: &str = "SELECT r.instance_id, r.display_id, r.process_key, r.title, r.status, r.current_step, r.created_at, r.updated_at,
@@ -595,6 +597,7 @@ impl Requests {
         let today = self.today();
         let principals = match state {
             WorkState::Open => delegation::acting_for(tx, m, today).await?,
+            WorkState::HeldBy(x) => vec![x],
             _ => vec![m],
         };
         let filter = match state {
@@ -604,6 +607,9 @@ impl Requests {
             WorkState::Done => "w.state = 'completed' AND w.completed_by = $1",
             WorkState::Unassigned => "w.state IN ('offered', 'claimed') AND w.unassigned AND $1 = $1",
             WorkState::Overdue => "w.state IN ('offered', 'claimed') AND w.due_at < $2 AND $1 = $1",
+            WorkState::HeldBy(_) => {
+                "w.state IN ('offered', 'claimed') AND NOT w.unassigned AND $1 = $1 AND EXISTS (SELECT 1 FROM work_item_candidates c WHERE c.work_item_id = w.id AND c.membership_id = ANY($3))"
+            }
         };
         let now = self.clock.now();
         let rows: Vec<WorkListRow> = sqlx::query_as(&format!(

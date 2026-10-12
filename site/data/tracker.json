@@ -5,13 +5,13 @@
  "totals": {
   "Done": 35,
   "In review": 0,
-  "In progress": 18,
+  "In progress": 19,
   "Blocked": 0,
-  "Not started": 56,
+  "Not started": 55,
   "Deferred": 0,
   "all": 109
  },
- "e2e_scenarios": 237,
+ "e2e_scenarios": 245,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -241,6 +241,10 @@
   "E2E-R2-32",
   "E2E-R2-33",
   "E2E-R2-34",
+  "E2E-R2-40",
+  "E2E-R2-41",
+  "E2E-R2-42",
+  "E2E-R2-43",
   "E2E-R2-ISO",
   "E2E-R2-UI-01",
   "E2E-R2-UI-02",
@@ -249,7 +253,11 @@
   "E2E-R2-UI-05",
   "E2E-R2-UI-10",
   "E2E-R2-UI-11",
-  "E2E-R2-UI-12"
+  "E2E-R2-UI-12",
+  "E2E-R2-UI-13",
+  "E2E-R2-UI-20",
+  "E2E-R2-UI-21",
+  "E2E-R2-UI-22"
  ],
  "releases": [
   {
@@ -366,8 +374,8 @@
    "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
    "total": 8,
    "done": 1,
-   "in_progress": 0,
-   "not_started": 7,
+   "in_progress": 1,
+   "not_started": 6,
    "epics": [
     "BPMS-066",
     "BPMS-102",
@@ -1017,7 +1025,7 @@
    "title": "All requests / all work / workload / process health / ops monitor",
    "priority": "P0",
    "release": "R3",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-109",

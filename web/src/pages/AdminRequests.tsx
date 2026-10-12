@@ -1,19 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ApiError, api } from '../lib/api';
-import { type Member, useItems } from '../lib/data';
+import { useMemo, useState } from 'react';
+import { useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, useRoute } from '../lib/router';
-import { type RequestRow, type WorkItem, fieldErrors, people } from '../lib/requests';
-import { useSession } from '../lib/session';
+import { type RequestRow, type WorkItem, people } from '../lib/requests';
 import { Button } from '../ui/components/Button';
 import { DataGrid, type GridColumn } from '../ui/components/DataGrid';
-import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
-import { Select } from '../ui/components/Select';
-import { TextField } from '../ui/components/TextField';
 import { SectionTabs } from '../ui/SectionTabs';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
+import { ReassignDialog } from './reassign';
+import { TeamWorkload } from './Workload';
 import './requests.css';
 
 /*
@@ -22,10 +19,11 @@ import './requests.css';
  * reason; the server re-runs separation of duties and records it in the audit log.
  */
 
-type Tab = 'unassigned' | 'overdue' | 'open';
+type Tab = 'unassigned' | 'overdue' | 'workload' | 'open';
 const TABS: { id: Tab; label: string }[] = [
   { id: 'unassigned', label: 'Unassigned' },
   { id: 'overdue', label: 'Overdue' },
+  { id: 'workload', label: 'Workload' },
   { id: 'open', label: 'All open requests' },
 ];
 
@@ -35,10 +33,10 @@ export function AdminRequests() {
   return (
     <>
       <div className="page-head">
-        <div><h1>Requests oversight</h1><p>Steps nobody could be found for, steps past their due date, and every request still in progress. Reassign a stuck step to keep it moving.</p></div>
+        <div><h1>Requests oversight</h1><p>Steps nobody could be found for, steps past their due date, who holds how much, and every request still in progress. Reassign a stuck step to keep it moving.</p></div>
       </div>
       <SectionTabs label="Oversight views" tabs={TABS.map((t) => ({ label: t.label, to: `/admin/requests?tab=${t.id}`, current: t.id === tab }))} />
-      {tab === 'open' ? <OpenRequests /> : <StuckSteps key={tab} state={tab} />}
+      {tab === 'open' ? <OpenRequests /> : tab === 'workload' ? <TeamWorkload scope="all" base="/admin/requests?tab=workload" /> : <StuckSteps key={tab} state={tab} />}
     </>
   );
 }
@@ -70,7 +68,7 @@ function StuckSteps({ state }: { state: 'unassigned' | 'overdue' }) {
         empty={state === 'unassigned'
           ? <Empty art="caught-up" title="Every step has someone">When a step can’t find an approver (no manager, an empty group, everyone excluded), it waits here for you.</Empty>
           : <Empty art="caught-up" title="Nothing is overdue">Steps still open after their due date show up here, whoever has them.</Empty>} />
-      <ReassignDialog item={target} onClose={() => setTarget(null)} onDone={(name) => { setDone(`${target?.request.display_id ?? 'The step'} is now with ${name}.`); setTarget(null); reload(); }} />
+      <ReassignDialog items={target ? [target] : []} onClose={() => setTarget(null)} onDone={(message) => { setDone(message); setTarget(null); reload(); }} />
     </>
   );
 }
@@ -92,49 +90,5 @@ function OpenRequests() {
   return (
     <DataGrid<RequestRow> caption="Open requests" showCaption={false} data={rows} columns={columns} rowHref={(r) => `/requests/${r.id}`} initialSort={[{ id: 'updated', desc: false }]}
       empty={<Empty art="caught-up" title="Nothing in progress">Requests waiting on someone show up here.</Empty>} />
-  );
-}
-
-/** Pick one person and say why; SoD refusals come back on the person field. */
-function ReassignDialog({ item, onClose, onDone }: { item: WorkItem | null; onClose: () => void; onDone: (name: string) => void }) {
-  const { can } = useSession();
-  const [members] = useItems<Member>(item && can('member:view') ? '/api/v1/members' : null, [item?.id]);
-  const [who, setWho] = useState('');
-  const [reason, setReason] = useState('');
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [failure, setFailure] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { setWho(''); setReason(''); setErrors({}); setFailure(null); }, [item?.id]);
-  const options = (members ?? []).filter((m) => m.status === 'active').map((m) => ({ id: m.id, label: `${m.display_name} (${m.email})` }));
-  const submit = async () => {
-    if (!item) return;
-    const missing: Record<string, string> = {};
-    if (!who) missing.membership_id = 'Choose who should take this step.';
-    if (!reason.trim()) missing.reason = 'Say why, for the audit log and the people concerned.';
-    setErrors(missing); setFailure(null);
-    if (Object.keys(missing).length) return;
-    setBusy(true);
-    try {
-      const r = await api<{ assignees: string[] }>(`/api/v1/work/${item.id}/reassign`, { method: 'POST', body: { membership_id: who, reason: reason.trim() } });
-      onDone(r.assignees.join(', '));
-    } catch (e) {
-      const fe = fieldErrors(e);
-      if (Object.keys(fe).length) setErrors(fe);
-      else setFailure(e instanceof ApiError && e.code === 'already_decided' ? 'Someone decided this step already. Close this and refresh the list.' : e instanceof Error ? e.message : 'Couldn’t reassign the step.');
-    } finally { setBusy(false); }
-  };
-  return (
-    <FormDialog isOpen={!!item} onOpenChange={(o) => !o && onClose()} title="Reassign step"
-      description={item ? `${item.step} of ${item.request.display_id} (${item.request.title}). The new person is notified; the change is recorded in the audit log and the request’s timeline.` : undefined}
-      footer={<><Button variant="secondary" onPress={onClose}>Cancel</Button><Button onPress={() => void submit()} isDisabled={busy}>Reassign</Button></>}>
-      {failure && <Notice tone="danger" title={failure} />}
-      <div className="stack">
-        <Select label="Person" isRequired options={options} selectedKey={who || null} onSelectionChange={(k) => setWho(String(k ?? ''))}
-          placeholder={members === null ? 'Loading people…' : 'Choose a person'} isInvalid={!!errors.membership_id} errorMessage={errors.membership_id}
-          description="The person who started the request, and anyone separation of duties excludes, can’t take it." />
-        <TextField label="Reason" isRequired value={reason} onChange={setReason} isInvalid={!!errors.reason} errorMessage={errors.reason}
-          description="For example “Manager on leave until Monday”." />
-      </div>
-    </FormDialog>
   );
 }

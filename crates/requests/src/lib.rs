@@ -25,6 +25,7 @@ pub mod resolve;
 mod service;
 mod views;
 mod why;
+pub mod workload;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -48,6 +49,7 @@ pub use views::{
     Decided, Reassigned, Release, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WhyLine,
     WorkView,
 };
+pub use workload::{Reach, Workload};
 
 /// The calendar every built-in names (`refs.calendars.default`), seeded per workspace on first use.
 pub const DEFAULT_CALENDAR: &str = "calendar:default@1";

@@ -2,7 +2,7 @@ import { Archive, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardChec
 import { term } from '../lib/terms';
 
 export type NavKey =
-  | 'home' | 'inbox' | 'requests' | 'work' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
+  | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
   | 'admin' | 'overview' | 'request-oversight' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
@@ -20,6 +20,7 @@ export function workNav(can: (p: string) => boolean): NavItem[] {
     any('policy:view', 'sop:view') && { key: 'library', label: 'Library', to: '/library', icon: BookOpen, keywords: 'documents policies sops applies to me' },
     any('request:start', 'request:view_own', 'request:view_all') && { key: 'requests', label: 'Requests', to: '/requests', icon: Send, keywords: 'leave expense purchase ask approval start new request' },
     can('work:view_assigned') && { key: 'work', label: 'My work', to: '/work', icon: Inbox, keywords: 'approvals tasks inbox decide approve assigned to me' },
+    any('work:view_team', 'directory:has_team') && { key: 'team', label: 'Team', to: '/team', icon: UsersRound, keywords: 'my team reports workload overdue away cover reassign manager' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
     any('policy:create', 'sop:create') && { key: 'my-documents', label: 'My documents', to: '/library?view=mine', icon: FileText, keywords: 'drafts owned in review mine' },
     can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },

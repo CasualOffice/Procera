@@ -195,3 +195,14 @@
 .req-attachments h2, .req-attachments h3 { display: flex; align-items: center; gap: var(--space-2); font-size: 0.875rem; margin: 0 0 var(--space-2); }
 .req-timeline-files { flex-basis: 100%; padding-left: var(--space-4); }
 .req-policy { display: flex; align-items: center; gap: var(--space-1); margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }
+/* Workload (FR-A03): a summary strip over the people grid. */
+.workload-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.75rem; margin: 0 0 1.25rem; }
+.workload-stats > div { padding: 0.75rem 0.875rem; border: 1px solid var(--line); border-radius: 0.625rem; background: var(--color-surface); }
+.workload-stats dt { font-size: 0.75rem; color: var(--color-text-secondary); }
+.workload-stats dd { margin: 0.125rem 0 0; font-size: 1.375rem; font-weight: var(--font-weight-semibold); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.workload-stats .is-bad dd { color: var(--color-danger); }
+.workload-stats .is-warn { border-color: var(--color-warning); background: var(--color-warning-bg); }
+.workload-stats .is-warn dt { color: var(--color-text); }
+.num { font-variant-numeric: tabular-nums; }
+.reassign-preview { list-style: none; margin: 0; padding: 0.5rem 0.75rem; max-height: 10rem; overflow: auto; border: 1px solid var(--line); border-radius: 0.5rem; font-size: 0.8125rem; display: grid; gap: 0.25rem; }
+.reassign-refused { margin: 0.25rem 0 0; padding-left: 1.125rem; }

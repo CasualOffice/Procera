@@ -3,6 +3,11 @@ import { ApiError, api, authPost, refresh, setAccessToken } from './api';
 import { getPasskey } from './passkey';
 import { navigate } from './router';
 
+
+/** Client-only marker for "manages someone in the directory" (not a permission): it opens Team. */
+export const HAS_TEAM = 'directory:has_team';
+const withTeam = (p: { permissions: string[]; manages?: boolean }) => new Set(p.manages ? [...p.permissions, HAS_TEAM] : p.permissions);
+
 export interface User {
   id: string;
   email: string;
@@ -77,8 +82,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const current = mine.items.find((w) => w.workspace_id === me.token.workspace) ?? null;
     if (current) {
       try {
-        const p = await api<{ permissions: string[]; membership_id: string }>('/api/v1/me/permissions');
-        setPermissions(new Set(p.permissions));
+        const p = await api<{ permissions: string[]; membership_id: string; manages?: boolean }>('/api/v1/me/permissions');
+        setPermissions(withTeam(p));
         setMembershipId(p.membership_id);
         setEntryError(null);
         setWorkspace(current);

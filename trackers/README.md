@@ -7,11 +7,11 @@
 
 ```text
 Overall   ██████████░░░░░░░░░░░░░░░░░░░░  35/109 epics done  (32%)
-Partial   ████████████░░░░░░░░░░░░░░░░░░  40% counting in-progress epics as half done
-Tests     244 automated E2E scenarios · 421 Rust tests (incl. property tests)
-Status    done 35 · in review 0 · in progress 18 · blocked 0 · not started 56 · deferred 0
+Partial   ████████████░░░░░░░░░░░░░░░░░░  41% counting in-progress epics as half done
+Tests     245 automated E2E scenarios · 422 Rust tests (incl. property tests)
+Status    done 35 · in review 0 · in progress 19 · blocked 0 · not started 55 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 39 · code merged 14  (separate from status; none user-validated yet)
+Evidence  automated tests 40 · code merged 14  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -51,6 +51,7 @@ Evidence  automated tests 39 · code merged 14  (separate from status; none user
 | BPMS-103 | Request portal/catalogue, start form, request detail, comments/@mentions/watchers | **In progress** | Automated tests | Request API (0.2): GET /request-types, POST /requests (Idempotency-Key, display ids LR-2026-000123), GET /requests?scope=mine|all, GET /requests/{id} (steps, timeline, SLA), POST /requests/{id}/cancel; status derived per stimulus; audited request.started/cancelled with the runtime record; DB tests + e2e/packs/r2 (E2E-R2-17, -20, -ISO). Why this route (PR-08): GET /requests/{id} returns why[{at, step, text, facts}] (threshold routes and assignment reasons) and release{version, checksum}; GET /work items carry why_you; request page Why this route disclosure and decision panel Why you (E2E-R2-24, E2E-R2-UI-01). Remaining: web portal UI, comments/@mentions/watchers, cursor pages, query endpoint. web: requests catalogue, forms, my/all requests, request page with stepper, My work inbox with decisions (Requests area with views as links; /requests/new/{type} rendered from the form schema with required checks and 422 field errors; /requests/{id} with steps, answers, timeline and cancel; Home quick action and requests in progress; E2E-R2-UI-01..04). Server API in progress alongside. Workspace request settings: requests.types.enabled / requests.types.audience / requests.currency (curated ISO list, default EUR; money-bearing built-ins compiled per currency, thresholds read in it); GET /request-types lists only enabled types the caller is in the audience of, POST /requests refuses others with 403; Settings › Requests with 'Offer <type>' switches and 'Who can ask' (E2E-R2-30..32, E2E-R2-UI-10). Slice 3: Who approves this — POST /requests/preview (a read, audit-exempt) dry-runs the routing with the real resolver and words later steps from IR conditions, shown live on the form (E2E-R2-40, E2E-R2-UI-20); attachments on every built-in and with decisions (E2E-R2-41/42, E2E-R2-UI-21); requests.types.policy links a published policy/SOP, shown to deciders, the decision records the version shown (E2E-R2-43, E2E-R2-UI-22). |
 | BPMS-105 | My Work 3-pane inbox (tasks, acks, signatures), bulk with preview | **In progress** | Automated tests | web: requests catalogue, forms, my/all requests, request page with stepper, My work inbox with decisions (/work list + detail with Open/Done, J/K, decision panel with If-Match and required comment to send back or reject, sidebar count "My work, N open", Home "Needs you" approvals, request notifications); Overdue tag by the server clock; Admin › Requests oversight (Unassigned, Overdue, All open; Reassign… with SoD errors on the field; E2E-R2-UI-05). Bulk with preview and acks/signatures tabs remain. |
 | BPMS-106 | Template gallery + install wizard + Wave-1 templates (13) | **In progress** | Automated tests | P0 subset (A-38): built-in template packs (employee handbook, starter policies) installed as drafts with the right kind permissions, Templates gallery page; E2E-R1-18. Built-in request types (0.2, docs/19 §5.6): leave, expense claim, purchase requisition, access request compiled at boot and pinned. Remaining: install wizard, the other Wave-1 process templates, role mapping at install. |
+| BPMS-108 | All requests / all work / workload / process health / ops monitor | **In progress** | Automated tests | Workload (FR-A03) shipped early with 0.2: GET /work/workload?scope=team|all (per person open / overdue / due in 7 days / oldest, away + delegate, coverage gaps) and /work/workload/{member} (their open steps); Team page for managers (team = reporting line, derived from the directory, no grant needed) and Requests oversight › Workload for admins; bulk reassign with a preview, refusals per step; a manager reassigns within their team without work:reassign (docs/12 §6). E2E-R2-UI-13. Not yet: all-requests/process health/ops monitor. |
 
 ## Done
 
@@ -190,7 +191,7 @@ _Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPM
 - [ ] **BPMS-102** (P0, M) Master-data tables (CSV import, lookups, versioned)
 - [ ] **BPMS-104** (P0, M) Recall/withdraw, edit-after-submit, request-on-behalf, numbering
 - [ ] **BPMS-107** (P0, XL) E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate
-- [ ] **BPMS-108** (P0, L) All requests / all work / workload / process health / ops monitor
+- [ ] **BPMS-108** (P0, L) All requests / all work / workload / process health / ops monitor **[In progress]**
 - [ ] **BPMS-109** (P0, M) PWA (360px) for My Work, requests, acks, signing
 - [ ] **BPMS-110** (P0, M) BPMN 2.0 XML import (subset) + compatibility report
 - [ ] **BPMS-112** (P0, L) E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit
@@ -276,7 +277,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 299 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 300 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 15 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

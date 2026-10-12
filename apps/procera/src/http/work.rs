@@ -12,8 +12,9 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use procera_access::Resource;
+use procera_db::WsTx;
 use procera_db::idempotency::{self, Claim};
-use procera_requests::WorkState;
+use procera_requests::{Reach, WorkState};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
@@ -28,6 +29,8 @@ use super::workspace::{WsMember, members};
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/work", get(list))
+        .route("/work/workload", get(workload))
+        .route("/work/workload/{member}", get(held))
         .route("/work/{id}/decisions", post(decide))
         .route("/work/{id}/reassign", post(reassign))
 }
@@ -59,6 +62,75 @@ async fn list(
     let perm = if admin { "work:reassign" } else { "work:view_assigned" };
     me.require(m, &mut tx, perm, Resource::Workspace).await?;
     let items = requests(&s)?.work(&mut tx, me.actor.membership, state).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+async fn allowed(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>, action: &str) -> Result<bool, ApiError> {
+    Ok(members(s)?.access().check(tx, me.actor.membership, action, &Resource::Workspace).await?.allowed)
+}
+
+/// Sees every member's work: workspace oversight (`request:view_all` and `work:reassign`).
+async fn oversees(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>) -> Result<bool, ApiError> {
+    Ok(allowed(s, me, tx, "request:view_all").await? && allowed(s, me, tx, "work:reassign").await?)
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WorkloadQuery {
+    scope: Option<String>,
+}
+
+/// Workload per person (FR-A03): `scope=team` (default) is the caller's reporting line, for a
+/// manager in the directory or `work:view_team`; `scope=all` is everyone and needs workspace oversight.
+async fn workload(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<WorkloadQuery>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let reach = match q.scope.as_deref().unwrap_or("team") {
+        "team" => {
+            // Managers in the directory have a team without a grant (docs/12 §4); `work:view_team` too.
+            let svc = requests(&s)?;
+            if !svc.manages(&mut tx, me.actor.membership).await? {
+                me.require(m, &mut tx, "work:view_team", Resource::Workspace).await?;
+            }
+            Reach::Team(me.actor.membership)
+        }
+        "all" => {
+            if !oversees(&s, &me, &mut tx).await? {
+                return Err(ApiError::new(403, "forbidden", "Forbidden"));
+            }
+            Reach::All
+        }
+        other => {
+            return Err(ApiError::new(400, "bad_request", "Unknown scope")
+                .detail(format!("{other}: use team or all")));
+        }
+    };
+    let w = requests(&s)?.workload(&mut tx, reach).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(w).into_response())
+}
+
+/// The open steps one person holds: visible for someone in the caller's reporting line, or anyone
+/// with workspace oversight. Others get 404.
+async fn held(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(member): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let svc = requests(&s)?;
+    let ok =
+        oversees(&s, &me, &mut tx).await? || svc.reports_to(&mut tx, member, me.actor.membership).await?;
+    if !ok {
+        return Err(ApiError::not_found());
+    }
+    let items = svc.work(&mut tx, me.actor.membership, WorkState::HeldBy(member)).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "items": items })).into_response())
 }
@@ -170,7 +242,10 @@ async fn reassign(
     let r: ReassignReq = serde_json::from_slice(&body).map_err(bad_body)?;
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
-    me.require(m, &mut tx, "work:reassign", Resource::Workspace).await?;
+    // A manager moves their own team's steps within the team without the grant (docs/12 §6).
+    if !requests(&s)?.may_reassign_within_team(&mut tx, me.actor.membership, id, r.membership_id).await? {
+        me.require(m, &mut tx, "work:reassign", Resource::Workspace).await?;
+    }
     let key = idempotency_key(&headers);
     if let Some(k) = &key {
         let hash = idempotency::request_hash("POST", &format!("/api/v1/work/{id}/reassign"), &body);

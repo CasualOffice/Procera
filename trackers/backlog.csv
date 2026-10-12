@@ -66,7 +66,7 @@ BPMS-066,AUD,Retention policy per record class (policy only),P0,R3,Backend,PRV-0
 BPMS-102,DATA,"Master-data tables (CSV import, lookups, versioned)",P0,R3,Fullstack,FX-E02,Cascading dropdowns,M,BPMS-101,Not started,—
 BPMS-104,REQ,"Recall/withdraw, edit-after-submit, request-on-behalf, numbering",P0,R3,Backend,FX-E03/E04/E06,Audited,M,BPMS-103,Not started,—
 BPMS-107,SIGN,"E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate",P0,R3,Fullstack,"FR-DS01–07, FX-S01/02/05/06/07",J13 passes,XL,"BPMS-046,060",Not started,—
-BPMS-108,ADMIN,All requests / all work / workload / process health / ops monitor,P0,R3,FE,FR-A02–A05,Bulk audited,L,"BPMS-063,085",Not started,—
+BPMS-108,ADMIN,All requests / all work / workload / process health / ops monitor,P0,R3,FE,FR-A02–A05,Bulk audited,L,"BPMS-063,085",In progress,Automated tests
 BPMS-109,UX,"PWA (360px) for My Work, requests, acks, signing",P0,R3,FE,FR-P07,Lighthouse PWA pass,M,BPMS-105,Not started,—
 BPMS-110,LIB,BPMN 2.0 XML import (subset) + compatibility report,P0,R3,Runtime,"FR-G09, SP-06",Unsupported listed,M,BPMS-080,Not started,—
 BPMS-112,E2E,E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit,P0,R3,SDET + feature owners,23 §5,Green; bulk-sign 1000,L,BPMS-111,Not started,—

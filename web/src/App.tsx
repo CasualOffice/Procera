@@ -21,6 +21,7 @@ import { Requests } from './pages/Requests';
 import { RequestNew } from './pages/RequestNew';
 import { RequestDetail } from './pages/RequestDetail';
 import { MyWork } from './pages/MyWork';
+import { TeamPage } from './pages/Workload';
 import { Settings } from './pages/Settings';
 import { SettingsCategory } from './pages/SettingsCategory';
 import { categoryById } from './pages/settingsMeta';
@@ -118,6 +119,7 @@ export function App() {
   if (reqNew) return <AppShell current="requests" crumbs={[['Requests', '/requests'], 'New request']}><RequestNew typeKey={reqNew.type!} /></AppShell>;
   const req = match('/requests/:id', path);
   if (req) return <AppShell current="requests" crumbs={[['Requests', '/requests?view=mine'], 'Request']}><RequestDetail id={req.id!} /></AppShell>;
+  if (path === '/team') return <AppShell current="team" crumbs={['Team']}><TeamPage /></AppShell>;
   if (path === '/work') return <AppShell current="work" crumbs={['My work']}><MyWork selected={null} /></AppShell>;
   const workItem = match('/work/:id', path);
   if (workItem) return <AppShell current="work" crumbs={[['My work', '/work'], 'Item']}><MyWork selected={workItem.id!} /></AppShell>;
