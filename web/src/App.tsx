@@ -17,6 +17,10 @@ import { Templates } from './pages/Templates';
 import { Announcements } from './pages/Announcements';
 import { ManageAnnouncements } from './pages/ManageAnnouncements';
 import { CampaignDetail, Campaigns } from './pages/Campaigns';
+import { Requests } from './pages/Requests';
+import { RequestNew } from './pages/RequestNew';
+import { RequestDetail } from './pages/RequestDetail';
+import { MyWork } from './pages/MyWork';
 import { Settings } from './pages/Settings';
 import { SettingsCategory } from './pages/SettingsCategory';
 import { categoryById } from './pages/settingsMeta';
@@ -103,6 +107,17 @@ export function App() {
   if (path === '/notifications/preferences') return <AppShell current="inbox" crumbs={[['Notifications', '/notifications'], 'Preferences']}><NotificationPreferences /></AppShell>;
   if (path === '/notifications') return <AppShell current="inbox" crumbs={['Notifications']}><Notifications /></AppShell>;
   if (path === '/library') return query.get('view') === 'mine' ? <AppShell current="my-documents" crumbs={[['Library', '/library'], 'My documents']}><Library /></AppShell> : <AppShell current="library" crumbs={['Library']}><Library /></AppShell>;
+  if (path === '/requests') {
+    const v = query.get('view');
+    return <AppShell current="requests" crumbs={v === 'mine' ? [['Requests', '/requests'], 'My requests'] : v === 'all' ? [['Requests', '/requests'], 'All requests'] : ['Requests']}><Requests view={v === 'mine' ? 'mine' : v === 'all' ? 'all' : 'new'} /></AppShell>;
+  }
+  const reqNew = match('/requests/new/:type', path);
+  if (reqNew) return <AppShell current="requests" crumbs={[['Requests', '/requests'], 'New request']}><RequestNew typeKey={reqNew.type!} /></AppShell>;
+  const req = match('/requests/:id', path);
+  if (req) return <AppShell current="requests" crumbs={[['Requests', '/requests?view=mine'], 'Request']}><RequestDetail id={req.id!} /></AppShell>;
+  if (path === '/work') return <AppShell current="work" crumbs={['My work']}><MyWork selected={null} /></AppShell>;
+  const workItem = match('/work/:id', path);
+  if (workItem) return <AppShell current="work" crumbs={[['My work', '/work'], 'Item']}><MyWork selected={workItem.id!} /></AppShell>;
   if (path === '/welcome') return <AppShell current="home" crumbs={[['Home', '/'], 'Set up']}><Welcome /></AppShell>;
   if (path === '/admin') return <AppShell current="admin" crumbs={['Admin']}><AdminHub /></AppShell>;
   if (path === '/templates') return <AppShell current="templates" crumbs={['Templates']}><Templates /></AppShell>;

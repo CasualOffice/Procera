@@ -212,3 +212,5 @@ svg.lucide { stroke-width: 1.75; }
   .sidebar .ws-switcher { min-width: 0; }
   .ws-switcher-meta, .ws-switcher-name { white-space: nowrap; }
 }
+/* Sidebar count for My work */
+.nav .nav-count { margin-left: auto; min-width: 1.125rem; height: 1.125rem; padding: 0 0.3125rem; border-radius: 999px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; font-size: 0.6875rem; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; background: var(--color-text); color: var(--color-surface); }

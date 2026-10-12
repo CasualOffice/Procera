@@ -1,8 +1,8 @@
-import { Archive, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, KeyRound, LayoutTemplate, Megaphone, ScrollText, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Archive, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
-  | 'home' | 'inbox' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
+  | 'home' | 'inbox' | 'requests' | 'work' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
   | 'admin' | 'overview' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
@@ -18,6 +18,8 @@ export function workNav(can: (p: string) => boolean): NavItem[] {
   return pick([
     { key: 'home', label: 'Home', to: '/', icon: House, keywords: 'start dashboard tasks needs you' },
     any('policy:view', 'sop:view') && { key: 'library', label: 'Library', to: '/library', icon: BookOpen, keywords: 'documents policies sops applies to me' },
+    any('request:start', 'request:view_own', 'request:view_all') && { key: 'requests', label: 'Requests', to: '/requests', icon: Send, keywords: 'leave expense purchase ask approval start new request' },
+    can('work:view_assigned') && { key: 'work', label: 'My work', to: '/work', icon: Inbox, keywords: 'approvals tasks inbox decide approve assigned to me' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
     any('policy:create', 'sop:create') && { key: 'my-documents', label: 'My documents', to: '/library?view=mine', icon: FileText, keywords: 'drafts owned in review mine' },
     can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },
@@ -77,6 +79,7 @@ export interface CreateAction { id: string; label: string; to: string; icon: Luc
 /** "Create" commands, permission-shaped (docs/05 §2.1 "(+) New"). */
 export function createActions(can: (p: string) => boolean): CreateAction[] {
   return [
+    can('request:start') && { id: 'new-request', label: 'New request', to: '/requests', icon: Send, keywords: 'start ask leave expense purchase approval' },
     can('policy:create') && { id: 'new-policy', label: 'New policy', to: '/library?new=policy', icon: FilePlus2, keywords: 'create document write' },
     can('sop:create') && { id: 'new-sop', label: `New ${term('sop')}`, to: '/library?new=sop', icon: ScrollText, keywords: 'create procedure document write' },
     can('template:install') && { id: 'from-template', label: 'Start from a template', to: '/templates', icon: LayoutTemplate, keywords: 'create starter pack handbook' },
