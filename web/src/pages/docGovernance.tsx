@@ -1,4 +1,4 @@
-import { BadgeCheck, CalendarClock, Check, CircleSlash, GitPullRequestArrow, MessageSquarePlus, RefreshCw, X } from 'lucide-react';
+import { BadgeCheck, CalendarClock, Check, CircleSlash, GitPullRequestArrow, Hash, MessageSquarePlus, RefreshCw, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Form } from 'react-aria-components';
 import { api } from '../lib/api';
@@ -69,6 +69,20 @@ export function GovernanceRows({ artifactId, g, canRecertify, canVerify, act }: 
         <p className="muted" style={{ margin: 0 }}>You can verify it again at any time.</p>
       </FormDialog>
     </>
+  );
+}
+
+/** For plain readers: the fingerprint and review date tucked away for the curious. */
+export function ReaderDetails({ fingerprint, nextReview }: { fingerprint: string | null; nextReview: string | null }) {
+  if (!fingerprint && !nextReview) return null;
+  return (
+    <details className="doc-details">
+      <summary>Details</summary>
+      <dl className="props">
+        {fingerprint && <><dt><Hash aria-hidden="true" size="0.9375rem" /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{fingerprint.slice(0, 16)}…</code></dd></>}
+        {nextReview && <><dt><CalendarClock aria-hidden="true" size="0.9375rem" /> Next review</dt><dd>{shortDate(nextReview)}</dd></>}
+      </dl>
+    </details>
   );
 }
 
