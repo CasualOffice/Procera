@@ -29,7 +29,7 @@ pub use engine::{
 };
 pub use lease::{Lease, Stale};
 pub use scheduler::{Lateness, LatenessSnapshot, Pass, Scheduler};
-pub use store::{CalendarVersion, calendar_by_id, calendar_by_ref, put_calendar};
+pub use store::{CalendarVersion, calendar_by_id, calendar_by_ref, put_calendar, put_calendar_if_absent};
 
 use procera_runtime::EventError;
 use uuid::Uuid;
