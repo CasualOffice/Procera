@@ -13,6 +13,7 @@ v0.1 blueprint (archived verbatim in [`archive/v0.1/`](archive/v0.1/)).
 | Frontend / designer | 05 UX & design → 02 PRD §5.8–5.10 → 21 → 19 Templates → 20 Config |
 | Security / compliance | 06 Security & ops → 14 Data governance & compliance → 12 Access → 16 AI |
 | Delivery / PM | 07 Roadmap → 17 Tracker (+ xlsx) → 22 Register → 23 E2E → 15 Tests |
+| Self-hoster / operator | guides/ Install with Docker Compose → First-time setup → Configuration → 06 Security & ops |
 
 ## Documents
 
@@ -44,6 +45,7 @@ v0.1 blueprint (archived verbatim in [`archive/v0.1/`](archive/v0.1/)).
 | 23 | [E2E test plan](23-E2E-TEST-PLAN.md) | Harness, test-only controls, 74 scenarios across R1–R5 + GA, CI and flake policy |
 | 24 | [Engineering rules](24-ENGINEERING-RULES.md) | **Binding** rules: design-first, tracker updates, architecture/code, tests, security, UX, git/PR, docs, releases, AI agents |
 | adr/ | [Architecture decision records](adr/README.md) | ADR-0001…0019 |
+| guides/ | [Install with Docker Compose](guides/install-docker-compose.md) · [First-time setup](guides/first-time-setup.md) · [Configuration](guides/configuration.md) | Running Procera yourself: Compose stack, backups and upgrades; from the setup token to a first published policy; every server option, in-app settings and security notes |
 | — | [`../assets/brand/`](../assets/brand/README.md) | Brand copy, palette with contrast, logo files and usage rules |
 | — | [`../trackers/README.md`](../trackers/README.md) | **Tracker dashboard**: progress, current release, active items, release checklists (generated) |
 | — | [`../trackers/Delivery_Tracker.xlsx`](../trackers/Delivery_Tracker.xlsx) | Backlog, milestones, risks, decisions, tests, OQs, RACI, burndown |

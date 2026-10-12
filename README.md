@@ -44,6 +44,20 @@ Needs Rust (see `rust-toolchain.toml`), Node 20+ and PostgreSQL 16 binaries on y
 ./scripts/test-all.sh    # the full gate: fmt, clippy, Rust tests, web checks, browser end-to-end tests
 ```
 
+## Self-hosting
+
+Run Procera on your own server with Docker Compose (PostgreSQL 16, the server and the web app; Valkey, ClamAV and a test mail inbox are optional). Files are stored on local disk today; S3-compatible storage is not built yet.
+
+```bash
+cp deploy/.env.example deploy/.env      # fill in the passwords and the master key
+docker compose -f deploy/compose.yml up -d --build
+docker compose -f deploy/compose.yml logs procera | grep bootstrap_token   # then open /setup
+```
+
+- [Install with Docker Compose](docs/guides/install-docker-compose.md): prerequisites, HTTPS, backups, upgrades, troubleshooting
+- [First-time setup](docs/guides/first-time-setup.md): from the setup token to your first published policy
+- [Configuration](docs/guides/configuration.md): every server option, settings in the app, security notes
+
 ## What is Procera?
 
 Procera is a modern, open-source business process management platform. It helps organizations design, automate, govern and continuously improve their business processes, end to end. It is built for any size, from a 10-person startup to a multinational, and for every department.
@@ -106,6 +120,7 @@ Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 | System design | [HLD](docs/03-HLD.md) · [LLD](docs/04-LLD.md) · [Workflow IR](docs/11-WORKFLOW-IR-SPEC.md) · [Access model](docs/12-AUTHORIZATION-MODEL.md) · [API](docs/08-API-SPEC.md) · [ADRs](docs/adr/README.md) |
 | Security & compliance | [Security & operations](docs/06-SECURITY-AND-OPERATIONS.md) · [Data governance & compliance](docs/14-DATA-GOVERNANCE-AND-COMPLIANCE.md) · [AI assistance](docs/16-AI-ASSISTANCE.md) |
 | UX | [UX & design system](docs/05-UX-AND-DESIGN.md) · [Workspace configuration](docs/20-WORKSPACE-CONFIGURATION.md) |
+| Self-hosting | [Install with Docker Compose](docs/guides/install-docker-compose.md) · [First-time setup](docs/guides/first-time-setup.md) · [Configuration](docs/guides/configuration.md) |
 | Delivery | **[Tracker dashboard](trackers/README.md)** · [Roadmap](docs/07-ROADMAP-AND-MILESTONES.md) · [Tracker detail](docs/17-EXECUTION-TRACKER.md) ([xlsx](trackers/Delivery_Tracker.xlsx)) · [Test strategy](docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) · [E2E plan](docs/23-E2E-TEST-PLAN.md) · [Open questions](docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
 | Ways of working | [Engineering rules](docs/24-ENGINEERING-RULES.md) · [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) |
 
@@ -119,7 +134,7 @@ migrations/     PostgreSQL migrations (forced row-level security on every worksp
 web/            React + TypeScript app (React Aria)
 e2e/            Playwright end-to-end packs (API and browser)
 conformance/    workflow runtime conformance fixtures
-deploy/         compose files and SQL roles
+deploy/         Docker Compose (self-hosting and E2E), web/proxy image, SQL roles
 site/           the website (static, generated from tracker data)
 docs/           design pack (00–24) and ADRs
 assets/brand/   logos and brand guide (not Apache-licensed)
