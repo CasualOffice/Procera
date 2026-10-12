@@ -2848,6 +2848,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "procera-requests"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "procera-access",
+ "procera-audit",
+ "procera-crypto",
+ "procera-db",
+ "procera-engine",
+ "procera-identity",
+ "procera-ir",
+ "procera-kernel",
+ "procera-members",
+ "procera-notify",
+ "procera-runtime",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "procera-runtime"
 version = "0.0.0"
 dependencies = [

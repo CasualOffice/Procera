@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "it.access-request", "version": 1, "name": { "en": "Access request" }, "criticality": "controlled" },
+  "variables": [
+    { "name": "system", "type": "string", "classification": "internal", "required": true },
+    { "name": "access_role", "type": "string", "classification": "internal", "required": true },
+    { "name": "sensitivity", "type": { "enum": ["standard", "high"] }, "classification": "internal", "required": true },
+    { "name": "beneficiary", "type": "principal", "classification": "internal", "required": true },
+    { "name": "justification", "type": "text", "classification": "internal", "required": true },
+    { "name": "ticket_ref", "type": "string", "classification": "internal" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start", "name": { "en": "Request access" }, "trigger": "manual", "inputForm": "access_request" },
+    {
+      "id": "by_sensitivity",
+      "kind": "decision",
+      "name": { "en": "Sensitive system?" },
+      "branches": [{ "name": "high", "when": "expr:cel: sensitivity == \"high\"" }]
+    },
+    {
+      "id": "manager_approval",
+      "kind": "human.approval",
+      "name": { "en": "Manager approval" },
+      "assignment": {
+        "candidates": [{ "type": "user", "ref": "expr:cel: beneficiary.manager" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P2D", "business": true }
+    },
+    {
+      "id": "owner_approval",
+      "kind": "human.approval",
+      "name": { "en": "System owner approval" },
+      "assignment": {
+        "candidates": [{ "type": "role", "ref": "system.owner" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P2D", "business": true }
+    },
+    {
+      "id": "security_approval",
+      "kind": "human.approval",
+      "name": { "en": "Security approval" },
+      "assignment": {
+        "candidates": [{ "type": "group", "ref": "Security" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "excludeActorsOf": ["owner_approval"],
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "quorum": "one",
+      "due": { "after": "P2D", "business": true }
+    },
+    {
+      "id": "provision",
+      "kind": "human.task",
+      "name": { "en": "Provision access" },
+      "form": "provisioning_record",
+      "assignment": {
+        "candidates": [{ "type": "group", "ref": "IT" }],
+        "strategy": "claim",
+        "excludeInitiator": true,
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "due": { "after": "P1D", "business": true }
+    },
+    {
+      "id": "revise",
+      "kind": "human.task",
+      "name": { "en": "Revise request" },
+      "form": "access_request",
+      "assignment": { "candidates": [{ "type": "user", "ref": "expr:cel: initiator" }] },
+      "maxIterations": 5
+    },
+    {
+      "id": "notify_granted",
+      "kind": "notify",
+      "name": { "en": "Access granted" },
+      "channels": ["in_app", "email"],
+      "to": { "candidates": [{ "type": "user", "ref": "expr:cel: beneficiary" }] },
+      "template": "request_notice"
+    },
+    { "id": "end_granted", "kind": "end", "name": { "en": "Granted" }, "result": "completed" },
+    { "id": "end_rejected", "kind": "end", "name": { "en": "Rejected" }, "result": "completed" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "by_sensitivity" },
+    { "id": "e2", "from": "by_sensitivity", "to": "owner_approval", "on": "high" },
+    { "id": "e3", "from": "by_sensitivity", "to": "manager_approval", "on": "default" },
+    { "id": "e4", "from": "manager_approval", "to": "provision", "on": "approved" },
+    { "id": "e5", "from": "manager_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e6", "from": "manager_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e7", "from": "owner_approval", "to": "security_approval", "on": "approved" },
+    { "id": "e8", "from": "owner_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e9", "from": "owner_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e10", "from": "security_approval", "to": "provision", "on": "approved" },
+    { "id": "e11", "from": "security_approval", "to": "end_rejected", "on": "rejected" },
+    { "id": "e12", "from": "security_approval", "to": "revise", "on": "changes_requested" },
+    { "id": "e13", "from": "provision", "to": "notify_granted", "on": "submitted" },
+    { "id": "e14", "from": "notify_granted", "to": "end_granted" },
+    { "id": "e15", "from": "revise", "to": "by_sensitivity", "on": "submitted" }
+  ],
+  "sla": [{ "id": "sla_total", "scope": "instance", "target": "P3D", "business": true, "pauseWhile": ["revise"] }],
+  "refs": {
+    "forms": {
+      "access_request": "form:it.access-request@1",
+      "provisioning_record": "form:it.provisioning-record@1"
+    },
+    "calendars": { "default": "calendar:default@1" },
+    "sop": "sop:access-management@1"
+  },
+  "meta": { "sourceFormat": "template", "templateRef": "tpl:it.access-request@1.0.0" }
+}
