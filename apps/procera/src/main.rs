@@ -75,6 +75,19 @@ enum Command {
         #[arg(long, env = "PROCERA_MIGRATOR_URL")]
         migrator_url: String,
     },
+    /// Re-seal every value sealed under the master key with a new one, in one transaction. Stop the
+    /// server first; afterwards set PROCERA_MASTER_KEY to the new key and start it again.
+    RotateMasterKey {
+        /// PostgreSQL URL for the runtime role `procera_app`.
+        #[arg(long, env = "PROCERA_DATABASE_URL", hide_env_values = true)]
+        database_url: String,
+        /// The key the server runs with today.
+        #[arg(long, env = "PROCERA_MASTER_KEY", hide_env_values = true)]
+        master_key: String,
+        /// The new key (`procera keygen`). Prefer the environment variable: a flag shows in the process list.
+        #[arg(long = "new-key", env = "PROCERA_NEW_MASTER_KEY", hide_env_values = true)]
+        new_key: String,
+    },
 }
 
 #[tokio::main]
@@ -107,6 +120,9 @@ async fn main() -> anyhow::Result<()> {
         Command::Migrate { migrator_url } => {
             procera_db::migrate(&migrator_url).await?;
             tracing::info!("migrations applied");
+        }
+        Command::RotateMasterKey { database_url, master_key, new_key } => {
+            rotate_master_key(&database_url, &master_key, &new_key).await?;
         }
         Command::Serve {
             bind,
@@ -394,4 +410,55 @@ async fn healthcheck(addr: SocketAddr) -> bool {
         Some(head.starts_with(b"HTTP/1.") && &head[9..12] == b"200")
     };
     matches!(tokio::time::timeout(std::time::Duration::from_secs(3), probe).await, Ok(Some(true)))
+}
+
+/// `procera rotate-master-key`: validates both keys (never printing them), re-seals every
+/// root-sealed value in one verified transaction and says what changed and what to do next.
+async fn rotate_master_key(database_url: &str, current: &str, new: &str) -> anyhow::Result<()> {
+    use procera_crypto::LocalKey;
+    let parse = |v: &str, what: &str| {
+        LocalKey::from_base64(v).map_err(|_| {
+            anyhow::anyhow!("{what} is not a valid master key: it must be 32 bytes, base64 (generate one with `procera keygen`)")
+        })
+    };
+    let current_key = parse(current, "PROCERA_MASTER_KEY")?;
+    let new_key = parse(new, "the new key")?;
+    if current.trim() == new.trim() {
+        anyhow::bail!(
+            "the new key is the same as PROCERA_MASTER_KEY; generate a new one with `procera keygen`"
+        );
+    }
+    let db = procera_db::Db::connect(database_url, 2).await?;
+    let done = procera_keys::rotate_root(
+        &db,
+        &current_key,
+        &new_key,
+        &procera_kernel::SystemClock,
+        &procera_kernel::UuidV7Gen,
+    )
+    .await?;
+    tracing::info!(values = done.total(), workspaces = done.workspaces, "master key rotated");
+    let report = format!(
+        "Re-sealed {total} values under the new master key in one transaction; each one was opened with the new key before the commit.\n\
+         \x20 workspace keys:              {wk} (across {ws} workspaces, including the system plane)\n\
+         \x20 authenticator-app secrets:   {totp}\n\
+         \x20 invitation tokens:           {inv}\n\
+         \x20 older email bodies:          {mail}\n\
+         Files, email bodies and the SMTP password are wrapped by the workspace keys and needed no change.\n\
+         \n\
+         Next: set PROCERA_MASTER_KEY to the new key (in .env or your secret store), then start the server.\n\
+         When it starts:\n\
+         \x20 - access tokens and half-finished two-step sign-ins signed with the old key stop working; people stay\n\
+         \x20   signed in and the app fetches a fresh token with its refresh cookie;\n\
+         \x20 - signed file download and preview links stop working; open the file again for a new link.\n\
+         The old key can't read this database any more, but backups taken before now still need it: keep it with them.\n",
+        total = done.total(),
+        wk = done.workspace_keys,
+        ws = done.workspaces,
+        totp = done.totp_secrets,
+        inv = done.invitation_tokens,
+        mail = done.legacy_email_bodies,
+    );
+    std::io::Write::write_all(&mut std::io::stdout(), report.as_bytes())?;
+    Ok(())
 }

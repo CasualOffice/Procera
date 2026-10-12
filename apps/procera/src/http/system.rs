@@ -339,6 +339,8 @@ struct FloorReq {
 }
 
 /// Sets a platform floor. Raising it never rewrites workspace values; looser ones resolve as clamped.
+/// Floors bind every workspace's security, so this needs a recent authentication (step-up) and, when
+/// `If-Match` carries the listed revision, refuses a stale edit (412).
 async fn set_floor(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -347,6 +349,7 @@ async fn set_floor(
     Json(r): Json<FloorReq>,
 ) -> Result<Response, ApiError> {
     u.require(SystemAction::PlatformConfig)?;
+    u.require_step_up(&s)?;
     let p = platform(&s)?;
     let subject = s
         .identity
@@ -362,9 +365,19 @@ async fn set_floor(
     let c = client_info(&headers);
     let v = p
         .settings()
-        .set_floor(&mut tx, subject, u.user_id, &key, &r.value, &r.reason, (c.ip, c.user_agent))
+        .set_floor(
+            &mut tx,
+            subject,
+            u.user_id,
+            &key,
+            &r.value,
+            &r.reason,
+            if_match(&headers),
+            (c.ip, c.user_agent),
+        )
         .await?;
     tx.commit().await.map_err(err)?;
     super::settings::invalidate_floors(&s).await;
-    Ok(Json(v).into_response())
+    let rev = v.revision;
+    Ok(etag(Json(v).into_response(), rev))
 }

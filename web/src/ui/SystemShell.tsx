@@ -1,4 +1,4 @@
-import { Activity, ArrowLeftRight, Building2, Gauge, History, LogOut, Mail, ShieldAlert } from 'lucide-react';
+import { Activity, ArrowLeftRight, Building2, Gauge, History, LogOut, Mail, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { Link, navigate } from '../lib/router';
@@ -11,11 +11,12 @@ import { Skeleton } from './States';
 import './shell.css';
 import './system.css';
 
-export type SystemNavKey = 'workspaces' | 'quotas' | 'health' | 'email' | 'audit' | 'setup';
+export type SystemNavKey = 'workspaces' | 'quotas' | 'floors' | 'health' | 'email' | 'audit' | 'setup';
 
 const NAV: { key: SystemNavKey; label: string; to: string; icon: typeof Building2; audit?: boolean; platform?: boolean }[] = [
   { key: 'workspaces', label: 'Workspaces', to: '/system/workspaces', icon: Building2 },
   { key: 'quotas', label: 'Quotas & usage', to: '/system/quotas', icon: Gauge },
+  { key: 'floors', label: 'Policy floors', to: '/system/floors', icon: ShieldCheck },
   { key: 'health', label: 'Platform health', to: '/system/health', icon: Activity },
   { key: 'email', label: 'Email & platform', to: '/system/email', icon: Mail, platform: true },
   { key: 'audit', label: 'System audit', to: '/system/audit', icon: History, audit: true },
