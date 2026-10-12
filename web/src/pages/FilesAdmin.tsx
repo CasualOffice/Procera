@@ -1,5 +1,5 @@
 import { Download, Eye, HardDrive, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { type LoadFailure, type Member, memberMap, toFailure, useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
@@ -36,9 +36,12 @@ export function FilesAdmin() {
   const [previewing, setPreviewing] = useState<FileInfo | null>(null);
   const [members] = useItems<Member>('/api/v1/members');
   const people = memberMap(members);
+  const latest = useRef(0);
   const load = () => {
     setFailed(null);
-    api<{ items: Row[] }>(`/api/v1/files${state ? `?state=${state}` : ''}`).then((r) => setRows(r.items)).catch((e) => setFailed(toFailure(e)));
+    // Only the newest request may update the table: a slow unfiltered load must not overwrite a filter.
+    const n = ++latest.current;
+    api<{ items: Row[] }>(`/api/v1/files${state ? `?state=${state}` : ''}`).then((r) => { if (n === latest.current) setRows(r.items); }).catch((e) => { if (n === latest.current) setFailed(toFailure(e)); });
     api<Usage>('/api/v1/files/usage').then(setUsage).catch(() => setUsage(null));
     api<{ items: FileInfo[] }>('/api/v1/files/orphans').then((r) => setOrphans(r.items)).catch(() => setOrphans([]));
   };
