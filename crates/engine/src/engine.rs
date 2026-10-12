@@ -107,11 +107,13 @@ impl ProgramSource for StaticPrograms {
     }
 }
 
-/// Who caused a stimulus, for the runtime audit record (A-28 (4)): a user's audit subject. Timer
-/// and job driven advances have none and are recorded as the system.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Who caused a stimulus, for the runtime audit record (A-28 (4)): a user's audit subject and the
+/// client they acted from. Timer and job driven advances have none and are recorded as the system.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Actor {
     pub subject_ref: Uuid,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
 }
 
 /// What an [`EffectHandler`] sees after the interpreter accepted a stimulus.
@@ -124,7 +126,7 @@ pub struct EffectContext<'a> {
     pub state: &'a InstanceState,
     pub commands: &'a [Command],
     pub stimulus: &'a Stimulus,
-    pub actor: Option<Actor>,
+    pub actor: Option<&'a Actor>,
 }
 
 /// The port that consumes the commands the engine leaves `pending` (work items, notifications;
@@ -385,8 +387,15 @@ impl Engine {
         .await?;
         effects::apply(self, tx, exe, st, &step.commands).await?;
         if let Some(h) = &self.effects {
-            let cx =
-                EffectContext { program, exe, before, state: st, commands: &step.commands, stimulus, actor };
+            let cx = EffectContext {
+                program,
+                exe,
+                before,
+                state: st,
+                commands: &step.commands,
+                stimulus,
+                actor: actor.as_ref(),
+            };
             h.apply(tx, cx).await.map_err(EngineError::Effects)?;
         }
         sla::sync(self, tx, exe, before, st, stimulus.at).await?;
@@ -397,13 +406,17 @@ impl Engine {
             (Some(_), InstanceStatus::Failed) => "instance.failed",
             (Some(_), _) => "instance.advanced",
         };
-        let (who, kind) = match actor {
+        let (who, actor_kind) = match &actor {
             Some(a) => (Some(a.subject_ref), ActorKind::User),
             None => (None, ActorKind::System),
         };
-        let mut ev = AuditEvent::new(who, kind, Category::Runtime, action, Outcome::Allowed)
+        let mut ev = AuditEvent::new(who, actor_kind, Category::Runtime, action, Outcome::Allowed)
             .object("process_instance", st.instance_id);
         ev.diff = Some(json!({ "event": kind, "revision": st.revision, "status": stored_status(st.status) }));
+        if let Some(a) = actor {
+            ev.ip = a.ip;
+            ev.user_agent = a.user_agent;
+        }
         append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
         Ok(Advanced {
             instance_id: st.instance_id,

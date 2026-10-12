@@ -56,11 +56,11 @@ async fn effect_handler_runs_in_the_advance_transaction_and_users_are_audited() 
     let Some(mut w) = world(vec![sla_process("p.fx", "P1D", false)]).await else { return };
     let seen = Arc::new(Seen::default());
     w.engine = w.engine.clone().with_effects(seen.clone());
-    let actor = Actor { subject_ref: Uuid::now_v7() };
+    let actor = Actor { subject_ref: Uuid::now_v7(), ..Actor::default() };
     let mut tx = w.db().begin_ws(w.ctx).await.unwrap();
     let a = w
         .engine
-        .start_in(&mut tx, w.program("p.fx"), json!({ "id": "u1" }), BTreeMap::new(), Some(actor))
+        .start_in(&mut tx, w.program("p.fx"), json!({ "id": "u1" }), BTreeMap::new(), Some(actor.clone()))
         .await
         .unwrap();
     tx.commit().await.unwrap();

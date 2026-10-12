@@ -86,11 +86,23 @@ internal_from!(
     procera_engine::EngineError
 );
 
-/// Who acts: a membership and its audit subject.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Who acts: a membership, its audit subject and the client it acts from.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Actor {
     pub membership: Uuid,
     pub subject_ref: Uuid,
+    pub ip: Option<String>,
+    pub user_agent: Option<String>,
+}
+
+impl Actor {
+    pub(crate) fn runtime(&self) -> procera_engine::Actor {
+        procera_engine::Actor {
+            subject_ref: self.subject_ref,
+            ip: self.ip.clone(),
+            user_agent: self.user_agent.clone(),
+        }
+    }
 }
 
 #[derive(Clone)]

@@ -115,7 +115,7 @@ async fn decide(
         }
     }
     let d = requests(&s)?
-        .decide(&mut tx, actor(&me), id, rev, &r.outcome, r.comment.as_deref(), &r.fields)
+        .decide(&mut tx, &actor(&me, &headers), id, rev, &r.outcome, r.comment.as_deref(), &r.fields)
         .await?;
     let out = serde_json::to_value(&d).map_err(internal)?;
     if let Some(k) = &key {

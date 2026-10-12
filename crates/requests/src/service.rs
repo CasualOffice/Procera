@@ -181,7 +181,7 @@ impl Requests {
     pub async fn start(
         &self,
         tx: &mut WsTx<'_>,
-        actor: Actor,
+        actor: &Actor,
         key: &str,
         input: &Map<String, Value>,
     ) -> R<Started> {
@@ -203,7 +203,7 @@ impl Requests {
             &default_calendar(),
         )
         .await?;
-        let who = procera_engine::Actor { subject_ref: actor.subject_ref };
+        let who = actor.runtime();
         let a = self.engine.start_in(tx, &rt.program, initiator, vars, Some(who)).await?;
         let started = self.started(tx, a.instance_id).await?;
         self.audit(
@@ -230,7 +230,7 @@ impl Requests {
     async fn audit(
         &self,
         tx: &mut WsTx<'_>,
-        actor: Actor,
+        actor: &Actor,
         action: &str,
         kind: &str,
         id: Uuid,
@@ -245,6 +245,8 @@ impl Requests {
         )
         .object(kind, id);
         ev.diff = Some(diff);
+        ev.ip = actor.ip.clone();
+        ev.user_agent = actor.user_agent.clone();
         append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
         Ok(())
     }
@@ -439,7 +441,7 @@ impl Requests {
     }
 
     /// Cancels a running request (Event::Cancel). Appends `request.cancelled`.
-    pub async fn cancel(&self, tx: &mut WsTx<'_>, actor: Actor, id: Uuid, reason: &str) -> R<Started> {
+    pub async fn cancel(&self, tx: &mut WsTx<'_>, actor: &Actor, id: Uuid, reason: &str) -> R<Started> {
         let reason = reason.trim();
         if reason.is_empty() || reason.chars().count() > 500 {
             return Err(RequestError::Invalid(vec![FieldError::new(
@@ -457,7 +459,7 @@ impl Requests {
             return Err(RequestError::Conflict(format!("the request is already {status}")));
         }
         let stimulus = self.engine.stamp(Event::Cancel { reason: reason.to_owned() });
-        let who = procera_engine::Actor { subject_ref: actor.subject_ref };
+        let who = actor.runtime();
         self.engine.apply_in_as(tx, id, &stimulus, None, Some(who)).await.map_err(|e| match e {
             EngineError::Rejected(_) => RequestError::Conflict("the request has already ended".into()),
             e => e.into(),
@@ -528,7 +530,7 @@ impl Requests {
     pub async fn decide(
         &self,
         tx: &mut WsTx<'_>,
-        actor: Actor,
+        actor: &Actor,
         work_id: Uuid,
         if_match: i64,
         outcome: &str,
@@ -619,7 +621,7 @@ impl Requests {
         .await?;
         let stimulus =
             self.engine.stamp(Event::WorkItemCompleted { key, outcome: outcome.to_owned(), variables: vars });
-        let who = procera_engine::Actor { subject_ref: actor.subject_ref };
+        let who = actor.runtime();
         self.engine.apply_in_as(tx, instance, &stimulus, None, Some(who)).await.map_err(|e| match e {
             EngineError::Rejected(_) => RequestError::AlreadyDecided,
             e => e.into(),

@@ -82,8 +82,14 @@ impl From<RequestError> for ApiError {
     }
 }
 
-pub(crate) fn actor(me: &WsMember) -> Actor {
-    Actor { membership: me.actor.membership, subject_ref: me.actor.subject_ref }
+pub(crate) fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
+    let c = super::auth::client_info(headers);
+    Actor {
+        membership: me.actor.membership,
+        subject_ref: me.actor.subject_ref,
+        ip: c.ip,
+        user_agent: c.user_agent,
+    }
 }
 
 /// The request types the caller may start, with their start forms.
@@ -161,7 +167,7 @@ async fn start(
             ));
         }
     }
-    let started = requests(&s)?.start(&mut tx, actor(&me), &r.ty, &r.input).await?;
+    let started = requests(&s)?.start(&mut tx, &actor(&me, &headers), &r.ty, &r.input).await?;
     let body = serde_json::to_value(&started).map_err(internal)?;
     idempotency::complete(&mut tx, me.actor.membership, "requests.start", &key, 201, &body)
         .await
@@ -265,6 +271,7 @@ struct CancelReq {
 
 async fn cancel(
     State(s): State<AppState>,
+    headers: HeaderMap,
     me: WsMember,
     Path(id): Path<Uuid>,
     Json(r): Json<CancelReq>,
@@ -280,7 +287,7 @@ async fn cancel(
         )
         .detail("request:cancel"));
     }
-    let out = requests(&s)?.cancel(&mut tx, actor(&me), id, &r.reason).await?;
+    let out = requests(&s)?.cancel(&mut tx, &actor(&me, &headers), id, &r.reason).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(out).into_response())
 }

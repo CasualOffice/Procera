@@ -20,6 +20,24 @@ use serde_json::{Map, Value, json};
 use time::macros::datetime;
 use uuid::Uuid;
 
+/// A member in these tests (Copy, unlike the service's Actor).
+#[derive(Debug, Clone, Copy)]
+struct Who {
+    membership: Uuid,
+    subject_ref: Uuid,
+}
+
+impl Who {
+    fn actor(self) -> Actor {
+        Actor {
+            membership: self.membership,
+            subject_ref: self.subject_ref,
+            ip: None,
+            user_agent: Some("requests-test".into()),
+        }
+    }
+}
+
 struct World {
     t: test_support::TestDb,
     req: Requests,
@@ -60,7 +78,7 @@ impl World {
         self.t.db.begin_ws(self.ctx).await.unwrap()
     }
 
-    async fn member(&mut self, name: &str, manager: Option<Actor>) -> Actor {
+    async fn member(&mut self, name: &str, manager: Option<Who>) -> Who {
         let user = Uuid::now_v7();
         sqlx::query("INSERT INTO users (id, email, display_name, subject_ref) VALUES ($1, $2, $3, $4)")
             .bind(user)
@@ -81,10 +99,10 @@ impl World {
             .await
             .unwrap();
         tx.commit().await.unwrap();
-        Actor { membership: m, subject_ref: Uuid::new_v4() }
+        Who { membership: m, subject_ref: Uuid::new_v4() }
     }
 
-    async fn grant(&self, role: &str, to: Actor) {
+    async fn grant(&self, role: &str, to: Who) {
         let mut tx = self.tx().await;
         let ws = self.ctx.workspace_id;
         let id: Uuid = sqlx::query_scalar(
@@ -108,14 +126,14 @@ impl World {
         tx.commit().await.unwrap();
     }
 
-    async fn start(&self, who: Actor, key: &str, input: Value) -> Result<Uuid, RequestError> {
+    async fn start(&self, who: Who, key: &str, input: Value) -> Result<Uuid, RequestError> {
         let mut tx = self.tx().await;
-        let s = self.req.start(&mut tx, who, key, input.as_object().unwrap()).await?;
+        let s = self.req.start(&mut tx, &who.actor(), key, input.as_object().unwrap()).await?;
         tx.commit().await.unwrap();
         Ok(s.id)
     }
 
-    async fn open(&self, who: Actor) -> Vec<procera_requests::WorkView> {
+    async fn open(&self, who: Who) -> Vec<procera_requests::WorkView> {
         let mut tx = self.tx().await;
         let w = self.req.work(&mut tx, who.membership, WorkState::Open).await.unwrap();
         tx.rollback().await.unwrap();
@@ -124,7 +142,7 @@ impl World {
 
     async fn decide(
         &self,
-        who: Actor,
+        who: Who,
         outcome: &str,
         comment: Option<&str>,
         fields: Value,
@@ -135,7 +153,7 @@ impl World {
 
     async fn decide_item(
         &self,
-        who: Actor,
+        who: Who,
         id: Uuid,
         rev: i64,
         outcome: &str,
@@ -144,7 +162,7 @@ impl World {
     ) -> Result<String, RequestError> {
         let mut tx = self.tx().await;
         let fields: Map<String, Value> = fields.as_object().cloned().unwrap_or_default();
-        let d = self.req.decide(&mut tx, who, id, rev, outcome, comment, &fields).await?;
+        let d = self.req.decide(&mut tx, &who.actor(), id, rev, outcome, comment, &fields).await?;
         tx.commit().await.unwrap();
         Ok(d.request.status)
     }
@@ -156,7 +174,7 @@ impl World {
         d
     }
 
-    async fn notes(&self, who: Actor, kind: &str) -> i64 {
+    async fn notes(&self, who: Who, kind: &str) -> i64 {
         let mut tx = self.tx().await;
         let n =
             sqlx::query_scalar("SELECT count(*) FROM notifications WHERE membership_id = $1 AND kind = $2")
@@ -212,7 +230,7 @@ async fn leave_request_is_approved_by_the_manager_and_the_requester_is_told() {
 
     let mut tx = w.tx().await;
     let audited: Vec<(String, String)> = sqlx::query_as(
-        "SELECT action, actor_kind FROM audit_events WHERE object_id = $1 OR object_id IN (SELECT id FROM work_items WHERE instance_id = $1) ORDER BY seq",
+        "SELECT action, actor_kind || ':' || coalesce(user_agent, '-') FROM audit_events WHERE object_id = $1 OR object_id IN (SELECT id FROM work_items WHERE instance_id = $1) ORDER BY seq",
     )
     .bind(id)
     .fetch_all(tx.conn())
@@ -223,10 +241,10 @@ async fn leave_request_is_approved_by_the_manager_and_the_requester_is_told() {
     assert_eq!(
         audited,
         [
-            ("instance.started", "user"),
-            ("request.started", "user"),
-            ("instance.completed", "user"),
-            ("work_item.decided", "user")
+            ("instance.started", "user:requests-test"),
+            ("request.started", "user:requests-test"),
+            ("instance.completed", "user:requests-test"),
+            ("work_item.decided", "user:requests-test")
         ]
     );
     let mut tx = w.tx().await;
@@ -343,14 +361,14 @@ async fn cancelling_closes_the_open_steps() {
     let ann = w.member("Ann", Some(boss)).await;
     let id = w.start(ann, "hr.leave-request", leave()).await.unwrap();
     let mut tx = w.tx().await;
-    assert_eq!(w.req.cancel(&mut tx, ann, id, "Plans changed").await.unwrap().status, "cancelled");
+    assert_eq!(w.req.cancel(&mut tx, &ann.actor(), id, "Plans changed").await.unwrap().status, "cancelled");
     tx.commit().await.unwrap();
     assert!(w.open(boss).await.is_empty());
     let d = w.detail(id).await;
     assert_eq!(d.steps[0].state, "cancelled");
     assert!(d.timeline.iter().any(|t| t.kind == "cancelled"));
     let mut tx = w.tx().await;
-    assert!(matches!(w.req.cancel(&mut tx, ann, id, "again").await, Err(RequestError::Conflict(_))));
+    assert!(matches!(w.req.cancel(&mut tx, &ann.actor(), id, "again").await, Err(RequestError::Conflict(_))));
 }
 
 #[tokio::test]
