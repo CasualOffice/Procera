@@ -434,6 +434,8 @@ impl Engine {
         .bind(self.clock.now())
         .execute(tx.conn())
         .await?;
+        let from = before.map_or(0, |b| b.trace.len());
+        crate::trace::record(tx, program, exe, st, from, stimulus.at).await?;
         effects::apply(self, tx, exe, st, &step.commands).await?;
         if let Some(h) = &self.effects {
             let cx = EffectContext {

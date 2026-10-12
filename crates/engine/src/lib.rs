@@ -12,6 +12,7 @@
 //! - **Calendars** ([`calendar`], [`store`]): business-duration arithmetic over immutable calendar
 //!   versions.
 //! - **SLA clocks** ([`sla`]): start, pause, resume, stop and breach, emitted as domain events.
+//! - **Decision trace** ([`trace`]): the branch each decision node took and the facts it read.
 
 pub mod calendar;
 mod effects;
@@ -21,6 +22,7 @@ pub mod lease;
 pub mod scheduler;
 pub mod sla;
 pub mod store;
+pub mod trace;
 
 pub use calendar::{BusinessDuration, Calendar, CalendarError, CalendarSpec};
 pub use effects::{HandlerTimer, arm_timer, cancel_timers_under};
