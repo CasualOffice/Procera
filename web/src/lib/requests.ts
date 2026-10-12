@@ -14,9 +14,14 @@ export type RequestStatus = 'in_progress' | 'approved' | 'rejected' | 'cancelled
 export interface Person { id: string; name: string }
 export interface RequestRow { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; current_step: string | null; assignees: string[]; created_at: string; updated_at: string; initiator: Person }
 export type StepState = 'waiting' | 'active' | 'done' | 'skipped' | 'cancelled';
-export interface Step { name: string; state: StepState; assignees: string[]; decided_by?: string | null; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
+/** Someone out of office (BPMS-086): their last day away (null once back) and who decides for them. */
+export interface Away { id: string; name: string; until: string | null; delegate: Person | null }
+export interface Step { name: string; state: StepState; assignees: string[]; decided_by?: string | null; on_behalf_of?: string | null; away?: Away[]; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
 export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string }[]; sla_due_at?: string | null; can_cancel: boolean }
-export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[] }
+export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[]; on_behalf_of?: Away | null }
+
+/** "Away until Fri 16 Oct" (or just "Away"), for the Away chip's text. */
+export const awayUntil = (a: Away) => (a.until ? `Away until ${new Date(`${a.until}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })}` : 'Away');
 
 export const STATUS_TAG: Record<RequestStatus, { label: string; color: TagColor }> = {
   in_progress: { label: 'In progress', color: 'blue' },

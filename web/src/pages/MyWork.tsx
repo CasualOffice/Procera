@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate, useRoute } from '../lib/router';
-import { type RequestDetail, type WorkItem, displayValue, dueInfo, normalizeDetail, outcomePast } from '../lib/requests';
+import { type RequestDetail, type WorkItem, awayUntil, displayValue, dueInfo, normalizeDetail, outcomePast } from '../lib/requests';
 import { setCrumb } from '../ui/AppShell';
 import { Avatar } from '../ui/Avatar';
 import { Notice } from '../ui/components/Notice';
@@ -73,6 +73,7 @@ export function MyWork({ selected }: { selected: string | null }) {
                       <span className="work-item-main">
                         <span className="work-item-title">{w.request.title}</span>
                         <span className="work-item-meta">{w.request.display_id} · {w.request.initiator.name} · {w.step}</span>
+                        {w.on_behalf_of && <span className="work-item-meta"><Tag color="orange">Away</Tag> For {w.on_behalf_of.name}</span>}
                       </span>
                       <span className="work-item-side">
                         {d ? <Tag color={d.color} dot={d.overdue}>{d.label}</Tag> : state === 'done' && w.outcome ? <Tag>{outcomePast(w.outcome)}</Tag> : <time className="work-item-time" dateTime={w.created_at}>{timeAgo(w.created_at)}</time>}
@@ -115,6 +116,11 @@ function WorkPane({ item, open, suffix }: { item: WorkItem; open: boolean; suffi
             <dl className="req-values req-values-compact" aria-label="Answers">
               {r.form.fields.map((f) => <div key={f.name} className={f.type === 'text' ? 'req-value req-value-wide' : 'req-value'}><dt>{f.label}</dt><dd>{displayValue(f, r.input[f.name], names)}</dd></div>)}
             </dl>
+          )}
+          {item.on_behalf_of && (
+            <Notice tone="info" title={`You’re deciding this for ${item.on_behalf_of.name}.`}>
+              {open ? `${awayUntil(item.on_behalf_of)}; you’re their delegate. The decision is recorded as yours, on their behalf.` : 'It was recorded as yours, on their behalf.'}
+            </Notice>
           )}
           {open ? <DecisionPanel item={item} detail={r} onDecided={(o) => navigate(`/work?decided=${encodeURIComponent(o)}&ref=${encodeURIComponent(item.request.display_id)}`)} />
             : <Notice tone="info" title={item.outcome ? `You ${outcomePast(item.outcome).toLowerCase()} this${item.decided_at ? ` on ${shortDate(item.decided_at)}` : ''}.` : 'This step is finished.'} />}
