@@ -5,12 +5,16 @@ WORKDIR /src
 COPY . .
 RUN if [ -n "$FEATURES" ]; then cargo build --release -p procera --features "$FEATURES"; \
     else cargo build --release -p procera; fi
+# An empty, nonroot-owned files directory: a fresh named volume mounted here inherits the ownership.
+RUN mkdir -p /out/files
 
 # Non-root, minimal runtime (docs/06 deployment hardening).
 FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=build /src/target/release/procera /usr/local/bin/procera
+COPY --from=build --chown=nonroot:nonroot /out/files /var/lib/procera/files
 USER nonroot:nonroot
 EXPOSE 8080
-ENV PROCERA_BIND=0.0.0.0:8080
+ENV PROCERA_BIND=0.0.0.0:8080 \
+    PROCERA_FILES_DIR=/var/lib/procera/files
 ENTRYPOINT ["/usr/local/bin/procera"]
 CMD ["serve", "--all"]

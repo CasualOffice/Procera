@@ -1,0 +1,155 @@
+# Procera — self-hosted with Docker Compose. Guide: docs/guides/install-docker-compose.md
+#
+#   cp deploy/.env.example deploy/.env        # then fill in the secrets
+#   docker compose -f deploy/compose.yml up -d --build
+#   docker compose -f deploy/compose.yml logs procera | grep bootstrap_token
+#
+# Layout: `web` (Caddy) is the only published service. It serves the built web app and proxies
+# /api, /sysapi and the probes to `procera`, so the browser sees one origin. `procera` runs the API,
+# worker and scheduler in one process (`serve --all`). `migrate` applies database migrations as the
+# procera_migrator role and exits before `procera` starts.
+#
+# Optional profiles (add with --profile, or COMPOSE_PROFILES in .env):
+#   cache — Valkey for caches and rate limits      (set PROCERA_CACHE_URL=redis://valkey:6379)
+#   scan  — ClamAV malware scanning of uploads     (set PROCERA_CLAMD_ADDR=clamav:3310)
+#   mail  — Mailpit, a local inbox for testing     (set PROCERA_SMTP_URL=smtp://mailpit:1025)
+# Secrets come only from deploy/.env (read automatically: it sits next to this file).
+name: procera
+
+x-procera-image: &procera-image
+  image: ${PROCERA_IMAGE:-procera:local}
+  build:
+    context: ..
+    dockerfile: Dockerfile
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: procera
+      # Read by initdb/20-role-passwords.sh on the first start of an empty volume.
+      PROCERA_MIGRATOR_DB_PASSWORD: ${PROCERA_MIGRATOR_DB_PASSWORD:?set PROCERA_MIGRATOR_DB_PASSWORD in deploy/.env}
+      PROCERA_APP_DB_PASSWORD: ${PROCERA_APP_DB_PASSWORD:?set PROCERA_APP_DB_PASSWORD in deploy/.env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs only when the data volume is empty: roles (deploy/sql), then their passwords.
+      - ./sql/00-roles.sql:/docker-entrypoint-initdb.d/10-roles.sql:ro
+      - ./initdb/20-role-passwords.sh:/docker-entrypoint-initdb.d/20-role-passwords.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d procera"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  migrate:
+    <<: *procera-image
+    command: ["migrate"]
+    restart: "no"
+    environment:
+      PROCERA_MIGRATOR_URL: postgres://procera_migrator:${PROCERA_MIGRATOR_DB_PASSWORD}@postgres:5432/procera
+      PROCERA_LOG: ${PROCERA_LOG:-info}
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  procera:
+    <<: *procera-image
+    command: ["serve", "--all"]
+    restart: unless-stopped
+    environment:
+      PROCERA_BIND: 0.0.0.0:8080
+      PROCERA_DATABASE_URL: postgres://procera_app:${PROCERA_APP_DB_PASSWORD}@postgres:5432/procera
+      # Not marked required here so `docker compose run --rm --no-deps procera keygen` works before
+      # it is set; the server itself refuses to start without it.
+      PROCERA_MASTER_KEY: ${PROCERA_MASTER_KEY:-}
+      PROCERA_PUBLIC_URL: ${PROCERA_PUBLIC_URL:-http://localhost:8080}
+      PROCERA_FILES_DIR: /var/lib/procera/files
+      PROCERA_LOG: ${PROCERA_LOG:-info}
+      PROCERA_INSECURE_COOKIES: ${PROCERA_INSECURE_COOKIES:-false}
+      PROCERA_LOGIN_RATE_PER_MIN: ${PROCERA_LOGIN_RATE_PER_MIN:-30}
+      PROCERA_MAIL_FROM: ${PROCERA_MAIL_FROM:-Procera <no-reply@localhost>}
+      # Optional: an empty value means "not set".
+      PROCERA_SMTP_URL: ${PROCERA_SMTP_URL:-}
+      PROCERA_CACHE_URL: ${PROCERA_CACHE_URL:-}
+      PROCERA_CLAMD_ADDR: ${PROCERA_CLAMD_ADDR:-}
+      PROCERA_WEBAUTHN_RP_ID: ${PROCERA_WEBAUTHN_RP_ID:-}
+    volumes:
+      - files:/var/lib/procera/files
+    healthcheck:
+      # The runtime image has no shell or curl; the binary probes its own /healthz.
+      test: ["CMD", "/usr/local/bin/procera", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      postgres: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/web/Dockerfile
+    image: ${PROCERA_WEB_IMAGE:-procera-web:local}
+    restart: unless-stopped
+    environment:
+      PROCERA_SITE_ADDRESS: ${PROCERA_SITE_ADDRESS:-:80}
+    ports:
+      - "${PROCERA_HTTP_PORT:-8080}:80"
+      - "${PROCERA_HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    healthcheck:
+      # Caddy's admin endpoint (container-local only).
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    depends_on:
+      procera: { condition: service_healthy }
+
+  valkey:
+    image: valkey/valkey:8
+    profiles: ["cache"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  clamav:
+    image: clamav/clamav:stable
+    profiles: ["scan"]
+    restart: unless-stopped
+    volumes:
+      - clamav:/var/lib/clamav
+    healthcheck:
+      test: ["CMD-SHELL", "clamdcheck.sh || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 180s
+
+  mailpit:
+    image: axllent/mailpit:latest
+    profiles: ["mail"]
+    restart: unless-stopped
+    ports:
+      # Web inbox on the host only: http://127.0.0.1:8025
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+volumes:
+  pgdata:
+  files:
+  caddy_data:
+  caddy_config:
+  clamav:
