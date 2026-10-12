@@ -6,6 +6,8 @@
 
 pub mod catalogue;
 pub mod forms;
+pub mod handler;
+pub mod resolve;
 
 pub use catalogue::{Catalogue, Field, Form, RequestType};
 pub use forms::FieldError;
