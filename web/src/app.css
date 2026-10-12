@@ -891,7 +891,7 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .welcome-packs li { display: grid; grid-template-columns: 1rem 1fr; gap: var(--space-2); }
 .welcome-invites li { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-3); }
 .welcome-existing { margin: 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
-@media (max-width: 40rem) { .welcome-invites li { grid-template-columns: 1fr; } .setup-head { flex-wrap: wrap; } }
+@media (max-width: 40rem) { .welcome-invites li { grid-template-columns: 1fr; } .setup-head { flex-wrap: wrap; } .setup-heading { flex-basis: calc(100% - 3rem); } .setup.card { padding: var(--space-4); } }
 /* Roles for common jobs (Roles & access › Add a role for a job). */
 .presets { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .preset { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: start; padding: var(--space-3) 0; border-top: 1px solid var(--color-border); }

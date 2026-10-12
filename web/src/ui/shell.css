@@ -193,3 +193,22 @@ svg.lucide { stroke-width: 1.75; }
 /* Admin mode lists more items: tighter groups so the whole set fits a laptop screen. */
 .nav.is-admin { gap: 0.625rem; }
 .nav.is-admin .nav-tools { margin-bottom: 0.25rem; }
+/* Phone bottom bar (docs/05 §2.1): Home · Library · Announcements · Search · More. */
+.bottom-bar { display: none; }
+@media (max-width: 40rem) {
+  .bottom-bar { position: fixed; inset: auto 0 0 0; z-index: 20; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 0.25rem 0.25rem calc(0.25rem + env(safe-area-inset-bottom)); background: var(--frame); border-top: 1px solid var(--line); }
+  .bottom-bar a, .bottom-bar-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem; min-height: 3rem; padding: 0.25rem 0.125rem; font: inherit; font-size: 0.625rem; font-weight: var(--font-weight-medium); color: var(--color-text-on-tinted); text-decoration: none; background: none; border: 0; border-radius: 0.5rem; cursor: pointer; }
+  .bottom-bar a span, .bottom-bar-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; letter-spacing: -0.01em; }
+  .bottom-bar a[aria-current='page'] { color: var(--color-text); background: var(--fill-active); }
+  .bottom-bar-btn[data-focus-visible], .bottom-bar a:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-focus); }
+  /* The bar replaces the scrolling link row; the top keeps the workspace, search and bell. */
+  .nav > ul, .nav > div:not(.nav-tools), .nav-back, .nav-mode { display: none; }
+  .nav-tools .search-btn { display: none; }
+  .page { padding-bottom: 5rem; }
+  /* The bell joins the top row next to the account button. */
+  .nav { flex-basis: auto; order: 2; overflow: visible; }
+  .nav-tools { padding: 0.4375rem 0.4375rem 0 0; }
+  .user-btn { order: 3; }
+  .sidebar .ws-switcher { min-width: 0; }
+  .ws-switcher-meta, .ws-switcher-name { white-space: nowrap; }
+}

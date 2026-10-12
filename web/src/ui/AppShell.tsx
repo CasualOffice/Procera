@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Check, ChevronsUpDown, History, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
+import { ArrowLeft, Bell, Menu as Menu2, Check, ChevronsUpDown, History, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { ApiError, api, blobUrl } from '../lib/api';
@@ -248,6 +248,37 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
         )}
         <main id="main" className="page" tabIndex={-1}>{children}</main>
       </div>
+      {/* Phones (≤ 40rem): the everyday destinations at the thumb, everything else under More. */}
+      <nav className="bottom-bar" aria-label="Quick">
+        {workNav(can).filter((i) => ['home', 'library', 'announcements'].includes(i.key)).map((i) => (
+          <Link key={i.key} to={i.to} aria-current={i.key === current ? 'page' : undefined}>
+            <i.icon aria-hidden="true" size="1.25rem" /><span>{i.key === 'announcements' ? 'News' : i.label}</span>
+          </Link>
+        ))}
+        <AriaButton className="bottom-bar-btn" onPress={() => setPalette(true)}>
+          <Search aria-hidden="true" size="1.25rem" /><span>Search</span>
+        </AriaButton>
+        <MenuTrigger>
+          <AriaButton className="bottom-bar-btn" aria-label="More destinations">
+            <Menu2 aria-hidden="true" size="1.25rem" /><span>More</span>
+          </AriaButton>
+          <Popover className="menu-popover" placement="top end">
+            <Menu className="menu" aria-label="More destinations" onAction={(key) => { const to = [...workNav(can), ...adminGroups.flatMap((g) => g.items)].find((i) => i.key === key)?.to; if (to) navigate(to); }}>
+              <MenuSection>
+                {workNav(can).filter((i) => !['home', 'library', 'announcements', 'admin'].includes(i.key)).map((i) => (
+                  <MenuItem key={i.key} id={i.key} className="menu-item" textValue={i.label}><i.icon aria-hidden="true" size="1rem" /> {i.label}</MenuItem>
+                ))}
+              </MenuSection>
+              {adminGroups.map((g) => (
+                <MenuSection key={g.label}>
+                  <Header className="menu-header">{g.label}</Header>
+                  {g.items.map((i) => <MenuItem key={i.key} id={i.key} className="menu-item" textValue={i.label}><i.icon aria-hidden="true" size="1rem" /> {i.label}</MenuItem>)}
+                </MenuSection>
+              ))}
+            </Menu>
+          </Popover>
+        </MenuTrigger>
+      </nav>
       <CommandPalette isOpen={palette} onOpenChange={setPalette} />
     </div>
   );

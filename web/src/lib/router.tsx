@@ -16,7 +16,7 @@ export function navigate(to: string, { replace = false } = {}) {
   else window.history.pushState(null, '', to);
   listeners.forEach((l) => l());
   // Move focus to the page so screen readers announce the change (WCAG 2.4.3).
-  queueMicrotask(() => document.getElementById('main')?.focus());
+  queueMicrotask(() => { document.getElementById('main')?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
 }
 
 export function useRoute(): { path: string; query: URLSearchParams } {
