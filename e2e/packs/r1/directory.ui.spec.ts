@@ -148,7 +148,7 @@ test.describe('directory @r1 @ui', () => {
     await expect(page.getByText('Theo removed from Fire wardens.')).toBeVisible();
     await expect(list.getByRole('link')).toHaveText(['Nina']);
 
-    await page.getByRole('navigation', { name: 'People' }).getByRole('link', { name: 'Groups' }).click();
+    await nav(page, 'Groups');
     const row = page.getByRole('row', { name: /Fire wardens/ });
     await expect(row).toContainText('Trained to lead evacuations');
     await expect(row).toContainText('1 person');

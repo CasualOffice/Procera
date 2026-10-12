@@ -16,7 +16,6 @@ import { LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
 import { InviteLinkDialog } from '../ui/InviteLinkDialog';
 import { DirectoryImport } from './DirectoryImport';
-import { PeopleTabs } from '../ui/PeopleTabs';
 import type { Department, Group } from '../lib/directory';
 import { type BulkRow, BulkAddToGroup, BulkSetDepartment } from './membersBulk';
 
@@ -80,7 +79,6 @@ export function Members() {
 
   return (
     <>
-      <PeopleTabs current="members" />
       <div className="page-head">
         <div><h1>Members</h1><p>{members ? `${active} active ${active === 1 ? 'member' : 'members'}${invites?.length ? ` · ${invites.length} pending invitation${invites.length === 1 ? '' : 's'}` : ''}` : 'People in this workspace'}</p></div>
         <div className="actions">

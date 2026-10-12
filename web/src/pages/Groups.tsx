@@ -13,7 +13,6 @@ import { DataGrid } from '../ui/components/DataGrid';
 import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
 import { TextField } from '../ui/components/TextField';
-import { PeopleTabs } from '../ui/PeopleTabs';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import '../ui/directory.css';
 
@@ -31,7 +30,6 @@ export function Groups() {
   const newGroup = manage && <Button onPress={() => setCreating(true)}><Plus aria-hidden="true" size="1rem" /> New group</Button>;
   return (
     <>
-      <PeopleTabs current="groups" />
       <div className="page-head">
         <div><h1>Groups</h1><p>{groups?.length ? `${groups.length} ${groups.length === 1 ? 'group' : 'groups'} · a person can be in many` : 'Sets of people across departments'}</p></div>
         {!!groups?.length && <div className="actions">{newGroup}</div>}
@@ -115,7 +113,6 @@ export function GroupDetail({ id, created = false }: { id: string; created?: boo
   if (!g) return <Empty art="generic" title="This group doesn’t exist" action={<Link className="btn btn-secondary btn-md" to="/admin/groups">All groups</Link>}>It may have been deleted, or the link is wrong.</Empty>;
   return (
     <div className="group-members">
-      <PeopleTabs current="groups" />
       <div className="page-head">
         <div><h1>{g.name}</h1><p>{g.description ?? 'No purpose written'} · {people(inGroup.filter((m) => m.status === 'active').length)}</p></div>
         {manage && (

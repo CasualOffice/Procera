@@ -13,7 +13,6 @@ import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
 import '../ui/admin.css';
 import { PresetDialog } from './rolePresets';
-import { PeopleTabs } from '../ui/PeopleTabs';
 import { RoleDrawer } from './roleDrawer';
 import { GrantDialog, RevokeDialog, expiryLabel, granteeLabel, holders, isLive, scopeLabel, useAccessDirectory } from './roleGrants';
 
@@ -81,7 +80,6 @@ export function Roles() {
 
   return (
     <>
-      <PeopleTabs current="roles" />
       <div className="page-head">
         <div><h1>Roles &amp; access</h1><p>{roles ? `${roles.filter((r) => r.is_builtin).length} built-in roles · ${roles.filter((r) => !r.is_builtin).length} custom · ${(grants ?? []).filter((g) => isLive(g)).length} active grants` : 'What each role allows, and who holds it where.'}</p></div>
         {(canGrant || can('role:manage')) && (

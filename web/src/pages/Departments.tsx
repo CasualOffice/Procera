@@ -11,7 +11,6 @@ import { FormDialog } from '../ui/components/FormDialog';
 import { Notice } from '../ui/components/Notice';
 import { Select } from '../ui/components/Select';
 import { TextField } from '../ui/components/TextField';
-import { PeopleTabs } from '../ui/PeopleTabs';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { DirectoryImport } from './DirectoryImport';
 import '../ui/directory.css';
@@ -95,7 +94,6 @@ export function Departments() {
 
   return (
     <>
-      <PeopleTabs current="departments" />
       {head}
       {notice && <Notice tone={notice.tone} title={notice.title} />}
       {body}
