@@ -42,3 +42,6 @@
 .tag-link { text-decoration: none; border-radius: 999px; }
 .tag-link:hover .tag { text-decoration: underline; }
 .tag-link:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-focus); }
+.dept-used { margin-top: var(--space-5); padding-top: var(--space-4); border-top: 1px solid var(--line); }
+.dept-used h3 { margin: 0 0 var(--space-3); font-size: 0.9375rem; }
+.plain-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-1); }

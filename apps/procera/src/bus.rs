@@ -104,6 +104,15 @@ impl AppBus {
                 }
                 tx.commit().await.map_err(|e| e.to_string())
             }
+            // Leavers' open acknowledgements close as "left organisation" (BPMS-046).
+            "membership.deactivated.v1" => {
+                let membership = uuid_field(m, "membership_id")?;
+                let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;
+                if mark_consumed(&mut tx, CAMPAIGNS, m.id).await.map_err(|e| e.to_string())? {
+                    self.campaigns.close_for_leaver(&mut tx, membership).await.map_err(|e| e.to_string())?;
+                }
+                tx.commit().await.map_err(|e| e.to_string())
+            }
             "announcement.published.v1" => {
                 let id = uuid_field(m, "announcement_id")?;
                 let mut tx = self.db.begin_ws(ctx).await.map_err(|e| e.to_string())?;

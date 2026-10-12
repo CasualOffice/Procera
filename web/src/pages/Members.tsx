@@ -14,6 +14,7 @@ import { TextField } from '../ui/components/TextField';
 import { Tag, type TagColor } from '../ui/Tag';
 import { LoadError, Skeleton } from '../ui/States';
 import { DataGrid } from '../ui/components/DataGrid';
+import { InviteLinkDialog } from '../ui/InviteLinkDialog';
 import { DirectoryImport } from './DirectoryImport';
 import { PeopleTabs } from '../ui/PeopleTabs';
 import type { Department, Group } from '../lib/directory';
@@ -37,6 +38,7 @@ export function Members() {
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
   const [revoking, setRevoking] = useState<PersonRow | null>(null);
+  const [shared, setShared] = useState<{ email: string; link: string } | null>(null);
   const manageDir = can('directory:manage');
   const [departments] = useItems<Department>(manageDir ? '/api/v1/departments' : null);
   const [groups] = useItems<Group>(manageDir ? '/api/v1/groups' : null);
@@ -50,6 +52,14 @@ export function Members() {
     try {
       await api('/api/v1/members/invitations', { method: 'POST', body: { email: p.email, roles: p.roles } });
       setNotice({ tone: 'success', title: `Invitation sent again to ${p.email}. The earlier link no longer works.` });
+      reloadInvites();
+    } catch (e) { fail(e); }
+  };
+  // For when email isn't set up: a fresh link to hand over directly (the earlier one stops working).
+  const copyLink = async (p: PersonRow) => {
+    try {
+      const r = await api<{ link: string }>(`/api/v1/members/invitations/${p.id}/link`, { method: 'POST' });
+      setShared({ email: p.email, link: r.link });
       reloadInvites();
     } catch (e) { fail(e); }
   };
@@ -96,6 +106,7 @@ export function Members() {
             ...(can('member:invite') ? [{ id: 'invitation', header: 'Invitation', sortable: false, value: (p: PersonRow) => (p.invite ? 'pending' : ''), cell: (p: PersonRow) => p.invite && (
               <span className="actions" style={{ flexWrap: 'nowrap' }}>
                 <Button variant="secondary" className="btn-sm" aria-label={`Resend invitation to ${p.email}`} onPress={() => void resend(p)}>Resend</Button>
+                <Button variant="secondary" className="btn-sm" aria-label={`Copy invite link for ${p.email}`} onPress={() => void copyLink(p)}>Copy link</Button>
                 <Button variant="ghost" className="btn-sm" aria-label={`Revoke invitation to ${p.email}`} onPress={() => setRevoking(p)}>Revoke</Button>
               </span>
             ) }] : []),
@@ -108,6 +119,7 @@ export function Members() {
         footer={<><Button variant="secondary" autoFocus onPress={() => setRevoking(null)}>Keep</Button><Button variant="danger" onPress={() => revoking && void revoke(revoking)}>Revoke invitation</Button></>}>
         <p className="muted" style={{ margin: 0 }}>This is recorded in the audit log.</p>
       </FormDialog>
+      {shared && <InviteLinkDialog email={shared.email} link={shared.link} onClose={() => setShared(null)} />}
       <InviteDialog isOpen={inviting} onClose={() => { setInviting(false); if (query.get('invite')) navigate('/admin/members', { replace: true }); }} onInvited={() => { reload(); reloadInvites(); }} />
     </>
   );

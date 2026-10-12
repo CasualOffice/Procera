@@ -15,6 +15,7 @@ import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
 import { AccountSecurity } from './personSecurity';
 import { AddToGroup, EditProfile, Reactivate } from './personProfile';
+import { LeaveDialog } from './personLeave';
 import '../ui/directory.css';
 
 const roleLabel = (k: string) => k.replace('workspace.', '').replace(/[._]/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
@@ -45,18 +46,9 @@ export function Person({ id }: { id: string }) {
   const myGroups = (dir?.group_ids ?? []).map((g) => groups?.find((x) => x.id === g)).filter((g): g is Group => !!g);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [leaving, setLeaving] = useState<Group | null>(null);
-  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string } | null>(null);
+  const [notice, setNotice] = useState<{ tone: 'success' | 'danger'; title: string; details?: string[] } | null>(null);
   const refresh = () => { reload(); reloadDir(); reloadGroups(); };
   const finish = (title: string, tone: 'success' | 'danger' = 'success') => { setNotice({ tone, title }); setDialog(null); refresh(); };
-  const deactivate = async () => {
-    try {
-      await api(`/api/v1/members/${id}/deactivate`, { method: 'POST' });
-      setNotice({ tone: 'success', title: `${m?.display_name ?? 'They'} can no longer sign in to this workspace.` });
-      reload();
-    } catch (e) {
-      setNotice({ tone: 'danger', title: e instanceof ApiError ? (e.code === 'last_owner' ? 'This is the only owner. Make someone else an owner first.' : e.problem.detail ?? e.problem.title) : 'That didn’t work. Try again.' });
-    } finally { setDialog(null); }
-  };
   const leaveGroup = async (g: Group) => {
     setLeaving(null);
     try {
@@ -82,7 +74,7 @@ export function Person({ id }: { id: string }) {
           <p className="muted">{m.title ?? 'No title'}{!active && <> · <Tag color="gray">Deactivated</Tag></>}</p>
         </div>
       </div>
-      {notice && <Notice tone={notice.tone} title={notice.title} />}
+      {notice && <Notice tone={notice.tone} title={notice.title}>{notice.details?.length ? <ul style={{ margin: 0, paddingLeft: 'var(--space-5)' }}>{notice.details.map((d) => <li key={d}>{d}</li>)}</ul> : null}</Notice>}
       {(canEdit || (can('member:deactivate') && m.user_id !== user?.id)) && (
         <div className="actions" style={{ marginBottom: '1rem' }}>
           {canEdit && <Button variant="secondary" onPress={() => setDialog('edit')}><Pencil aria-hidden="true" size="0.9375rem" /> Edit profile</Button>}
@@ -129,11 +121,8 @@ export function Person({ id }: { id: string }) {
         footer={<><Button variant="secondary" autoFocus onPress={() => setLeaving(null)}>Keep</Button><Button variant="danger" onPress={() => leaving && void leaveGroup(leaving)}>Remove</Button></>}>
         <p className="muted" style={{ margin: 0 }}>You can add them back at any time.</p>
       </FormDialog>
-      <FormDialog isOpen={dialog === 'deactivate'} onOpenChange={(o) => !o && setDialog(null)} title={`Deactivate ${m.display_name}?`}
-        description="They are signed out of this workspace at once and can’t act in it. Their history and records stay. You can reactivate them later; they come back with the roles they had."
-        footer={<><Button variant="secondary" onPress={() => setDialog(null)}>Keep</Button><Button variant="danger" onPress={() => void deactivate()}>Deactivate</Button></>}>
-        <p className="muted" style={{ margin: 0 }}>This is recorded in the audit log.</p>
-      </FormDialog>
+      {dialog === 'deactivate' && <LeaveDialog member={m} members={members} managerId={dir?.resolved_manager.membership_id ?? null} onClose={() => setDialog(null)}
+        onDone={(r) => { setDialog(null); setNotice(r); refresh(); }} />}
     </div>
   );
 }

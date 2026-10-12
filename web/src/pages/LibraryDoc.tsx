@@ -22,7 +22,7 @@ import { rememberRecent } from '../lib/recent';
 import { LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, STATE_TAG, Tag } from '../ui/Tag';
 import { useTerms } from '../lib/terms';
-import { ChangeRequests, type Governance, GovernanceRows, ReviewCallout } from './docGovernance';
+import { ChangeRequests, type Governance, GovernanceRows, ReaderDetails, ReviewCallout } from './docGovernance';
 import { ApplicabilityRow } from './docApplicability';
 
 interface ArtifactResp { artifact: { id: string; kind: string; key: string; title: string; state: string; criticality: string; owner_membership_id: string | null; current_published_version_id: string | null; governance?: Governance; category?: string | null; applicability?: unknown; restricted?: boolean; collection_id?: string | null }; versions: { id: string; version_no: number; lifecycle: string; published_at: string | null; change_reason: string | null }[]; /** What I may do with this document, collection scopes included. */ my_actions?: string[] }
@@ -114,6 +114,8 @@ export function LibraryDoc({ id }: { id: string }) {
   const v = version;
   const p = (action: string) => (data.my_actions && action !== 'view' ? data.my_actions.includes(action) : can(`${a.kind}:${action}`));
   const approvals = v.reviews.filter((r) => r.decision === 'approve').length;
+  // Plain readers (nothing to edit, publish or approve) get a clean reading view (docs/05 §3.21).
+  const reader = !p('edit_draft') && !p('publish') && !p('approve');
   const reack = (campaigns ?? []).find((c) => c.origin === 'reack' && c.subject.version_id === a.current_published_version_id);
   const publish = () => {
     let done = 'Published.';
@@ -135,7 +137,12 @@ export function LibraryDoc({ id }: { id: string }) {
       </div>
       <h1 className="doc-title">{a.title}</h1>
 
-      <dl className="props props-split">
+      {reader ? (
+        <dl className="props props-split">
+          <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>{v.semver ? `v${v.semver}` : `v${v.version_no}`}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}</dd>
+          <OwnerRow artifactId={a.id} owner={owner} canEdit={false} act={act} />
+        </dl>
+      ) : <dl className="props props-split">
         <dt><CircleDot aria-hidden="true" size="0.9375rem" /> Status</dt><dd><Tag color={STATE_TAG[v.lifecycle]?.color} dot>{STATE_TAG[v.lifecycle]?.label}</Tag>{a.criticality === 'controlled' && <Tag color="red">Controlled</Tag>}</dd>
         <dt><GitBranch aria-hidden="true" size="0.9375rem" /> Version</dt><dd>{v.semver ? `v${v.semver}` : `v${v.version_no}`}{v.published_at && <span className="muted">· published {shortDate(v.published_at)}</span>}{v.change_reason && <span className="muted">· {v.change_reason}</span>}</dd>
         <OwnerRow artifactId={a.id} owner={owner} canEdit={p('publish')} act={act} />
@@ -146,7 +153,7 @@ export function LibraryDoc({ id }: { id: string }) {
         {a.kind === 'policy' && (p('publish') || !!a.category || !!a.restricted || a.applicability != null) && <ApplicabilityRow artifactId={a.id} category={a.category ?? null} applicability={a.applicability ?? null} restricted={!!a.restricted} canEdit={p('publish')} act={act} />}
         {reack && <><dt><BookOpenCheck aria-hidden="true" size="0.9375rem" /> Acknowledged</dt><dd><Link to={`/admin/campaigns/${reack.id}`}>{reack.progress.acknowledged} of {people(reack.progress.assigned)}</Link><span className="muted">· re-acknowledgement{reack.due_at ? ` due ${shortDate(reack.due_at)}` : ''}</span></dd></>}
         {v.content_hash && <><dt><Hash aria-hidden="true" size="0.9375rem" /> Fingerprint</dt><dd><code className="mono" title="SHA-256 of the approved content">{v.content_hash.slice(0, 16)}…</code></dd></>}
-      </dl>
+      </dl>}
 
       {error && <Notice tone="danger" title={error} />}
       {a.governance && a.current_published_version_id && p('publish') && <ReviewCallout artifactId={a.id} g={a.governance} act={act} />}
@@ -160,7 +167,7 @@ export function LibraryDoc({ id }: { id: string }) {
 
       {/* Lifecycle actions for this version */}
       {v.lifecycle === 'scheduled' && v.effective_at && <Notice tone="info" title={`Scheduled: goes live ${new Date(v.effective_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}`}>Until then readers keep seeing the current version.</Notice>}
-      {!['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} isAuthor={v.created_by === membershipId}
+      {!reader && !['published', 'deprecated', 'retired'].includes(v.lifecycle) && <Lifecycle state={v.lifecycle} hasContent={blocks.length > 0} approvals={approvals} required={v.approvals_required ?? 1} canReview={p('review') || p('approve')} canEdit={p('edit_draft')} canPublish={p('publish')} publishedAt={v.published_at} isAuthor={v.created_by === membershipId}
         approvedBy={v.reviews.filter((r) => r.decision === 'approve').map((r) => directory.get(r.reviewer_membership_id)?.display_name).filter((x): x is string => !!x)} />}
       <div className="doc-actions">
         {v.lifecycle === 'draft' && p('edit_draft') && !editing && <Button variant="secondary" onPress={() => { setEdited(null); setEditing(true); }}><Pencil aria-hidden="true" size="0.9375rem" /> Edit</Button>}
@@ -201,6 +208,7 @@ export function LibraryDoc({ id }: { id: string }) {
           </div>
         </div>
       ) : <article className="doc-paper" aria-label="Document text"><DocBody blocks={blocks} /></article>}
+      {reader && <ReaderDetails fingerprint={v.content_hash} nextReview={a.governance?.next_review_at ?? null} />}
 
       {a.current_published_version_id && <ChangeRequests artifactId={a.id} people={directory} versions={data.versions} canSuggest={p('view')} canResolve={p('publish')} act={act} />}
 

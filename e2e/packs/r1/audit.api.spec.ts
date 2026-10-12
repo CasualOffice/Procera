@@ -82,6 +82,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PUT', '/sysapi/v1/workspaces/{id}/quotas', () => sys.put(`/sysapi/v1/workspaces/${ws.id}/quotas`, { headers: sh, data: { ...renamed.quotas, max_members: 500 } }));
   await step('POST', '/sysapi/v1/workspaces/{id}/suspend', () => sys.post(`/sysapi/v1/workspaces/${ws.id}/suspend`, { headers: sh, data: { mode: 'read_only', reason: 'audit drill' } }));
   await step('POST', '/sysapi/v1/workspaces/{id}/restore', () => sys.post(`/sysapi/v1/workspaces/${ws.id}/restore`, { headers: sh }));
+  await step('POST', '/sysapi/v1/workspaces/{id}/owner-invitation/link', () => sys.post(`/sysapi/v1/workspaces/${ws.id}/owner-invitation/link`, { headers: sh }));
 
   // 4. Owner onboarding and workspace selection.
   const tokenFor = async (email: string) => (await (await request.get(`/__test/invitations/token?workspace=${ws.id}&email=${encodeURIComponent(email)}`)).json()).token as string;
@@ -113,6 +114,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('DELETE', '/api/v1/role-grants/{id}', () => own.delete(`/api/v1/role-grants/${grant.id}`, { headers: oh }));
   const carol = uniqueEmail('carol');
   const inv = await (await own.post('/api/v1/members/invitations', { headers: oh, data: { email: carol, roles: ['member'] } })).json();
+  await step('POST', '/api/v1/members/invitations/{id}/link', () => own.post(`/api/v1/members/invitations/${inv.id}/link`, { headers: oh }));
   await step('DELETE', '/api/v1/members/invitations/{id}', () => own.delete(`/api/v1/members/invitations/${inv.id}`, { headers: oh }));
   // Directory (adam is still active here).
   const dept = await (await step('POST', '/api/v1/departments', () => own.post('/api/v1/departments', { headers: oh, data: { name: 'Audit Dept' } }))).json();

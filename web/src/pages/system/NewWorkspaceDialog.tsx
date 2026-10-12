@@ -40,7 +40,7 @@ function fieldOf(detail: string | undefined): Field | null {
   return f === 'name' || f === 'slug' || f === 'profile' || f === 'owner_email' ? f : null;
 }
 
-export interface Created { name: string; slug: string; ownerEmail: string }
+export interface Created { id: string; name: string; slug: string; ownerEmail: string }
 
 /**
  * System › Workspaces › New workspace (docs/05 §3.20, E2E-R1-02): name, slug, configuration profile
@@ -86,8 +86,8 @@ export function NewWorkspaceDialog({ onClose, onCreated }: { onClose: () => void
     setBusy(true);
     const body = { name: name.trim(), slug: effectiveSlug.trim(), profile, owner_email: owner.trim() };
     void guard(async () => {
-      await api('/sysapi/v1/workspaces', { method: 'POST', body });
-      onCreated({ name: body.name, slug: body.slug, ownerEmail: body.owner_email });
+      const ws = await api<{ id: string }>('/sysapi/v1/workspaces', { method: 'POST', body });
+      onCreated({ id: ws.id, name: body.name, slug: body.slug, ownerEmail: body.owner_email });
     }).finally(() => setBusy(false));
   };
 

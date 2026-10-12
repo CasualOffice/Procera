@@ -55,7 +55,10 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.goto(`${WEB}/members/${m.id}`);
     await page.getByRole('button', { name: 'Deactivate' }).click();
     const dlg = page.getByRole('dialog', { name: /^Deactivate/ });
+    await expect(dlg.getByRole('list', { name: 'Steps' })).toBeVisible();
     await axe(page);
+    await dlg.getByRole('button', { name: 'Next' }).click(); // review → hand over
+    await dlg.getByRole('button', { name: 'Next' }).click(); // hand over → confirm
     await dlg.getByRole('button', { name: 'Deactivate' }).click();
     await expect(page.getByText('can no longer sign in to this workspace')).toBeVisible();
     await expect(page.getByText('Deactivated')).toBeVisible();

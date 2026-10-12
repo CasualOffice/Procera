@@ -98,6 +98,12 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/sysapi/v1/workspaces/{id}/restore", &[&["workspace.restored"]]),
     emits("POST", "/sysapi/v1/workspaces/{id}/schedule-deletion", &[&["workspace.deletion_scheduled"]]),
     emits("PUT", "/sysapi/v1/workspaces/{id}/quotas", &[&["workspace.quotas_changed"]]),
+    // Who copied it on the system chain; the owner invitation's new token on the workspace chain.
+    emits(
+        "POST",
+        "/sysapi/v1/workspaces/{id}/owner-invitation/link",
+        &[&["member.invitation_link_copied", "workspace.owner_invitation_link_copied"]],
+    ),
     emits("PUT", "/sysapi/v1/settings/{key}", &[&["platform.floor_changed"]]),
     emits("PUT", "/sysapi/v1/quota-defaults/{profile}", &[&["platform.quota_defaults_changed"]]),
     emits("PUT", "/sysapi/v1/email", &[&["platform.email_changed"]]),
@@ -115,6 +121,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/invitations/register", &[&["member.joined", "user.created"]]),
     emits("POST", "/api/v1/members/invitations", &[&["member.invited"]]),
     emits("DELETE", "/api/v1/members/invitations/{id}", &[&["member.invitation_revoked"]]),
+    emits("POST", "/api/v1/members/invitations/{id}/link", &[&["member.invitation_link_copied"]]),
     emits("POST", "/api/v1/members/{id}/deactivate", &[&["member.deactivated"]]),
     emits("POST", "/api/v1/members/{id}/reactivate", &[&["member.reactivated"]]),
     emits("POST", "/api/v1/roles", &[&["role.created"]]),

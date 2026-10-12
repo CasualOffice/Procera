@@ -462,6 +462,29 @@ impl Platform {
         Ok(ws)
     }
 
+    /// A fresh link to the owner's pending invitation, for the system admin to hand over when email
+    /// isn't set up. Recorded on the system chain (who copied it) and the workspace chain (the
+    /// invitation's token changed); the earlier link stops working. Returns (email, token, expires_at).
+    pub async fn owner_invitation_link(
+        &self,
+        actor: Uuid,
+        id: Uuid,
+        client: &ClientInfo,
+    ) -> Result<(String, String, OffsetDateTime), PlatformError> {
+        let mut tx = self.db.begin_system().await?;
+        let ws = self.load(&mut tx, id).await?;
+        let subject = self.subject(&mut tx, actor).await?;
+        self.audit(&mut tx, subject, "workspace.owner_invitation_link_copied", Some(ws.id), None, client)
+            .await?;
+        tx.rescope(procera_db::WsCtx { workspace_id: id }).await?;
+        let invitation = self.members.pending_owner_invitation(&mut tx).await?.ok_or_else(|| {
+            MembersError::Conflict("The owner has already joined, or their invitation was revoked.".into())
+        })?;
+        let (inv, token) = self.members.reissue_invitation_link(&mut tx, None, invitation, client).await?;
+        tx.commit().await?;
+        Ok((inv.email, token, inv.expires_at))
+    }
+
     async fn load(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Workspace, PlatformError> {
         let row: Option<WsRow> = sqlx::query_as(&format!("{SELECT_WS} WHERE w.id = $1"))
             .bind(id)

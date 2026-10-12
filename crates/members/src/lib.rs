@@ -99,6 +99,8 @@ pub struct Member {
     pub roles: Vec<String>,
     #[serde(with = "time::serde::rfc3339")]
     pub joined_at: OffsetDateTime,
+    /// Their department (directory field), for lists that group people.
+    pub department_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -333,6 +335,61 @@ impl Members {
         .await
     }
 
+    /// Issues a fresh link for a pending invitation so the inviter can hand it over themselves (when
+    /// email isn't set up). Like resending, the previous link stops working; the new one works once and
+    /// expires in 7 days. Returns the invitation and its new token; the token is never listed.
+    pub async fn reissue_invitation_link(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: Option<Actor>,
+        id: Uuid,
+        client: &ClientInfo,
+    ) -> Result<(Invitation, String), MembersError> {
+        let row: Option<(String, Vec<String>)> = sqlx::query_as(
+            "SELECT email::text, role_keys FROM invitations WHERE id = $1 AND accepted_at IS NULL AND revoked_at IS NULL FOR UPDATE",
+        )
+        .bind(id)
+        .fetch_optional(tx.conn())
+        .await?;
+        let Some((email, role_keys)) = row else { return Err(MembersError::NotFound) };
+        let now = self.clock.now();
+        // An expired invitation comes back to life, so it needs its seat again.
+        self.check_member_quota(tx, &email, now).await?;
+        let token = random_token();
+        let sealed = seal(self.keys.as_ref(), "secrets", &format!("invitations:{id}"), token.as_bytes())?;
+        let expires_at = now + time::Duration::days(INVITE_TTL_DAYS);
+        sqlx::query(
+            "UPDATE invitations SET token_hash = $2, token_sealed = $3, expires_at = $4 WHERE id = $1",
+        )
+        .bind(id)
+        .bind(hash_token(&token))
+        .bind(sealed)
+        .bind(expires_at)
+        .execute(tx.conn())
+        .await?;
+        self.audit_object(
+            tx,
+            actor.map(|a| a.subject_ref),
+            "member.invitation_link_copied",
+            "invitation",
+            id,
+            json!({"expires_at": expires_at.unix_timestamp()}),
+            client,
+        )
+        .await?;
+        Ok((Invitation { id, email, role_keys, expires_at }, token))
+    }
+
+    /// The owner invitation a system admin created with the workspace, while it is still pending.
+    pub async fn pending_owner_invitation(&self, tx: &mut WsTx<'_>) -> Result<Option<Uuid>, MembersError> {
+        Ok(sqlx::query_scalar(
+            "SELECT id FROM invitations WHERE invited_by IS NULL AND 'workspace.owner' = ANY(role_keys)
+               AND accepted_at IS NULL AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1",
+        )
+        .fetch_optional(tx.conn())
+        .await?)
+    }
+
     /// What the invitation email needs: (email, token, expires_at, inviter display name, workspace name).
     /// `None` once the invitation is accepted or revoked (nothing to send).
     pub async fn invitation_for_mail(
@@ -526,9 +583,11 @@ impl Members {
     }
 
     pub async fn list(&self, tx: &mut WsTx<'_>) -> Result<Vec<Member>, MembersError> {
-        let rows: Vec<(Uuid, Uuid, String, String, String, Option<String>, OffsetDateTime, Vec<String>)> = sqlx::query_as(
+        type Row =
+            (Uuid, Uuid, String, String, String, Option<String>, OffsetDateTime, Vec<String>, Option<Uuid>);
+        let rows: Vec<Row> = sqlx::query_as(
             "SELECT m.id, m.user_id, u.email::text, u.display_name, m.status, m.title, m.joined_at,
-                    coalesce(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}')
+                    coalesce(array_agg(DISTINCT r.key) FILTER (WHERE r.key IS NOT NULL), '{}'), m.department_id
              FROM memberships m JOIN users u ON u.id = m.user_id
              LEFT JOIN role_grants g ON g.workspace_id = m.workspace_id AND g.membership_id = m.id AND g.scope_kind = 'workspace'
              LEFT JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
@@ -545,6 +604,7 @@ impl Members {
                 title: r.5,
                 joined_at: r.6,
                 roles: r.7,
+                department_id: r.8,
             })
             .collect())
     }

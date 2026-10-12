@@ -131,7 +131,7 @@ async fn overview(
     let (assigned, completed): (i64, i64) = sqlx::query_as(&format!(
         "SELECT count(*), count(*) FILTER (WHERE r.state = 'completed') FROM campaign_recipients r
          JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.membership_id
-         WHERE r.assigned_at >= $2 AND r.assigned_at < $3 AND {IN_SCOPE}"
+         WHERE r.assigned_at >= $2 AND r.assigned_at < $3 AND r.state <> 'left' AND {IN_SCOPE}"
     ))
     .bind(dept)
     .bind(from)
