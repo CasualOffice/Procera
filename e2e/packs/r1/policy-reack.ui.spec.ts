@@ -52,7 +52,7 @@ test.describe('re-acknowledgement on publish @r1 @ui', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Published v2.0. 2 people asked to re-acknowledge.' })).toBeVisible();
 
     // The document links to the campaign; the owner is in the audience too, so they are asked as well.
-    await expect(page.getByText('· 2.0')).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: /^v2\.0\s*·\s*published/ })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Acknowledgement requested' })).toBeVisible();
     await page.getByRole('link', { name: '0 of 2 people' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Re-acknowledge Fire safety v2.0' })).toBeVisible();
