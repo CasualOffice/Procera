@@ -139,6 +139,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const adamReqWs = await (await adam.post('/api/v1/session/workspace', { headers: bearer(adamLogin.access_token), data: { workspace_id: ws.id } })).json();
   const rh = bearer(adamReqWs.access_token);
   const leave = { type: 'hr.leave-request', input: { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' } };
+  await step('POST', '/api/v1/requests/preview', () => adam.post('/api/v1/requests/preview', { headers: rh, data: leave }));
   await step('POST', '/api/v1/requests', () => adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-1` }, data: leave }));
   const [item] = (await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items;
   await step('POST', '/api/v1/work/{id}/decisions', () => own.post(`/api/v1/work/${item.id}/decisions`, { headers: { ...oh, 'if-match': `"${item.revision}"` }, data: { outcome: 'approved' } }));
