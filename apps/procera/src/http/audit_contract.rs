@@ -319,6 +319,7 @@ pub const CONTRACT: &[Entry] = &[
         "/api/v1/work/{id}/decisions",
         &[&["instance.advanced", "work_item.decided"], &["instance.completed", "work_item.decided"]],
     ),
+    emits("POST", "/api/v1/work/{id}/reassign", &[&["work_item.reassigned"]]),
 ];
 
 #[cfg(test)]
