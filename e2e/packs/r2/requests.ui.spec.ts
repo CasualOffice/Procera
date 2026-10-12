@@ -134,6 +134,7 @@ test.describe('requests and approvals @r2 @ui', () => {
     await expect(mgr).toHaveURL(/\/work\/[^/?]+$/);
     const panel = mgr.getByRole('region', { name: 'Your decision' });
     await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Why you: You're Ben Employee's manager.");
     await panel.getByRole('textbox', { name: 'Comment' }).fill('Enjoy the break.');
     await panel.getByRole('button', { name: 'Approve' }).click();
     await expect(mgr.getByRole('status').filter({ hasText: `Approved ${ref}. It’s off your list.` })).toBeVisible();
@@ -147,6 +148,9 @@ test.describe('requests and approvals @r2 @ui', () => {
     await expect(steps).toContainText('Approved by Ana Manager');
     await expect(steps).toContainText('Enjoy the break.');
     await expect(page.getByRole('region', { name: 'Timeline' }).getByRole('listitem').first()).toBeVisible();
+    // Why this route (PR-08): a disclosure with the plain reason for each step.
+    await page.getByText('Why this route', { exact: true }).click();
+    await expect(page.getByText("Ana Manager decides Manager approval as Ben Employee's manager.")).toBeVisible();
     await expect(page.getByRole('button', { name: 'Cancel request' })).toHaveCount(0);
   });
 

@@ -5,7 +5,7 @@ import { type Session, inviteToken, workspaceWithOwner } from '../../fixtures/wo
 // Requests and approvals over the API (Procera 0.2; BPMS-083/085/101/103): built-in request types,
 // start with Idempotency-Key, manager and finance approvals, separation of duties, the send-back
 // loop, cancel, the double-approval race, unassigned steps and workspace isolation.
-// E2E-R2-02 (subset: CEL thresholds, no rule table), -03, -04, -09 (no diff yet), -17..-20, -ISO.
+// E2E-R2-02 (subset: CEL thresholds, no rule table), -03, -04, -09 (no diff yet), -17..-20, -24, -ISO.
 
 type Req = Parameters<typeof seedUser>[0];
 type Member = Session & { email: string; membership: string };
@@ -123,6 +123,30 @@ test.describe('requests @r2 @requests', () => {
     expect(await kinds(ann)).toContain('request_decided');
     await decide(fin, await itemFor(fin, big.id), { outcome: 'approved' });
     expect((await detail(ann, big.id)).status).toBe('approved');
+  });
+
+  test('E2E-R2-24 the request says why it went to finance and why each person decides', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const [boss, ann, fin] = [await joinAs(request, owner, ws.id, 'boss'), await joinAs(request, owner, ws.id, 'ann'), await joinAs(request, owner, ws.id, 'fin')];
+    await reportsTo(owner, ann, boss);
+    const g = await (await owner.c.post('/api/v1/groups', { headers: owner.headers, data: { name: 'Finance' } })).json();
+    await owner.c.post(`/api/v1/groups/${g.id}/members`, { headers: owner.headers, data: { membership_id: fin.membership } });
+    const r = await started(ann, 'hr.expense-claim', expense('640.00'));
+    const mine = (await inbox(boss)).find((w) => w.request.id === r.id) as Work & { why_you: string | null };
+    expect(mine.why_you).toBe("You're ann's manager");
+    await decide(boss, mine, { outcome: 'approved' });
+    const d = await detail(ann, r.id);
+    const texts = (d.why as { text: string }[]).map((l) => l.text);
+    expect(texts).toContain('boss decides Manager approval as ann\'s manager');
+    expect(texts).toContain('Sent to Finance approval because the amount 640.00 EUR is over 500');
+    expect(texts).toContain('fin decides Finance approval as a member of the Finance group');
+    type Route = { facts: { kind: string; checks: unknown[]; inputs: { amount: { value: unknown } }; release: { checksum: string } } };
+    const route = (d.why as Route[]).find((l) => l.facts.kind === 'route')!;
+    expect(route.facts.checks[0]).toEqual({ branch: 'finance', expression: 'amount.amount > 500.0', result: true });
+    expect(route.facts.inputs.amount.value).toEqual({ amount: '640.00', currency: 'EUR' });
+    expect(d.release.version).toBe(1);
+    expect(d.release.checksum).toMatch(/^[0-9a-f]{64}$/);
+    expect(route.facts.release.checksum).toBe(d.release.checksum);
   });
 
   test('E2E-R2-03 a repeated start with the same Idempotency-Key returns the same request; another body is 409', async ({ request }) => {

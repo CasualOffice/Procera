@@ -160,3 +160,17 @@
 }
 @media (prefers-reduced-motion: reduce) { .type-go, .type-card { transition: none; } }
 .work-item[aria-current='page'] .work-item-meta, .work-item[aria-current='page'] .work-item-time, .work-item:hover .work-item-meta, .work-item:hover .work-item-time { color: var(--color-text-on-tinted); } /* AA on the tinted selected/hover background */
+
+/* "Why this route" (PR-08): a plain disclosure of the routing reasons. */
+.req-why summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: var(--space-2); }
+.req-why summary::-webkit-details-marker { display: none; }
+.req-why summary::before { content: '\25B8'; font-size: 0.75rem; color: var(--color-text-secondary); }
+.req-why[open] summary::before { content: '\25BE'; }
+.req-why summary h2 { display: inline; margin: 0 !important; }
+.req-why summary:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--color-focus); border-radius: 0.25rem; }
+.req-why-list { margin: var(--space-3) 0 0; padding-left: 1.125rem; display: grid; gap: var(--space-2); font-size: 0.8125rem; }
+.req-why-list li[data-kind='route'] { color: var(--color-text); }
+.req-why-list li[data-kind='excluded'], .req-why-list li[data-kind='unassigned'] { color: var(--color-text-secondary); }
+.req-why-release { margin: var(--space-3) 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.decide-why { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }
+.decide-why-label { font-weight: var(--font-weight-semibold); color: var(--color-text); }

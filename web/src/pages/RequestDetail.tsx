@@ -78,6 +78,15 @@ export function RequestDetail({ id }: { id: string }) {
               </dl>
             )}
           </section>
+          {(r.why ?? []).length > 0 && (
+            <details className="req-section req-why">
+              <summary><h2>Why this route</h2></summary>
+              <ul className="req-why-list">
+                {(r.why ?? []).map((l, i) => <li key={`${l.at}-${i}`} data-kind={l.facts.kind}>{l.text}.</li>)}
+              </ul>
+              {r.release && <p className="req-why-release">Process version {r.release.version}{r.release.checksum ? `, build ${r.release.checksum.slice(0, 8)}` : ''}</p>}
+            </details>
+          )}
           <section aria-labelledby="req-timeline" className="req-section">
             <h2 id="req-timeline">Timeline</h2>
             {r.timeline.length === 0 ? <p className="muted">Nothing has happened yet.</p> : (

@@ -60,6 +60,7 @@ export function DecisionPanel({ item, detail, onDecided }: { item: WorkItem; det
         <span className="decide-step">{item.step}</span>
         {due && <Tag color={due.color} dot={due.overdue}>{due.label}</Tag>}
       </div>
+      {item.why_you && <p className="decide-why"><span className="decide-why-label">Why you:</span> {item.why_you}.</p>}
       {stale ? (
         <Notice tone="warning" title="Someone already decided this — refresh">
           <p className="decide-note">The request moved on while you had it open. Refresh to see where it is now.</p>
