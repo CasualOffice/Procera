@@ -179,10 +179,13 @@ pub struct AnnouncementSubject {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct Progress {
+    /// Assignments that count: everyone asked, minus those who left the organisation.
     pub assigned: i64,
     pub acknowledged: i64,
     pub pending: i64,
     pub overdue: i64,
+    /// Assignments closed because the member left (deactivated); outside the counts above.
+    pub left: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -294,6 +297,7 @@ struct CampaignRow {
     assigned: i64,
     acknowledged: i64,
     overdue: i64,
+    left_count: i64,
 }
 
 /// `$1` = now (for overdue counts).
@@ -302,14 +306,16 @@ const CAMPAIGN_SELECT: &str = "SELECT c.id, c.title, c.subject_version_id, encod
        v.version_no, v.semver, c.subject_announcement_id, c.origin,
        c.audience_rule, c.audience_snapshot, c.ack_text, c.due_at, c.due_in_secs, c.reminder_schedule,
        c.escalation_after_secs, c.state, c.created_by, c.created_at, c.launched_at, c.ended_at, c.end_reason, c.revision,
-       coalesce(p.assigned, 0) AS assigned, coalesce(p.acknowledged, 0) AS acknowledged, coalesce(p.overdue, 0) AS overdue
+       coalesce(p.assigned, 0) AS assigned, coalesce(p.acknowledged, 0) AS acknowledged, coalesce(p.overdue, 0) AS overdue,
+       coalesce(p.left_count, 0) AS left_count
 FROM campaigns c
 LEFT JOIN artifact_versions v ON v.workspace_id = c.workspace_id AND v.id = c.subject_version_id
 LEFT JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
 LEFT JOIN announcements an ON an.workspace_id = c.workspace_id AND an.id = c.subject_announcement_id
 LEFT JOIN LATERAL (
-  SELECT count(*) AS assigned, count(*) FILTER (WHERE r.state = 'completed') AS acknowledged,
-         count(*) FILTER (WHERE r.state = 'pending' AND r.due_at < $1) AS overdue
+  SELECT count(*) FILTER (WHERE r.state <> 'left') AS assigned, count(*) FILTER (WHERE r.state = 'completed') AS acknowledged,
+         count(*) FILTER (WHERE r.state = 'pending' AND r.due_at < $1) AS overdue,
+         count(*) FILTER (WHERE r.state = 'left') AS left_count
   FROM campaign_recipients r WHERE r.workspace_id = c.workspace_id AND r.campaign_id = c.id) p ON true";
 
 impl From<CampaignRow> for Campaign {
@@ -345,6 +351,7 @@ impl From<CampaignRow> for Campaign {
                 acknowledged: r.acknowledged,
                 pending: r.assigned - r.acknowledged,
                 overdue: r.overdue,
+                left: r.left_count,
             },
         }
     }
@@ -1476,6 +1483,41 @@ impl Campaigns {
             .await?;
         }
         Ok(n)
+    }
+
+    /// A member left the organisation (deactivated): their open assignments in active campaigns
+    /// close as `left`, never as acknowledged, and leave the progress counts. One system-audited
+    /// `campaign.recipient_left` per assignment. Does nothing if they were reactivated meanwhile.
+    pub async fn close_for_leaver(
+        &self,
+        tx: &mut WsTx<'_>,
+        membership: Uuid,
+    ) -> Result<usize, CampaignError> {
+        let closed: Vec<(Uuid, Uuid)> = sqlx::query_as(
+            "UPDATE campaign_recipients r SET state = 'left', left_at = $2
+             FROM campaigns c
+             WHERE c.workspace_id = r.workspace_id AND c.id = r.campaign_id AND c.state = 'active'
+               AND r.membership_id = $1 AND r.state = 'pending'
+               AND EXISTS (SELECT 1 FROM memberships m WHERE m.id = r.membership_id AND m.status = 'deactivated')
+             RETURNING r.id, r.campaign_id",
+        )
+        .bind(membership)
+        .bind(self.clock.now())
+        .fetch_all(tx.conn())
+        .await?;
+        for (assignment, campaign) in &closed {
+            self.audit(
+                tx,
+                None,
+                Category::Content,
+                "campaign.recipient_left",
+                ("campaign", *campaign),
+                json!({"membership_id": membership, "assignment_id": assignment}),
+                Some("member left the organisation"),
+            )
+            .await?;
+        }
+        Ok(closed.len())
     }
 
     /// Sends due reminder steps and manager escalations in every workspace once (scheduler).

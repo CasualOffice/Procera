@@ -32,6 +32,7 @@ pub fn router() -> Router<AppState> {
         .route("/positions/{id}", delete(delete_position))
         .route("/members/{id}", patch(update_member))
         .route("/members/{id}/directory", get(member_directory))
+        .route("/members/{id}/holdings", get(member_holdings))
         .route("/members/import", post(import))
 }
 
@@ -277,6 +278,96 @@ async fn member_directory(
 ) -> Result<Response, ApiError> {
     let d = read!(s, me, |m, tx| m.member_directory(&mut tx, id).await?);
     Ok(Json(d).into_response())
+}
+
+/// What a member holds, for the leaving flow (docs/design/ia-competitive-analysis.md §8.3): documents
+/// they own, drafts and reviews they started, campaigns they run, groups, direct reports, role grants
+/// and open acknowledgements, plus the workspace's hand-over default. Titles and counts only.
+async fn member_holdings(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "member:deactivate", Resource::Member(id)).await?;
+    let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM memberships WHERE id = $1)")
+        .bind(id)
+        .fetch_one(tx.conn())
+        .await
+        .map_err(internal)?;
+    if !exists {
+        return Err(ApiError::not_found());
+    }
+    let strategy = settings(&s)?.effective(&mut tx, "directory.deactivation.reassign_strategy").await?.value;
+    let c = tx.conn();
+    let documents: Vec<(Uuid, String, String)> = sqlx::query_as(
+        "SELECT id, title, kind FROM artifacts WHERE owner_membership_id = $1 AND state <> 'retired' ORDER BY lower(title)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let work: Vec<(Uuid, String, i32, String)> = sqlx::query_as(
+        "SELECT a.id, a.title, v.version_no, v.lifecycle FROM artifact_versions v
+         JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id
+         WHERE v.created_by = $1 AND v.lifecycle IN ('draft', 'in_review', 'approved') ORDER BY lower(a.title)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let campaigns: Vec<(Uuid, String, String)> = sqlx::query_as(
+        "SELECT id, title, state FROM campaigns WHERE created_by = $1 AND state IN ('draft', 'active') ORDER BY lower(title)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let groups: Vec<(Uuid, String)> = sqlx::query_as(
+        "SELECT g.id, g.name FROM group_members gm JOIN groups g ON g.workspace_id = gm.workspace_id AND g.id = gm.group_id
+         WHERE gm.membership_id = $1 ORDER BY lower(g.name)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let reports: Vec<(Uuid, String)> = sqlx::query_as(
+        "SELECT m.id, u.display_name FROM memberships m JOIN users u ON u.id = m.user_id
+         WHERE m.manager_membership_id = $1 AND m.status = 'active' ORDER BY lower(u.display_name)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let grants: Vec<(Uuid, String, String)> = sqlx::query_as(
+        "SELECT g.id, r.name, g.scope_kind FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+         WHERE g.membership_id = $1 AND (g.expires_at IS NULL OR g.expires_at > now()) ORDER BY lower(r.name)",
+    )
+    .bind(id)
+    .fetch_all(&mut *c)
+    .await
+    .map_err(internal)?;
+    let pending: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM campaign_recipients r JOIN campaigns c ON c.workspace_id = r.workspace_id AND c.id = r.campaign_id
+         WHERE r.membership_id = $1 AND r.state = 'pending' AND c.state = 'active'",
+    )
+    .bind(id)
+    .fetch_one(&mut *c)
+    .await
+    .map_err(internal)?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({
+        "reassign_strategy": strategy,
+        "documents": documents.into_iter().map(|(id, title, kind)| json!({"id": id, "title": title, "kind": kind})).collect::<Vec<_>>(),
+        "work_in_progress": work.into_iter().map(|(id, title, v, l)| json!({"artifact_id": id, "title": title, "version_no": v, "lifecycle": l})).collect::<Vec<_>>(),
+        "campaigns": campaigns.into_iter().map(|(id, title, state)| json!({"id": id, "title": title, "state": state})).collect::<Vec<_>>(),
+        "groups": groups.into_iter().map(|(id, name)| json!({"id": id, "name": name})).collect::<Vec<_>>(),
+        "direct_reports": reports.into_iter().map(|(id, name)| json!({"id": id, "display_name": name})).collect::<Vec<_>>(),
+        "grants": grants.into_iter().map(|(id, role, scope)| json!({"id": id, "role": role, "scope_kind": scope})).collect::<Vec<_>>(),
+        "pending_acknowledgements": pending,
+    }))
+    .into_response())
 }
 
 #[derive(Debug, Deserialize)]
