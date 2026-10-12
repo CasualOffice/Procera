@@ -159,3 +159,4 @@
   .catalogue-list { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { .type-go, .type-card { transition: none; } }
+.work-item[aria-current='page'] .work-item-meta, .work-item[aria-current='page'] .work-item-time, .work-item:hover .work-item-meta, .work-item:hover .work-item-time { color: var(--color-text-on-tinted); } /* AA on the tinted selected/hover background */
