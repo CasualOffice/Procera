@@ -60,8 +60,10 @@ test.describe('system policy floors @r1 @ui', () => {
 
       const stepUp = page.getByRole('dialog', { name: 'Confirm it’s you' });
       await expect(stepUp).toBeVisible();
-      // Signing in used the code for the step after `usedStep`; wait for the server's clock to pass it.
-      await expect.poll(async () => Math.floor((await serverNow(request)) / 30_000), { timeout: 45_000 }).toBeGreaterThan(usedStep);
+      // Signing in used the code for the step after `usedStep`; move the (frozen) test clock past it.
+      if (Math.floor((await serverNow(request)) / 30_000) <= usedStep) {
+        expect((await request.post('/__test/clock', { data: { advance: 'PT31S' } })).ok()).toBe(true);
+      }
       await stepUp.getByLabel('Authentication code').fill(totp(sys.secret, await serverNow(request), 1));
       await stepUp.getByRole('button', { name: 'Verify' }).click();
       await expect(page.getByRole('status').filter({ hasText: 'Minimum password length: floor saved' })).toBeVisible();
