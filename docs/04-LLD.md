@@ -348,6 +348,8 @@ Work item state machine (outcome is separate from state; this fixes v0.1 gap A2)
 - `requests` (keyed by instance id) is the listing view: `display_id` (`LR-2026-000123`, per-workspace sequence per prefix and year in `request_sequences`), title, initiator, status (`in_progress`, `changes_requested`, `approved`, `rejected`, `cancelled`, derived after every stimulus from the end node reached or the open revise step) and current step.
 - Work items are created, cancelled and notified by the engine's effect port inside the advance transaction (§4.4 *As built*). Resolution follows §4.6 with these limits: strategy is claim with quorum one; OOO substitution is not built; `directory_rule` resolves to nobody; when nobody is left after SoD and the fallback, the item is created **unassigned** (visible to admins through `GET /work?state=unassigned`) instead of raising `NO_ASSIGNEE` (A-45).
 - A decision locks the instance, then the item: a decided item is `already_decided`, a stale `If-Match` is `precondition_failed`, candidacy and SoD are re-checked, a comment is required to reject or send back.
+- **Reminders and escalations** (BPMS-085): each of the node's `escalations` is armed as a handler timer `<work key>/esc/<n>` (§4.4 *As built*) when the item is created; `at` counts from activation, in business time when the step's `due` is. A decision or a cancelled step cancels them. Firing an open item's timer: `remind` → `work_reminder` to the candidates; `notify` → `work_escalated` to `to`; `reassign` → the candidates become `to` minus SoD exclusions (unchanged when nobody is left), audited `work_item.reassigned` by the system; `outcome` → completed with that outcome (`completed_by` null, `decision.auto`), audited `work_item.decided` by the system, and the instance advances through an `advance` job. Each action is appended to `resolution.history`, which the request timeline shows (`reminded`, `escalated`, `reassigned`).
+- **Admin reassignment** (BPMS-088): `Requests::reassign` replaces an open item's candidates with one active member, re-running SoD (`sod_excluded` field error), keeps the previous holders in `resolution.history`, notifies the new (`work_assigned`) and previous (`work_reassigned`) holders and appends `work_item.reassigned` by the user. No migration: history lives in `resolution`, timers use the existing `reminder`/`escalation` purposes.
 
 ### 2.7 Campaigns: acknowledgements, signatures, announcements
 
@@ -688,6 +690,8 @@ Each advance runs at most 200 node executions and yields with `continue_advance`
 | `timers` | `timer_key` (the command key, unique), `purpose` adds `signal_timeout`, and `fired_at` records lateness. There is no lease or fence: a timer fires under a row lock in one transaction (A-28) |
 | `calendar_versions` | Adds `calendar_ref` (the IR reference, unique). `timezone` is a fixed offset (A-27). Rows are immutable |
 | `sla_clocks` | Adds `clock_key`, `target_text` and `breach` (the SLA's breach actions) |
+
+**Handler timers** (BPMS-085): an effect handler may arm its own timers (`arm_timer`, `TimerPurpose::Reminder`/`Escalation`) and cancel them by key prefix (`cancel_timers_under`). The scheduler hands a due `reminder` or `escalation` timer to `EffectHandler::fire` inside the firing transaction, under a savepoint (a failing handler is logged and rolled back alone); a returned stimulus is applied by an `advance` job keyed `fired:<timer key>`.
 
 `discovery.runtime_due_workspaces(due_by, max)` returns only the ids of workspaces that have a due timer, a due job or an expired lease.
 
