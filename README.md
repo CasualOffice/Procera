@@ -103,8 +103,8 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 
 | Version | What it adds |
 |---|---|
-| **0.1** (now) | The governed-document loop above, polished for small companies |
-| 0.2 | Requests and approvals: leave, expense, purchase, access and onboarding workflows |
+| **0.1** (done) | The governed-document loop above, polished for small companies |
+| **0.2** (now) | Requests and approvals: built-in leave, expense, purchase and access requests are in; onboarding, delegation, reminders and escalations next |
 | 0.3 | Visual workflow designer and template gallery |
 | 0.4 | Automation and integrations: SSO/SCIM, webhooks and API, email approvals, e-signing |
 | 0.5 | Analytics and improvement: reports, process insights, cases and investigations |
