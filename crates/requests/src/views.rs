@@ -100,6 +100,29 @@ pub struct RequestDetail {
     pub steps: Vec<Step>,
     pub timeline: Vec<TimelineEntry>,
     pub sla: Option<Sla>,
+    /// Why it went where it went: each routing decision and each step's assignment (PR-08).
+    pub why: Vec<WhyLine>,
+    /// The program build the request runs on.
+    pub release: Release,
+}
+
+/// One "why this happened" line: plain text and the recorded facts behind it.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct WhyLine {
+    #[serde(with = "time::serde::rfc3339")]
+    pub at: OffsetDateTime,
+    /// The decision or step it explains (display name).
+    pub step: String,
+    pub text: String,
+    /// `kind` is `route`, `assignment`, `excluded`, `substitution` or `unassigned`.
+    pub facts: Value,
+}
+
+/// The program build an instance is pinned to.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Release {
+    pub version: u32,
+    pub checksum: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -115,6 +138,8 @@ pub struct WorkRequest {
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct WorkView {
+    /// Why the step is offered to the viewer, in one line ("You're Ben's manager"; PR-08).
+    pub why_you: Option<String>,
     pub id: Uuid,
     pub request: WorkRequest,
     pub step: String,

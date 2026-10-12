@@ -96,6 +96,7 @@ struct WorkListRow {
     completed_on_behalf_of: Option<Uuid>,
     exclude_initiator: bool,
     exclude_actors_of: Vec<String>,
+    resolution: Value,
 }
 
 /// What the decision path reads under the row lock.
@@ -524,7 +525,10 @@ impl Requests {
         .bind(id)
         .fetch_optional(tx.conn())
         .await?;
+        let (why, release) = crate::why::explain(tx, &rt, id, &summary.initiator.name.clone(), &vars).await?;
         Ok(RequestDetail {
+            why,
+            release,
             summary,
             ended_at,
             fields: Self::priced(&rt.start_form, &vars).fields,
@@ -588,7 +592,7 @@ impl Requests {
                     coalesce((SELECT array_agg(u2.display_name ORDER BY u2.display_name) FROM work_item_candidates c
                               JOIN memberships m2 ON m2.workspace_id = c.workspace_id AND m2.id = c.membership_id
                               JOIN users u2 ON u2.id = m2.user_id WHERE c.work_item_id = w.id), '{{}}') AS assignees,
-                    w.completed_on_behalf_of, w.exclude_initiator, w.exclude_actors_of
+                    w.completed_on_behalf_of, w.exclude_initiator, w.exclude_actors_of, w.resolution
                FROM work_items w JOIN requests r ON r.workspace_id = w.workspace_id AND r.instance_id = w.instance_id
                JOIN process_instances p ON p.workspace_id = w.workspace_id AND p.id = w.instance_id
                JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.initiator_membership_id JOIN users u ON u.id = m.user_id
@@ -637,7 +641,9 @@ impl Requests {
             let form = Self::priced(&rt.task_forms.get(&r.node_id).cloned().unwrap_or_default(), &vars);
             let values = self.display(tx, &form, &vars).await?;
             let open = matches!(r.state.as_str(), "offered" | "claimed");
+            let why_you = crate::why::why_you(tx, &r.resolution, m, &r.initiator_name, &vars).await?;
             out.push(WorkView {
+                why_you,
                 overdue: open && r.due_at.is_some_and(|d| d < now),
                 assignees: r.assignees,
                 id: r.id,

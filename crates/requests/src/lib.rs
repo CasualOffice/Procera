@@ -21,6 +21,7 @@ mod offer;
 pub mod resolve;
 mod service;
 mod views;
+mod why;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -37,7 +38,10 @@ pub use delegation::{Away, OutOfOffice, SetOutOfOffice};
 pub use forms::FieldError;
 pub use offer::Offer;
 pub use service::{Scope, WorkState};
-pub use views::{Decided, Reassigned, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WorkView};
+pub use views::{
+    Decided, Reassigned, Release, RequestDetail, RequestSummary, Started, Step, TimelineEntry, WhyLine,
+    WorkView,
+};
 
 /// The calendar every built-in names (`refs.calendars.default`), seeded per workspace on first use.
 pub const DEFAULT_CALENDAR: &str = "calendar:default@1";

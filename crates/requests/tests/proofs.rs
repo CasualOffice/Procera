@@ -304,3 +304,65 @@ async fn sys03_twenty_concurrent_decisions_on_one_step_have_exactly_one_winner()
     let expected = if winners[0] == "approved" { "approved" } else { "rejected" };
     assert_eq!(status, expected);
 }
+
+#[tokio::test]
+async fn pr08_why_explains_the_threshold_route_and_each_assignment() {
+    let Some(mut w) = world().await else { return };
+    let ana = w.member("Ana Manager", None).await;
+    let ben = w.member("Ben Requester", Some(ana)).await;
+    let fiona = w.member("Fiona", None).await;
+    w.grant("finance.approver", fiona).await;
+    w.grant("finance.approver", ana).await;
+    let input = json!({"amount": {"amount": "640.00", "currency": "EUR"}, "category": "travel",
+                       "description": "Client visit", "expense_date": "2026-10-01"});
+    let id = w.start(ben, "hr.expense-claim", input).await;
+    let step = w.open(ana).await.remove(0);
+    assert_eq!(step.why_you.as_deref(), Some("You're Ben Requester's manager"));
+    w.clock.advance(time::Duration::hours(1));
+    w.decide(ana, "approved").await.unwrap();
+    assert_eq!(w.open(fiona).await.remove(0).why_you.as_deref(), Some("You have the finance.approver role"));
+
+    let mut tx = w.tx().await;
+    let d = w.req.detail(&mut tx, id).await.unwrap();
+    let (version, checksum): (i32, Option<String>) =
+        sqlx::query_as("SELECT process_version, program_checksum FROM process_instances WHERE id = $1")
+            .bind(id)
+            .fetch_one(tx.conn())
+            .await
+            .unwrap();
+    tx.rollback().await.unwrap();
+    assert_eq!((d.release.version, &d.release.checksum), (u32::try_from(version).unwrap(), &checksum));
+    assert!(d.release.checksum.is_some());
+    let texts: Vec<&str> = d.why.iter().map(|l| l.text.as_str()).collect();
+    assert_eq!(
+        texts,
+        [
+            "Ana Manager decides Manager approval as Ben Requester's manager",
+            "Sent to Finance approval because the amount 640.00 EUR is over 500",
+            "Fiona decides Finance approval as holder of the finance.approver role",
+            "Ana Manager is left out of Finance approval because they decided Manager approval (separation of duties)",
+        ]
+    );
+    let route = &d.why[1];
+    assert_eq!(route.step, "Above the finance threshold?");
+    assert_eq!(route.facts["kind"], json!("route"));
+    assert_eq!(route.facts["branch"], json!("finance"));
+    assert_eq!(route.facts["checks"][0]["expression"], json!("amount.amount > 500.0"));
+    assert_eq!(route.facts["inputs"]["amount"]["value"]["amount"], json!("640.00"));
+    assert_eq!(route.facts["release"]["checksum"], json!(checksum));
+    assert_eq!(d.why[0].facts["rule"], json!({ "kind": "manager_of", "of": "initiator", "levels": 1 }));
+
+    // Under the threshold the claim finishes after the manager, and the reason says so.
+    let small = json!({"amount": {"amount": "120.00", "currency": "EUR"}, "category": "meals",
+                       "description": "Lunch", "expense_date": "2026-10-01"});
+    let id = w.start(ben, "hr.expense-claim", small).await;
+    w.decide(ana, "approved").await.unwrap();
+    let mut tx = w.tx().await;
+    let d = w.req.detail(&mut tx, id).await.unwrap();
+    tx.rollback().await.unwrap();
+    assert!(
+        d.why.iter().any(|l| l.text == "Finished as Approved because the amount 120.00 EUR is not over 500"),
+        "{:?}",
+        d.why
+    );
+}

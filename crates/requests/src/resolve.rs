@@ -160,6 +160,64 @@ pub async fn excluded(
     Ok(out)
 }
 
+/// Why SoD excluded each member (the "why this route" facts, PR-08): `{member, reason: requester}`
+/// or `{member, reason: earlier_decider, step}`. Same rules as [`excluded`].
+pub async fn excluded_reasons(
+    tx: &mut WsTx<'_>,
+    instance: Uuid,
+    initiator: Option<Uuid>,
+    exclude_initiator: bool,
+    exclude_actors_of: &[String],
+) -> Result<Vec<Value>, String> {
+    let mut out = Vec::new();
+    if exclude_initiator && let Some(i) = initiator {
+        out.push(json!({ "member": i, "reason": "requester" }));
+    }
+    if !exclude_actors_of.is_empty() {
+        let actors: Vec<(Uuid, String)> = sqlx::query_as(
+            "SELECT completed_by, node_id FROM work_items WHERE instance_id = $1 AND node_id = ANY($2) AND completed_by IS NOT NULL
+              ORDER BY completed_at",
+        )
+        .bind(instance)
+        .bind(exclude_actors_of)
+        .fetch_all(tx.conn())
+        .await
+        .map_err(|e| e.to_string())?;
+        for (m, step) in actors {
+            out.push(json!({ "member": m, "reason": "earlier_decider", "step": step }));
+        }
+    }
+    Ok(out)
+}
+
+/// The rule a candidate stands for, for the "why" facts (PR-08): `{kind: manager_of, of, levels}`,
+/// `requester`, `field`, `expression`, `named`, `group`, `role` or `position`.
+pub fn rule(c: &Candidate) -> Value {
+    match (c.ty, c.reference.as_expr()) {
+        (CandidateType::User, Some(_)) => {
+            let raw = c.reference.0.strip_prefix("expr:").unwrap_or(&c.reference.0);
+            let src = raw.split_once(':').map_or(raw, |(_, s)| s).trim();
+            let mut parts = src.split('.');
+            let root = parts.next().unwrap_or_default();
+            let rest: Vec<&str> = parts.collect();
+            let simple = !root.is_empty() && root.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_');
+            match (simple, root, rest.as_slice()) {
+                (true, _, levels) if !levels.is_empty() && levels.iter().all(|l| *l == "manager") => {
+                    json!({ "kind": "manager_of", "of": root, "levels": levels.len() })
+                }
+                (true, "initiator", []) => json!({ "kind": "requester" }),
+                (true, field, []) => json!({ "kind": "field", "name": field }),
+                _ => json!({ "kind": "expression", "source": src }),
+            }
+        }
+        (CandidateType::User, None) => json!({ "kind": "named" }),
+        (CandidateType::Group, _) => json!({ "kind": "group", "name": c.reference.0 }),
+        (CandidateType::Role, _) => json!({ "kind": "role", "key": c.reference.0 }),
+        (CandidateType::Position, _) => json!({ "kind": "position", "title": c.reference.0 }),
+        (CandidateType::DirectoryRule, _) => json!({ "kind": "expression", "source": c.reference.0 }),
+    }
+}
+
 /// One candidate (an escalation `to`, compiled at `field` on `node`) expanded against the current
 /// directory, minus `excluded`. Only active members count.
 #[allow(clippy::too_many_arguments)]
@@ -188,18 +246,24 @@ pub async fn resolve(
     sod: bool,
 ) -> Result<Resolution, String> {
     let initiator = st.initiator.get("id").and_then(Value::as_str).and_then(|s| Uuid::parse_str(s).ok());
-    let excluded = if sod {
+    let (excluded, excluded_why) = if sod {
         let actors = a.exclude_actors_of.clone().unwrap_or_default();
-        excluded(tx, st.instance_id, initiator, a.exclude_initiator == Some(true), &actors).await?
+        let ex_init = a.exclude_initiator == Some(true);
+        (
+            excluded(tx, st.instance_id, initiator, ex_init, &actors).await?,
+            excluded_reasons(tx, st.instance_id, initiator, ex_init, &actors).await?,
+        )
     } else {
-        BTreeSet::new()
+        (BTreeSet::new(), vec![])
     };
     let mut sources = Vec::new();
     let mut found: BTreeSet<Uuid> = BTreeSet::new();
     for (i, c) in a.candidates.iter().enumerate() {
         let field = format!("{}/candidates/{i}/ref", site.field);
         let members = expand(tx, exe, st, at, site.node, &field, c).await?;
-        sources.push(json!({ "type": c.ty.as_str(), "ref": c.reference.0, "members": members }));
+        sources.push(
+            json!({ "type": c.ty.as_str(), "ref": c.reference.0, "members": members, "rule": rule(c) }),
+        );
         found.extend(members);
     }
     let mut left: Vec<Uuid> = found.difference(&excluded).copied().collect();
@@ -211,7 +275,7 @@ pub async fn resolve(
         let field = format!("{}/fallback/ref", site.field);
         let members = expand(tx, exe, st, at, site.node, &field, f).await?;
         sources.push(
-            json!({ "type": f.ty.as_str(), "ref": f.reference.0, "members": members, "fallback": true }),
+            json!({ "type": f.ty.as_str(), "ref": f.reference.0, "members": members, "fallback": true, "rule": rule(f) }),
         );
         left = members
             .into_iter()
@@ -229,6 +293,7 @@ pub async fn resolve(
     let snapshot = json!({
         "sources": sources,
         "excluded": excluded,
+        "excluded_why": excluded_why,
         "fallback_used": fallback_used,
         "strategy": "claim",
         "substitutions": substitutions,
