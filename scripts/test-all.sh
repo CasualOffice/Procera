@@ -56,7 +56,7 @@ python3 - <<'PY'
 import re, pathlib, sys
 bad = []
 for f in pathlib.Path('.').rglob('*.md'):
-    if any(x in f.parts for x in ('archive', 'node_modules', 'source', 'target')): continue
+    if any(x in f.parts for x in ('archive', 'node_modules', 'source', 'target', '.claude')): continue
     for m in re.finditer(r'\]\(([^)#\s]+)(#[^)]*)?\)', f.read_text()):
         t = m.group(1)
         if not t.startswith(('http', 'mailto')) and not (f.parent / t).exists(): bad.append(f"{f}: {t}")
