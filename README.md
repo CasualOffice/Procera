@@ -35,7 +35,7 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Self-hosting:** Docker Compose stack and guides, email (SMTP) set up from the system console, many workspaces on one server, PostgreSQL row-level isolation per workspace.
 - **Works on phones:** a bottom bar for the everyday pages.
 
-**In progress (0.2):** requests and approvals — leave, expense, purchase and access requests routed to managers and roles. The web side is taking shape: a request catalogue, forms, My requests, a request page with its approval steps and timeline, and a My work inbox to approve, send back or reject. E-signing and cases are designed but **not built yet**.
+- **Requests and approvals (0.2, first slice):** leave, expense, purchase and access requests with forms; approvals routed to the requester's manager, finance, the CFO or IT; a My Work inbox to approve, reject or send back; a request page with steps and timeline. Designing your own workflows, e-signing and cases are planned, **not built yet**.
 
 ## Try it
 
