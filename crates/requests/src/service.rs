@@ -1,7 +1,7 @@
 //! Request and work-item use cases. Every method runs in the caller's workspace transaction, so the
 //! HTTP layer can put the idempotency claim, the change and its audit record in one commit.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use procera_audit::{ActorKind, AuditEvent, Category, Outcome, append};
 use procera_db::WsTx;
@@ -11,6 +11,7 @@ use serde_json::{Map, Value, json};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+use crate::attach::DecisionExtras;
 use crate::catalogue::{Form, RequestType};
 use crate::delegation::{self, Away};
 use crate::forms::{self, FieldError};
@@ -125,7 +126,7 @@ fn history_entry(step: &str, h: &Value) -> Option<TimelineEntry> {
         }
         _ => return None,
     };
-    Some(TimelineEntry { at, kind: kind.into(), text, actor: by })
+    Some(TimelineEntry { at, kind: kind.into(), text, actor: by, files: vec![] })
 }
 
 impl Requests {
@@ -191,6 +192,7 @@ impl Requests {
         input: &Map<String, Value>,
         partial: bool,
         member: &str,
+        files: (Uuid, &BTreeSet<Uuid>),
     ) -> R<BTreeMap<String, Value>> {
         let under =
             |e: Vec<FieldError>| RequestError::Invalid(e.into_iter().map(|e| e.under(member)).collect());
@@ -217,6 +219,7 @@ impl Requests {
                 ));
             }
         }
+        self.attach_values(tx, form, &mut vals, files.0, files.1, &mut errors).await?;
         if errors.is_empty() { Ok(vals) } else { Err(under(errors)) }
     }
 
@@ -243,7 +246,9 @@ impl Requests {
             .cloned()
             .ok_or_else(|| RequestError::Internal(format!("{key} has no build for {}", offer.currency)))?;
         let form = RequestType::priced(&rt.start_form, &offer.currency);
-        let vars = self.values(tx, &form, input, false, "input").await?;
+        let vars =
+            self.values(tx, &form, input, false, "input", (actor.membership, &BTreeSet::new())).await?;
+        let files = crate::attach::in_vars(&form, &vars);
         if let Some(check) = rt.check {
             let errs = check(&vars);
             if !errs.is_empty() {
@@ -263,13 +268,14 @@ impl Requests {
         let who = actor.runtime();
         let a = self.engine.start_in(tx, &program, initiator, vars, Some(who)).await?;
         let started = self.started(tx, a.instance_id).await?;
+        crate::attach::link(tx, a.instance_id, &files, actor.membership, self.clock.now()).await?;
         self.audit(
             tx,
             actor,
             "request.started",
             "request",
             a.instance_id,
-            json!({ "type": key, "display_id": started.display_id }),
+            json!({ "type": key, "display_id": started.display_id, "files": files }),
         )
         .await?;
         Ok(started)
@@ -434,6 +440,7 @@ impl Requests {
             kind: "submitted".into(),
             text: format!("Submitted by {}", summary.initiator.name),
             actor: Some(summary.initiator.name.clone()),
+            files: vec![],
         }];
         let mut steps = Vec::new();
         for r in rows {
@@ -456,7 +463,14 @@ impl Requests {
                         r.13.as_ref().map(|n| format!(" on behalf of {n}")).unwrap_or_default()
                     ),
                 };
-                timeline.push(TimelineEntry { at, kind: "decided".into(), text, actor: r.11.clone() });
+                let ids = r.7.as_ref().map(|d| crate::attach::ids_in(&d["files"])).unwrap_or_default();
+                let source = format!("{} decision", r.2);
+                let files = crate::attach::listed(
+                    tx,
+                    &ids.iter().map(|i| (*i, source.clone(), None)).collect::<Vec<_>>(),
+                )
+                .await?;
+                timeline.push(TimelineEntry { at, kind: "decided".into(), text, actor: r.11.clone(), files });
             }
             for h in r.15.get("history").and_then(Value::as_array).into_iter().flatten() {
                 timeline.extend(history_entry(&r.2, h));
@@ -472,6 +486,7 @@ impl Requests {
                     kind: "delegated".into(),
                     text: format!("{}: {delegate} decides on behalf of {who}, who is away{until}", r.2),
                     actor: None,
+                    files: vec![],
                 });
             }
             steps.push(Step {
@@ -508,6 +523,7 @@ impl Requests {
                 kind: if kind == "cancel" { "cancelled".into() } else { "timer".into() },
                 text,
                 actor: None,
+                files: vec![],
             });
         }
         if let (Some(at), "approved" | "rejected") = (ended_at, summary.status.as_str()) {
@@ -516,6 +532,7 @@ impl Requests {
                 kind: "completed".into(),
                 text: format!("Request {}", summary.status),
                 actor: None,
+                files: vec![],
             });
         }
         timeline.sort_by_key(|t| t.at);
@@ -525,8 +542,12 @@ impl Requests {
         .bind(id)
         .fetch_optional(tx.conn())
         .await?;
+        let attachments = self.attachments(tx, id, &rt.start_form, &vars).await?;
+        let policy = self.policy_for(tx, &summary.ty).await?;
         let (why, release) = crate::why::explain(tx, &rt, id, &summary.initiator.name.clone(), &vars).await?;
         Ok(RequestDetail {
+            attachments,
+            policy,
             why,
             release,
             summary,
@@ -642,6 +663,8 @@ impl Requests {
             let values = self.display(tx, &form, &vars).await?;
             let open = matches!(r.state.as_str(), "offered" | "claimed");
             let why_you = crate::why::why_you(tx, &r.resolution, m, &r.initiator_name, &vars).await?;
+            let attachments = self.attachments(tx, r.instance_id, &rt.start_form, &vars).await?;
+            let policy = if open { self.policy_for(tx, &r.process_key).await? } else { None };
             out.push(WorkView {
                 why_you,
                 overdue: open && r.due_at.is_some_and(|d| d < now),
@@ -668,6 +691,8 @@ impl Requests {
                 outcome: r.outcome,
                 completed_at: r.completed_at,
                 on_behalf_of,
+                attachments,
+                policy,
             });
         }
         Ok(out)
@@ -723,6 +748,24 @@ impl Requests {
         outcome: &str,
         comment: Option<&str>,
         fields: &Map<String, Value>,
+    ) -> R<Decided> {
+        self.decide_with(tx, actor, work_id, if_match, outcome, comment, fields, &DecisionExtras::default())
+            .await
+    }
+
+    /// [`Requests::decide`] with files attached to the decision and the policy version the decider
+    /// was shown (`None`: the type's current published policy, if it names one).
+    #[allow(clippy::too_many_arguments)]
+    pub async fn decide_with(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        work_id: Uuid,
+        if_match: i64,
+        outcome: &str,
+        comment: Option<&str>,
+        fields: &Map<String, Value>,
+        extras: &DecisionExtras,
     ) -> R<Decided> {
         let instance: Uuid = sqlx::query_scalar("SELECT instance_id FROM work_items WHERE id = $1")
             .bind(work_id)
@@ -798,9 +841,16 @@ impl Requests {
                 .await?;
         let current: BTreeMap<String, Value> = serde_json::from_value(state).unwrap_or_default();
         let form = Self::priced(&rt.task_forms.get(&node).cloned().unwrap_or_default(), &current);
-        let vars = self.values(tx, &form, fields, true, "fields").await?;
+        let existing: BTreeSet<Uuid> = current.values().flat_map(crate::attach::ids_in).collect();
+        let vars = self.values(tx, &form, fields, true, "fields", (actor.membership, &existing)).await?;
+        let mut linked = crate::attach::in_vars(&form, &vars);
+        let decision_files = self.decision_files(tx, &extras.files, actor.membership).await?;
+        linked.extend(crate::attach::ids_in(&json!(decision_files)));
+        let policy = self.shown_policy(tx, &process_key, extras.policy_version).await?;
         let now = self.clock.now();
-        let decision = json!({ "comment": comment, "fields": fields });
+        let decision =
+            json!({ "comment": comment, "fields": fields, "files": decision_files, "policy": policy });
+        crate::attach::link(tx, instance, &linked, actor.membership, now).await?;
         sqlx::query(
             "UPDATE work_items SET state = 'completed', outcome = $2, decision = $3, completed_at = $4, completed_by = $5,
                     completed_on_behalf_of = $6, revision = revision + 1
@@ -827,7 +877,10 @@ impl Requests {
             "work_item.decided",
             "work_item",
             work_id,
-            json!({ "outcome": outcome, "request": instance, "step": node, "on_behalf_of": on_behalf_of }),
+            json!({
+                "outcome": outcome, "request": instance, "step": node, "on_behalf_of": on_behalf_of,
+                "files": linked, "policy_version": policy.as_ref().map(|p| p.version_id),
+            }),
         )
         .await?;
         Ok(Decided {

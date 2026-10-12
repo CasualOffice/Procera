@@ -71,6 +71,12 @@ struct DecisionReq {
     comment: Option<String>,
     #[serde(default)]
     fields: Map<String, Value>,
+    /// Files attached with the decision (uploaded by the decider, clean).
+    #[serde(default)]
+    files: Vec<Uuid>,
+    /// The published policy version the decider was shown.
+    #[serde(default)]
+    policy_version: Option<Uuid>,
 }
 
 fn if_match(headers: &HeaderMap) -> Option<i64> {
@@ -120,7 +126,16 @@ async fn decide(
         }
     }
     let d = requests(&s)?
-        .decide(&mut tx, &actor(&me, &headers), id, rev, &r.outcome, r.comment.as_deref(), &r.fields)
+        .decide_with(
+            &mut tx,
+            &actor(&me, &headers),
+            id,
+            rev,
+            &r.outcome,
+            r.comment.as_deref(),
+            &r.fields,
+            &procera_requests::DecisionExtras { files: r.files, policy_version: r.policy_version },
+        )
         .await?;
     let out = serde_json::to_value(&d).map_err(internal)?;
     if let Some(k) = &key {

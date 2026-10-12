@@ -12,6 +12,7 @@ publish.workspace = true
 procera-audit.workspace = true
 procera-db.workspace = true
 procera-engine.workspace = true
+procera-files.workspace = true
 procera-ir.workspace = true
 procera-kernel.workspace = true
 procera-members.workspace = true

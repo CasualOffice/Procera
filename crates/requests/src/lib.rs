@@ -12,12 +12,14 @@
 //! Permissions are checked by the caller (HTTP layer, Cedar); this crate enforces candidacy, SoD,
 //! the lifecycle and "involved" visibility facts.
 
+pub mod attach;
 pub mod catalogue;
 pub mod delegation;
 mod escalate;
 pub mod forms;
 pub mod handler;
 mod offer;
+pub mod policy;
 pub mod preview;
 pub mod resolve;
 mod service;
@@ -34,10 +36,12 @@ use procera_members::Members;
 use procera_notify::Notify;
 use uuid::Uuid;
 
+pub use attach::{Attachment, DecisionExtras};
 pub use catalogue::{Catalogue, Field, Form, RequestType};
 pub use delegation::{Away, OutOfOffice, SetOutOfOffice};
 pub use forms::FieldError;
 pub use offer::Offer;
+pub use policy::PolicyRef;
 pub use preview::Preview;
 pub use service::{Scope, WorkState};
 pub use views::{

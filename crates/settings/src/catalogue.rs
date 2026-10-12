@@ -61,6 +61,11 @@ pub enum Kind {
     Audiences {
         items: &'static [&'static str],
     },
+    /// One id per listed item, as `{item: id}` (e.g. the policy that governs a request type); an
+    /// item that is not in the map has none.
+    ItemIds {
+        items: &'static [&'static str],
+    },
 }
 
 /// How "stricter" is decided for a floor-bound key (docs/20 §1 rule 2).
@@ -359,6 +364,10 @@ pub const CATALOGUE: &[Def] = &[
         Some(SETTINGS),
         || json!({}),
     ),
+    // The policy or SOP (a Library artifact id) shown to deciders of each request type.
+    def("requests.types.policy", "requests", Kind::ItemIds { items: REQUEST_TYPES }, Some(SETTINGS), || {
+        json!({})
+    }),
     def("requests.currency", "requests", Kind::Enum { values: CURRENCIES }, Some(SETTINGS), || json!("EUR")),
     // 2.9 Notifications
     def(

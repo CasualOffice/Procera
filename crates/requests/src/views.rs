@@ -77,6 +77,9 @@ pub struct TimelineEntry {
     pub kind: String,
     pub text: String,
     pub actor: Option<String>,
+    /// Files attached with a decision.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<crate::attach::Attachment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -100,6 +103,10 @@ pub struct RequestDetail {
     pub steps: Vec<Step>,
     pub timeline: Vec<TimelineEntry>,
     pub sla: Option<Sla>,
+    /// Files in the form's file fields and files attached with decisions.
+    pub attachments: Vec<crate::attach::Attachment>,
+    /// The policy or SOP the workspace links to this type (current published version).
+    pub policy: Option<crate::policy::PolicyRef>,
     /// Why it went where it went: each routing decision and each step's assignment (PR-08).
     pub why: Vec<WhyLine>,
     /// The program build the request runs on.
@@ -165,6 +172,10 @@ pub struct WorkView {
     pub completed_at: Option<OffsetDateTime>,
     /// The away member this item is (or was) decided for, when the caller acts as their delegate.
     pub on_behalf_of: Option<Away>,
+    /// Files on the request (form fields and earlier decisions).
+    pub attachments: Vec<crate::attach::Attachment>,
+    /// The linked policy as shown to the decider (open items).
+    pub policy: Option<crate::policy::PolicyRef>,
 }
 
 /// The result of an admin reassignment.

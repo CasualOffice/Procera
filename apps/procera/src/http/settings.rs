@@ -334,6 +334,29 @@ async fn update(
         return Err(ApiError::new(422, "validation_failed", "Validation failed")
             .detail("the logo must be a clean PNG, JPEG, GIF or WebP image uploaded to this workspace"));
     }
+    // The policy linked to a request type must be a policy or SOP of this workspace with a
+    // published version.
+    if matches!(d.kind, procera_settings::catalogue::Kind::ItemIds { .. }) && key == "requests.types.policy" {
+        let ids: Vec<Uuid> = r
+            .value
+            .as_object()
+            .into_iter()
+            .flat_map(|o| o.values())
+            .filter_map(|v| v.as_str().and_then(|s| s.parse().ok()))
+            .collect();
+        let known: i64 = sqlx::query_scalar(
+            "SELECT count(*) FROM artifacts WHERE id = ANY($1) AND kind IN ('policy', 'sop') AND current_published_version_id IS NOT NULL",
+        )
+        .bind(&ids)
+        .fetch_one(tx.conn())
+        .await
+        .map_err(internal)?;
+        let distinct = ids.iter().collect::<std::collections::BTreeSet<_>>().len();
+        if known != i64::try_from(distinct).unwrap_or(i64::MAX) {
+            return Err(ApiError::new(422, "validation_failed", "Validation failed")
+                .detail("pick a published policy or SOP from this workspace's library"));
+        }
+    }
     // Per-item audiences must name departments and groups of this workspace.
     if matches!(d.kind, procera_settings::catalogue::Kind::Audiences { .. }) {
         let (deps, groups) = procera_settings::audiences::referenced(&r.value);

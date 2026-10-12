@@ -145,6 +145,22 @@ pub fn validate(d: &Def, v: &Value) -> Result<Value, SettingsError> {
             _ => Err(invalid(d, "expected the id of an uploaded image, or empty for none")),
         },
         Kind::Audiences { items } => audiences::validate(items, v).map_err(|m| invalid(d, m)),
+        Kind::ItemIds { items } => {
+            let o = v.as_object().ok_or_else(|| invalid(d, "expected an object of item → id"))?;
+            let mut out = serde_json::Map::new();
+            for (k, id) in o {
+                if !items.contains(&k.as_str()) {
+                    return Err(invalid(d, format!("unknown item {k}")));
+                }
+                match id.as_str().and_then(|s| uuid::Uuid::parse_str(s).ok()) {
+                    Some(id) => {
+                        out.insert(k.clone(), json!(id.to_string()));
+                    }
+                    None => return Err(invalid(d, format!("{k}: expected an id"))),
+                }
+            }
+            Ok(Value::Object(out))
+        }
         // The catalogue bounds and `terms` agree (asserted in the catalogue test).
         Kind::Terms { .. } => terms::validate(v).map_err(|m| invalid(d, m)),
         Kind::DurationList { min, max, max_items } => {

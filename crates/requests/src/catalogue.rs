@@ -25,7 +25,7 @@ use serde_json::Value;
 use crate::forms::FieldError;
 
 /// One form field (BPMS-101 subset): `type` is `string`, `text`, `enum`, `money`, `date`,
-/// `number`, `boolean` or `principal` (a member id).
+/// `number`, `boolean`, `principal` (a member id) or `file` (uploaded file ids; `multiple` for a list).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Field {
     pub name: String,
@@ -39,6 +39,9 @@ pub struct Field {
     /// Currency of a money field: the workspace's `requests.currency` when served.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
+    /// A `file` field that takes several files.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub multiple: bool,
 }
 
 fn options_with_labels<S: serde::Serializer>(opts: &Option<Vec<String>>, ser: S) -> Result<S::Ok, S::Error> {
@@ -141,6 +144,8 @@ struct Def {
     ir: &'static str,
     /// Start-form variables in order, with labels.
     labels: &'static [(&'static str, &'static str)],
+    /// Optional file fields added to the authored IR (a list of files each), after `labels`.
+    files: &'static [(&'static str, &'static str)],
     /// Human steps whose people may edit fields: node → variables. `*` = the whole start form.
     tasks: &'static [(&'static str, &'static [&'static str])],
     revise: Option<&'static str>,
@@ -189,6 +194,7 @@ const DEFS: &[Def] = &[
             ("end_date", "Last day"),
             ("reason", "Reason"),
         ],
+        files: &[("supporting_document", "Supporting document"), ("attachments", "Attachments")],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -216,6 +222,7 @@ const DEFS: &[Def] = &[
             ("description", "What was it for?"),
             ("expense_date", "Date of the expense"),
         ],
+        files: &[("receipts", "Receipts"), ("attachments", "Attachments")],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -236,6 +243,7 @@ const DEFS: &[Def] = &[
             ("cost_center", "Cost centre"),
             ("justification", "Justification"),
         ],
+        files: &[("quote", "Quote"), ("attachments", "Attachments")],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -257,6 +265,7 @@ const DEFS: &[Def] = &[
             ("beneficiary", "Who needs access?"),
             ("justification", "Why is it needed?"),
         ],
+        files: &[("attachments", "Attachments")],
         tasks: &[("revise", &["*"]), ("provision", &["ticket_ref"])],
         revise: Some("revise"),
         end_status: &[("end_granted", "approved"), ("end_rejected", "rejected")],
@@ -275,6 +284,7 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
         .iter()
         .find(|v| v.name == name)
         .ok_or_else(|| format!("{}: form field {name} is not a declared variable", ir.process.key))?;
+    let mut multiple = false;
     let (ty, options, currency) = match &v.ty {
         VarType::Scalar(ScalarType::String) => ("string", None, None),
         VarType::Scalar(ScalarType::Text) => ("text", None, None),
@@ -284,6 +294,11 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
         VarType::Scalar(ScalarType::Principal) => ("principal", None, None),
         VarType::Enum { values } => ("enum", Some(values.clone()), None),
         VarType::Money { money } => ("money", None, money.currency.clone()),
+        VarType::Scalar(ScalarType::File) => ("file", None, None),
+        VarType::List { list } if **list == VarType::Scalar(ScalarType::File) => {
+            multiple = true;
+            ("file", None, None)
+        }
         other => {
             return Err(format!("{}: field {name} has a type forms cannot show: {other:?}", ir.process.key));
         }
@@ -295,6 +310,7 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
         required: v.required == Some(true),
         options,
         currency,
+        multiple,
     })
 }
 
@@ -342,6 +358,19 @@ fn money_currency(doc: &Value) -> Option<String> {
         .find_map(|v| v["type"]["money"]["currency"].as_str().map(str::to_owned))
 }
 
+/// The document with an optional list-of-files variable for each of `files` (A-28: internal).
+fn with_files(doc: &Value, files: &[(&str, &str)]) -> Value {
+    let mut d = doc.clone();
+    if let Some(vars) = d["variables"].as_array_mut() {
+        for (name, _) in files {
+            vars.push(
+                serde_json::json!({ "name": name, "type": { "list": "file" }, "classification": "internal" }),
+            );
+        }
+    }
+    d
+}
+
 /// The document with every money variable priced in `currency`.
 fn in_currency(doc: &Value, currency: &str) -> Value {
     let mut d = doc.clone();
@@ -372,10 +401,16 @@ impl Catalogue {
         let mut programs = Programs::default();
         let mut types = Vec::new();
         for d in DEFS {
-            let doc: Value = serde_json::from_str(d.ir).map_err(|e| format!("{}: {e}", d.key))?;
+            let authored: Value = serde_json::from_str(d.ir).map_err(|e| format!("{}: {e}", d.key))?;
+            let doc = with_files(&authored, d.files);
             let program = build(d.key, &doc)?;
             let start_form = Form {
-                fields: d.labels.iter().map(|(n, l)| field(&program, n, l)).collect::<Result<_, _>>()?,
+                fields: d
+                    .labels
+                    .iter()
+                    .chain(d.files)
+                    .map(|(n, l)| field(&program, n, l))
+                    .collect::<Result<_, _>>()?,
             };
             let mut task_forms = BTreeMap::new();
             for (node, names) in d.tasks {
@@ -420,6 +455,18 @@ impl Catalogue {
                     variants.insert((*cur).to_owned(), r);
                 }
             }
+            // Builds without the file fields stay loadable (after the current ones, which stay the
+            // default), so requests started before attachments keep the program they pinned.
+            let legacy: Vec<Value> = match &money {
+                Some(_) => procera_settings::catalogue::CURRENCIES
+                    .iter()
+                    .map(|c| in_currency(&authored, c))
+                    .collect(),
+                None => vec![authored.clone()],
+            };
+            for doc in &legacy {
+                programs.insert(Executable::new(build(d.key, doc)?));
+            }
             types.push(Arc::new(RequestType {
                 key: d.key,
                 prefix: d.prefix,
@@ -460,8 +507,8 @@ impl Catalogue {
 mod tests {
     use super::*;
 
-    #[test]
-    fn every_builtin_compiles_and_pins_its_checksum() {
+    #[tokio::test]
+    async fn every_builtin_compiles_and_pins_its_checksum() {
         let c = Catalogue::builtin().unwrap_or_else(|e| panic!("{e}"));
         assert_eq!(c.list().len(), 4);
         for t in c.list() {
@@ -471,7 +518,9 @@ mod tests {
         }
         let leave = c.get("hr.leave-request").unwrap_or_else(|| panic!("leave"));
         let kinds: Vec<&str> = leave.start_form.fields.iter().map(|f| f.ty).collect();
-        assert_eq!(kinds, ["enum", "date", "date", "text"]);
+        assert_eq!(kinds, ["enum", "date", "date", "text", "file", "file"]);
+        assert!(leave.start_form.fields[5].multiple && !leave.start_form.fields[5].required);
+        assert_eq!(leave.task_forms["revise"].fields.len(), 6, "a sent-back request can change its files");
         assert!(!leave.start_form.fields[3].required);
         let pr = c.get("fin.purchase-requisition").unwrap_or_else(|| panic!("pr"));
         assert_eq!(pr.start_form.fields[0].currency.as_deref(), Some("EUR"));
@@ -491,5 +540,14 @@ mod tests {
         );
         let ar = c.get("it.access-request").unwrap_or_else(|| panic!("ar"));
         assert_eq!(ar.task_forms["provision"].fields[0].name, "ticket_ref");
+        // Builds from before the file fields still load, for requests pinned to them.
+        let authored: Value = serde_json::from_str(DEFS[1].ir).unwrap_or_default();
+        let old = build("x", &in_currency(&authored, "USD")).unwrap_or_else(|e| panic!("{e}"));
+        let mut r = c.get("hr.expense-claim").unwrap_or_else(|| panic!("ec")).program.clone();
+        assert_ne!(r.checksum.as_deref(), old.checksum());
+        r.checksum = old.checksum().map(str::to_owned);
+        let ws = procera_db::WsCtx { workspace_id: uuid::Uuid::nil() };
+        let found = c.programs().load(ws, &r).await;
+        assert_eq!(found.map(|e| e.program.checksum().map(str::to_owned)), Ok(r.checksum.clone()));
     }
 }

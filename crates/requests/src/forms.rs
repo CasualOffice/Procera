@@ -55,6 +55,15 @@ pub fn validate(
                     errors.push(FieldError::new(&f.name, "required", "This field is required"));
                 }
             }
+            Some(Value::Array(a)) if a.is_empty() && f.ty == "file" => {
+                if f.required && !partial {
+                    errors.push(FieldError::new(&f.name, "required", "Attach a file"));
+                }
+                // An explicit empty list clears the field (a resubmit that removes every file).
+                if partial {
+                    out.insert(f.name.clone(), json!([]));
+                }
+            }
             Some(Value::String(s)) if s.trim().is_empty() && f.ty != "money" => {
                 if f.required && !partial {
                     errors.push(FieldError::new(&f.name, "required", "This field is required"));
@@ -134,6 +143,29 @@ fn value(f: &Field, v: &Value) -> Result<Value, (&'static str, String)> {
                 return Err(bad("Only amount and currency are allowed"));
             }
             Ok(json!({ "amount": amount.to_string(), "currency": currency }))
+        }
+        "file" => {
+            // Ids (or `{id}` objects sent back on a resubmit); the caller checks the files themselves.
+            let items: Vec<&Value> = match v {
+                Value::Array(a) if f.multiple => a.iter().collect(),
+                Value::Array(_) => return Err(bad("Attach one file")),
+                one => vec![one],
+            };
+            if items.len() > crate::attach::MAX_FILES {
+                return Err(("too_many", format!("Attach at most {} files", crate::attach::MAX_FILES)));
+            }
+            let mut ids: Vec<String> = Vec::new();
+            for i in items {
+                let id = i.get("id").unwrap_or(i);
+                let id = id
+                    .as_str()
+                    .and_then(|s| uuid::Uuid::parse_str(s).ok())
+                    .ok_or_else(|| bad("Must be uploaded files"))?;
+                if !ids.contains(&id.to_string()) {
+                    ids.push(id.to_string());
+                }
+            }
+            Ok(if f.multiple { json!(ids) } else { json!(ids.first()) })
         }
         other => Err(("invalid", format!("Unsupported field type {other}"))),
     }

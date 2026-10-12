@@ -83,8 +83,9 @@ async fn allowed(
     Ok(members(s)?.access().check(tx, membership, perm, &Resource::Workspace).await?.allowed)
 }
 
-/// Whether `membership` may see a file: its uploader, `file:view_all`, or a reader of a document
-/// version it is attached to (A-14 visibility applies).
+/// Whether `membership` may see a file: its uploader, `file:view_all`, a reader of a document
+/// version it is attached to (A-14 visibility applies), or someone who may open a request it is
+/// attached to (`request:view_all`, or involved in it).
 async fn can_view(
     s: &AppState,
     tx: &mut procera_db::WsTx<'_>,
@@ -97,6 +98,15 @@ async fn can_view(
     }
     let lib = s.library.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
     for (object_type, object_id) in files(s)?.links_of(tx, id).await? {
+        if object_type == "request" {
+            let r = super::requests::requests(s)?;
+            if allowed(s, tx, membership, "request:view_all").await?
+                || r.involved(tx, object_id, membership).await?
+            {
+                return Ok(true);
+            }
+            continue;
+        }
         if object_type != "artifact_version" {
             continue;
         }
