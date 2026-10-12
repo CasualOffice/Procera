@@ -4,7 +4,7 @@ import { expect, test } from '../../fixtures/test-controls';
 import { WEB, axe, nav, signIn } from '../../fixtures/ui';
 import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R2-UI-01..04 — requests and approvals through the web UI (BPMS-103/105): an employee submits a
+// E2E-R2-UI-01..05 — requests and approvals through the web UI (BPMS-103/105): an employee submits a
 // leave request, their manager approves it from Home and My work, and the employee sees the step
 // history; an expense is sent back and resubmitted; a missing required answer shows on its field;
 // axe on the catalogue, the form, the request page and My work.
@@ -235,5 +235,48 @@ test.describe('requests and approvals @r2 @ui', () => {
     await mgr.getByRole('navigation', { name: 'Open work' }).getByRole('link').first().click();
     await expect(mgr.getByRole('region', { name: 'Your decision' })).toBeVisible();
     await axe(mgr);
+  });
+
+  test('E2E-R2-UI-05 an admin reassigns an unassigned step from Requests oversight; a separation-of-duties refusal shows on the person field', async ({ page, request }) => {
+    const { ws, owner, ownerEmail } = await workspaceWithOwner(request);
+    const ana = await person(request, owner, ws.id, 'Ana Manager');
+    const cara = await person(request, owner, ws.id, 'Cara Nomanager'); // no manager, no process owner: unassigned
+    const leave = await requestType(cara.session, /leave|time off/i);
+    const day = inTwoWeeks();
+    const started = await cara.session.c.post('/api/v1/requests', {
+      headers: { ...cara.session.headers, 'idempotency-key': `ui05-${Date.now()}` },
+      data: { type: leave.key, input: { leave_type: 'annual', start_date: day, end_date: day } },
+    });
+    expect(started.status(), await started.text()).toBe(201);
+    const { id, display_id } = await started.json();
+
+    await signIn(page, ownerEmail, owner.recovery[0]!);
+    await expect(page.getByRole('heading', { name: 'Needs attention' })).toBeVisible();
+    await page.getByRole('link', { name: /request step has nobody to decide/ }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Requests oversight' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Unassigned' })).toHaveAttribute('aria-current', 'page');
+    await axe(page);
+    const row = page.getByRole('row').filter({ hasText: display_id });
+    await row.getByRole('button', { name: /^Reassign/ }).click();
+    const dialog = page.getByRole('dialog', { name: 'Reassign step' });
+    await expect(dialog).toBeVisible();
+
+    // The requester can't take her own step.
+    await dialog.getByRole('button', { name: /Person/ }).click();
+    await page.getByRole('option', { name: /Cara Nomanager/ }).click();
+    await dialog.getByRole('textbox', { name: /^Reason/ }).fill('She knows the dates');
+    await dialog.getByRole('button', { name: 'Reassign', exact: true }).click();
+    await expect(dialog.getByText('They started this request, so separation of duties keeps them off this step')).toBeVisible();
+
+    await dialog.getByRole('button', { name: /Person/ }).click();
+    await page.getByRole('option', { name: /Ana Manager/ }).click();
+    await dialog.getByRole('button', { name: 'Reassign', exact: true }).click();
+    await expect(page.getByText(`${display_id} is now with Ana Manager.`)).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: display_id })).toHaveCount(0);
+
+    const work = await (await ana.session.c.get('/api/v1/work?state=open', { headers: ana.session.headers })).json();
+    expect((work.items as { request: { id: string } }[]).map((w) => w.request.id)).toContain(id);
+    await page.goto(`${WEB}/requests/${id}`);
+    await expect(page.getByText(/Reassigned: Manager approval to Ana Manager by .* \(She knows the dates\)/)).toBeVisible();
   });
 });

@@ -15,8 +15,8 @@ export interface Person { id: string; name: string }
 export interface RequestRow { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; current_step: string | null; assignees: string[]; created_at: string; updated_at: string; initiator: Person }
 export type StepState = 'waiting' | 'active' | 'done' | 'skipped' | 'cancelled';
 export interface Step { name: string; state: StepState; assignees: string[]; decided_by?: string | null; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
-export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; actor?: string | null; text: string }[]; sla_due_at?: string | null; can_cancel: boolean }
-export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null }
+export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string }[]; sla_due_at?: string | null; can_cancel: boolean }
+export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[] }
 
 export const STATUS_TAG: Record<RequestStatus, { label: string; color: TagColor }> = {
   in_progress: { label: 'In progress', color: 'blue' },
@@ -57,9 +57,11 @@ export function people(names: string[]): string {
 
 const DAY = 86_400_000;
 /** Due wording for a work item or step: overdue, today, in N days. */
-export function dueInfo(iso: string | null | undefined): { label: string; color: TagColor; overdue: boolean } | null {
+export function dueInfo(iso: string | null | undefined, notOverdue = false): { label: string; color: TagColor; overdue: boolean } | null {
   if (!iso) return null;
   const ms = Date.parse(iso) - Date.now();
+  // The server's clock decides overdue when it has said so (it may differ from this device's).
+  if (ms < 0 && notOverdue) return { label: 'Due today', color: 'orange', overdue: false };
   if (ms < 0) return { label: 'Overdue', color: 'red', overdue: true };
   const days = Math.ceil(ms / DAY);
   return { label: days <= 1 ? 'Due today' : `Due in ${days} days`, color: days <= 2 ? 'orange' : 'gray', overdue: false };

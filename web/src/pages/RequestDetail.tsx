@@ -83,7 +83,7 @@ export function RequestDetail({ id }: { id: string }) {
             {r.timeline.length === 0 ? <p className="muted">Nothing has happened yet.</p> : (
               <ol className="req-timeline">
                 {[...r.timeline].reverse().map((t, i) => (
-                  <li key={`${t.at}-${i}`}>
+                  <li key={`${t.at}-${i}`} data-kind={t.kind}>
                     <span className="req-timeline-dot" aria-hidden="true" />
                     <span className="req-timeline-text">{t.actor && !t.text.includes(t.actor) && <strong>{t.actor} </strong>}{t.text}</span>
                     <time dateTime={t.at} title={when(t.at)}>{timeAgo(t.at)}</time>

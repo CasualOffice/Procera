@@ -69,6 +69,8 @@
 .req-timeline li:last-child::before { bottom: calc(100% - 0.875rem); }
 .req-timeline-dot { position: absolute; left: 0; top: 0.75rem; width: 0.5625rem; height: 0.5625rem; border-radius: 50%; background: var(--color-surface); border: 2px solid var(--color-border-strong); box-sizing: border-box; }
 .req-timeline-text { flex: 1; min-width: 0; }
+.req-timeline li[data-kind='escalated'] .req-timeline-dot { border-color: var(--color-warning); }
+.req-timeline li[data-kind='reassigned'] .req-timeline-dot, .req-timeline li[data-kind='reminded'] .req-timeline-dot { border-color: var(--color-text-secondary); }
 .req-timeline strong { color: var(--color-text); font-weight: var(--font-weight-medium); }
 .req-timeline time { flex: none; font-size: 0.75rem; }
 

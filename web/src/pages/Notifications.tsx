@@ -1,4 +1,4 @@
-import { Bell, BookOpenCheck, Check, CheckCheck, CircleCheck, Inbox, Megaphone, Send, Settings2, UserPlus } from 'lucide-react';
+import { AlarmClock, ArrowRightLeft, Bell, BookOpenCheck, Check, CheckCheck, CircleAlert, CircleCheck, Inbox, Megaphone, Send, Settings2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type LoadFailure, toFailure } from '../lib/data';
@@ -22,6 +22,9 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   review_requested: { icon: BookOpenCheck, tone: 'blue' },
   review_decided: { icon: BookOpenCheck, tone: 'blue' },
   work_assigned: { icon: Inbox, tone: 'green' },
+  work_reminder: { icon: AlarmClock, tone: 'orange' },
+  work_escalated: { icon: CircleAlert, tone: 'red' },
+  work_reassigned: { icon: ArrowRightLeft, tone: 'blue' },
   request_decided: { icon: Send, tone: 'blue' },
   request_completed: { icon: CircleCheck, tone: 'green' },
 };
@@ -29,8 +32,8 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
 /** A link for kinds whose payload has no `link`, from ids in it (requests and work items). */
 function fallbackLink(n: Notification): string | null {
   const d = n.data ?? {};
-  if (n.kind === 'work_assigned' && d.work_item_id) return `/work/${d.work_item_id}`;
-  if ((n.kind === 'request_decided' || n.kind === 'request_completed' || n.kind === 'work_assigned') && d.request_id) return `/requests/${d.request_id}`;
+  if ((n.kind === 'work_assigned' || n.kind === 'work_reminder') && d.work_item_id) return `/work/${d.work_item_id}`;
+  if (['request_decided', 'request_completed', 'work_assigned', 'work_reminder', 'work_escalated', 'work_reassigned'].includes(n.kind) && d.request_id) return `/requests/${d.request_id}`;
   return n.kind === 'announcement' ? '/announcements' : null;
 }
 
