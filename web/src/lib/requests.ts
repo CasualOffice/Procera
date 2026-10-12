@@ -34,6 +34,7 @@ const OUTCOMES: Record<string, { verb: string; past: string; tone: 'primary' | '
   send_back: { verb: 'Send back', past: 'Sent back', tone: 'secondary' },
   rejected: { verb: 'Reject', past: 'Rejected', tone: 'reject' },
   reject: { verb: 'Reject', past: 'Rejected', tone: 'reject' },
+  submitted: { verb: 'Resubmit', past: 'Resubmitted', tone: 'primary' },
   resubmitted: { verb: 'Resubmit', past: 'Resubmitted', tone: 'primary' },
   resubmit: { verb: 'Resubmit', past: 'Resubmitted', tone: 'primary' },
   completed: { verb: 'Mark done', past: 'Done', tone: 'primary' },

@@ -109,7 +109,7 @@ async fn types(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiE
             })
         })
         .collect();
-    Ok(Json(items).into_response())
+    Ok(Json(json!({ "items": items })).into_response())
 }
 
 #[derive(Debug, Deserialize)]

@@ -77,7 +77,7 @@ test.describe('requests @r2 @requests', () => {
     const { ws, owner } = await workspaceWithOwner(request);
     const [boss, ann] = [await joinAs(request, owner, ws.id, 'boss'), await joinAs(request, owner, ws.id, 'ann')];
     await reportsTo(owner, ann, boss);
-    const types = await (await ann.c.get('/api/v1/request-types', { headers: ann.headers })).json();
+    const types = (await (await ann.c.get('/api/v1/request-types', { headers: ann.headers })).json()).items;
     expect(types.map((t: { key: string }) => t.key)).toEqual(expect.arrayContaining(['hr.leave-request', 'hr.expense-claim', 'fin.purchase-requisition', 'it.access-request']));
     const lr = types.find((t: { key: string }) => t.key === 'hr.leave-request');
     expect(lr.form.fields.map((f: { name: string; type: string }) => `${f.name}:${f.type}`)).toEqual(['leave_type:enum', 'start_date:date', 'end_date:date', 'reason:text']);
