@@ -8,7 +8,9 @@ import type { TagColor } from '../ui/Tag';
  */
 
 export type FieldType = 'string' | 'text' | 'enum' | 'money' | 'date' | 'number' | 'boolean' | 'principal' | 'file';
-export interface FormField { name: string; label: string; type: FieldType; required?: boolean; options?: { value: string; label: string }[]; help?: string; currency?: string; multiple?: boolean }
+/** Form-builder rules (BPMS-101); the server applies them too. */
+export interface FieldRules { min?: string; max?: string; max_length?: number; visible_when?: { field: string; equals: unknown } }
+export interface FormField { name: string; label: string; type: FieldType; required?: boolean; options?: { value: string; label: string }[]; help?: string; currency?: string; multiple?: boolean; rules?: FieldRules; default?: unknown; classification?: string }
 export interface RequestType { key: string; name: string; description: string; category: string; icon?: string; form: { fields: FormField[] } }
 export type RequestStatus = 'in_progress' | 'approved' | 'rejected' | 'cancelled' | 'changes_requested' | 'completed';
 export interface Person { id: string; name: string }

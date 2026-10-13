@@ -34,7 +34,7 @@ export const CATEGORIES: { id: Category; label: string }[] = [
   { id: 'hr', label: 'HR' }, { id: 'finance', label: 'Finance' }, { id: 'it', label: 'IT' }, { id: 'operations', label: 'Operations' }, { id: 'other', label: 'Other' },
 ];
 export interface StudioRequest { name: string; description: string; category: Category; prefix: string }
-export interface Content { ir: IrDocument; studio: { request: StudioRequest; fields: Record<string, { label: string; help?: string }>; [k: string]: unknown } }
+export interface Content { ir: IrDocument; studio: { request: StudioRequest; fields: Record<string, { label: string; help?: string; rules?: FieldRules; default?: unknown }>; [k: string]: unknown } }
 
 /* ------------------------------------------------------------------ fields */
 
@@ -57,9 +57,23 @@ export interface Field {
   /** Choice values (shown as written). */
   options: string[];
   currency: string;
+  /** Form-builder rules (BPMS-101): the server applies them too. */
+  rules: FieldRules;
+  /** The value the form starts with. */
+  default?: unknown;
+  /** `public`, `internal`, `confidential` or `restricted` (docs/11 §5). */
+  classification: string;
   /** The variable as read, so classification, readers and unknown types survive a round trip. */
   base: IrVariable;
 }
+
+export interface FieldRules { min?: string; max?: string; max_length?: number; visible_when?: { field: string; equals: unknown } }
+export const CLASSIFICATIONS = [
+  { id: 'public', label: 'Public', hint: 'Fine to show anyone in the workspace.' },
+  { id: 'internal', label: 'Internal', hint: 'People who can see the request.' },
+  { id: 'confidential', label: 'Confidential', hint: 'Marked with a lock; kept out of exports by default.' },
+  { id: 'restricted', label: 'Restricted', hint: 'Never in notifications, logs or search; only the people on the request see it.' },
+] as const;
 
 function kindOf(type: unknown): { kind: FieldKind; options: string[]; currency: string } {
   const none = { options: [] as string[], currency: 'EUR' };
@@ -358,7 +372,8 @@ export function fromContent(content: Partial<Content> | null | undefined, fallba
   const labels = studio?.fields ?? {};
   const fields: Field[] = (ir.variables ?? []).map((v) => {
     const k = kindOf(v.type);
-    return { name: v.name, label: labels[v.name]?.label ?? v.name.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), help: labels[v.name]?.help ?? '', kind: k.kind, required: v.required === true, options: k.options, currency: k.currency, base: v };
+    const st = labels[v.name] as { label?: string; help?: string; rules?: FieldRules; default?: unknown } | undefined;
+    return { name: v.name, label: st?.label ?? v.name.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), help: st?.help ?? '', kind: k.kind, required: v.required === true, options: k.options, currency: k.currency, rules: st?.rules ?? {}, default: st?.default, classification: String(v.classification ?? 'internal'), base: v };
   });
   const request: StudioRequest = { ...BLANK_REQUEST, name: ir.process.name?.en ?? fallbackName, ...(studio?.request ?? {}) };
   // A built-in's category arrives as its display name ("HR"); the studio's are ids.
@@ -515,13 +530,21 @@ export function toContent(m: Model, key: string, version: number): Content {
 }
 
 function toVariable(f: Field): IrVariable {
-  const v: IrVariable = { ...f.base, name: f.name, type: typeOf(f), classification: f.base.classification ?? 'internal' };
+  const v: IrVariable = { ...f.base, name: f.name, type: typeOf(f), classification: f.classification || 'internal' };
   if (f.required) v.required = true; else delete v.required;
   return v;
 }
 
 function studioFields(fields: Field[]): Content['studio']['fields'] {
-  return Object.fromEntries(fields.map((f) => [f.name, f.help.trim() ? { label: f.label.trim() || f.name, help: f.help.trim() } : { label: f.label.trim() || f.name }]));
+  return Object.fromEntries(fields.map((f) => {
+    const rules = Object.fromEntries(Object.entries(f.rules ?? {}).filter(([, v]) => v !== undefined && v !== '' && v !== null));
+    return [f.name, {
+      label: f.label.trim() || f.name,
+      ...(f.help.trim() ? { help: f.help.trim() } : {}),
+      ...(Object.keys(rules).length ? { rules } : {}),
+      ...(f.default !== undefined && f.default !== '' ? { default: f.default } : {}),
+    }];
+  }));
 }
 
 /* ------------------------------------------------------------ editing */
@@ -595,7 +618,7 @@ export function setRequest(m: Model, patch: Partial<StudioRequest>): Model {
 /** Adds a form field; its variable name comes from the label once and then stays. */
 export function addField(m: Model, label: string, kind: Exclude<FieldKind, 'other'>, options: string[] = []): [Model, string] {
   const name = unique(slug(label, 'field'), new Set(m.fields.map((f) => f.name)));
-  const f: Field = { name, label: label.trim(), help: '', kind, required: false, options: kind === 'enum' ? options : [], currency: 'EUR', base: { name, type: kind, classification: 'internal' } };
+  const f: Field = { name, label: label.trim(), help: '', kind, required: false, options: kind === 'enum' ? options : [], currency: 'EUR', rules: {}, classification: 'internal', base: { name, type: kind, classification: 'internal' } };
   return [{ ...m, fields: [...m.fields, f] }, name];
 }
 

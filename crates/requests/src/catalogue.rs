@@ -42,6 +42,47 @@ pub struct Field {
     /// A `file` field that takes several files.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub multiple: bool,
+    /// Help shown under the field (form builder, BPMS-101).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub help: Option<String>,
+    /// Checks the server applies as well as the form (BPMS-101).
+    #[serde(skip_serializing_if = "Rules::is_empty")]
+    pub rules: Rules,
+    /// A value the form starts with.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default: Option<Value>,
+    /// `public`, `internal`, `confidential` or `restricted` (docs/11 §5), from the variable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub classification: Option<String>,
+}
+
+/// Field rules from the form builder. A field with `visible_when` is asked only when another
+/// field has a given value; while hidden it is never required and any value sent is dropped.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, serde::Deserialize)]
+pub struct Rules {
+    /// Smallest number or amount allowed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub min: Option<String>,
+    /// Largest number or amount allowed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max: Option<String>,
+    /// Longest text allowed (within the type's own limit).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_length: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visible_when: Option<VisibleWhen>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
+pub struct VisibleWhen {
+    pub field: String,
+    pub equals: Value,
+}
+
+impl Rules {
+    pub fn is_empty(&self) -> bool {
+        *self == Self::default()
+    }
 }
 
 fn options_with_labels<S: serde::Serializer>(opts: &Option<Vec<String>>, ser: S) -> Result<S::Ok, S::Error> {
@@ -405,6 +446,12 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
         options,
         currency,
         multiple,
+        help: None,
+        rules: Rules::default(),
+        default: None,
+        classification: v.classification.map(|c| {
+            serde_json::to_value(c).ok().and_then(|x| x.as_str().map(str::to_owned)).unwrap_or_default()
+        }),
     })
 }
 
@@ -429,8 +476,15 @@ fn published_type(key: &str, version: i32, checksum: &str, content: &Value) -> R
             .ir()
             .variables
             .iter()
-            .map(|v| field(&program, &v.name, &label_of(&v.name)))
-            .collect::<Result<_, _>>()?,
+            .map(|v| {
+                let mut f = field(&program, &v.name, &label_of(&v.name))?;
+                let st = &studio["fields"][&v.name];
+                f.help = st["help"].as_str().filter(|h| !h.trim().is_empty()).map(str::to_owned);
+                f.rules = serde_json::from_value(st["rules"].clone()).unwrap_or_default();
+                f.default = st.get("default").filter(|d| !d.is_null()).cloned();
+                Ok(f)
+            })
+            .collect::<Result<_, String>>()?,
     };
     let revise_node = program.node("revise").map(|_| "revise".to_owned());
     let mut task_forms = BTreeMap::new();
@@ -478,6 +532,20 @@ fn published_type(key: &str, version: i32, checksum: &str, content: &Value) -> R
         version: u32::try_from(version).unwrap_or(0),
         checksum: Some(checksum.to_owned()),
     };
+    // One build per supported currency, as for the built-ins; the program source re-derives each
+    // from the release bundle by its checksum.
+    let mut variants = BTreeMap::new();
+    if let Some(authored) = &money {
+        for cur in procera_settings::catalogue::CURRENCIES {
+            let r = if cur == authored {
+                pinned.clone()
+            } else {
+                let p = build(key, &in_currency(ir, cur))?;
+                ProgramRef { checksum: p.checksum().map(str::to_owned), ..pinned.clone() }
+            };
+            variants.insert((*cur).to_owned(), r);
+        }
+    }
     Ok(RequestType {
         key: key.to_owned(),
         prefix: if prefix.len() >= 2 { prefix } else { "RQ".to_owned() },
@@ -488,7 +556,7 @@ fn published_type(key: &str, version: i32, checksum: &str, content: &Value) -> R
         program: pinned,
         exe: Arc::new(Executable::new(program)),
         money,
-        variants: BTreeMap::new(),
+        variants,
         start_form,
         task_forms,
         revise_node,

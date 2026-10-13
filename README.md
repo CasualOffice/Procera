@@ -117,7 +117,7 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 |---|---|
 | **0.1** (done) | The governed-document loop above, polished for small companies |
 | **0.2** | Requests and approvals: built-in leave, expense, purchase, access and employee onboarding requests, reminders, escalations, out of office and request settings are in |
-| **0.3** (now) | Guided Studio: design a process from a template or blank (form fields, approval and task steps, who, deadlines and reminders, conditions), validate it, test-run it with sample answers, and publish it — it then appears under New request. Release bundles pin every published version. Next: flow canvas, form builder |
+| **0.3** (now) | Guided Studio: design a process from a template or blank (form fields, approval and task steps, who, deadlines and reminders, conditions), validate it, test-run it with sample answers, and publish it — it then appears under New request. The form builder adds help, defaults, ranges, longest answers, “show only when” questions and data classification, with a desktop/phone preview; the server enforces the same rules. Release bundles pin every published version. Next: flow canvas, “who will this go to” |
 | 0.4 | Automation and integrations: SSO/SCIM, webhooks and API, email approvals, e-signing |
 | 0.5 | Analytics and improvement: reports, process insights, cases and investigations |
 | **1.0** | Hardened, audited, multi-language |

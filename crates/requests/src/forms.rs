@@ -49,6 +49,13 @@ pub fn validate(
         .collect();
     let mut out = BTreeMap::new();
     for f in &form.fields {
+        // A field shown only when another has a value: while hidden it isn't asked, so it is never
+        // required and anything sent for it is dropped (form builder, BPMS-101).
+        if let Some(w) = &f.rules.visible_when
+            && !shown(input.get(&w.field), &w.equals)
+        {
+            continue;
+        }
         match input.get(&f.name) {
             None | Some(Value::Null) => {
                 if f.required && !partial {
@@ -69,7 +76,7 @@ pub fn validate(
                     errors.push(FieldError::new(&f.name, "required", "This field is required"));
                 }
             }
-            Some(v) => match value(f, v) {
+            Some(v) => match value(f, v).and_then(|v| ruled(f, v)) {
                 Ok(v) => {
                     out.insert(f.name.clone(), v);
                 }
@@ -78,6 +85,46 @@ pub fn validate(
         }
     }
     if errors.is_empty() { Ok(out) } else { Err(errors) }
+}
+
+/// Whether a `visible_when` holds: the other field's answer equals the value (text compared as
+/// written, numbers and booleans by value).
+fn shown(answer: Option<&Value>, equals: &Value) -> bool {
+    match (answer, equals) {
+        (Some(Value::String(a)), Value::String(e)) => a.trim() == e.trim(),
+        (Some(a), e) => a == e,
+        (None, _) => false,
+    }
+}
+
+/// The field's own rules (min, max, max length), after its type is checked.
+fn ruled(f: &Field, v: Value) -> Result<Value, (&'static str, String)> {
+    let r = &f.rules;
+    if let Some(max) = r.max_length
+        && let Some(s) = v.as_str()
+        && matches!(f.ty, "string" | "text")
+        && s.chars().count() > max
+    {
+        return Err(("too_long", format!("Must be at most {max} characters")));
+    }
+    let amount = match f.ty {
+        "number" => v.as_str().and_then(|s| Decimal::from_str(s).ok()),
+        "money" => v.get("amount").and_then(Value::as_str).and_then(|s| Decimal::from_str(s).ok()),
+        _ => None,
+    };
+    if let Some(n) = amount {
+        if let Some(min) = r.min.as_deref().and_then(|m| Decimal::from_str(m).ok())
+            && n < min
+        {
+            return Err(("minimum", format!("Must be at least {min}")));
+        }
+        if let Some(max) = r.max.as_deref().and_then(|m| Decimal::from_str(m).ok())
+            && n > max
+        {
+            return Err(("maximum", format!("Must be at most {max}")));
+        }
+    }
+    Ok(v)
 }
 
 fn value(f: &Field, v: &Value) -> Result<Value, (&'static str, String)> {
@@ -243,5 +290,46 @@ mod tests {
         // A partial step form accepts absent required fields but still rejects unknown ones.
         assert!(validate(&form("hr.leave-request"), &obj(json!({})), true).is_ok());
         assert!(validate(&form("hr.leave-request"), &obj(json!({"x": 1})), true).is_err());
+    }
+
+    #[test]
+    fn form_builder_rules_hold_on_the_server() {
+        use crate::catalogue::{Rules, VisibleWhen};
+        let mut f = form("hr.expense-claim");
+        let amount = f.fields.iter_mut().find(|x| x.name == "amount").unwrap_or_else(|| panic!("amount"));
+        amount.rules = Rules { min: Some("10".into()), max: Some("2000".into()), ..Rules::default() };
+        let desc =
+            f.fields.iter_mut().find(|x| x.name == "description").unwrap_or_else(|| panic!("description"));
+        desc.rules = Rules {
+            max_length: Some(5),
+            visible_when: Some(VisibleWhen { field: "category".into(), equals: json!("travel") }),
+            ..Rules::default()
+        };
+        desc.required = true;
+        let base = |amount: &str, category: &str, d: Option<&str>| {
+            let mut v = json!({"amount": {"amount": amount, "currency": "EUR"}, "category": category, "expense_date": "2026-10-01"});
+            if let Some(d) = d {
+                v["description"] = json!(d);
+            }
+            obj(v)
+        };
+        let codes = |r: Result<BTreeMap<String, Value>, Vec<FieldError>>| -> Vec<String> {
+            r.err().unwrap_or_default().into_iter().map(|e| format!("{}:{}", e.pointer, e.code)).collect()
+        };
+        assert_eq!(codes(validate(&f, &base("5", "travel", Some("Taxi")), false)), ["/amount:minimum"]);
+        assert_eq!(codes(validate(&f, &base("5000", "travel", Some("Taxi")), false)), ["/amount:maximum"]);
+        assert_eq!(
+            codes(validate(&f, &base("50", "travel", Some("Too long")), false)),
+            ["/description:too_long"]
+        );
+        assert_eq!(
+            codes(validate(&f, &base("50", "travel", None), false)),
+            ["/description:required"],
+            "shown: required"
+        );
+        // Hidden (not travel): not required, and a value sent for it is dropped.
+        let ok = validate(&f, &base("50", "meals", Some("Lunch with the team")), false)
+            .unwrap_or_else(|e| panic!("{e:?}"));
+        assert!(!ok.contains_key("description"));
     }
 }

@@ -283,3 +283,4 @@
 .bulk-preview li.is-failed .bulk-state { color: var(--color-danger); }
 .bulk-main { display: flex; flex-direction: column; min-width: 0; }
 .bulk-sub { color: var(--color-text-secondary); font-size: 0.75rem; }
+.field-lock { display: inline-flex; align-items: center; margin-left: 0.375rem; color: var(--color-text-secondary); vertical-align: middle; }

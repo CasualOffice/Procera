@@ -130,7 +130,7 @@ FEATURES = [
                   "Nobody approves their own request; one decision wins when two people act at once; every step is in the audit trail",
                   "Reminders before and at the due date; overdue manager approvals move up to the next manager, others alert the requester's manager",
                   "Admins see unassigned and overdue steps and reassign them with a reason (separation of duties still applies)",
-                  "Guided Studio: a step builder for owners, with validation in plain language and test runs before publishing; the flow canvas and form builder come next",
+                  "Guided Studio: a step builder for owners, with validation in plain language and test runs before publishing, plus a form builder with help, ranges, “show only when” questions, data classification and a phone preview; the flow canvas comes next",
                   "A conversation on every request: comments, internal notes the requester never sees, @mentions and watchers",
                   "Operations view: technical incidents kept apart from people problems, retried or dismissed with a reason in the audit log",
                   "Team workload for managers: who holds what, what is overdue, who is away with work waiting, and bulk reassign within the team",

@@ -209,6 +209,7 @@ For each screen: **Purpose · User · Components · States · Interactions · Mo
 - **Bindings:** fields bind to process variables. Unbound fields are flagged.
 - **Preview** as a specific role, to see field-level redaction.
 - **Accessibility built in:** labels are mandatory, error text sits next to the field, and logical tab order is checked by a lint.
+- **As built (0.3, BPMS-101):** the form builder lives in the designer's “Form fields” card. Each question has a label, type, required, help, default (“Starts with”), allowed range for number/money, longest answer for text, one visibility rule (“Show only when” another question equals a value; no expression builder yet) and classification (“Who may see the answer”, lock icon on confidential/restricted). **Preview** opens the real request form at desktop or phone width; preview-as-role, tables/repeating groups, sections and the tab-order lint come later. The server applies the same rules on submit.
 
 ### 3.7 Template gallery and install wizard
 - **Gallery:** cards with industry and domain filters, a "Wave 1 / recommended" badge, framework alignment tags, and a preview (diagram, form, SOP skeleton, KPIs).

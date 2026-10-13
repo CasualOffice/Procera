@@ -1,3 +1,4 @@
+import { Lock } from 'lucide-react';
 import { FieldError, Input, Label, NumberField, Text, TextArea, TextField as AriaTextField } from 'react-aria-components';
 import type { Member } from '../lib/data';
 import type { FormField } from '../lib/requests';
@@ -17,11 +18,25 @@ export type Values = Record<string, unknown>;
 
 const Required = ({ on }: { on?: boolean }) => (on ? <span aria-hidden="true" className="field-required"> *</span> : null);
 
+/** Whether a field is asked now: a `visible_when` rule holds for the current answers (BPMS-101). */
+export function isShown(f: FormField, values: Values): boolean {
+  const w = f.rules?.visible_when;
+  if (!w) return true;
+  const a = values[w.field];
+  return typeof a === 'string' || typeof w.equals === 'string' ? String(a ?? '').trim() === String(w.equals ?? '').trim() : a === w.equals;
+}
+export const shownFields = (fields: FormField[], values: Values) => fields.filter((f) => isShown(f, values));
+
+/** A lock for confidential and restricted answers, so people know they are protected. */
+const Lockmark = ({ c }: { c?: string }) => (c === 'confidential' || c === 'restricted'
+  ? <span className="field-lock" title={c === 'restricted' ? 'Restricted: only the people this request names can see it' : 'Confidential'}><Lock aria-hidden="true" size="0.75rem" /><span className="visually-hidden">{c}</span></span>
+  : null);
+
 /** Form state from submitted input (prefill on resubmit): money objects become plain amounts. */
 export function valuesFrom(fields: FormField[], input: Record<string, unknown> = {}): Values {
   const out: Values = {};
   for (const f of fields) {
-    const v = input[f.name];
+    const v = input[f.name] ?? f.default;
     if (f.type === 'file') out[f.name] = pickedFrom(v);
     else if (f.type === 'money') out[f.name] = v && typeof v === 'object' ? Number((v as { amount?: string }).amount) : v === undefined || v === null || v === '' ? NaN : Number(v);
     else if (f.type === 'number') out[f.name] = v === undefined || v === null || v === '' ? NaN : Number(v);
@@ -36,7 +51,7 @@ const empty = (f: FormField, v: unknown) => (f.type === 'file' ? !Array.isArray(
 /** Client-side required checks: `{field: message}` for each required field left empty. */
 export function requiredErrors(fields: FormField[], values: Values): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const f of fields) if (f.required && empty(f, values[f.name])) out[f.name] = f.type === 'boolean' ? 'Tick this to continue.' : f.type === 'file' ? 'Attach a file.' : `Enter ${f.label.toLowerCase()}.`;
+  for (const f of shownFields(fields, values)) if (f.required && empty(f, values[f.name])) out[f.name] = f.type === 'boolean' ? 'Tick this to continue.' : f.type === 'file' ? 'Attach a file.' : `Enter ${f.label.toLowerCase()}.`;
   // Files still scanning (or blocked) hold the form back, whether the field is required or not.
   for (const f of fields) {
     const p = f.type === 'file' && Array.isArray(values[f.name]) ? fileProblem(values[f.name] as PickedFile[]) : null;
@@ -48,7 +63,7 @@ export function requiredErrors(fields: FormField[], values: Values): Record<stri
 /** The API's `input`: money as `{amount, currency}` (docs/08 §1) when the currency is known, empty values left out. */
 export function toInput(fields: FormField[], values: Values): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  for (const f of fields) {
+  for (const f of shownFields(fields, values)) {
     const v = values[f.name];
     // File fields always go (an empty list clears them on a resubmit).
     if (f.type === 'file') { const ids = (Array.isArray(v) ? (v as PickedFile[]) : []).flatMap((x) => (x.id ? [x.id] : [])); out[f.name] = f.multiple === false ? (ids[0] ?? null) : ids; continue; }
@@ -71,15 +86,15 @@ export function RequestFields({ fields, values, onChange, members, errors = {}, 
 }) {
   return (
     <>
-      {fields.map((f) => {
+      {shownFields(fields, values).map((f) => {
         const v = values[f.name];
         const common = { name: f.name, isRequired: !!f.required };
         switch (f.type) {
           case 'text':
             return (
               <AriaTextField key={f.name} {...common} className="field" value={String(v ?? '')} onChange={(x) => onChange(f.name, x)}>
-                <Label className="field-label">{f.label}<Required on={f.required} /></Label>
-                <TextArea className="field-input req-textarea" rows={4} />
+                <Label className="field-label">{f.label}<Required on={f.required} /><Lockmark c={f.classification} /></Label>
+                <TextArea className="field-input req-textarea" rows={4} maxLength={f.rules?.max_length} />
                 {f.help && <Text slot="description" className="field-description">{f.help}</Text>}
                 <FieldError className="field-error" />
               </AriaTextField>
@@ -103,9 +118,10 @@ export function RequestFields({ fields, values, onChange, members, errors = {}, 
           case 'money':
           case 'number':
             return (
-              <NumberField key={f.name} {...common} className="field" value={typeof v === 'number' ? v : NaN} onChange={(x) => onChange(f.name, x)} minValue={f.type === 'money' ? 0 : undefined}
+              <NumberField key={f.name} {...common} className="field" value={typeof v === 'number' ? v : NaN} onChange={(x) => onChange(f.name, x)}
+                minValue={f.rules?.min !== undefined ? Number(f.rules.min) : f.type === 'money' ? 0 : undefined} maxValue={f.rules?.max !== undefined ? Number(f.rules.max) : undefined}
                 formatOptions={f.type === 'money' ? (f.currency ? { style: 'currency', currency: f.currency } : { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : { maximumFractionDigits: 6 }}>
-                <Label className="field-label">{f.label}<Required on={f.required} /></Label>
+                <Label className="field-label">{f.label}<Required on={f.required} /><Lockmark c={f.classification} /></Label>
                 <Input className="field-input req-number" />
                 {f.help && <Text slot="description" className="field-description">{f.help}</Text>}
                 <FieldError className="field-error" />
@@ -126,7 +142,7 @@ export function RequestFields({ fields, values, onChange, members, errors = {}, 
               </div>
             );
           default:
-            return <TextField key={f.name} {...common} label={f.label} description={f.help} value={String(v ?? '')} onChange={(x) => onChange(f.name, x)} />;
+            return <TextField key={f.name} {...common} label={f.label} description={f.help} value={String(v ?? '')} onChange={(x) => onChange(f.name, x)} maxLength={f.rules?.max_length} />;
         }
       })}
     </>

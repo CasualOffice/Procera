@@ -1,4 +1,4 @@
-import { AlignLeft, ArrowDown, ArrowUp, Banknote, Calendar, ChevronRight, CircleAlert, Hash, List, Paperclip, Plus, ToggleLeft, Trash2, Type, UserRound, X, type LucideIcon } from 'lucide-react';
+import { AlignLeft, ArrowDown, ArrowUp, Eye, Banknote, Calendar, ChevronRight, CircleAlert, Hash, List, Paperclip, Plus, ToggleLeft, Trash2, Type, UserRound, X, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { Form } from 'react-aria-components';
 import { Button } from '../../ui/components/Button';
@@ -7,7 +7,8 @@ import { FormDialog } from '../../ui/components/FormDialog';
 import { Select } from '../../ui/components/Select';
 import { TextField } from '../../ui/components/TextField';
 import type { Problem } from './api';
-import { CATEGORIES, CURRENCIES, FIELD_KINDS, type Category, type Field, type FieldKind, type Model, type StudioRequest } from './model';
+import { CATEGORIES, CLASSIFICATIONS, CURRENCIES, FIELD_KINDS, type Category, type Field, type FieldKind, type FieldRules, type Model, type StudioRequest } from './model';
+import { FormPreview } from './FormPreview';
 import { LongText } from './parts';
 
 const KIND_ICON: Record<FieldKind, LucideIcon> = { string: Type, text: AlignLeft, number: Hash, money: Banknote, date: Calendar, boolean: ToggleLeft, enum: List, principal: UserRound, files: Paperclip, other: Hash };
@@ -29,6 +30,7 @@ export function RequestPanel({ model, readOnly, onRequest, onAddField, onField, 
   problems: Map<string, Problem[]>;
 }) {
   const [adding, setAdding] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const r = model.request;
   return (
     <>
@@ -52,7 +54,10 @@ export function RequestPanel({ model, readOnly, onRequest, onAddField, onField, 
             <h2 id="studio-fields-h" className="studio-card-title">Form fields</h2>
             <p className="studio-card-sub">What people tell you when they ask.</p>
           </div>
-          {!readOnly && <Button variant="secondary" className="btn-sm" onPress={() => setAdding(true)}><Plus aria-hidden="true" size="0.875rem" /> Add field</Button>}
+          <span className="studio-card-actions">
+            {model.fields.length > 0 && <Button variant="ghost" className="btn-sm" onPress={() => setPreviewing(true)}><Eye aria-hidden="true" size="0.875rem" /> Preview</Button>}
+            {!readOnly && <Button variant="secondary" className="btn-sm" onPress={() => setAdding(true)}><Plus aria-hidden="true" size="0.875rem" /> Add field</Button>}
+          </span>
         </div>
         {model.fields.length ? (
           <ol className="studio-fields" aria-label="Form fields">
@@ -71,7 +76,7 @@ export function RequestPanel({ model, readOnly, onRequest, onAddField, onField, 
                   {errs.map((p, j) => <p key={j} className="step-problem"><CircleAlert aria-hidden="true" size="0.875rem" /><span><span className="visually-hidden">Problem: </span>{p.message}</span></p>)}
                   {isOpen && (
                     <div id={`field-${f.name}`} className="studio-field-edit" role="group" aria-label={`Edit ${f.label || f.name}`}>
-                      <FieldEditor field={f} readOnly={readOnly} onChange={(p) => onField(f.name, p)} />
+                      <FieldEditor field={f} others={model.fields.filter((x) => x.name !== f.name)} readOnly={readOnly} onChange={(p) => onField(f.name, p)} />
                       {!readOnly && (
                         <div className="studio-field-actions">
                           <button type="button" className="icon-btn" aria-label={`Move ${f.label || f.name} up`} disabled={i === 0} onClick={() => onMoveField(f.name, -1)}><ArrowUp aria-hidden="true" size="0.875rem" /></button>
@@ -90,12 +95,18 @@ export function RequestPanel({ model, readOnly, onRequest, onAddField, onField, 
           <p className="studio-card-empty">No questions yet. Add the first thing people should tell you, like what they need and why.</p>
         )}
       </section>
+      {previewing && <FormPreview request={model.request} fields={model.fields} onClose={() => setPreviewing(false)} />}
       {adding && <AddField onClose={() => setAdding(false)} onAdd={(l, k, o, req) => { onAddField(l, k, o, req); setAdding(false); }} taken={new Set(model.fields.map((f) => f.label.trim().toLowerCase()))} />}
     </>
   );
 }
 
-function FieldEditor({ field: f, readOnly, onChange }: { field: Field; readOnly: boolean; onChange: (p: Partial<Omit<Field, 'name' | 'base'>>) => void }) {
+function FieldEditor({ field: f, others, readOnly, onChange }: { field: Field; others: Field[]; readOnly: boolean; onChange: (p: Partial<Omit<Field, 'name' | 'base'>>) => void }) {
+  const rule = (p: Partial<FieldRules>) => onChange({ rules: { ...f.rules, ...p } });
+  // "Show only when" can depend on a choice or yes/no answer.
+  const triggers = others.filter((o) => o.kind === 'enum' || o.kind === 'boolean');
+  const when = f.rules.visible_when;
+  const trigger = triggers.find((t) => t.name === when?.field);
   return (
     <>
       <TextField label="Label" value={f.label} onChange={(label) => onChange({ label })} isReadOnly={readOnly} maxLength={120} isRequired />
@@ -117,6 +128,47 @@ function FieldEditor({ field: f, readOnly, onChange }: { field: Field; readOnly:
         </div>
       )}
       <Checkbox isSelected={f.required} isDisabled={readOnly} onChange={(required) => onChange({ required })}>Required</Checkbox>
+      {(f.kind === 'number' || f.kind === 'money') && (
+        <div className="studio-pair" role="group" aria-label="Allowed range">
+          <TextField label="Smallest" value={f.rules.min ?? ''} isReadOnly={readOnly} inputMode="decimal" onChange={(v) => rule({ min: v.trim() || undefined })} />
+          <TextField label="Largest" value={f.rules.max ?? ''} isReadOnly={readOnly} inputMode="decimal" onChange={(v) => rule({ max: v.trim() || undefined })} />
+        </div>
+      )}
+      {(f.kind === 'string' || f.kind === 'text') && (
+        <TextField label="Longest answer (characters)" value={f.rules.max_length ? String(f.rules.max_length) : ''} isReadOnly={readOnly} inputMode="numeric"
+          onChange={(v) => rule({ max_length: /^\d+$/.test(v.trim()) ? Number(v.trim()) : undefined })} description="Optional. Leave empty for the usual limit." />
+      )}
+      {(f.kind === 'string' || f.kind === 'text' || f.kind === 'number' || f.kind === 'date') && (
+        <TextField label="Starts with (optional)" type={f.kind === 'date' ? 'date' : 'text'} value={f.default === undefined ? '' : String(f.default)} isReadOnly={readOnly}
+          onChange={(v) => onChange({ default: v === '' ? undefined : f.kind === 'number' ? Number(v) : v })} />
+      )}
+      {f.kind === 'enum' && f.options.some((o) => o.trim()) && (
+        <Select label="Starts with (optional)" selectedKey={f.default === undefined ? '__none' : String(f.default)} isDisabled={readOnly}
+          onSelectionChange={(k) => onChange({ default: k === '__none' || k === null ? undefined : String(k) })}
+          options={[{ id: '__none', label: 'Nothing chosen' }, ...f.options.filter((o) => o.trim()).map((o) => ({ id: o, label: o }))]} />
+      )}
+      {triggers.length > 0 && (
+        <div className="studio-when" role="group" aria-label="Show only when">
+          <Select label="Show only when" selectedKey={when?.field ?? '__always'} isDisabled={readOnly}
+            onSelectionChange={(k) => {
+              const t = triggers.find((x) => x.name === k);
+              rule({ visible_when: t ? { field: t.name, equals: t.kind === 'boolean' ? true : (t.options.find((o) => o.trim()) ?? '') } : undefined });
+            }}
+            options={[{ id: '__always', label: 'Always ask' }, ...triggers.map((t) => ({ id: t.name, label: `“${t.label}” is…` }))]} />
+          {trigger && trigger.kind === 'enum' && (
+            <Select label={`Value of ${trigger.label}`} selectedKey={String(when?.equals ?? '')} isDisabled={readOnly}
+              onSelectionChange={(k) => rule({ visible_when: { field: trigger.name, equals: String(k ?? '') } })}
+              options={trigger.options.filter((o) => o.trim()).map((o) => ({ id: o, label: o }))} />
+          )}
+          {trigger && trigger.kind === 'boolean' && (
+            <Select label={`Value of ${trigger.label}`} selectedKey={when?.equals === false ? 'no' : 'yes'} isDisabled={readOnly}
+              onSelectionChange={(k) => rule({ visible_when: { field: trigger.name, equals: k === 'yes' } })}
+              options={[{ id: 'yes', label: 'Yes (ticked)' }, { id: 'no', label: 'No' }]} />
+          )}
+        </div>
+      )}
+      <Select label="Who may see the answer" selectedKey={f.classification} isDisabled={readOnly} onSelectionChange={(k) => k && onChange({ classification: String(k) })}
+        description={CLASSIFICATIONS.find((c) => c.id === f.classification)?.hint} options={CLASSIFICATIONS.map((c) => ({ id: c.id, label: c.label }))} />
     </>
   );
 }

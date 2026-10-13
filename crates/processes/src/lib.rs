@@ -308,22 +308,42 @@ impl DbPrograms {
         let row: Option<(String, Value)> = sqlx::query_as(
             "SELECT b.program_checksum, v.content FROM release_bundles b
                JOIN artifact_versions v ON v.workspace_id = b.workspace_id AND v.id = b.process_version_id
-              WHERE b.process_key = $1 AND b.version_no = $2 AND ($3::text IS NULL OR b.program_checksum = $3)
+              WHERE b.process_key = $1 AND b.version_no = $2
               ORDER BY b.created_at DESC LIMIT 1",
         )
         .bind(&p.process_key)
         .bind(i32::try_from(p.version).unwrap_or(i32::MAX))
-        .bind(&p.checksum)
         .fetch_optional(tx.conn())
         .await
         .map_err(|e| e.to_string())?;
         tx.rollback().await.map_err(|e| e.to_string())?;
-        let (checksum, content) =
+        let (bundled, content) =
             row.ok_or_else(|| format!("no published program {}@{}", p.process_key, p.version))?;
-        if let Some(hit) = self.cache.lock().map_err(|e| e.to_string())?.get(&checksum) {
+        let want = p.checksum.clone().unwrap_or_else(|| bundled.clone());
+        if let Some(hit) = self.cache.lock().map_err(|e| e.to_string())?.get(&want) {
             return Ok(hit.clone());
         }
-        let out = compile(ir_of(&content), &CompileContext::default());
+        // The bundled build, or one of its re-pricings in a supported currency (a workspace whose
+        // currency differs from the one the process was designed in): both come from the bundle.
+        let ir = ir_of(&content);
+        let candidates: Vec<Value> = if want == bundled {
+            vec![ir.clone()]
+        } else {
+            procera_settings::catalogue::CURRENCIES.iter().map(|c| in_currency(ir, c)).collect()
+        };
+        for doc in &candidates {
+            let program = self.build(p, doc)?;
+            if program.checksum() == Some(want.as_str()) {
+                let exe = Arc::new(Executable::new(program));
+                self.cache.lock().map_err(|e| e.to_string())?.insert(want, exe.clone());
+                return Ok(exe);
+            }
+        }
+        Err(format!("{}@{}: the program does not match its release bundle", p.process_key, p.version))
+    }
+
+    fn build(&self, p: &ProgramRef, doc: &Value) -> Result<Program, String> {
+        let out = compile(doc, &CompileContext::default());
         let compiled = out.compiled.ok_or_else(|| {
             let why: Vec<String> = out
                 .diagnostics
@@ -333,17 +353,19 @@ impl DbPrograms {
                 .collect();
             format!("{}@{} no longer compiles: {}", p.process_key, p.version, why.join("; "))
         })?;
-        let program = Program::from_compiled(&compiled).map_err(|e| e.to_string())?;
-        if program.checksum() != Some(checksum.as_str()) {
-            return Err(format!(
-                "{}@{}: the program does not match its release bundle",
-                p.process_key, p.version
-            ));
-        }
-        let exe = Arc::new(Executable::new(program));
-        self.cache.lock().map_err(|e| e.to_string())?.insert(checksum, exe.clone());
-        Ok(exe)
+        Program::from_compiled(&compiled).map_err(|e| e.to_string())
     }
+}
+
+/// The IR with every money variable priced in `currency`.
+pub fn in_currency(ir: &Value, currency: &str) -> Value {
+    let mut d = ir.clone();
+    if let Some(vars) = d["variables"].as_array_mut() {
+        for v in vars.iter_mut().filter(|v| v["type"]["money"].is_object()) {
+            v["type"]["money"]["currency"] = Value::String(currency.to_owned());
+        }
+    }
+    d
 }
 
 impl ProgramSource for DbPrograms {
