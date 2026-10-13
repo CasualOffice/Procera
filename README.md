@@ -41,6 +41,7 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Out of office and request settings (0.2):** set an out-of-office with a delegate from the account menu (your avatar shows it, and colleagues see it on hover cards and Members) (or an admin or manager sets it for you); new approvals go to the delegate, who can also decide what's already waiting, recorded "on behalf of". Admins choose which request types are offered, who can ask for each, and the currency amounts are in.
 - **Why this route (0.2):** every request page explains in plain words why it went where it went ("Sent to Finance approval because the amount 640.00 EUR is over 500") and why each person decides; approvers see why a step is theirs.
 - **Who approves, attachments and policy (0.2):** the request form says who will approve before you send ("Olivia Owner (your manager), then Finance if the amount is over 500 EUR"); every request type takes files (receipts, quotes, certificates, photos), scanned and previewable by the people on the request, and approvers can attach files with their decision; a request type can link its governing policy, and each decision records the version the approver saw.
+- **Employee onboarding (0.2):** HR or a manager starts onboarding for a new member; IT, Facilities and the new member's manager each get their task at the same time, in any order, and the request page shows them side by side; when all three are done the new member confirms they have their equipment and have read the handbook, and the request ends "Onboarded".
 - **Reminders and escalations (0.2):** approvers are reminded before and at the due date; an overdue manager approval moves up to the next manager; admins see unassigned and overdue steps under Admin › Requests oversight and reassign them with a reason.
 
 **Evidence, not just status:** everything above is covered by automated end-to-end tests that run on every full test pass; nothing has been validated in a pilot with outside users yet. The [tracker](trackers/README.md) shows status and evidence separately.
@@ -112,7 +113,7 @@ Procera is **standalone**. It needs only PostgreSQL, S3-compatible storage and S
 | Version | What it adds |
 |---|---|
 | **0.1** (done) | The governed-document loop above, polished for small companies |
-| **0.2** (now) | Requests and approvals: built-in leave, expense, purchase and access requests, reminders, escalations, out of office and request settings are in; onboarding next |
+| **0.2** (now) | Requests and approvals: built-in leave, expense, purchase, access and employee onboarding requests, reminders, escalations, out of office and request settings are in |
 | 0.3 | Visual workflow designer and template gallery |
 | 0.4 | Automation and integrations: SSO/SCIM, webhooks and API, email approvals, e-signing |
 | 0.5 | Analytics and improvement: reports, process insights, cases and investigations |

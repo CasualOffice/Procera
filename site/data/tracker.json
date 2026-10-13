@@ -11,7 +11,7 @@
   "Deferred": 0,
   "all": 109
  },
- "e2e_scenarios": 246,
+ "e2e_scenarios": 247,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -256,6 +256,7 @@
   "E2E-R2-UI-12",
   "E2E-R2-UI-13",
   "E2E-R2-UI-14",
+  "E2E-R2-UI-15",
   "E2E-R2-UI-20",
   "E2E-R2-UI-21",
   "E2E-R2-UI-22"

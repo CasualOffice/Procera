@@ -453,7 +453,7 @@ A CAPA is a **case** (FR-C01), not a fixed flow. Investigations vary, but closur
 
 ### 5.6 As built: built-in request types (Procera 0.2)
 
-Until the template gallery installs processes, four simplified Wave 1 templates ship as built-in request types (`crates/requests/builtin/*.json`, compiled at boot and pinned by checksum; A-45). Routing uses CEL decisions, not rule tables. Every approval excludes the initiator; later levels exclude earlier deciders; the fallback is role `process.owner`; changes requested loop to a `revise` task for the requester (`maxIterations: 5`).
+Until the template gallery installs processes, five simplified Wave 1 templates ship as built-in request types (`crates/requests/builtin/*.json`, compiled at boot and pinned by checksum; A-45). Routing uses CEL decisions, not rule tables. Every approval excludes the initiator; later levels exclude earlier deciders; the fallback is role `process.owner`; changes requested loop to a `revise` task for the requester (`maxIterations: 5`).
 
 | Key (display id) | Start form | Routing |
 |---|---|---|
@@ -461,12 +461,16 @@ Until the template gallery installs processes, four simplified Wave 1 templates 
 | `hr.expense-claim` (EC) | amount (workspace currency), category, description, date | Manager; then finance (role `finance.approver` or group `Finance`) when the amount is over 500 |
 | `fin.purchase-requisition` (PR) | amount (workspace currency), vendor, cost centre, justification | Manager; finance above 5,000; then the `CFO` position above 50,000 (§5.2 simplified: no line items, no PO task) |
 | `it.access-request` (AR) | system, access level, sensitivity, beneficiary (a member), justification | Beneficiary's manager, or role `system.owner` then group `Security` for high sensitivity; then group `IT` provisions (a human task with a ticket reference) and the beneficiary is notified |
+| `hr.onboarding` (ON) | new member (an existing member), first day, job title, department, equipment (standard laptop, engineering laptop, no equipment), notes | A `parallel.split` opens three tasks at once (outcome `done`, no initiator exclusion: these are tasks, not approvals): group `IT` sets up accounts and equipment (asset tag), group `Facilities` prepares workspace and badge (desk), the new member's manager plans the first week; each falls back to `process.owner`. After the join the new member acknowledges ("I confirm I have my equipment and have read the employee handbook"; personal, never delegated), then the requester and the new member are notified and the request ends `completed` ("Onboarded"). §5.2 simplified: no offer signing, laptop-delivery signal or start-date timer |
+| `hr.onboarding` (ON) | new member (an existing member), first day, job title, department, equipment (standard laptop, engineering laptop, no equipment), notes | A `parallel.split` opens three tasks at once (outcome `done`, no initiator exclusion: these are tasks, not approvals): group `IT` sets up accounts and equipment (asset tag), group `Facilities` prepares workspace and badge (desk), the new member's manager plans the first week; each falls back to `process.owner`. After the join the new member acknowledges ("I confirm I have my equipment and have read the employee handbook"; personal, never delegated), then the requester and the new member are notified and the request ends `completed` ("Onboarded"). §5.2 simplified: no offer signing, laptop-delivery signal or start-date timer |
 
 Reminders and escalations (BPMS-085), one business day = the default calendar's working day; a step's reminders go to whoever holds it:
 
 - `hr.leave-request`: manager approval (P2D) reminds at P1D and P2D; at P3D it is reassigned to the requester's manager's manager (stays put when there is none).
 - `hr.expense-claim`: manager approval as for leave; finance approval (P3D) reminds at P2D and P3D, and at P4D notifies the requester's manager.
 - `fin.purchase-requisition`: manager approval (P1D) reminds at P1D and at P2D is reassigned to the manager's manager; finance and CFO approvals (P1D) remind at P1D and at P2D notify the requester's manager.
+- `hr.onboarding`: each of the three tasks (P3D) reminds at P2D and P3D and at P4D notifies the requester; the acknowledgement (P5D) reminds at P2D and P4D.
+- `hr.onboarding`: each of the three tasks (P3D) reminds at P2D and P3D and at P4D notifies the requester; the acknowledgement (P5D) reminds at P2D and P4D.
 - `it.access-request`: manager approval (P2D) reminds at P1D and P2D, at P3D is reassigned to the beneficiary's manager's manager; system owner and security approvals (P2D) remind at P1D and P2D and at P3D notify the requester's manager; provisioning (P1D) reminds at P1D and at P2D notifies the requester's manager.
 - No built-in completes a step automatically (`outcome` escalations are not used); revise tasks have no due date and no escalations.
 
