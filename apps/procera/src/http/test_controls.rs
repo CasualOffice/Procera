@@ -536,6 +536,12 @@ async fn drain(State(s): State<AppState>) -> Response {
             break;
         }
     }
+    // Webhook deliveries queued by the bus (BPMS-143), sent now.
+    if let Some(w) = s.webhooks.as_ref()
+        && let Err(e) = w.run_due().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e));
+    }
     match pending {
         Ok(n) => {
             let n = n as u64;

@@ -43,6 +43,7 @@ procera-crypto.workspace = true
 procera-engine.workspace = true
 procera-requests.workspace = true
 procera-signing.workspace = true
+procera-webhooks.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["io-util"] }

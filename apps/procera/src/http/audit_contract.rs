@@ -208,6 +208,13 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/envelopes/{id}/remind", &[&["envelope.reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/remind", &[&["envelope.batch_reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/void", &[&["envelope.batch_voided"], &[]]),
+    // Outgoing webhooks (BPMS-143).
+    emits("POST", "/api/v1/webhooks", &[&["webhook.created"]]),
+    emits("PATCH", "/api/v1/webhooks/{id}", &[&["webhook.updated"]]),
+    emits("DELETE", "/api/v1/webhooks/{id}", &[&["webhook.deleted"]]),
+    emits("POST", "/api/v1/webhooks/{id}/rotate-secret", &[&["webhook.secret_rotated"]]),
+    emits("POST", "/api/v1/webhooks/{id}/test", &[&["webhook.tested"]]),
+    emits("POST", "/api/v1/webhooks/deliveries/{id}/replay", &[&["webhook.replayed"]]),
     // Personal API tokens (BPMS-144): created, revoked by their owner or an admin (again: no-op).
     emits("POST", "/api/v1/me/api-tokens", &[&["api_token.created"]]),
     emits("DELETE", "/api/v1/me/api-tokens/{id}", &[&["api_token.revoked"], &[]]),
@@ -411,6 +418,7 @@ mod tests {
             ("/api/v1", include_str!("processes.rs")),
             ("/api/v1", include_str!("tokens.rs")),
             ("/api/v1", include_str!("signing.rs")),
+            ("/api/v1", include_str!("webhooks.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

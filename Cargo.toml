@@ -5,7 +5,7 @@ resolver = "3"
 members = ["crates/kernel", "crates/crypto", "crates/cache", "crates/db", "crates/audit", "crates/identity", "crates/access", "crates/members",
     "crates/settings",
     "crates/notify", "crates/keys", "crates/files",
-    "crates/library", "crates/ir", "crates/runtime", "crates/engine", "crates/campaigns", "crates/expr", "crates/announcements", "crates/search", "crates/platform", "crates/requests", "crates/processes", "crates/signing", "apps/procera", "conformance"]
+    "crates/library", "crates/ir", "crates/runtime", "crates/engine", "crates/campaigns", "crates/expr", "crates/announcements", "crates/search", "crates/platform", "crates/requests", "crates/processes", "crates/signing", "crates/webhooks", "apps/procera", "conformance"]
 # Phase-0 spikes live in their own workspace and are never part of the product build.
 exclude = ["spikes"]
 
@@ -56,6 +56,7 @@ procera-expr = { path = "crates/expr" }
 procera-requests = { path = "crates/requests" }
 procera-processes = { path = "crates/processes" }
 procera-signing = { path = "crates/signing" }
+procera-webhooks = { path = "crates/webhooks" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -132,8 +132,11 @@ pub struct Recipient {
     pub email: String,
     pub role: String,
     pub state: String,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub viewed_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub signed_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub declined_at: Option<OffsetDateTime>,
     pub decline_reason: Option<String>,
 }
@@ -174,9 +177,13 @@ pub struct Envelope {
     pub state: String,
     pub created_by: Uuid,
     pub sender_name: String,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub sent_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub completed_at: Option<OffsetDateTime>,
     pub completed_file_id: Option<Uuid>,
     pub completed_hash: Option<String>,
@@ -305,6 +312,11 @@ fn initials(name: &str) -> String {
     name.split_whitespace().filter_map(|w| w.chars().next()).flat_map(char::to_uppercase).take(3).collect()
 }
 
+/// RFC 3339, as every time in the API is written.
+pub(crate) fn iso(t: OffsetDateTime) -> String {
+    t.format(&time::format_description::well_known::Rfc3339).unwrap_or_default()
+}
+
 impl Signing {
     pub fn new(
         db: procera_db::Db,
@@ -330,6 +342,24 @@ impl Signing {
         ev.user_agent = actor.user_agent.clone();
         ev.diff = Some(diff);
         append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        Ok(())
+    }
+
+    /// A domain event for the outbox (webhooks): ids and states only.
+    async fn emit(&self, tx: &mut WsTx<'_>, topic: &str, id: Uuid, payload: Value) -> R<()> {
+        procera_db::outbox::enqueue(
+            tx,
+            procera_db::outbox::OutboxEvent {
+                topic,
+                aggregate_type: "envelope",
+                aggregate_id: id,
+                aggregate_revision: 0,
+                payload,
+                trace_id: None,
+            },
+        )
+        .await
+        .map_err(internal)?;
         Ok(())
     }
 
@@ -733,6 +763,7 @@ impl Signing {
         sqlx::query("UPDATE envelopes SET state = 'sent', sent_at = $2, expires_at = $3, revision = revision + 1 WHERE id = $1")
             .bind(id).bind(now).bind(expires).execute(tx.conn()).await?;
         self.audit(tx, actor, "envelope.sent", id, json!({ "recipients": e.recipients.iter().map(|r| json!({"membership_id": r.membership_id, "role": r.role, "ord": r.ord})).collect::<Vec<_>>(), "order": e.order_mode, "expires_at": expires })).await?;
+        self.emit(tx, "envelope.sent.v1", id, json!({ "envelope_id": id, "state": "sent" })).await?;
         let e = self.get(tx, id).await?;
         self.notify_turn(tx, &e).await?;
         Ok(e)
@@ -846,12 +877,12 @@ impl Signing {
         let mine: Vec<&Field> = e.fields.iter().filter(|f| f.recipient_id == r.id).collect();
         Ok(json!({
             "envelope": { "id": e.id, "title": e.title, "message": e.message, "sender_name": e.sender_name, "state": if expired { "expired" } else { e.state.as_str() },
-                          "document_hash": e.document_hash, "pages": e.pages, "mode": e.mode, "order_mode": e.order_mode, "expires_at": e.expires_at,
+                          "document_hash": e.document_hash, "pages": e.pages, "mode": e.mode, "order_mode": e.order_mode, "expires_at": e.expires_at.map(iso),
                           "completed_file_id": e.completed_file_id },
             "recipient": r,
             "my_turn": my_turn && !expired,
             "fields": mine,
-            "progress": e.recipients.iter().filter(|x| x.role == "signer").map(|x| json!({ "name": x.name, "ord": x.ord, "state": x.state, "signed_at": x.signed_at })).collect::<Vec<_>>(),
+            "progress": e.recipients.iter().filter(|x| x.role == "signer").map(|x| json!({ "name": x.name, "ord": x.ord, "state": x.state, "signed_at": x.signed_at.map(iso) })).collect::<Vec<_>>(),
             "consent_text": CONSENT,
             "meaning": MEANING,
         }))
@@ -1111,6 +1142,13 @@ impl Signing {
         sqlx::query("UPDATE envelopes SET state = 'completed', completed_at = $2, completed_file_id = $3, completed_hash = $4, revision = revision + 1 WHERE id = $1")
             .bind(e.id).bind(now).bind(file.id).bind(&hash).execute(tx.conn()).await?;
         self.audit(tx, actor, "envelope.completed", e.id, json!({ "completed_file_id": file.id, "completed_hash": hex(&hash), "document_hash": e.document_hash })).await?;
+        self.emit(
+            tx,
+            "envelope.completed.v1",
+            e.id,
+            json!({ "envelope_id": e.id, "state": "completed", "completed_file_id": file.id }),
+        )
+        .await?;
         let link = format!("/documents/{}", e.id);
         let mut told = std::collections::BTreeSet::new();
         let creator_email: Option<String> = sqlx::query_scalar(
@@ -1162,6 +1200,13 @@ impl Signing {
         sqlx::query("UPDATE envelopes SET state = 'declined', ended_reason = $2, revision = revision + 1 WHERE id = $1").bind(e.id).bind(format!("{} declined: {reason}", r.name)).execute(tx.conn()).await?;
         self.audit(tx, actor, "envelope.declined", e.id, json!({ "recipient_id": r.id, "reason": reason }))
             .await?;
+        self.emit(
+            tx,
+            "envelope.declined.v1",
+            e.id,
+            json!({ "envelope_id": e.id, "state": "declined", "recipient_id": r.id }),
+        )
+        .await?;
         let email: Option<String> = sqlx::query_scalar(
             "SELECT u.email::text FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
         )
@@ -1235,6 +1280,7 @@ impl Signing {
         if audit {
             self.audit(tx, actor, "envelope.voided", id, json!({ "reason": reason })).await?;
         }
+        self.emit(tx, "envelope.voided.v1", id, json!({ "envelope_id": id, "state": "voided" })).await?;
         let e = self.get(tx, id).await?;
         for r in e.recipients.iter().filter(|r| r.role == "signer" && r.state == "pending") {
             let told: Option<OffsetDateTime> =
@@ -1282,7 +1328,7 @@ impl Signing {
             out.push(json!({
                 "recipient_id": r.id, "envelope_id": e.id, "title": e.title, "sender_name": e.sender_name, "role": r.role,
                 "state": r.state, "envelope_state": if expired { "expired" } else { e.state.as_str() }, "to_sign": to_sign,
-                "sent_at": e.sent_at, "expires_at": e.expires_at, "signed_at": r.signed_at, "completed_file_id": e.completed_file_id,
+                "sent_at": e.sent_at.map(iso), "expires_at": e.expires_at.map(iso), "signed_at": r.signed_at.map(iso), "completed_file_id": e.completed_file_id,
             }));
         }
         Ok(out)

@@ -42,7 +42,9 @@ pub struct BatchRow {
     pub department: Option<String>,
     /// The envelope's state (`sent`, `completed`, `declined`, `voided`, `expired`).
     pub state: String,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub viewed_at: Option<OffsetDateTime>,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub signed_at: Option<OffsetDateTime>,
     pub decline_reason: Option<String>,
     pub reminders_sent: i32,
@@ -57,7 +59,9 @@ pub struct Batch {
     pub total: i32,
     pub created_by: Uuid,
     pub sender_name: String,
+    #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
+    #[serde(with = "time::serde::rfc3339::option")]
     pub expires_at: Option<OffsetDateTime>,
     pub counts: Value,
     pub rows: Vec<BatchRow>,
@@ -161,6 +165,13 @@ impl Signing {
                 .bind(env)
                 .execute(tx.conn())
                 .await?;
+            self.emit(
+                tx,
+                "envelope.sent.v1",
+                env,
+                json!({ "envelope_id": env, "state": "sent", "batch_id": batch }),
+            )
+            .await?;
             let copy = self.get(tx, env).await?;
             self.notify_turn(tx, &copy).await?;
         }
@@ -447,6 +458,8 @@ impl Signing {
         .await?;
         for (id, title, by) in expired {
             self.audit_system(tx, "envelope.expired", id, json!({ "expired_at": now })).await?;
+            self.emit(tx, "envelope.expired.v1", id, json!({ "envelope_id": id, "state": "expired" }))
+                .await?;
             let email: Option<String> = sqlx::query_scalar(
                 "SELECT u.email::text FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
             )

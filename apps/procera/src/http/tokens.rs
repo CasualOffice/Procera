@@ -194,9 +194,11 @@ fn listed(r: &Listed, now: OffsetDateTime) -> Value {
     } else {
         "active"
     };
+    let iso =
+        |t: OffsetDateTime| t.format(&time::format_description::well_known::Rfc3339).unwrap_or_default();
     json!({
-        "id": r.0, "name": r.1, "last4": r.2, "permissions": r.3, "created_at": r.4, "expires_at": r.5,
-        "last_used_at": r.6, "last_used_ip": r.7, "revoked_at": r.8, "state": state,
+        "id": r.0, "name": r.1, "last4": r.2, "permissions": r.3, "created_at": iso(r.4), "expires_at": iso(r.5),
+        "last_used_at": r.6.map(iso), "last_used_ip": r.7, "revoked_at": r.8.map(iso), "state": state,
         "owner": { "id": r.9, "name": r.10 },
     })
 }
@@ -303,7 +305,7 @@ async fn create(
     let token = format!("{PREFIX}{lookup}_{secret}");
     Ok((
         StatusCode::CREATED,
-        Json(json!({ "id": id, "token": token, "name": name, "permissions": permissions, "expires_at": expires_at, "last4": last4 })),
+        Json(json!({ "id": id, "token": token, "name": name, "permissions": permissions, "expires_at": expires_at.format(&time::format_description::well_known::Rfc3339).unwrap_or_default(), "last4": last4 })),
     )
         .into_response())
 }

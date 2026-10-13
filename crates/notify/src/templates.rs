@@ -111,6 +111,9 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}You receive this because someone sent you a document to sign in Procera.{% endblock %}"#,
     ),
+    // Webhooks (BPMS-143), in-app only. Vars: url, reason.
+    ("webhook_disabled.title", "A webhook endpoint was turned off"),
+    ("webhook_disabled.body", "{{ url }}: {{ reason }} Fix it, then turn it back on in Webhooks."),
     ("signature_reminder.title", "Reminder: please sign {{ title }}"),
     (
         "signature_reminder.body",

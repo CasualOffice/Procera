@@ -85,7 +85,7 @@ if [[ -n "${PROCERA_TEST_DATABASE_URL:-}" ]] && command -v psql >/dev/null; then
   psql "$SUPER_BASE/$E2E_DB" -q -f deploy/sql/00-roles.sql >/dev/null 2>&1
   HOSTPART="${SUPER_BASE#*@}"
   target/debug/procera migrate --migrator-url "postgres://procera_migrator@$HOSTPART/$E2E_DB" 2>/dev/null
-  API_ENV=(PROCERA_DATABASE_URL="postgres://procera_app@$HOSTPART/$E2E_DB" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" PROCERA_INSECURE_COOKIES=true PROCERA_LOGIN_RATE_PER_MIN=10000)
+  API_ENV=(PROCERA_DATABASE_URL="postgres://procera_app@$HOSTPART/$E2E_DB" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" PROCERA_INSECURE_COOKIES=true PROCERA_LOGIN_RATE_PER_MIN=10000 PROCERA_EGRESS_ALLOW=127.0.0.1/32)
   echo "e2e database $E2E_DB"
   # Exercise the shared-cache paths (effective-settings cache, CFG-004) when a cache server runs.
   if [[ -n "${PROCERA_TEST_CACHE_URL:-}" ]]; then API_ENV+=(PROCERA_CACHE_URL="$PROCERA_TEST_CACHE_URL"); echo "e2e cache $PROCERA_TEST_CACHE_URL"; fi

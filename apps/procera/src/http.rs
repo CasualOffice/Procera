@@ -38,6 +38,7 @@ pub mod templates;
 pub mod test_controls;
 pub mod tokens;
 pub mod views;
+pub mod webhooks;
 pub mod work;
 pub mod workspace;
 
@@ -83,6 +84,8 @@ pub struct AppState {
     pub requests: Option<procera_requests::Requests>,
     /// Employee e-signing (BPMS-107).
     pub signing: Option<procera_signing::Signing>,
+    /// Outgoing webhooks (BPMS-143).
+    pub webhooks: Option<procera_webhooks::Webhooks>,
     /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
     pub mailers: Option<procera_notify::Mailers>,
     /// What the system console reports about storage, scanning and the public URL (read-only).
@@ -200,7 +203,7 @@ impl AppState {
             ));
             let notify = procera_notify::Notify::new(
                 db.clone(),
-                keys,
+                keys.clone(),
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             );
@@ -227,6 +230,19 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             )));
+            let webhooks = procera_webhooks::Webhooks::new(
+                db.clone(),
+                procera_keys::Keys::new(
+                    db.clone(),
+                    keys.clone(),
+                    self.clock.clone(),
+                    Arc::new(procera_kernel::UuidV7Gen),
+                ),
+                notify.clone(),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            );
+            self.webhooks = Some(webhooks.clone());
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
@@ -240,6 +256,7 @@ impl AppState {
                 ),
                 public_url: self.public_url.clone(),
                 settings_cache: procera_settings::cache::SettingsCache::shared(&self.cache),
+                webhooks: Some(webhooks),
             };
             self.campaigns = Some(campaigns);
             self.dispatcher = Some(Arc::new(procera_db::dispatch::Dispatcher::new(db.clone(), bus)));
@@ -315,6 +332,7 @@ impl AppState {
             audit_exports: None,
             requests: None,
             signing: None,
+            webhooks: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -352,6 +370,7 @@ impl AppState {
             audit_exports: None,
             requests: None,
             signing: None,
+            webhooks: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -396,6 +415,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", delegation::router())
         .nest("/api/v1", tokens::router())
         .nest("/api/v1", signing::router())
+        .nest("/api/v1", webhooks::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))

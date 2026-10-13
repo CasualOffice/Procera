@@ -1,0 +1,32 @@
+[package]
+name = "procera-webhooks"
+description = "Outgoing webhooks (BPMS-143): endpoints, Standard Webhooks signing, an SSRF-guarded sender with retries, and a delivery log."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+base64 = "0.22"
+hmac = "0.12"
+procera-audit.workspace = true
+procera-crypto.workspace = true
+procera-db.workspace = true
+procera-keys.workspace = true
+procera-kernel.workspace = true
+procera-notify.workspace = true
+reqwest = { version = "0.13", default-features = false, features = ["rustls"] }
+serde = { workspace = true }
+serde_json.workspace = true
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+tokio = { workspace = true }
+tracing.workspace = true
+uuid.workspace = true
+
+[lints]
+workspace = true

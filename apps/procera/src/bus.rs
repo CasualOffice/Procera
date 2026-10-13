@@ -33,6 +33,34 @@ pub struct AppBus {
     pub public_url: String,
     /// Effective-settings cache to invalidate on `settings.changed.v1` (CFG-004), when shared.
     pub settings_cache: Option<procera_settings::cache::SettingsCache>,
+    /// Outgoing webhooks (BPMS-143): every event is offered to the workspace's endpoints.
+    pub webhooks: Option<procera_webhooks::Webhooks>,
+}
+
+const WEBHOOKS: &str = "webhooks";
+
+impl AppBus {
+    /// Queues the event for the workspace's webhook endpoints, once (inbox key `webhooks`).
+    async fn queue_webhooks(&self, m: &Message) -> Result<(), String> {
+        let Some(w) = &self.webhooks else { return Ok(()) };
+        if procera_webhooks::public_type(&m.topic).is_none() {
+            return Ok(());
+        }
+        let mut tx =
+            self.db.begin_ws(WsCtx { workspace_id: m.workspace_id }).await.map_err(|e| e.to_string())?;
+        if mark_consumed(&mut tx, WEBHOOKS, m.id).await.map_err(|e| e.to_string())? {
+            let at: time::OffsetDateTime = sqlx::query_scalar("SELECT created_at FROM outbox WHERE id = $1")
+                .bind(m.id)
+                .fetch_optional(tx.conn())
+                .await
+                .map_err(|e| e.to_string())?
+                .unwrap_or_else(time::OffsetDateTime::now_utc);
+            w.enqueue(&mut tx, m.id, &m.topic, m.aggregate_id, &m.payload, at)
+                .await
+                .map_err(|e| e.to_string())?;
+        }
+        tx.commit().await.map_err(|e| e.to_string())
+    }
 }
 
 impl std::fmt::Debug for AppBus {
@@ -458,6 +486,7 @@ impl AppBus {
 
 impl Bus for AppBus {
     async fn deliver(&self, msg: &Message) -> Result<(), String> {
-        self.handle(msg).await
+        self.handle(msg).await?;
+        self.queue_webhooks(msg).await
     }
 }

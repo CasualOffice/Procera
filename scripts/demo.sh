@@ -15,7 +15,7 @@ psql "postgres://postgres@127.0.0.1:$PORT/postgres" -q -f deploy/sql/00-roles.sq
 cargo build -q -p procera --features e2e
 target/debug/procera migrate --migrator-url "postgres://procera_migrator@127.0.0.1:$PORT/postgres" 2>/dev/null
 PROCERA_DATABASE_URL="postgres://procera_app@127.0.0.1:$PORT/postgres" PROCERA_MASTER_KEY="$(target/debug/procera keygen 2>/dev/null)" \
-  PROCERA_INSECURE_COOKIES=true PROCERA_PUBLIC_URL=http://127.0.0.1:$WEB_PORT PROCERA_BIND=127.0.0.1:$API_PORT \
+  PROCERA_INSECURE_COOKIES=true PROCERA_EGRESS_ALLOW=127.0.0.1/32 PROCERA_PUBLIC_URL=http://127.0.0.1:$WEB_PORT PROCERA_BIND=127.0.0.1:$API_PORT \
   target/debug/procera serve --all >/tmp/procera-demo-$OFF.log 2>&1 & API_PID=$!
 until curl -fs -o /dev/null http://127.0.0.1:$API_PORT/healthz; do sleep 0.2; done
 # The e2e build has a test clock that stands still; keep it in step with real time for the demo.
