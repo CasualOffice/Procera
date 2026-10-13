@@ -30,6 +30,12 @@ pub fn router() -> Router<AppState> {
         .route("/envelopes/{id}/fields", put(fields))
         .route("/envelopes/{id}/send", post(send))
         .route("/envelopes/{id}/void", post(void))
+        .route("/envelopes/{id}/send-bulk", post(send_bulk))
+        .route("/envelopes/{id}/remind", post(remind))
+        .route("/envelope-batches", get(batches))
+        .route("/envelope-batches/{id}", get(batch))
+        .route("/envelope-batches/{id}/remind", post(remind_batch))
+        .route("/envelope-batches/{id}/void", post(void_batch))
         .route("/envelopes/{id}/document", get(document))
         .route("/me/signatures", get(inbox))
         .route("/signing/{recipient}", get(ceremony))
@@ -140,6 +146,9 @@ struct CreateReq {
     mode: String,
     #[serde(default = "thirty")]
     expires_in_days: i64,
+    /// Sent to a group: each person signs their own copy (`send-bulk`).
+    #[serde(default)]
+    bulk: bool,
 }
 
 fn sequential() -> String {
@@ -153,7 +162,8 @@ fn thirty() -> i64 {
 }
 
 /// `POST /envelopes`: a draft envelope for an uploaded, clean PDF (`title`, optional `message`,
-/// `file_id`, `order` sequential|parallel, `mode` simple|strong, `expires_in_days` 1–365, default 30;
+/// `file_id`, `order` sequential|parallel, `mode` simple|strong, `expires_in_days` 1–365, default 30, `bulk` to send
+/// a copy to each person in a group;
 /// `document:send_for_signature`). 201 with the envelope; 422 for a PDF that can't be signed.
 async fn create(
     State(s): State<AppState>,
@@ -174,6 +184,7 @@ async fn create(
             &r.order,
             &r.mode,
             r.expires_in_days,
+            r.bulk,
         )
         .await?;
     tx.commit().await.map_err(internal)?;
@@ -396,4 +407,107 @@ async fn decline(
     let e = signing(&s)?.decline(&mut tx, &actor(&me, &headers), recipient, &r.reason).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(json!({ "envelope_id": e.id, "state": e.state })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BulkReq {
+    audience: procera_members::audience::Audience,
+}
+
+/// `POST /envelopes/{id}/send-bulk`: sends a bulk draft to everyone in `audience` (`all`,
+/// `departments`, `groups`, `roles`, `locations`): one copy each, signed by that person, grouped in a
+/// batch (at most 2,000 people). Honours `If-Match`. 201 with the batch.
+async fn send_bulk(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<BulkReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "document:send_for_signature", Resource::Workspace).await?;
+    let b =
+        signing(&s)?.send_bulk(&mut tx, &actor(&me, &headers), id, if_match(&headers), &r.audience).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok((StatusCode::CREATED, Json(b)).into_response())
+}
+
+/// `POST /envelopes/{id}/remind`: reminds the signer whose turn it is now (its sender; at most once
+/// an hour per signer). Returns `{reminded}`.
+async fn remind(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let n = signing(&s)?.remind(&mut tx, &actor(&me, &headers), id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "reminded": n })).into_response())
+}
+
+/// `GET /envelope-batches?scope=sent|all`: group sends I made (or everyone's with
+/// `document:view_all`), newest first, with their counts.
+async fn batches(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<ListQuery>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let sender = if q.scope.as_deref() == Some("all") {
+        if !can(&s, &me, &mut tx, "document:view_all").await? {
+            return Err(ApiError::new(403, "forbidden", "You do not have permission for this action")
+                .detail("document:view_all"));
+        }
+        None
+    } else {
+        Some(me.actor.membership)
+    };
+    let items = signing(&s)?.batches(&mut tx, sender).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+/// `GET /envelope-batches/{id}`: a group send with each person's progress (its sender or
+/// `document:view_all`): `counts {total, signed, waiting, viewed, declined, cancelled, expired}`, `rows`.
+async fn batch(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let b = signing(&s)?.batch(&mut tx, id).await?;
+    if b.created_by != me.actor.membership && !can(&s, &me, &mut tx, "document:view_all").await? {
+        return Err(ApiError::not_found());
+    }
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(b).into_response())
+}
+
+/// `POST /envelope-batches/{id}/remind`: reminds everyone in a group send who hasn't signed yet
+/// (its sender; at most once an hour each). Returns `{reminded}`.
+async fn remind_batch(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let n = signing(&s)?.remind_batch(&mut tx, &actor(&me, &headers), id).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "reminded": n })).into_response())
+}
+
+/// `POST /envelope-batches/{id}/void`: cancels every copy still waiting for a signature, with a
+/// `reason` (its sender, or `document:void`). Returns `{cancelled}`.
+async fn void_batch(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<ReasonReq>,
+) -> Result<Response, ApiError> {
+    let mut tx = me.tx(members(&s)?).await?;
+    let any = can(&s, &me, &mut tx, "document:void").await?;
+    let n = signing(&s)?.void_batch(&mut tx, &actor(&me, &headers), id, &r.reason, any).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "cancelled": n })).into_response())
 }

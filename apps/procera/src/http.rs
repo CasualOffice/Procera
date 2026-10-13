@@ -260,6 +260,7 @@ impl AppState {
             }
             if let Some(files) = &self.files {
                 self.signing = Some(procera_signing::Signing::new(
+                    db.clone(),
                     files.clone(),
                     notify.clone(),
                     self.clock.clone(),

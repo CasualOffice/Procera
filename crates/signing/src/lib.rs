@@ -16,7 +16,10 @@
 //! Authorization is the caller's: senders need `document:send_for_signature`, anyone else's envelopes
 //! `document:view_all`, voiding someone else's `document:void`; signers act only on their own turn.
 
+mod bulk;
 pub mod pdf;
+
+pub use bulk::Due;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -179,6 +182,12 @@ pub struct Envelope {
     pub completed_hash: Option<String>,
     pub ended_reason: Option<String>,
     pub revision: i32,
+    /// A bulk draft: its single signer stands for each person it will be sent to.
+    pub bulk: bool,
+    /// The bulk send this envelope is one copy of.
+    pub batch_id: Option<Uuid>,
+    /// Days between reminders to the signer whose turn it is (null: no reminders).
+    pub reminder_days: Option<i32>,
     pub recipients: Vec<Recipient>,
     pub fields: Vec<Field>,
 }
@@ -221,6 +230,9 @@ struct EnvRow {
     completed_hash: Option<Vec<u8>>,
     ended_reason: Option<String>,
     revision: i32,
+    bulk: bool,
+    batch_id: Option<Uuid>,
+    reminder_days: Option<i32>,
 }
 
 /// Which envelopes to list.
@@ -259,6 +271,7 @@ pub struct SignInput {
 
 #[derive(Clone)]
 pub struct Signing {
+    db: procera_db::Db,
     files: Files,
     notify: Notify,
     clock: Arc<dyn Clock>,
@@ -294,13 +307,14 @@ fn initials(name: &str) -> String {
 
 impl Signing {
     pub fn new(
+        db: procera_db::Db,
         files: Files,
         notify: Notify,
         clock: Arc<dyn Clock>,
         ids: Arc<dyn IdGen>,
         public_url: &str,
     ) -> Self {
-        Self { files, notify, clock, ids, public_url: public_url.trim_end_matches('/').to_owned() }
+        Self { db, files, notify, clock, ids, public_url: public_url.trim_end_matches('/').to_owned() }
     }
 
     async fn audit(&self, tx: &mut WsTx<'_>, actor: &Actor, action: &str, id: Uuid, diff: Value) -> R<()> {
@@ -319,7 +333,17 @@ impl Signing {
         Ok(())
     }
 
-    /// A new draft envelope for a clean PDF the caller uploaded or may read.
+    async fn audit_system(&self, tx: &mut WsTx<'_>, action: &str, id: Uuid, diff: Value) -> R<()> {
+        let mut ev = AuditEvent::new(None, ActorKind::System, Category::Content, action, Outcome::Allowed)
+            .object("envelope", id);
+        ev.diff = Some(diff);
+        append(tx, self.clock.as_ref(), self.ids.as_ref(), &ev).await?;
+        Ok(())
+    }
+
+    /// A new draft envelope for a clean PDF the caller uploaded or may read. A `bulk` draft gets one
+    /// placeholder signer (recorded as the sender) whose fields are copied for each person it is
+    /// later sent to (`send_bulk`).
     #[allow(clippy::too_many_arguments)]
     pub async fn create(
         &self,
@@ -331,6 +355,7 @@ impl Signing {
         order_mode: &str,
         mode: &str,
         expires_in_days: i64,
+        bulk: bool,
     ) -> R<Envelope> {
         let title = title.trim();
         if title.is_empty() || title.chars().count() > 200 {
@@ -359,8 +384,8 @@ impl Signing {
         let hash = Sha256::digest(&bytes).to_vec();
         let id = self.ids.new_id();
         sqlx::query(
-            "INSERT INTO envelopes (workspace_id, id, title, message, source_file_id, document_hash, pages, order_mode, mode, state, created_by, created_at, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10, $11, $12)",
+            "INSERT INTO envelopes (workspace_id, id, title, message, source_file_id, document_hash, pages, order_mode, mode, state, created_by, created_at, expires_at, bulk)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'draft', $10, $11, $12, $13)",
         )
         .bind(tx.ctx.workspace_id)
         .bind(id)
@@ -375,8 +400,14 @@ impl Signing {
         .bind(self.clock.now())
         // A placeholder until sending sets the real deadline: keeps the lifetime with the draft.
         .bind(self.clock.now() + Duration::days(expires_in_days))
+        .bind(bulk)
         .execute(tx.conn())
         .await?;
+        if bulk {
+            sqlx::query("INSERT INTO envelope_recipients (workspace_id, envelope_id, id, ord, membership_id, role) VALUES ($1, $2, $3, 1, $4, 'signer')")
+                .bind(tx.ctx.workspace_id).bind(id).bind(self.ids.new_id()).bind(actor.membership)
+                .execute(tx.conn()).await?;
+        }
         self.files.link(tx, &actor.files(), file_id, "envelope", id).await?;
         self.audit(
             tx,
@@ -393,7 +424,7 @@ impl Signing {
         let r: EnvRow = sqlx::query_as(
             "SELECT e.id, e.title, e.message, e.source_file_id, e.document_hash, e.pages, e.order_mode, e.mode, e.state, e.created_by,
                     u.display_name AS sender_name, e.created_at, e.sent_at, e.expires_at, e.completed_at, e.completed_file_id,
-                    e.completed_hash, e.ended_reason, e.revision
+                    e.completed_hash, e.ended_reason, e.revision, e.bulk, e.batch_id, e.reminder_days
                FROM envelopes e JOIN memberships m ON m.workspace_id = e.workspace_id AND m.id = e.created_by JOIN users u ON u.id = m.user_id
               WHERE e.id = $1",
         )
@@ -435,6 +466,9 @@ impl Signing {
             completed_hash: r.completed_hash.map(|h| hex(&h)),
             ended_reason: r.ended_reason,
             revision: r.revision,
+            bulk: r.bulk,
+            batch_id: r.batch_id,
+            reminder_days: r.reminder_days,
             recipients: recipients
                 .into_iter()
                 .map(|x| Recipient {
@@ -475,14 +509,14 @@ impl Signing {
         let ids: Vec<Uuid> = match which {
             Listing::Sent(me) => {
                 sqlx::query_scalar(
-                    "SELECT id FROM envelopes WHERE created_by = $1 ORDER BY created_at DESC LIMIT 500",
+                    "SELECT id FROM envelopes WHERE created_by = $1 AND batch_id IS NULL AND NOT EXISTS (SELECT 1 FROM envelope_batches b WHERE b.template_id = envelopes.id) ORDER BY created_at DESC LIMIT 500",
                 )
                 .bind(me)
                 .fetch_all(tx.conn())
                 .await?
             }
             Listing::All => {
-                sqlx::query_scalar("SELECT id FROM envelopes ORDER BY created_at DESC LIMIT 500")
+                sqlx::query_scalar("SELECT id FROM envelopes WHERE batch_id IS NULL AND NOT EXISTS (SELECT 1 FROM envelope_batches b WHERE b.template_id = envelopes.id) ORDER BY created_at DESC LIMIT 500")
                     .fetch_all(tx.conn())
                     .await?
             }
@@ -514,6 +548,14 @@ impl Signing {
         if revision.is_some_and(|r| r != rev) {
             return Err(SigningError::Conflict("stale".into()));
         }
+        let sent_as_batch: bool =
+            sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM envelope_batches WHERE template_id = $1)")
+                .bind(id)
+                .fetch_one(tx.conn())
+                .await?;
+        if sent_as_batch {
+            return Err(SigningError::Conflict("It has been sent to a group, so it can't change.".into()));
+        }
         self.get(tx, id).await
     }
 
@@ -535,6 +577,21 @@ impl Signing {
         list: &[(Uuid, String)],
     ) -> R<Envelope> {
         let e = self.draft(tx, actor, id, revision).await?;
+        // A bulk draft's only signer is the placeholder for each person; it can add copies (CC).
+        let bulk_list: Vec<(Uuid, String)>;
+        let list = if e.bulk {
+            if list.iter().any(|(m, role)| role != "cc" && *m != actor.membership) {
+                return Err(SigningError::Invalid(
+                    "This is sent to a group: each person signs their own copy. Add others only as copies (cc).".into(),
+                ));
+            }
+            bulk_list = std::iter::once((actor.membership, "signer".to_owned()))
+                .chain(list.iter().filter(|(m, _)| *m != actor.membership).cloned())
+                .collect();
+            &bulk_list[..]
+        } else {
+            list
+        };
         if list.len() > 50 {
             return Err(SigningError::Invalid("An envelope can have at most 50 recipients.".into()));
         }
@@ -656,6 +713,11 @@ impl Signing {
         revision: Option<i32>,
     ) -> R<Envelope> {
         let e = self.draft(tx, actor, id, revision).await?;
+        if e.bulk {
+            return Err(SigningError::Invalid(
+                "This is sent to a group: choose who receives it and send it to them.".into(),
+            ));
+        }
         let signers: Vec<&Recipient> = e.recipients.iter().filter(|r| r.role == "signer").collect();
         if signers.is_empty() {
             return Err(SigningError::Invalid("Add at least one person who signs.".into()));
@@ -1130,6 +1192,19 @@ impl Signing {
         reason: &str,
         may_any: bool,
     ) -> R<Envelope> {
+        self.void_inner(tx, actor, id, reason, may_any, true).await
+    }
+
+    /// [`Signing::void`]; a batch cancel audits once for all its copies (`audit` false here).
+    async fn void_inner(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        id: Uuid,
+        reason: &str,
+        may_any: bool,
+        audit: bool,
+    ) -> R<Envelope> {
         let reason = reason.trim();
         if reason.is_empty() || reason.chars().count() > 1000 {
             return Err(SigningError::Invalid(
@@ -1157,7 +1232,9 @@ impl Signing {
         .bind(reason)
         .execute(tx.conn())
         .await?;
-        self.audit(tx, actor, "envelope.voided", id, json!({ "reason": reason })).await?;
+        if audit {
+            self.audit(tx, actor, "envelope.voided", id, json!({ "reason": reason })).await?;
+        }
         let e = self.get(tx, id).await?;
         for r in e.recipients.iter().filter(|r| r.role == "signer" && r.state == "pending") {
             let told: Option<OffsetDateTime> =

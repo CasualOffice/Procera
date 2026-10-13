@@ -16,6 +16,7 @@ procera-audit.workspace = true
 procera-db.workspace = true
 procera-files.workspace = true
 procera-kernel.workspace = true
+procera-members.workspace = true
 procera-notify.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true

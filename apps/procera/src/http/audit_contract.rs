@@ -204,6 +204,10 @@ pub const CONTRACT: &[Entry] = &[
         &[&["envelope.signed"], &["envelope.completed", "envelope.signed", "file.linked", "file.uploaded"]],
     ),
     emits("POST", "/api/v1/signing/{recipient}/decline", &[&["envelope.declined"]]),
+    emits("POST", "/api/v1/envelopes/{id}/send-bulk", &[&["envelope.bulk_sent"]]),
+    emits("POST", "/api/v1/envelopes/{id}/remind", &[&["envelope.reminded"], &[]]),
+    emits("POST", "/api/v1/envelope-batches/{id}/remind", &[&["envelope.batch_reminded"], &[]]),
+    emits("POST", "/api/v1/envelope-batches/{id}/void", &[&["envelope.batch_voided"], &[]]),
     // Personal API tokens (BPMS-144): created, revoked by their owner or an admin (again: no-op).
     emits("POST", "/api/v1/me/api-tokens", &[&["api_token.created"]]),
     emits("DELETE", "/api/v1/me/api-tokens/{id}", &[&["api_token.revoked"], &[]]),

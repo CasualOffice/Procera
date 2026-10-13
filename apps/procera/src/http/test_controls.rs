@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/settings", post(set_workspace_setting))
         .route("/campaigns/backdate", post(backdate_campaign))
         .route("/work-items/backdate", post(backdate_work_item))
+        .route("/envelopes/backdate", post(backdate_envelope))
         .route("/incidents", post(plant_incident))
         .route("/library/backdate", post(backdate_artifact))
         .route("/library/due", post(make_version_due))
@@ -99,6 +100,38 @@ async fn backdate_work_item(State(s): State<AppState>, Json(b): Json<WorkItemBac
         sqlx::query("UPDATE timers t SET due_at = t.due_at - make_interval(secs => $2) FROM work_items w
                      WHERE w.id = $1 AND starts_with(t.timer_key, w.work_key || '/esc/') AND t.state = 'scheduled'")
             .bind(b.work_item).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?;
+        tx.commit().await.map_err(|e| e.to_string())?;
+        Ok(n)
+    }
+    .await;
+    match r {
+        Ok(1) => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => problem(Problem::not_found()),
+        Err(e) => problem(Problem::new(500, "internal", "Internal error").with_detail(e)),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct EnvelopeBackdate {
+    workspace: uuid::Uuid,
+    envelope: uuid::Uuid,
+    seconds: i64,
+}
+
+/// Moves a sent envelope's times back by `seconds` (sent, expiry, when signers were told and
+/// reminded), so a reminder or expiry falls due without moving the shared clock (BPMS-107).
+async fn backdate_envelope(State(s): State<AppState>, Json(b): Json<EnvelopeBackdate>) -> Response {
+    let Some(db) = s.db.as_ref() else {
+        return problem(Problem::new(503, "unavailable", "Service unavailable"));
+    };
+    let r: Result<u64, String> = async {
+        let mut tx =
+            db.begin_ws(procera_db::WsCtx { workspace_id: b.workspace }).await.map_err(|e| e.to_string())?;
+        let by = b.seconds as f64;
+        let n = sqlx::query("UPDATE envelopes SET sent_at = sent_at - make_interval(secs => $2), expires_at = expires_at - make_interval(secs => $2) WHERE id = $1 AND state = 'sent'")
+            .bind(b.envelope).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?.rows_affected();
+        sqlx::query("UPDATE envelope_recipients SET notified_at = notified_at - make_interval(secs => $2), reminded_at = reminded_at - make_interval(secs => $2) WHERE envelope_id = $1")
+            .bind(b.envelope).bind(by).execute(tx.conn()).await.map_err(|e| e.to_string())?;
         tx.commit().await.map_err(|e| e.to_string())?;
         Ok(n)
     }
@@ -463,6 +496,12 @@ async fn drain(State(s): State<AppState>) -> Response {
         && let Err(e) = c.run_due().await
     {
         return problem(Problem::new(500, "internal", "Internal error").with_detail(e.to_string()));
+    }
+    // Signing reminders and expiries that are due (BPMS-107).
+    if let Some(x) = s.signing.as_ref()
+        && let Err(e) = x.run_due().await
+    {
+        return problem(Problem::new(500, "internal", "Internal error").with_detail(e));
     }
     // Notification digests that are due (BPMS-048).
     if let Some(n) = s.notify.as_ref()

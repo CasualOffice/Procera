@@ -111,6 +111,37 @@ const TEMPLATES: &[(&str, &str)] = &[
 <p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
 {% block footer %}You receive this because someone sent you a document to sign in Procera.{% endblock %}"#,
     ),
+    ("signature_reminder.title", "Reminder: please sign {{ title }}"),
+    (
+        "signature_reminder.body",
+        "{{ sender }} is waiting for your signature{% if due %} (by {{ due }}){% endif %}.",
+    ),
+    ("signature_reminder.subject", "Reminder: {{ sender }} is waiting for your signature on {{ title }}"),
+    (
+        "signature_reminder.text",
+        "{{ sender }} is still waiting for your signature on {{ title }}{% if due %}, due {{ due }}{% endif %}.\n\nReview and sign:\n{{ link }}\n",
+    ),
+    (
+        "signature_reminder.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ sender }}</strong> is still waiting for your signature on <strong>{{ title }}</strong>{% if due %}, due <strong>{{ due }}</strong>{% endif %}.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Review and sign</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because a document is waiting for your signature in Procera.{% endblock %}"#,
+    ),
+    ("signature_expired.title", "{{ title }} expired"),
+    ("signature_expired.body", "It expired before everyone signed. Send it again if it's still needed."),
+    ("signature_expired.subject", "Expired before everyone signed: {{ title }}"),
+    (
+        "signature_expired.text",
+        "{{ title }} expired before everyone signed. If it's still needed, send it again.\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "signature_expired.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ title }}</strong> expired before everyone signed. If it's still needed, send it again.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the document</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you sent this document for signature.{% endblock %}"#,
+    ),
     ("signature_completed.title", "{{ title }} is signed"),
     ("signature_completed.body", "Everyone has signed. The signed copy has a certificate of completion."),
     ("signature_completed.subject", "Signed by everyone: {{ title }}"),

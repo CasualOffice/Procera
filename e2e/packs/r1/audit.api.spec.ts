@@ -245,6 +245,13 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/signing/{recipient}/decline', () => own.post(`/api/v1/signing/${e2.recipient}/decline`, { headers: oh, data: { reason: 'drill' } }));
   const e3 = await envelope(false);
   await step('POST', '/api/v1/envelopes/{id}/void', () => own.post(`/api/v1/envelopes/${e3.id}/void`, { headers: oh, data: { reason: 'drill' } }));
+  // Bulk send, reminders (none due yet) and cancelling a batch (BPMS-107 slice 3).
+  const bulk = await (await own.post('/api/v1/envelopes', { headers: oh, data: { title: 'Audit bulk', file_id: pdf.id, bulk: true } })).json();
+  await own.put(`/api/v1/envelopes/${bulk.id}/fields`, { headers: oh, data: { fields: [{ recipient_id: bulk.recipients[0].id, kind: 'signature', page: 1, x: 0.1, y: 0.1, w: 0.3, h: 0.08 }] } });
+  const batch = await (await step('POST', '/api/v1/envelopes/{id}/send-bulk', () => own.post(`/api/v1/envelopes/${bulk.id}/send-bulk`, { headers: oh, data: { audience: { all: true } } }))).json();
+  await step('POST', '/api/v1/envelope-batches/{id}/remind', () => own.post(`/api/v1/envelope-batches/${batch.id}/remind`, { headers: oh }));
+  await step('POST', '/api/v1/envelopes/{id}/remind', () => own.post(`/api/v1/envelopes/${batch.rows[0].envelope_id}/remind`, { headers: oh }));
+  await step('POST', '/api/v1/envelope-batches/{id}/void', () => own.post(`/api/v1/envelope-batches/${batch.id}/void`, { headers: oh, data: { reason: 'drill' } }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
   await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));

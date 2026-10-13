@@ -294,6 +294,7 @@ async fn main() -> anyhow::Result<()> {
                     let retention = state.retention.clone();
                     let keys = state.keys.clone();
                     let audit_exports = state.audit_exports.clone();
+                    let signing = state.signing.clone();
                     // Retention runs at most hourly (BPMS-066).
                     let mut last_retention: Option<std::time::Instant> = None;
                     let mut rx = stop_rx.clone();
@@ -327,6 +328,17 @@ async fn main() -> anyhow::Result<()> {
                                     Ok(0) => {}
                                     Ok(n) => tracing::info!(removed = n, "retention removed records"),
                                     Err(e) => tracing::error!(error = %e, "retention pass failed"),
+                                }
+                            }
+                            if let Some(x) = signing.as_ref() {
+                                match x.run_due().await {
+                                    Ok(d) if d.reminded + d.expired == 0 => {}
+                                    Ok(d) => tracing::info!(
+                                        reminded = d.reminded,
+                                        expired = d.expired,
+                                        "signing reminders and expiries"
+                                    ),
+                                    Err(e) => tracing::error!(error = %e, "signing reminder pass failed"),
                                 }
                             }
                             if let Some(x) = audit_exports.as_ref() {

@@ -163,4 +163,71 @@ test.describe('e-signing @r4 @signing', () => {
     const tok = (await (await ann.session.c.post('/api/v1/me/api-tokens', { headers: ann.session.headers, data: { name: 'x', permissions: ['request:view_own'] } })).json()).token;
     expect((await (await client()).get(`/api/v1/signing/${ra!.id}`, { headers: { authorization: `Bearer ${tok}` } })).status()).toBe(403);
   });
+
+  test('E2E-R4-SIGN-03 a bulk send gives each person in a group their own copy; reminders and expiry run on schedule', async ({ request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const people = [await person(request, owner, ws.id, 'Ann Asker'), await person(request, owner, ws.id, 'Bo Boss'), await person(request, owner, ws.id, 'Cy Clerk')];
+    const grp = await (await owner.c.post('/api/v1/groups', { headers: h, data: { name: 'All staff' } })).json();
+    for (const p of people) expect((await owner.c.post(`/api/v1/groups/${grp.id}/members`, { headers: h, data: { membership_id: p.id } })).ok()).toBe(true);
+    const file = await upload(owner, 'code.pdf', pdfPages(['Code of conduct']));
+    const draft = await (await owner.c.post('/api/v1/envelopes', { headers: h, data: { title: 'Code of conduct', file_id: file.id, bulk: true } })).json();
+    expect(draft.bulk).toBe(true);
+    expect(draft.recipients).toHaveLength(1); // the placeholder for each person
+    const slot = draft.recipients[0].id;
+    // Only copies (cc) can be added to a bulk draft; plain send is refused.
+    expect((await owner.c.put(`/api/v1/envelopes/${draft.id}/recipients`, { headers: h, data: { recipients: [{ membership_id: people[0]!.id, role: 'signer' }] } })).status()).toBe(422);
+    expect((await owner.c.post(`/api/v1/envelopes/${draft.id}/send`, { headers: h })).status()).toBe(422);
+    await owner.c.put(`/api/v1/envelopes/${draft.id}/fields`, { headers: h, data: { fields: [{ recipient_id: slot, kind: 'signature', page: 1, x: 0.1, y: 0.6, w: 0.3, h: 0.1 }, { recipient_id: slot, kind: 'date_signed', page: 1, x: 0.5, y: 0.6, w: 0.3, h: 0.08 }] } });
+    expect((await owner.c.post(`/api/v1/envelopes/${draft.id}/send-bulk`, { headers: h, data: { audience: { groups: [] } } })).status()).toBe(422);
+    const sent = await owner.c.post(`/api/v1/envelopes/${draft.id}/send-bulk`, { headers: h, data: { audience: { groups: [grp.id] } } });
+    expect(sent.status(), await sent.text()).toBe(201);
+    const batch = await sent.json();
+    expect(batch).toMatchObject({ total: 3, counts: { total: 3, waiting: 3, signed: 0 } });
+    // The template is no longer editable or listed; the batch is.
+    expect((await owner.c.put(`/api/v1/envelopes/${draft.id}/fields`, { headers: h, data: { fields: [] } })).status()).toBe(409);
+    expect(((await (await owner.c.get('/api/v1/envelopes', { headers: h })).json()).items as { id: string }[]).map((e) => e.id)).not.toContain(draft.id);
+    expect(((await (await owner.c.get('/api/v1/envelope-batches', { headers: h })).json()).items as { id: string }[])[0]!.id).toBe(batch.id);
+
+    // Each person has their own copy; Ann signs hers.
+    const ann = people[0]!;
+    const box = (await (await ann.session.c.get('/api/v1/me/signatures', { headers: ann.session.headers })).json()).items;
+    expect(box[0]).toMatchObject({ title: 'Code of conduct', to_sign: true });
+    const cer = await (await ann.session.c.get(`/api/v1/signing/${box[0].recipient_id}`, { headers: ann.session.headers })).json();
+    expect(cer.fields).toHaveLength(2);
+    expect((await ann.session.c.post(`/api/v1/signing/${box[0].recipient_id}/sign`, { headers: ann.session.headers, data: { document_hash: cer.envelope.document_hash, consent: true, adopted: { kind: 'typed', text: 'Ann Asker' } } })).status()).toBe(200);
+    expect((await (await owner.c.get(`/api/v1/envelope-batches/${batch.id}`, { headers: h })).json()).counts).toMatchObject({ signed: 1, waiting: 2 });
+
+    // Remind now reaches the two still to sign (not right after they were told).
+    expect((await (await owner.c.post(`/api/v1/envelope-batches/${batch.id}/remind`, { headers: h })).json()).reminded).toBe(0);
+    const waiting = ((await (await owner.c.get(`/api/v1/envelope-batches/${batch.id}`, { headers: h })).json()).rows as { envelope_id: string; state: string }[]).filter((r) => r.state === 'sent');
+    for (const r of waiting) expect((await request.post('/__test/envelopes/backdate', { data: { workspace: ws.id, envelope: r.envelope_id, seconds: 120 } })).status()).toBe(204);
+    expect((await (await owner.c.post(`/api/v1/envelope-batches/${batch.id}/remind`, { headers: h })).json()).reminded).toBe(2);
+    // Scheduled reminders: three days later (the default), once.
+    for (const r of waiting) await request.post('/__test/envelopes/backdate', { data: { workspace: ws.id, envelope: r.envelope_id, seconds: 4 * 86400 } });
+    expect((await request.post('/__test/drain')).ok()).toBe(true);
+    const bo = people[1]!;
+    const boNotes = (await (await bo.session.c.get('/api/v1/notifications', { headers: bo.session.headers })).json()).items as { title: string }[];
+    expect(boNotes.filter((n) => n.title === 'Reminder: please sign Code of conduct').length).toBe(2);
+    let rows = (await (await owner.c.get(`/api/v1/envelope-batches/${batch.id}`, { headers: h })).json()).rows as { name: string; reminders_sent: number }[];
+    expect(rows.find((r) => r.name === 'Bo Boss')!.reminders_sent).toBe(2);
+    // Past the deadline it expires, and the sender is told.
+    for (const r of waiting) await request.post('/__test/envelopes/backdate', { data: { workspace: ws.id, envelope: r.envelope_id, seconds: 40 * 86400 } });
+    expect((await request.post('/__test/drain')).ok()).toBe(true);
+    const after = await (await owner.c.get(`/api/v1/envelope-batches/${batch.id}`, { headers: h })).json();
+    expect(after.counts).toMatchObject({ signed: 1, expired: 2, waiting: 0 });
+    const ownerNotes = (await (await owner.c.get('/api/v1/notifications', { headers: h })).json()).items as { title: string }[];
+    expect(ownerNotes.filter((n) => n.title === 'Code of conduct expired').length).toBe(2);
+    rows = after.rows;
+    expect(rows).toHaveLength(3);
+
+    // Cancelling a batch cancels the copies still waiting.
+    const d2 = await (await owner.c.post('/api/v1/envelopes', { headers: h, data: { title: 'Second policy', file_id: file.id, bulk: true } })).json();
+    await owner.c.put(`/api/v1/envelopes/${d2.id}/fields`, { headers: h, data: { fields: [{ recipient_id: d2.recipients[0].id, kind: 'signature', page: 1, x: 0.1, y: 0.6, w: 0.3, h: 0.1 }] } });
+    const b2 = await (await owner.c.post(`/api/v1/envelopes/${d2.id}/send-bulk`, { headers: h, data: { audience: { groups: [grp.id] } } })).json();
+    expect((await (await owner.c.post(`/api/v1/envelope-batches/${b2.id}/void`, { headers: h, data: { reason: 'Replaced' } })).json()).cancelled).toBe(3);
+    expect((await (await owner.c.get(`/api/v1/envelope-batches/${b2.id}`, { headers: h })).json()).counts.cancelled).toBe(3);
+    // Someone else can't see a batch.
+    expect((await ann.session.c.get(`/api/v1/envelope-batches/${b2.id}`, { headers: ann.session.headers })).status()).toBe(404);
+  });
 });
