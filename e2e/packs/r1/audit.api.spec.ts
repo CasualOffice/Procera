@@ -3,6 +3,7 @@ import { BASE, PW, hasDatabase, serverNow, uniqueEmail } from '../../fixtures/ac
 import { softAuthenticator } from '../../fixtures/passkey';
 import { totp } from '../../fixtures/totp';
 import { freshAuth } from '../../fixtures/workspace';
+import { pdfPages, upload } from '../../fixtures/files';
 
 // E2E-R1-AUD-01 — audit coverage contract (FR-T01, BPMS-026). Calls every mutating route once and checks
 // the audit events it appended against the route table served by /__test/audit/contract. Events are
@@ -226,6 +227,24 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/processes/validate', () => own.post('/api/v1/processes/validate', { headers: oh, data: { content: pd.draft.content } }));
   await step('POST', '/api/v1/processes/test-run', () => own.post('/api/v1/processes/test-run', { headers: oh, data: { content: pd.draft.content, input: { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' } } }));
   await step('POST', '/api/v1/processes/who', () => own.post('/api/v1/processes/who', { headers: oh, data: { candidates: [{ type: 'role', ref: 'workspace.owner' }] } }));
+  // E-signing (BPMS-107): a draft to the owner, send, sign (completes it); then a decline and a void.
+  const pdf = await upload({ c: own, headers: oh }, 'audit.pdf', pdfPages(['Audit drill']));
+  const envelope = async (sign: boolean) => {
+    const e = sign
+      ? await (await step('POST', '/api/v1/envelopes', () => own.post('/api/v1/envelopes', { headers: oh, data: { title: 'Audit drill', file_id: pdf.id } }))).json()
+      : await (await own.post('/api/v1/envelopes', { headers: oh, data: { title: 'Audit drill', file_id: pdf.id } })).json();
+    const call = (m: string, p: string, f: () => Promise<APIResponse>) => (sign ? step(m, p, f) : f());
+    const r = await (await call('PUT', '/api/v1/envelopes/{id}/recipients', () => own.put(`/api/v1/envelopes/${e.id}/recipients`, { headers: oh, data: { recipients: [{ membership_id: ownerMembership }] } }))).json();
+    await call('PUT', '/api/v1/envelopes/{id}/fields', () => own.put(`/api/v1/envelopes/${e.id}/fields`, { headers: oh, data: { fields: [{ recipient_id: r.recipients[0].id, kind: 'signature', page: 1, x: 0.1, y: 0.1, w: 0.3, h: 0.08 }] } }));
+    await call('POST', '/api/v1/envelopes/{id}/send', () => own.post(`/api/v1/envelopes/${e.id}/send`, { headers: oh }));
+    return { id: e.id as string, recipient: r.recipients[0].id as string, hash: e.document_hash as string };
+  };
+  const e1 = await envelope(true);
+  await step('POST', '/api/v1/signing/{recipient}/sign', () => own.post(`/api/v1/signing/${e1.recipient}/sign`, { headers: oh, data: { document_hash: e1.hash, consent: true, adopted: { kind: 'typed', text: 'Audit Owner' } } }));
+  const e2 = await envelope(false);
+  await step('POST', '/api/v1/signing/{recipient}/decline', () => own.post(`/api/v1/signing/${e2.recipient}/decline`, { headers: oh, data: { reason: 'drill' } }));
+  const e3 = await envelope(false);
+  await step('POST', '/api/v1/envelopes/{id}/void', () => own.post(`/api/v1/envelopes/${e3.id}/void`, { headers: oh, data: { reason: 'drill' } }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
   await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));

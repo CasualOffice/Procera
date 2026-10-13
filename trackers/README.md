@@ -7,11 +7,11 @@
 
 ```text
 Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
-Partial   ███████████████░░░░░░░░░░░░░░░  49% counting in-progress epics as half done
-Tests     263 automated E2E scenarios · 442 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 1 · blocked 0 · not started 63 · deferred 0
+Partial   ███████████████░░░░░░░░░░░░░░░  50% counting in-progress epics as half done
+Tests     265 automated E2E scenarios · 446 Rust tests (incl. property tests)
+Status    done 61 · in review 0 · in progress 2 · blocked 0 · not started 62 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 49 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 50 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -33,6 +33,7 @@ Evidence  automated tests 49 · code merged 13  (separate from status; none user
 
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
+| BPMS-107 | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | **In progress** | Automated tests | E-sign v1 slice 1 (server, migration 0050, crate procera-signing): envelopes from a clean PDF (hash and page sizes frozen on send), member signers in order or parallel plus CC, fields (signature, initials, date signed, name, text, checkbox) placed as page fractions, send/void, the ceremony (view, consent, typed or drawn signature, own fields, hash and turn checks, strong mode = recent sign-in), decline, and completion in the same transaction: values stamped onto the PDF with lopdf, a certificate of completion appended, the signed copy stored through the files pipeline and linked (undeletable), its SHA-256 recorded; notifications in-app + email; evidence frozen by triggers. E2E-R4-SIGN-01..02, AUD-01, PDF unit tests. Next: web (send flow with click-to-place fields, My work › Signatures, ceremony page, sent tracking), then bulk send, reminders/expiry. |
 | BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | **In progress** | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 
 ## Done
@@ -203,7 +204,7 @@ _Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPM
 - [x] **BPMS-066** (P0, M) Retention policy per record class (policy only)
 - [ ] **BPMS-102** (P0, M) Master-data tables (CSV import, lookups, versioned)
 - [ ] **BPMS-104** (P0, M) Recall/withdraw, edit-after-submit, request-on-behalf, numbering
-- [ ] **BPMS-107** (P0, XL) E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate
+- [ ] **BPMS-107** (P0, XL) E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate **[In progress]**
 - [x] **BPMS-108** (P0, L) All requests / all work / workload / process health / ops monitor
 - [ ] **BPMS-109** (P0, M) PWA (360px) for My Work, requests, acks, signing
 - [ ] **BPMS-110** (P0, M) BPMN 2.0 XML import (subset) + compatibility report
@@ -301,7 +302,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 321 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 323 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 16 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 16 / 16 / 46 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

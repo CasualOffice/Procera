@@ -71,6 +71,7 @@ fn forbidden(method: &Method, path: &str) -> bool {
         ["members", _, "security", ..] => true,
         ["work", _, "decisions" | "delegate"] => true,
         ["announcements", _, "acks"] | ["acknowledgements", _, "complete"] => true,
+        ["signing", ..] => true,
         _ => false,
     }
 }
@@ -403,6 +404,7 @@ mod tests {
             "/work/abc/delegate",
             "/announcements/abc/acks",
             "/acknowledgements/abc/complete",
+            "/signing/abc/sign",
             "/members/abc/security/reset-mfa",
             "/invitations/accept",
         ] {

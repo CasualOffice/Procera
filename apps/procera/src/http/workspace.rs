@@ -121,6 +121,8 @@ pub struct WsMember {
     pub user_id: Uuid,
     /// When the user last authenticated (sign-in or step-up), unix seconds.
     pub auth_time: i64,
+    /// How (RFC 8176 `amr`: `pwd`, `otp`, `hwk`; `token` for an API token).
+    pub amr: Vec<String>,
 }
 
 impl FromRequestParts<AppState> for WsMember {
@@ -196,6 +198,7 @@ impl FromRequestParts<AppState> for WsMember {
             actor: Actor { membership, subject_ref },
             user_id: claims.sub,
             auth_time: claims.auth_time,
+            amr: claims.amr.clone(),
         })
     }
 }

@@ -29,6 +29,7 @@ pub mod requests;
 pub mod retention;
 pub mod search;
 pub mod settings;
+pub mod signing;
 pub mod system;
 pub mod system_console;
 pub mod system_email;
@@ -80,6 +81,8 @@ pub struct AppState {
     /// Requests and approvals: built-in request types, the runtime engine and its work items
     /// (BPMS-083/085/103). Its scheduler runs in `serve --all` and in `/__test/drain`.
     pub requests: Option<procera_requests::Requests>,
+    /// Employee e-signing (BPMS-107).
+    pub signing: Option<procera_signing::Signing>,
     /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
     pub mailers: Option<procera_notify::Mailers>,
     /// What the system console reports about storage, scanning and the public URL (read-only).
@@ -255,6 +258,15 @@ impl AppState {
                     ids: Arc::new(procera_kernel::UuidV7Gen),
                 });
             }
+            if let Some(files) = &self.files {
+                self.signing = Some(procera_signing::Signing::new(
+                    files.clone(),
+                    notify.clone(),
+                    self.clock.clone(),
+                    Arc::new(procera_kernel::UuidV7Gen),
+                    &self.public_url,
+                ));
+            }
             // The environment transport, if any, is attached by `with_smtp_env` (main).
             self.mailers = procera_notify::Mailers::new(notify.clone(), None).ok();
             self.notify = Some(notify);
@@ -301,6 +313,7 @@ impl AppState {
             files: None,
             audit_exports: None,
             requests: None,
+            signing: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -337,6 +350,7 @@ impl AppState {
             files: None,
             audit_exports: None,
             requests: None,
+            signing: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -380,6 +394,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", work::router())
         .nest("/api/v1", delegation::router())
         .nest("/api/v1", tokens::router())
+        .nest("/api/v1", signing::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))

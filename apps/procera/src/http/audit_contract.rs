@@ -191,6 +191,19 @@ pub const CONTRACT: &[Entry] = &[
     emits("PATCH", "/api/v1/views/{id}", &[&["view.updated"]]),
     emits("DELETE", "/api/v1/views/{id}", &[&["view.deleted"]]),
     emits("POST", "/api/v1/exports", &[&["data.exported"]]),
+    // E-signing (BPMS-107): drafts, send, void; signing (the last signature also completes the envelope
+    // and stores the signed copy as a file).
+    emits("POST", "/api/v1/envelopes", &[&["envelope.created", "file.linked"]]),
+    emits("PUT", "/api/v1/envelopes/{id}/recipients", &[&["envelope.recipients_set"]]),
+    emits("PUT", "/api/v1/envelopes/{id}/fields", &[&["envelope.fields_set"]]),
+    emits("POST", "/api/v1/envelopes/{id}/send", &[&["envelope.sent"]]),
+    emits("POST", "/api/v1/envelopes/{id}/void", &[&["envelope.voided"]]),
+    emits(
+        "POST",
+        "/api/v1/signing/{recipient}/sign",
+        &[&["envelope.signed"], &["envelope.completed", "envelope.signed", "file.linked", "file.uploaded"]],
+    ),
+    emits("POST", "/api/v1/signing/{recipient}/decline", &[&["envelope.declined"]]),
     // Personal API tokens (BPMS-144): created, revoked by their owner or an admin (again: no-op).
     emits("POST", "/api/v1/me/api-tokens", &[&["api_token.created"]]),
     emits("DELETE", "/api/v1/me/api-tokens/{id}", &[&["api_token.revoked"], &[]]),
@@ -393,6 +406,7 @@ mod tests {
             ("/api/v1", include_str!("work.rs")),
             ("/api/v1", include_str!("processes.rs")),
             ("/api/v1", include_str!("tokens.rs")),
+            ("/api/v1", include_str!("signing.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),
