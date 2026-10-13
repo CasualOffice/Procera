@@ -511,6 +511,7 @@ impl Requests {
             }
             steps.push(Step {
                 id: r.0,
+                parallel: rt.parallel.get(&r.1).cloned(),
                 node: r.1,
                 name: r.2,
                 kind: r.3,

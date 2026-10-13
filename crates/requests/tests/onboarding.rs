@@ -89,6 +89,7 @@ async fn three_tasks_run_at_once_the_join_waits_then_the_new_member_acknowledges
     );
     assert_eq!(d.summary.assignees, ["Fay Facilities", "Ian IT", "Mo Manager"]);
     assert!(d.steps.iter().all(|s| s.due_at.is_some()), "due in business days");
+    assert!(d.steps.iter().all(|s| s.parallel.as_deref() == Some("prepare")), "one parallel block");
     // The list summary carries the same.
     let mut tx = w.tx().await;
     let list = w.req.list(&mut tx, procera_requests::Scope::All, Some("in_progress")).await.unwrap();
@@ -132,6 +133,7 @@ async fn three_tasks_run_at_once_the_join_waits_then_the_new_member_acknowledges
     assert_eq!((last.node.as_str(), last.outcome.as_deref()), ("welcome", Some("acknowledged")));
     let order: Vec<&str> = d.steps.iter().map(|s| s.node.as_str()).collect();
     assert_eq!(order.last(), Some(&"welcome"), "the acknowledgement comes last");
+    assert_eq!(last.parallel, None, "after the join");
     let texts: Vec<&str> = d.timeline.iter().map(|t| t.text.as_str()).collect();
     assert!(texts.contains(&"Set up accounts and equipment: done by Ian IT"), "{texts:?}");
     assert!(texts.contains(&"Confirm equipment and handbook: acknowledged by Nia New"), "{texts:?}");

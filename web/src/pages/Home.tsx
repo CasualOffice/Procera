@@ -14,7 +14,7 @@ import { Button } from '../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { KIND_TAG, Tag } from '../ui/Tag';
 import { term, useTerms } from '../lib/terms';
-import { type RequestRow, type WorkItem, STATUS_TAG, dueInfo, people } from '../lib/requests';
+import { type RequestRow, type WorkItem, STATUS_TAG, dueInfo, people, whereItIs } from '../lib/requests';
 
 interface Ack { id: string; campaign_title: string; due_at: string; overdue: boolean; acknowledged_at: string | null; subject: { artifact_id?: string; announcement_id?: string; kind: string; title: string; version_no?: number; link?: string } }
 interface FeedItem { id: string; title: string; priority: string; pinned: boolean; require_ack: boolean; published_at: string | null; read_at: string | null; acked_at: string | null }
@@ -197,7 +197,7 @@ export function Home() {
                 {moving.map((r) => (
                   <li key={r.id}>
                     <Link to={`/requests/${r.id}`}>{r.title}</Link>
-                    <span className="home-card-meta"><Tag color={STATUS_TAG[r.status]?.color}>{STATUS_TAG[r.status]?.label ?? r.status}</Tag> {r.current_step ? `${r.current_step}${r.assignees.length ? ` · with ${people(r.assignees)}` : ''}` : r.type_name}</span>
+                    <span className="home-card-meta"><Tag color={STATUS_TAG[r.status]?.color}>{STATUS_TAG[r.status]?.label ?? r.status}</Tag> {r.current_step ? `${whereItIs(r)}${r.assignees.length ? ` · with ${people(r.assignees)}` : ''}` : r.type_name}</span>
                   </li>
                 ))}
               </ul>

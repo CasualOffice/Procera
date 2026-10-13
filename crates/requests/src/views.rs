@@ -50,6 +50,8 @@ pub struct RequestSummary {
 pub struct Step {
     pub id: Uuid,
     pub node: String,
+    /// The parallel block the step belongs to (its split's id): steps of one block run at the same time.
+    pub parallel: Option<String>,
     pub name: String,
     pub kind: String,
     /// `offered`, `claimed`, `completed` or `cancelled`.

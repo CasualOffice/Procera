@@ -10,15 +10,15 @@ import type { TagColor } from '../ui/Tag';
 export type FieldType = 'string' | 'text' | 'enum' | 'money' | 'date' | 'number' | 'boolean' | 'principal' | 'file';
 export interface FormField { name: string; label: string; type: FieldType; required?: boolean; options?: { value: string; label: string }[]; help?: string; currency?: string; multiple?: boolean }
 export interface RequestType { key: string; name: string; description: string; category: string; icon?: string; form: { fields: FormField[] } }
-export type RequestStatus = 'in_progress' | 'approved' | 'rejected' | 'cancelled' | 'changes_requested';
+export type RequestStatus = 'in_progress' | 'approved' | 'rejected' | 'cancelled' | 'changes_requested' | 'completed';
 export interface Person { id: string; name: string }
-export interface RequestRow { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; current_step: string | null; assignees: string[]; created_at: string; updated_at: string; initiator: Person }
+export interface RequestRow { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; current_step: string | null; open_steps?: string[]; assignees: string[]; created_at: string; updated_at: string; initiator: Person }
 export type StepState = 'waiting' | 'active' | 'done' | 'skipped' | 'cancelled';
 /** Someone out of office (BPMS-086): their last day away (null once back) and who decides for them. */
 export interface Away { id: string; name: string; until: string | null; delegate: Person | null }
-export interface Step { name: string; state: StepState; assignees: string[]; decided_by?: string | null; on_behalf_of?: string | null; away?: Away[]; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
-export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string; files?: Attachment[] }[]; attachments?: Attachment[]; policy?: PolicyRef | null; sla_due_at?: string | null; can_cancel: boolean; why?: WhyLine[]; release?: { version: number; checksum: string | null } }
-export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[]; on_behalf_of?: Away | null; why_you?: string | null; attachments?: Attachment[]; policy?: PolicyRef | null }
+export interface Step { name: string; kind?: string; state: StepState; created_at?: string; /** The parallel block (split id) the step runs in, alongside its siblings. */ parallel?: string | null; assignees: string[]; decided_by?: string | null; on_behalf_of?: string | null; away?: Away[]; outcome?: string | null; comment?: string | null; decided_at?: string | null; due_at?: string | null }
+export interface RequestDetail { id: string; display_id: string; type: string; type_name: string; title: string; status: RequestStatus; /** How a finished request ended (its end step: "Onboarded"). */ result?: string | null; initiator: Person; created_at?: string; input: Record<string, unknown>; form: { fields: FormField[] }; steps: Step[]; timeline: { at: string; kind?: string; actor?: string | null; text: string; files?: Attachment[] }[]; attachments?: Attachment[]; policy?: PolicyRef | null; sla_due_at?: string | null; can_cancel: boolean; why?: WhyLine[]; release?: { version: number; checksum: string | null } }
+export interface WorkItem { id: string; revision: number; request: { id: string; display_id: string; type_name: string; title: string; initiator: Person }; step: string; /** `approval`, `task` or `acknowledge`. */ kind?: string; /** What the person confirms on an acknowledgement. */ statement?: string | null; outcomes: string[]; due_at?: string | null; created_at: string; fields?: FormField[]; decided_at?: string | null; outcome?: string | null; overdue?: boolean; assignees?: string[]; on_behalf_of?: Away | null; why_you?: string | null; attachments?: Attachment[]; policy?: PolicyRef | null }
 /** One "why this route" line (PR-08): a routing decision or why a step went to its people. */
 /** A file on a request: from a form field (`field`) or attached with a decision (`source` names the step). */
 export interface Attachment { id: string; name: string; size: number; state: string; sniffed_type: string | null; source: string; field: string | null }
@@ -38,7 +38,21 @@ export const STATUS_TAG: Record<RequestStatus, { label: string; color: TagColor 
   approved: { label: 'Approved', color: 'green' },
   rejected: { label: 'Rejected', color: 'red' },
   cancelled: { label: 'Cancelled', color: 'gray' },
+  completed: { label: 'Completed', color: 'green' },
 };
+
+/** A request's status tag; a completed request reads as its end step ("Onboarded") when known. */
+export const statusTag = (status: RequestStatus, result?: string | null): { label: string; color: TagColor } => {
+  const t = STATUS_TAG[status] ?? { label: status, color: 'gray' as const };
+  return status === 'completed' && result ? { ...t, label: result } : t;
+};
+
+/** Where a request is, in a few words: its step, or "3 steps at once" when branches run in parallel. */
+export function whereItIs(r: Pick<RequestRow, 'current_step' | 'open_steps'>): string {
+  const open = r.open_steps ?? [];
+  if (open.length > 1) return `${open.length} steps at once`;
+  return open[0] ?? r.current_step ?? '';
+}
 
 /** How each decision reads on its button and in the history. Unknown outcomes are humanised. */
 const OUTCOMES: Record<string, { verb: string; past: string; tone: 'primary' | 'secondary' | 'reject' }> = {
@@ -53,6 +67,8 @@ const OUTCOMES: Record<string, { verb: string; past: string; tone: 'primary' | '
   resubmit: { verb: 'Resubmit', past: 'Resubmitted', tone: 'primary' },
   completed: { verb: 'Mark done', past: 'Done', tone: 'primary' },
   complete: { verb: 'Mark done', past: 'Done', tone: 'primary' },
+  done: { verb: 'Mark done', past: 'Done', tone: 'primary' },
+  acknowledged: { verb: 'Acknowledge', past: 'Acknowledged', tone: 'primary' },
 };
 const human = (s: string) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 export const outcomeVerb = (o: string) => OUTCOMES[o]?.verb ?? human(o);

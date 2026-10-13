@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useItems } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, useRoute } from '../lib/router';
-import { type RequestRow, type WorkItem, people } from '../lib/requests';
+import { type RequestRow, type WorkItem, people, whereItIs } from '../lib/requests';
 import { Button } from '../ui/components/Button';
 import { DataGrid, type GridColumn } from '../ui/components/DataGrid';
 import { Notice } from '../ui/components/Notice';
@@ -80,8 +80,8 @@ function OpenRequests() {
       <span className="cell-stack"><Link to={`/requests/${r.id}`}>{r.title}</Link><span className="cell-sub">{r.display_id} · {r.type_name}</span></span>
     ) },
     { id: 'initiator', header: 'Requested by', value: (r) => r.initiator.name },
-    { id: 'step', header: 'Where it is', value: (r) => `${r.current_step ?? ''} ${people(r.assignees)}`, cell: (r) => (
-      <span className="cell-stack"><span>{r.current_step ?? '—'}</span><span className="cell-sub">{r.assignees.length ? `with ${people(r.assignees)}` : 'with nobody'}</span></span>
+    { id: 'step', header: 'Where it is', value: (r) => `${(r.open_steps ?? []).join(' ') || (r.current_step ?? '')} ${people(r.assignees)}`, cell: (r) => (
+      <span className="cell-stack"><span>{whereItIs(r) || '—'}</span><span className="cell-sub">{r.assignees.length ? `with ${people(r.assignees)}` : 'with nobody'}</span></span>
     ) },
     { id: 'updated', header: 'Updated', type: 'date', value: (r) => r.updated_at, cell: (r) => <time className="cell-muted" dateTime={r.updated_at} title={shortDate(r.updated_at)}>{timeAgo(r.updated_at)}</time> },
   ], []);

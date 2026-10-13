@@ -1,11 +1,11 @@
-import { Ban, Check, Minus } from 'lucide-react';
+import { Ban, Check, Minus, Split } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Form, Label, TextArea, TextField as AriaTextField, FieldError } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { navigate, useRoute } from '../lib/router';
-import { type RequestDetail as Detail, type Step, type WorkItem, STATUS_TAG, awayUntil, displayValue, dueInfo, normalizeDetail, outcomePast, people } from '../lib/requests';
+import { type RequestDetail as Detail, type Step, type WorkItem, awayUntil, displayValue, dueInfo, normalizeDetail, outcomePast, people, statusTag } from '../lib/requests';
 import { useSession } from '../lib/session';
 import { setCrumb } from '../ui/AppShell';
 import { Avatar } from '../ui/Avatar';
@@ -41,10 +41,10 @@ export function RequestDetail({ id }: { id: string }) {
 
   if (error) return <LoadError error={error} onRetry={reload} what="this request" />;
   if (!r) return <Skeleton variant="doc" label="Loading request" />;
-  const status = STATUS_TAG[r.status] ?? { label: r.status, color: 'gray' as const };
-  const active = r.steps.find((s) => s.state === 'active');
+  const status = statusTag(r.status, r.result);
   const submitted = query.get('submitted') === '1';
-  const reviewers = people(active?.assignees ?? []);
+  // Several steps can be open at once (parallel branches): everyone on them is a reviewer.
+  const reviewers = people([...new Set(r.steps.filter((s) => s.state === 'active').flatMap((s) => s.assignees))]);
   const sla = r.status === 'in_progress' ? dueInfo(r.sla_due_at) : null;
 
   return (
@@ -120,15 +120,53 @@ export function RequestDetail({ id }: { id: string }) {
 
 const STATE_WORD: Record<Step['state'], string> = { done: 'Done', active: 'Current step', waiting: 'Still to come', skipped: 'Skipped', cancelled: 'Cancelled' };
 
-/** The steps top to bottom. State is in words (visually hidden) and in the marker's shape, never colour alone. */
+/** Runs of steps of one parallel block, so branches that run at the same time are shown together. */
+function together(steps: Step[]): Step[][] {
+  const out: Step[][] = [];
+  for (const s of steps) {
+    const last = out[out.length - 1];
+    const head = last?.[0];
+    // Same parallel block, opened by the same activation (a block run again starts a new group).
+    if (head && s.parallel && head.parallel === s.parallel && head.created_at === s.created_at) last.push(s);
+    else out.push([s]);
+  }
+  return out;
+}
+
+/**
+ * The steps top to bottom. State is in words (visually hidden) and in the marker's shape, never colour
+ * alone. Steps that started at the same moment (parallel branches) sit in one "at the same time"
+ * group with a count of how many are done; each can finish in any order.
+ */
 export function Stepper({ steps }: { steps: Step[] }) {
   if (steps.length === 0) return <p className="muted">This request has no approval steps.</p>;
   return (
     <ol className="steps" aria-label="Approval steps">
-      {steps.map((s, i) => {
+      {together(steps).map((run, i) => {
+        if (run.length === 1) return <StepItem key={`${run[0]!.name}-${i}`} s={run[0]!} />;
+        const done = run.filter((s) => s.state === 'done').length;
+        const open = run.some((s) => s.state === 'active');
+        return (
+          <li key={`group-${i}`} className={`step step-group ${open ? 'step-active' : done === run.length ? 'step-done' : 'step-waiting'}`}>
+            <span className="step-mark step-mark-split" aria-hidden="true"><Split size="0.75rem" strokeWidth={2.5} /></span>
+            <div className="step-body">
+              <p className="step-name">{open ? 'At the same time' : 'Done at the same time'}</p>
+              <p className="step-meta">{done} of {run.length} done · any order</p>
+              <ol className="steps steps-nested" aria-label={`${run.length} steps at the same time`}>
+                {run.map((s, j) => <StepItem key={`${s.name}-${j}`} s={s} />)}
+              </ol>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function StepItem({ s }: { s: Step }) {
         const due = s.state === 'active' ? dueInfo(s.due_at) : null;
         return (
-          <li key={`${s.name}-${i}`} className={`step step-${s.state}`} aria-current={s.state === 'active' ? 'step' : undefined}>
+          <li className={`step step-${s.state}`} aria-current={s.state === 'active' ? 'step' : undefined}>
             <span className="step-mark" aria-hidden="true">{s.state === 'done' ? <Check size="0.75rem" strokeWidth={3} /> : s.state === 'skipped' || s.state === 'cancelled' ? <Minus size="0.75rem" strokeWidth={3} /> : null}</span>
             <div className="step-body">
               <p className="step-name"><span className="visually-hidden">{STATE_WORD[s.state]}: </span>{s.name}</p>
@@ -146,9 +184,6 @@ export function Stepper({ steps }: { steps: Step[] }) {
             </div>
           </li>
         );
-      })}
-    </ol>
-  );
 }
 
 function CancelDialog({ isOpen, onClose, id, onDone }: { isOpen: boolean; onClose: () => void; id: string; onDone: () => void }) {

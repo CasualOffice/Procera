@@ -1,4 +1,4 @@
-import { Check, CornerUpLeft, RotateCw, X } from 'lucide-react';
+import { Check, CornerUpLeft, RotateCw, ShieldCheck, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { FieldError, Form, Label, Text, TextArea, TextField as AriaTextField } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
@@ -18,6 +18,8 @@ const ICON = { primary: Check, secondary: CornerUpLeft, reject: X } as const;
  * back or reject), the fields this step may edit, and the work item's revision as If-Match so a
  * decision made elsewhere first is refused (409/412) instead of overwritten. Used on My work and on
  * the request page. Approve is the primary action; Reject stays an outlined neutral (docs/05 §7.1.1).
+ * An acknowledgement step is personal and has one action: the statement the person confirms and an
+ * Acknowledge button, with no comment, fields or files.
  */
 export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { item: WorkItem; detail?: RequestDetail | null; onDecided: (outcome: string) => void; /** The request page lists the files itself. */ showFiles?: boolean }) {
   const editable = item.fields ?? [];
@@ -57,6 +59,8 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
       else setProblem(e instanceof ApiError ? (e.problem.detail ?? e.problem.title) : 'The decision could not be saved. Check your connection and try again.');
     } finally { setBusy(null); }
   };
+
+  if (item.kind === 'acknowledge') return <AcknowledgePanel item={item} busy={busy !== null} problem={problem} stale={stale} onAcknowledge={() => void decide(item.outcomes[0] ?? 'acknowledged')} />;
 
   return (
     <section className="decide" aria-labelledby={headingId}>
@@ -102,6 +106,41 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
             })}
           </div>
         </Form>
+      )}
+    </section>
+  );
+}
+
+/** The acknowledgement: what the person confirms, in their words, and one button. */
+function AcknowledgePanel({ item, busy, problem, stale, onAcknowledge }: { item: WorkItem; busy: boolean; problem: string | null; stale: boolean; onAcknowledge: () => void }) {
+  const headingId = useId();
+  const statementId = useId();
+  const due = dueInfo(item.due_at);
+  return (
+    <section className="decide decide-ack" aria-labelledby={headingId}>
+      <div className="decide-head">
+        <h2 id={headingId}>Your acknowledgement</h2>
+        <span className="decide-step">{item.step}</span>
+        {due && <Tag color={due.color} dot={due.overdue}>{due.label}</Tag>}
+      </div>
+      {item.why_you && <p className="decide-why"><span className="decide-why-label">Why you:</span> {item.why_you}.</p>}
+      {item.policy && <PolicyLine policy={item.policy} />}
+      <figure className="ack-statement">
+        <ShieldCheck aria-hidden="true" size="1.125rem" className="ack-statement-icon" />
+        <blockquote id={statementId}><p>{item.statement ?? `I confirm: ${item.step}.`}</p></blockquote>
+      </figure>
+      {stale ? (
+        <Notice tone="warning" title="This was already confirmed — refresh">
+          <Button variant="secondary" className="btn-sm" onPress={() => window.location.reload()}><RotateCw aria-hidden="true" size="0.875rem" /> Refresh</Button>
+        </Notice>
+      ) : (
+        <>
+          {problem && <Notice tone="danger" title={problem} />}
+          <div className="decide-actions ack-actions">
+            <Button variant="primary" aria-describedby={statementId} isDisabled={busy} onPress={onAcknowledge}><Check aria-hidden="true" size="0.9375rem" /> {busy ? 'Acknowledging…' : 'Acknowledge'}</Button>
+            <p className="ack-note">Only you can confirm this. Your name and the time go on the request’s record.</p>
+          </div>
+        </>
       )}
     </section>
   );

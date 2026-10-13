@@ -93,6 +93,8 @@ pub struct RequestType {
     pub check: Option<Check>,
     /// What the person confirms on each acknowledgement step, by node id.
     pub statements: BTreeMap<String, &'static str>,
+    /// Human steps inside a parallel block, by node id → the split that opens the block.
+    pub parallel: BTreeMap<String, String>,
     title: fn(&BTreeMap<String, Value>) -> String,
 }
 
@@ -426,6 +428,29 @@ fn in_currency(doc: &Value, currency: &str) -> Value {
     d
 }
 
+/// Every human node between a `parallel.split` and its join, mapped to the split. In nested
+/// blocks a node maps to whichever enclosing split is listed last; built-ins nest none.
+fn parallel_steps(ir: &procera_ir::model::IrDocument) -> BTreeMap<String, String> {
+    use procera_ir::model::NodeKind;
+    let mut out = BTreeMap::new();
+    for split in ir.nodes.iter().filter(|n| n.kind == NodeKind::ParallelSplit) {
+        let join = split.join_id.as_deref().unwrap_or_default();
+        let mut stack: Vec<&str> =
+            ir.edges.iter().filter(|e| e.from == split.id).map(|e| e.to.as_str()).collect();
+        let mut seen = std::collections::BTreeSet::new();
+        while let Some(id) = stack.pop() {
+            if id == join || !seen.insert(id) {
+                continue;
+            }
+            if ir.nodes.iter().any(|n| n.id == id && n.kind.is_human()) {
+                out.insert(id.to_owned(), split.id.clone());
+            }
+            stack.extend(ir.edges.iter().filter(|e| e.from == id).map(|e| e.to.as_str()));
+        }
+    }
+    out
+}
+
 fn build(key: &str, doc: &Value) -> Result<Program, String> {
     let out = compile(doc, &CompileContext::default());
     let compiled = out.compiled.ok_or_else(|| format!("{key} does not compile: {:?}", out.diagnostics))?;
@@ -511,6 +536,7 @@ impl Catalogue {
             for doc in &legacy {
                 programs.insert(Executable::new(build(d.key, doc)?));
             }
+            let parallel = parallel_steps(exe.program.ir());
             types.push(Arc::new(RequestType {
                 key: d.key,
                 prefix: d.prefix,
@@ -528,6 +554,7 @@ impl Catalogue {
                 end_status: d.end_status.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
                 check: d.check,
                 statements: d.statements.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
+                parallel,
                 title: d.title,
             }));
         }
@@ -595,6 +622,8 @@ mod tests {
         assert_eq!(on.task_forms["first_week"].fields[0].ty, "text");
         assert!(on.revise_node.is_none());
         assert!(on.statements["welcome"].contains("employee handbook"));
+        assert_eq!(on.parallel.keys().collect::<Vec<_>>(), ["first_week", "it_setup", "workspace"]);
+        assert!(ar.parallel.is_empty());
         assert_eq!(on.end_status["end_onboarded"], "completed");
         let welcome = on.exe.program.node("welcome").unwrap_or_else(|| panic!("welcome"));
         assert_eq!(welcome.outcomes(), ["acknowledged", "expired"]);
