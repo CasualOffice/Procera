@@ -36,6 +36,7 @@ pub fn router() -> Router<AppState> {
         .route("/operations/incidents/{source}/{id}/dismiss", post(dismiss_incident))
         .route("/work/{id}/decisions", post(decide))
         .route("/work/{id}/reassign", post(reassign))
+        .route("/work/{id}/delegate", post(delegate))
 }
 
 #[derive(Debug, Deserialize)]
@@ -354,4 +355,31 @@ async fn reassign(
     }
     tx.commit().await.map_err(internal)?;
     Ok(Json(out).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DelegateReq {
+    membership_id: Uuid,
+    #[serde(default)]
+    note: Option<String>,
+}
+
+/// Hands a step the caller holds to a colleague (`work:delegate`, BPMS-212). Separation of duties
+/// is re-checked (422 `sod_excluded` on `/membership_id`); audited `work_item.delegated`.
+async fn delegate(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<DelegateReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "work:delegate", Resource::Workspace).await?;
+    let done = requests(&s)?
+        .delegate(&mut tx, &actor(&me, &headers), id, r.membership_id, r.note.as_deref())
+        .await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(serde_json::to_value(&done).map_err(internal)?).into_response())
 }

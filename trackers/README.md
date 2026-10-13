@@ -8,10 +8,10 @@
 ```text
 Overall   █████████████░░░░░░░░░░░░░░░░░  54/121 epics done  (45%)
 Partial   ██████████████░░░░░░░░░░░░░░░░  45% counting in-progress epics as half done
-Tests     249 automated E2E scenarios · 428 Rust tests (incl. property tests)
-Status    done 54 · in review 0 · in progress 1 · blocked 0 · not started 66 · deferred 0
+Tests     250 automated E2E scenarios · 429 Rust tests (incl. property tests)
+Status    done 54 · in review 0 · in progress 2 · blocked 0 · not started 65 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 42 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 43 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -34,6 +34,7 @@ Evidence  automated tests 42 · code merged 13  (separate from status; none user
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
 | BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Automated tests | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. File fields (`file`, multiple): ids checked for workspace, uploader, clean scan and allowed type (images, PDF, Word, Excel, CSV), stored as file refs (E2E-R2-41). Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
+| BPMS-212 | Delegate a single work item; send back to an earlier step | **In progress** | Automated tests | Single-step delegation shipped: POST /work/{id}/delegate {membership_id, note?} by someone the step waits on (work:delegate), separation of duties re-checked, the requester never offered, audited work_item.delegated, timeline "delegated by X: note"; Delegate… in the decision panel (My work and the request page). DB test in crates/requests/tests/delegation.rs, E2E-R2-UI-18, AUD-01 step. Next: send back to an earlier step. |
 
 ## Done
 
@@ -182,7 +183,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-121** (P0, M) Usability round + SUS measurement + fixes
 - [ ] **BPMS-207** (P1, S) Mobile bottom bar for the app shell
 - [ ] **BPMS-209** (P0, M) S3-compatible storage backend, EXIF stripping at upload, separate preview origin
-- [ ] **BPMS-212** (P1, M) Delegate a single work item; send back to an earlier step
+- [ ] **BPMS-212** (P1, M) Delegate a single work item; send back to an earlier step **[In progress]**
 - [x] **BPMS-214** (P0, M) Request comments, @mentions and watchers
 - [ ] **BPMS-216** (P0, M) My work bulk decisions with preview; acknowledgement and signature tabs
 
@@ -290,7 +291,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 304 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 305 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 15 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

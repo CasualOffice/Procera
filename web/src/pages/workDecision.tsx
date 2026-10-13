@@ -1,4 +1,4 @@
-import { Check, CornerUpLeft, RotateCw, ShieldCheck, X } from 'lucide-react';
+import { Check, CornerUpLeft, RotateCw, ShieldCheck, UserRoundPlus, X } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { FieldError, Form, Label, Text, TextArea, TextField as AriaTextField } from 'react-aria-components';
 import { ApiError, api } from '../lib/api';
@@ -10,6 +10,8 @@ import { Tag } from '../ui/Tag';
 import { RequestFields, type Values, requiredErrors, toInput, valuesFrom } from './requestFields';
 import { AttachmentList, FileDrop, type PickedFile, fileProblem } from './requestFiles';
 import { PolicyLine } from './requestPolicy';
+import { DelegateDialog } from './delegateDialog';
+import { useSession } from '../lib/session';
 
 const ICON = { primary: Check, secondary: CornerUpLeft, reject: X } as const;
 
@@ -28,6 +30,8 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const [delegating, setDelegating] = useState(false);
+  const { can } = useSession();
   const [problem, setProblem] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [members] = useItems<Member>(editable.some((f) => f.type === 'principal') ? '/api/v1/members' : null);
@@ -104,9 +108,13 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
                 </Button>
               );
             })}
+            {can('work:delegate') && (
+              <Button variant="ghost" className="decide-delegate" isDisabled={busy !== null} onPress={() => setDelegating(true)}><UserRoundPlus aria-hidden="true" size="0.9375rem" /> Delegate…</Button>
+            )}
           </div>
         </Form>
       )}
+      {delegating && <DelegateDialog item={item} onClose={() => setDelegating(false)} onDone={() => { setDelegating(false); onDecided('delegated'); }} />}
     </section>
   );
 }

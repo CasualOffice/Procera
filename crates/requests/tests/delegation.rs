@@ -238,3 +238,52 @@ async fn an_expired_out_of_office_no_longer_counts_and_bad_input_is_refused() {
     tx.commit().await.unwrap();
     assert_eq!(actions, ["member.ooo_set", "member.ooo_set", "member.ooo_cleared"]);
 }
+
+#[tokio::test]
+async fn the_approver_delegates_one_step_to_a_colleague_and_sod_still_applies() {
+    let Some(mut w) = world().await else { return };
+    let boss = w.member("Boss", None).await;
+    let ann = w.member("Ann", Some(boss)).await;
+    let cleo = w.member("Cleo", None).await;
+    let id = w.start(ann, "hr.leave-request", leave()).await.unwrap();
+    let item = w.open(boss).await.pop().expect("with the boss").id;
+    let mut tx = w.tx().await;
+    // Only someone the step waits on may delegate it; not to themselves; never to the requester.
+    assert!(matches!(
+        w.req.delegate(&mut tx, &cleo.actor(), item, cleo.membership, None).await,
+        Err(RequestError::Forbidden(_))
+    ));
+    assert!(matches!(
+        w.req.delegate(&mut tx, &boss.actor(), item, boss.membership, None).await,
+        Err(RequestError::Invalid(_))
+    ));
+    assert!(matches!(
+        w.req.delegate(&mut tx, &boss.actor(), item, ann.membership, None).await,
+        Err(RequestError::Invalid(_))
+    ));
+    let done = w
+        .req
+        .delegate(&mut tx, &boss.actor(), item, cleo.membership, Some("I'm at the offsite"))
+        .await
+        .unwrap();
+    assert_eq!(done.assignees, ["Cleo"]);
+    tx.commit().await.unwrap();
+    assert!(w.open(boss).await.is_empty(), "off the boss's list");
+    assert_eq!(w.open(cleo).await.len(), 1);
+    let d = w.detail(id).await;
+    assert!(
+        d.timeline.iter().any(|t| t.text.contains("delegated by Boss: I'm at the offsite")),
+        "{:?}",
+        d.timeline
+    );
+    let mut tx = w.tx().await;
+    let audited: Vec<String> =
+        sqlx::query_scalar("SELECT action FROM audit_events WHERE action = 'work_item.delegated'")
+            .fetch_all(tx.conn())
+            .await
+            .unwrap();
+    assert_eq!(audited.len(), 1);
+    tx.rollback().await.unwrap();
+    // Cleo decides it.
+    assert!(w.decide(cleo, "approved").await.is_ok());
+}

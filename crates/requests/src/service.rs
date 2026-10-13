@@ -932,8 +932,74 @@ impl Requests {
         to: Uuid,
         reason: &str,
     ) -> R<Reassigned> {
+        if reason.trim().is_empty() || reason.trim().chars().count() > 500 {
+            return Err(RequestError::Invalid(vec![FieldError::new(
+                "reason",
+                "required",
+                "Say why it is reassigned (up to 500 characters)",
+            )]));
+        }
+        self.move_item(tx, actor, work_id, to, reason, false).await
+    }
+
+    /// Hands an open step the caller holds to one colleague (BPMS-212, docs/12 §9 delegation):
+    /// the caller must be one of its candidates; separation of duties is re-checked for the new
+    /// person; the note is optional. Audited `work_item.delegated`; the new person hears
+    /// `work_assigned`, the others on the step `work_reassigned`.
+    pub async fn delegate(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        work_id: Uuid,
+        to: Uuid,
+        note: Option<&str>,
+    ) -> R<Reassigned> {
+        let holds: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM work_item_candidates WHERE work_item_id = $1 AND membership_id = $2)",
+        )
+        .bind(work_id)
+        .bind(actor.membership)
+        .fetch_one(tx.conn())
+        .await?;
+        if !holds {
+            return Err(RequestError::Forbidden(
+                "only someone this step is waiting on can delegate it".into(),
+            ));
+        }
+        if to == actor.membership {
+            return Err(RequestError::Invalid(vec![FieldError::new(
+                "membership_id",
+                "self",
+                "Choose someone other than yourself",
+            )]));
+        }
+        let me = crate::handler::name(tx, actor.membership).await.map_err(RequestError::Internal)?;
+        let note = note.map(str::trim).filter(|n| !n.is_empty());
+        if note.is_some_and(|n| n.chars().count() > 500) {
+            return Err(RequestError::Invalid(vec![FieldError::new(
+                "note",
+                "too_long",
+                "Keep the note under 500 characters",
+            )]));
+        }
+        let reason = match note {
+            Some(n) => format!("delegated by {me}: {n}"),
+            None => format!("delegated by {me}"),
+        };
+        self.move_item(tx, actor, work_id, to, &reason, true).await
+    }
+
+    async fn move_item(
+        &self,
+        tx: &mut WsTx<'_>,
+        actor: &Actor,
+        work_id: Uuid,
+        to: Uuid,
+        reason: &str,
+        delegated: bool,
+    ) -> R<Reassigned> {
         let reason = reason.trim();
-        if reason.is_empty() || reason.chars().count() > 500 {
+        if reason.is_empty() || reason.chars().count() > 600 {
             return Err(RequestError::Invalid(vec![FieldError::new(
                 "reason",
                 "required",
@@ -987,7 +1053,7 @@ impl Requests {
                 },
             ));
         }
-        let tag = format!("admin:{}", self.ids.new_id());
+        let tag = format!("{}:{}", if delegated { "delegate" } else { "admin" }, self.ids.new_id());
         let from = self
             .effects
             .reassign(tx, &it, &[to], Some(actor.membership), reason, self.clock.now(), &tag)
@@ -996,7 +1062,7 @@ impl Requests {
         self.audit(
             tx,
             actor,
-            "work_item.reassigned",
+            if delegated { "work_item.delegated" } else { "work_item.reassigned" },
             "work_item",
             work_id,
             json!({ "request": instance, "step": it.node, "from": from, "to": [to], "reason": reason }),

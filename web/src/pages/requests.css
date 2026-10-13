@@ -263,3 +263,4 @@
 .conv-mention { flex: 1 1 12rem; max-width: 16rem; }
 .conv-internal { margin-bottom: 0.5rem; }
 .conv-actions > .btn { margin-left: auto; }
+.decide-actions .decide-delegate { margin-left: auto; }

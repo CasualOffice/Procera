@@ -215,6 +215,10 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const ritaPw = await (await rita.post('/api/v1/auth/login', { data: { email: ritaEmail, password: PW } })).json();
   await rita.post('/api/v1/session/step-up', { headers: bearer(ritaPw.access_token), data: { password: PW } });
   const rj = await (await rita.post('/api/v1/invitations/accept', { headers: bearer(ritaPw.access_token), data: { token: await tokenFor(ritaEmail) } })).json();
+  // Delegation (BPMS-212): Adam asks again; the owner hands the step to Rita.
+  const third = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-3` }, data: leave })).json();
+  const [held] = ((await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items as { id: string; request: { id: string } }[]).filter((w) => w.request.id === third.id);
+  await step('POST', '/api/v1/work/{id}/delegate', () => own.post(`/api/v1/work/${held.id}/delegate`, { headers: oh, data: { membership_id: rj.membership_id, note: 'audit drill' } }));
   const [pw1, pw2, pw3] = ['Audit drill one 2026!', 'Audit drill two 2026!', 'Audit drill three 2026!'];
   await step('POST', '/api/v1/me/password', () => rita.post('/api/v1/me/password', { headers: bearer(ritaPw.access_token), data: { current_password: PW, new_password: pw1 } }));
   await step('POST', '/api/v1/auth/password/forgot', () => rita.post('/api/v1/auth/password/forgot', { data: { email: ritaEmail } }));
