@@ -9,6 +9,7 @@ import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixt
 // 2 business days with a reminder), validates it clean (axe on the designer) and publishes it; an
 // employee then finds it under New request and submits it, their manager approves it from My work,
 // and the request ends Approved.
+// E2E-R3-UI-01 also test-runs the draft (send back, then approve) before publishing.
 // E2E-R3-UI-02 — a step assigned to a group that doesn't exist: Validate lists the problem, it shows
 // on that step, and Publish is refused with the same problems.
 
@@ -123,6 +124,19 @@ test.describe('guided studio @r3 @ui', () => {
     await expect(page.getByRole('status').filter({ hasText: /No (blocking )?problems/ })).toBeVisible();
     await expect(page.getByRole('region', { name: /problems? to fix/ })).toHaveCount(0);
     await axe(page);
+
+    // Test run: send back, then approve — the requester revises, then it ends Approved; nothing is stored.
+    await page.getByRole('button', { name: 'Test run' }).click();
+    const test = page.getByRole('dialog', { name: 'Test run' });
+    await test.getByRole('button', { name: /Manager approval/ }).click();
+    await page.getByRole('option', { name: 'Send back, then approve' }).click();
+    await test.getByRole('button', { name: 'Run test' }).click();
+    const trace = test.getByRole('list', { name: 'Test run trace' });
+    await expect(trace).toContainText('goes to the requester');
+    await expect(trace.getByRole('listitem')).toHaveCount(4); // submitted, sent back, revised, approved
+    await expect(test.getByRole('status')).toContainText('Ends Approved');
+    await axe(page);
+    await test.getByRole('button', { name: 'Close', exact: true }).last().click();
 
     await page.getByRole('button', { name: 'Publish' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Published v1. People can now request it under New request.' })).toBeVisible();

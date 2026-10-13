@@ -1,4 +1,4 @@
-import { Check, CircleAlert, CloudOff, LoaderCircle, Monitor, Redo2, RotateCw, ShieldCheck, TriangleAlert, Undo2, X } from 'lucide-react';
+import { Check, CircleAlert, CloudOff, FlaskConical, LoaderCircle, Monitor, Redo2, RotateCw, ShieldCheck, TriangleAlert, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, api } from '../../lib/api';
 import { type LoadFailure, type Member, toFailure, useItems } from '../../lib/data';
@@ -19,6 +19,7 @@ import {
 import { RequestPanel } from './RequestPanel';
 import { type StepAction, StepBuilder } from './StepBuilder';
 import { StepProperties } from './StepProperties';
+import { TestRun } from './TestRun';
 import './studio.css';
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict';
@@ -218,6 +219,8 @@ export function Designer({ id }: { id: string }) {
     return { steps, fields, general };
   }, [problems, model]);
 
+  const [testing, setTesting] = useState(false);
+
   const runValidate = async () => {
     const m = modelRef.current;
     if (!m) return;
@@ -293,12 +296,16 @@ export function Designer({ id }: { id: string }) {
                 <button type="button" className="icon-btn" aria-label="Redo" aria-keyshortcuts="Meta+Shift+Z" disabled={!history.current.future.length} onClick={() => travel('redo')}><Redo2 aria-hidden="true" size="1rem" /></button>
               </span>
             )}
+            {!model.readOnly && <Button variant="secondary" onPress={() => setTesting(true)} isDisabled={busy !== null}><FlaskConical aria-hidden="true" size="0.9375rem" /> Test run</Button>}
             {!model.readOnly && <Button variant="secondary" onPress={() => void runValidate()} isDisabled={busy !== null}><ShieldCheck aria-hidden="true" size="0.9375rem" /> {busy === 'validate' ? 'Checking…' : 'Validate'}</Button>}
             {detail.can.publish && <Button onPress={() => void runPublish()} isDisabled={!canPublish || busy !== null || save === 'conflict'}>{busy === 'publish' ? 'Publishing…' : 'Publish'}</Button>}
           </div>
         )}
       </header>
       <p className="visually-hidden" role="status" aria-live="polite">{said}</p>
+      {testing && modelRef.current && (
+        <TestRun content={toContent(modelRef.current, meta.current.key, meta.current.version)} fields={modelRef.current.fields} steps={modelRef.current.steps} onClose={() => setTesting(false)} />
+      )}
 
       {save === 'conflict' && (
         <div className="studio-banner" role="alert">
