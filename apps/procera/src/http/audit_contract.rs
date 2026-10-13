@@ -330,6 +330,9 @@ pub const CONTRACT: &[Entry] = &[
         &[&["instance.advanced", "work_item.decided"], &["instance.completed", "work_item.decided"]],
     ),
     emits("POST", "/api/v1/work/{id}/reassign", &[&["work_item.reassigned"]]),
+    emits("POST", "/api/v1/requests/{id}/comments", &[&["request.commented"]]),
+    emits("PUT", "/api/v1/requests/{id}/watch", &[&["request.watched"]]),
+    emits("DELETE", "/api/v1/requests/{id}/watch", &[&["request.unwatched"]]),
     emits("POST", "/api/v1/operations/incidents/{source}/{id}/retry", &[&["incident.retried"]]),
     emits("POST", "/api/v1/operations/incidents/{source}/{id}/dismiss", &[&["incident.dismissed"]]),
 ];

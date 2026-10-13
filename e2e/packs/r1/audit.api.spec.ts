@@ -142,6 +142,11 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/requests/preview', () => adam.post('/api/v1/requests/preview', { headers: rh, data: leave }));
   await step('POST', '/api/v1/requests', () => adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-1` }, data: leave }));
   const [item] = (await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items;
+  // Conversation (BPMS-214): Adam comments on his request, then watches and unwatches it.
+  const [mine] = (await (await adam.get('/api/v1/requests?scope=mine', { headers: rh })).json()).items as { id: string }[];
+  await step('POST', '/api/v1/requests/{id}/comments', () => adam.post(`/api/v1/requests/${mine.id}/comments`, { headers: rh, data: { body: 'audit drill' } }));
+  await step('PUT', '/api/v1/requests/{id}/watch', () => adam.put(`/api/v1/requests/${mine.id}/watch`, { headers: rh }));
+  await step('DELETE', '/api/v1/requests/{id}/watch', () => adam.delete(`/api/v1/requests/${mine.id}/watch`, { headers: rh }));
   await step('POST', '/api/v1/work/{id}/decisions', () => own.post(`/api/v1/work/${item.id}/decisions`, { headers: { ...oh, 'if-match': `"${item.revision}"` }, data: { outcome: 'approved' } }));
   const second = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-2` }, data: leave })).json();
   // Admin oversight (BPMS-088): the owner reassigns the open step (to themselves; Adam is excluded by SoD).

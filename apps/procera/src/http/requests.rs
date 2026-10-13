@@ -9,11 +9,11 @@ use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
 use procera_db::idempotency::{self, Claim};
-use procera_requests::{Actor, RequestError, Requests, Scope};
+use procera_requests::{Actor, NewComment, RequestError, Requests, Scope};
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
@@ -29,6 +29,8 @@ pub fn router() -> Router<AppState> {
         .route("/requests/preview", post(preview))
         .route("/requests/{id}", get(detail))
         .route("/requests/{id}/cancel", post(cancel))
+        .route("/requests/{id}/comments", get(conversation).post(comment))
+        .route("/requests/{id}/watch", put(watch).delete(unwatch))
 }
 
 pub(crate) fn requests(s: &AppState) -> Result<&Requests, ApiError> {
@@ -267,16 +269,28 @@ pub(crate) async fn can_view(
     tx: &mut procera_db::WsTx<'_>,
     id: Uuid,
 ) -> Result<(), ApiError> {
+    if may_view(s, tx, me.actor.membership, id).await? { Ok(()) } else { Err(ApiError::not_found()) }
+}
+
+/// Whether member `who` may see request `id`: every request (`request:view_all` workspace-wide),
+/// one they are involved in, or one started by someone in their team — a department they hold
+/// `request:view_all` over (a Team Manager) or their reporting line (docs/12 §4).
+pub(crate) async fn may_view(
+    s: &AppState,
+    tx: &mut procera_db::WsTx<'_>,
+    who: Uuid,
+    id: Uuid,
+) -> Result<bool, ApiError> {
     let r = requests(s)?;
-    r.initiator(tx, id).await?;
+    let requester = r.initiator(tx, id).await?;
     let m = members(s)?;
-    if m.access().check(tx, me.actor.membership, "request:view_all", &Resource::Workspace).await?.allowed
-        || r.involved(tx, id, me.actor.membership).await?
+    if m.access().check(tx, who, "request:view_all", &Resource::Workspace).await?.allowed
+        || r.involved(tx, id, who).await?
+        || m.access().check(tx, who, "request:view_all", &Resource::Member(requester)).await?.allowed
     {
-        Ok(())
-    } else {
-        Err(ApiError::not_found())
+        return Ok(true);
     }
+    Ok(r.reports_to(tx, requester, who, &[]).await?)
 }
 
 async fn may_cancel(
@@ -335,4 +349,117 @@ async fn cancel(
     let out = requests(&s)?.cancel(&mut tx, &actor(&me, &headers), id, &r.reason).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(out).into_response())
+}
+
+/// The conversation on a request (internal notes hidden from the requester) and its watchers.
+async fn conversation(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    can_view(&s, &me, &mut tx, id).await?;
+    let c = requests(&s)?.conversation(&mut tx, id, me.actor.membership).await?;
+    let can_comment = m
+        .access()
+        .check(&mut tx, me.actor.membership, "request:comment", &Resource::Workspace)
+        .await?
+        .allowed;
+    let can_internal = can_comment && requests(&s)?.initiator(&mut tx, id).await? != me.actor.membership;
+    tx.rollback().await.map_err(internal)?;
+    let mut body = serde_json::to_value(&c).map_err(internal)?;
+    body["can_comment"] = json!(can_comment);
+    body["can_post_internal"] = json!(can_internal);
+    Ok(Json(body).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CommentReq {
+    body: String,
+    #[serde(default)]
+    internal: bool,
+    #[serde(default)]
+    mentions: Vec<Uuid>,
+}
+
+/// Posts a comment (`request:comment` and able to see the request). Each mentioned member must be
+/// able to see the request too (422 on `/mentions` naming who can't). Audited `request.commented`.
+async fn comment(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<CommentReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    can_view(&s, &me, &mut tx, id).await?;
+    me.require(m, &mut tx, "request:comment", Resource::Workspace).await?;
+    let mut blind = Vec::new();
+    for who in &r.mentions {
+        let active: Option<String> = sqlx::query_scalar("SELECT status FROM memberships WHERE id = $1")
+            .bind(who)
+            .fetch_optional(tx.conn())
+            .await
+            .map_err(internal)?;
+        if active.as_deref() != Some("active") || !may_view(&s, &mut tx, *who, id).await? {
+            let name: Option<String> = sqlx::query_scalar(
+                "SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = $1",
+            )
+            .bind(who)
+            .fetch_optional(tx.conn())
+            .await
+            .map_err(internal)?;
+            blind.push(name.unwrap_or_else(|| who.to_string()));
+        }
+    }
+    if !blind.is_empty() {
+        return Err(RequestError::Invalid(vec![procera_requests::FieldError::new(
+            "mentions",
+            "cannot_see",
+            &format!("{} can’t see this request, so they can’t be mentioned.", blind.join(", ")),
+        )])
+        .into());
+    }
+    let c = NewComment { body: r.body, internal: r.internal, mentions: r.mentions };
+    let out = requests(&s)?.comment(&mut tx, &actor(&me, &headers), id, &c).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok((StatusCode::CREATED, Json(out)).into_response())
+}
+
+async fn set_watch(
+    s: &AppState,
+    headers: &HeaderMap,
+    me: &WsMember,
+    id: Uuid,
+    on: bool,
+) -> Result<Response, ApiError> {
+    let m = members(s)?;
+    let mut tx = me.tx(m).await?;
+    can_view(s, me, &mut tx, id).await?;
+    requests(s)?.watch(&mut tx, &actor(me, headers), id, on).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "watching": on })).into_response())
+}
+
+/// Follows a request: new comments and its outcome reach the caller. Audited `request.watched`.
+async fn watch(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    set_watch(&s, &headers, &me, id, true).await
+}
+
+/// Stops following a request. Audited `request.unwatched`.
+async fn unwatch(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    set_watch(&s, &headers, &me, id, false).await
 }

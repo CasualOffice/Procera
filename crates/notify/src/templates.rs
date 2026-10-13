@@ -346,6 +346,40 @@ const TEMPLATES: &[(&str, &str)] = &[
         r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ step }}</strong> for {{ type_name | lower }} <strong>{{ display_id }}</strong> ({{ title }}) is now with <strong>{{ to }}</strong> ({{ reason }}). You don’t need to do anything.</p>{% endblock %}
 {% block footer %}You receive this because this step was offered to you.{% endblock %}"#,
     ),
+    // request_comment: display_id, title, author, excerpt, internal. To the requester (unless
+    // internal), the people on open steps and the watchers (BPMS-214).
+    (
+        "request_comment.title",
+        "{{ author }} commented on {{ display_id }}{% if internal %} (internal){% endif %}",
+    ),
+    ("request_comment.body", "“{{ excerpt }}”"),
+    ("request_comment.subject", "{{ author }} commented on {{ display_id }} {{ title }}"),
+    (
+        "request_comment.text",
+        "{{ author }} commented on {{ display_id }} ({{ title }}){% if internal %}, in an internal note{% endif %}:\n\n“{{ excerpt }}”\n\nReply in Procera:\n{{ link }}\n",
+    ),
+    (
+        "request_comment.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ author }}</strong> commented on <strong>{{ display_id }}</strong> ({{ title }}){% if internal %}, in an internal note{% endif %}:</p>
+<blockquote style="margin:0 0 16px;padding:8px 12px;border-left:3px solid #d6d5d1;color:#3d3c38">{{ excerpt }}</blockquote>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Reply</a></p>{% endblock %}
+{% block footer %}You receive this because you follow this request, or a step of it is with you.{% endblock %}"#,
+    ),
+    // request_mention: same vars. To the people a comment mentions.
+    ("request_mention.title", "{{ author }} mentioned you on {{ display_id }}"),
+    ("request_mention.body", "“{{ excerpt }}”"),
+    ("request_mention.subject", "{{ author }} mentioned you on {{ display_id }} {{ title }}"),
+    (
+        "request_mention.text",
+        "{{ author }} mentioned you in a comment on {{ display_id }} ({{ title }}):\n\n“{{ excerpt }}”\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "request_mention.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ author }}</strong> mentioned you in a comment on <strong>{{ display_id }}</strong> ({{ title }}):</p>
+<blockquote style="margin:0 0 16px;padding:8px 12px;border-left:3px solid #d6d5d1;color:#3d3c38">{{ excerpt }}</blockquote>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
+{% block footer %}You receive this because someone mentioned you.{% endblock %}"#,
+    ),
     // request_decided adds step, outcome (approved | rejected | changes_requested), decided_by, comment (or none).
     (
         "request_decided.title",
@@ -490,6 +524,17 @@ mod tests {
                 .contains("now with Cleo (escalated after due)")
         );
         in_app("work_reassigned", &w).expect("renders");
+        let c = json!({ "display_id": "LR-2026-000001", "title": "Leave", "author": "Bob", "excerpt": "Can you <check>?", "internal": true, "link": "https://x/requests/1" });
+        assert_eq!(
+            in_app("request_comment", &c).expect("renders").title,
+            "Bob commented on LR-2026-000001 (internal)"
+        );
+        assert!(email("request_comment", &c).expect("renders").html.contains("Can you &lt;check&gt;?"));
+        assert_eq!(
+            in_app("request_mention", &c).expect("renders").title,
+            "Bob mentioned you on LR-2026-000001"
+        );
+        email("request_mention", &c).expect("renders");
         for (outcome, comment) in
             [("approved", None), ("rejected", Some("No budget")), ("changes_requested", Some("Dates"))]
         {

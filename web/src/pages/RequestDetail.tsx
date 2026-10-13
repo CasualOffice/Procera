@@ -17,6 +17,7 @@ import { Tag } from '../ui/Tag';
 import { DecisionPanel } from './workDecision';
 import { AttachmentList, TimelineFiles } from './requestFiles';
 import { PolicyLine } from './requestPolicy';
+import { RequestConversation } from './requestConversation';
 import './requests.css';
 
 const when = (iso?: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
@@ -91,6 +92,7 @@ export function RequestDetail({ id }: { id: string }) {
               {r.release && <p className="req-why-release">Process version {r.release.version}{r.release.checksum ? `, build ${r.release.checksum.slice(0, 8)}` : ''}</p>}
             </details>
           )}
+          <RequestConversation requestId={r.id} requester={r.initiator} />
           <section aria-labelledby="req-timeline" className="req-section">
             <h2 id="req-timeline">Timeline</h2>
             {r.timeline.length === 0 ? <p className="muted">Nothing has happened yet.</p> : (

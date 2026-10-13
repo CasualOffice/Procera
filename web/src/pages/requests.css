@@ -237,3 +237,29 @@
 .exception-n { font-size: 1.375rem; font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; }
 .exception-label { grid-column: 1 / -1; font-weight: var(--font-weight-medium); margin-top: 0.25rem; }
 .exception-hint { grid-column: 1 / -1; font-size: 0.8125rem; color: var(--color-text-secondary); }
+/* Conversation (BPMS-214). */
+.req-conversation .section-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.conv-count { font-weight: var(--font-weight-regular); }
+.conv-watch { display: inline-flex; align-items: center; gap: 0.625rem; font-size: 0.8125rem; }
+.conv-empty { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem; color: var(--color-text-secondary); font-size: 0.875rem; }
+.conv-list { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: 0.875rem; }
+.conv-item { display: grid; grid-template-columns: auto 1fr; gap: 0.625rem; align-items: start; scroll-margin-top: 5rem; }
+.conv-item:target .conv-bubble { box-shadow: 0 0 0 0.1875rem color-mix(in srgb, var(--color-focus) 30%, transparent); }
+.conv-bubble { min-width: 0; padding: 0.625rem 0.75rem; border: 1px solid var(--line); border-radius: 0.625rem; background: var(--color-surface); }
+.conv-item.is-internal .conv-bubble { background: var(--color-warning-bg); border-color: color-mix(in srgb, var(--color-warning) 35%, var(--line)); }
+.conv-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; margin: 0 0 0.25rem; font-size: 0.8125rem; }
+.conv-meta time { color: var(--color-text-secondary); }
+.conv-meta .tag { margin-left: auto; }
+.conv-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.875rem; line-height: 1.5; }
+.mention { padding: 0 0.1875rem; border-radius: 0.25rem; background: color-mix(in srgb, var(--color-info) 14%, transparent); color: var(--color-text); font-weight: var(--font-weight-medium); }
+.conv-composer { display: grid; gap: 0.375rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: 0.625rem; background: var(--color-surface); }
+.conv-composer.is-internal { background: var(--color-warning-bg); }
+.conv-composer textarea { min-height: 4.5rem; }
+.conv-mentions { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.conv-mentions li { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.25rem 0.125rem 0.5rem; border-radius: 999px; background: color-mix(in srgb, var(--color-info) 14%, transparent); font-size: 0.8125rem; }
+.conv-mentions button { display: inline-flex; align-items: center; justify-content: center; width: 1.5rem; height: 1.5rem; border: 0; border-radius: 50%; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.conv-mentions button:hover { background: var(--fill-hover, var(--color-surface-muted)); color: var(--color-text); }
+.conv-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem; margin-top: 0.25rem; }
+.conv-mention { flex: 1 1 12rem; max-width: 16rem; }
+.conv-internal { margin-bottom: 0.5rem; }
+.conv-actions > .btn { margin-left: auto; }

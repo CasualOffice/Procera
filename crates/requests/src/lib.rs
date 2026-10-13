@@ -14,6 +14,7 @@
 
 pub mod attach;
 pub mod catalogue;
+pub mod comments;
 pub mod delegation;
 mod escalate;
 pub mod forms;
@@ -40,6 +41,7 @@ use uuid::Uuid;
 
 pub use attach::{Attachment, DecisionExtras};
 pub use catalogue::{Catalogue, Field, Form, RequestType};
+pub use comments::{Comment, Conversation, NewComment};
 pub use delegation::{Away, OutOfOffice, SetOutOfOffice};
 pub use forms::FieldError;
 pub use incidents::Incident;

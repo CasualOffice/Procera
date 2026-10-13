@@ -1,4 +1,4 @@
-import { AlarmClock, ArrowRightLeft, Bell, BookOpenCheck, Check, CheckCheck, CircleAlert, CircleCheck, Inbox, Megaphone, Send, Settings2, UserPlus } from 'lucide-react';
+import { AlarmClock, ArrowRightLeft, AtSign, Bell, BookOpenCheck, Check, CheckCheck, CircleAlert, CircleCheck, Inbox, Megaphone, MessageSquare, Send, Settings2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { type LoadFailure, toFailure } from '../lib/data';
@@ -27,6 +27,8 @@ const KIND: Record<string, { icon: typeof Bell; tone: string }> = {
   work_reassigned: { icon: ArrowRightLeft, tone: 'blue' },
   request_decided: { icon: Send, tone: 'blue' },
   request_completed: { icon: CircleCheck, tone: 'green' },
+  request_comment: { icon: MessageSquare, tone: 'blue' },
+  request_mention: { icon: AtSign, tone: 'purple' },
 };
 
 /** A link for kinds whose payload has no `link`, from ids in it (requests and work items). */

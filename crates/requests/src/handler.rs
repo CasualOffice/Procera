@@ -257,6 +257,29 @@ impl Effects {
                 Urgency::Normal,
             )
             .await?;
+            // Watchers (BPMS-214) hear the outcome too.
+            let watchers: Vec<Uuid> = sqlx::query_scalar(
+                "SELECT membership_id FROM request_watchers WHERE instance_id = $1 AND membership_id <> $2",
+            )
+            .bind(iid)
+            .bind(initiator)
+            .fetch_all(tx.conn())
+            .await
+            .map_err(db)?;
+            for w in watchers {
+                let dedupe = format!("request_completed:{iid}:{w}");
+                self.tell(
+                    tx,
+                    w,
+                    "request_completed",
+                    &vars,
+                    &link,
+                    ("request", iid),
+                    &dedupe,
+                    Urgency::Normal,
+                )
+                .await?;
+            }
         } else if let Event::WorkItemCompleted { key, outcome, .. } = &cx.stimulus.event
             && !st.status.is_final()
         {

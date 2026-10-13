@@ -131,6 +131,7 @@ FEATURES = [
                   "Reminders before and at the due date; overdue manager approvals move up to the next manager, others alert the requester's manager",
                   "Admins see unassigned and overdue steps and reassign them with a reason (separation of duties still applies)",
                   "Step builder and canvas designer, form builder (planned)",
+                  "A conversation on every request: comments, internal notes the requester never sees, @mentions and watchers",
                   "Operations view: technical incidents kept apart from people problems, retried or dismissed with a reason in the audit log",
                   "Team workload for managers: who holds what, what is overdue, who is away with work waiting, and bulk reassign within the team",
                   "Out of office: one click from the account menu; colleagues see who's away and who covers on hover; a delegate decides your approvals, recorded on your behalf, and separation of duties still applies to them",
