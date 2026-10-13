@@ -31,7 +31,8 @@ async function parse(res: Response) {
   const text = await res.text();
   const body = text ? JSON.parse(text) : undefined;
   if (res.status === 423) window.dispatchEvent(new Event('procera:workspace-state')); // read-only or locked now: the session re-reads it
-  if (!res.ok) throw new ApiError(body?.code ? body : { status: res.status, code: 'http_error', title: res.statusText });
+  // A body without a problem code keeps its members (e.g. a 422's `problems`) under a generic code.
+  if (!res.ok) throw new ApiError(body?.code ? body : { ...(body && typeof body === 'object' ? body : {}), status: res.status, code: 'http_error', title: body?.title ?? res.statusText });
   return body;
 }
 
