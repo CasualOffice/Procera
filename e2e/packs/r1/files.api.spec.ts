@@ -147,6 +147,15 @@ test.describe('files @r1 @files', () => {
     const jpgBody = Buffer.from(await gotJpg.body());
     expect(jpgBody.includes(Buffer.from('Exif'))).toBe(false);
     expect(jpgBody.subarray(-5).equals(Buffer.from([0x12, 0x34, 0x56, 0xff, 0xd9]))).toBe(true);
+    // …and from the stored file itself, at upload (BPMS-209): the download has no GPS either, the
+    // recorded size is the stripped size, and the upload's audit entry says how much went.
+    const { url: jdl } = await (await owner.c.get(`/api/v1/files/${jpg.id}/download-url`, { headers: h })).json();
+    const jpgDownload = Buffer.from(await (await request.get(jdl)).body());
+    expect(jpgDownload.includes(Buffer.from('GPS'))).toBe(false);
+    expect(jpgDownload.length).toBeLessThan(jpegWithExif().length);
+    expect((await (await owner.c.get(`/api/v1/files/${jpg.id}`, { headers: h })).json()).file.size).toBe(jpgDownload.length);
+    const uploaded = await (await owner.c.get('/api/v1/audit/events?action=file.uploaded', { headers: h })).json();
+    expect(JSON.stringify(uploaded.items)).toMatch(/"metadata_removed":[1-9]/);
 
     // A text file has no preview and gets no link.
     const t = await owner.c.get(`/api/v1/files/${txt.id}/preview-url`, { headers: h });

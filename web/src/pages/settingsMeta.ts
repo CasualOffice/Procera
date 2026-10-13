@@ -230,7 +230,7 @@ export const LABELS: Record<string, [string, string?]> = {
   'terminology.overrides': ['Terminology', 'Rename product terms for this workspace, for example Request to Ticket. Applies to screens, emails and exports; the API keeps its own names.'],
   'files.max_size': ['Largest file people can upload'],
   'files.scan.required': ['Scan uploads for malware'],
-  'files.exif_strip': ['Remove location data from photos'],
+  'files.exif_strip': ['Remove location data from photos', 'GPS position, camera and timestamps are removed from JPEG photos when they’re uploaded, so neither downloads nor previews carry them. Photos uploaded while this was off keep theirs in downloads.'],
   'files.orphan_purge_after': ['Delete unattached uploads after', 'Uploads that were never attached to anything.'],
   'retention.governance_record.keep_for': ['Keep governance records for at least', 'Published versions, reviews, acknowledgements and their evidence. Never deleted automatically.'],
   'retention.operational.keep_for': ['Delete delivery logs after', 'Sent emails, read notifications and sent digests.'],

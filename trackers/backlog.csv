@@ -63,7 +63,7 @@ BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Ful
 BPMS-111,E2E,E2E-R2 pack (R2-01…16 + ISO) + Firefox,P0,R2,SDET + feature owners,23 §5,Green; race/restart/timer stable,L,BPMS-032,Not started,—
 BPMS-121,UX,Usability round + SUS measurement + fixes,P0,R2,Design,02 §9,SUS targets,M,BPMS-120,Not started,—
 BPMS-207,UX,Mobile bottom bar for the app shell,P1,R2,FE,UX-002,Thumb reach on phones; axe clean,S,BPMS-031,Not started,—
-BPMS-209,FILE,"S3-compatible storage backend, EXIF stripping at upload, separate preview origin",P0,R2,Backend,"FR-F01, FR-F04, U-08",Files on S3; no EXIF in stored images,M,"BPMS-060,061",In progress,Code merged
+BPMS-209,FILE,"S3-compatible storage backend, EXIF stripping at upload, separate preview origin",P0,R2,Backend,"FR-F01, FR-F04, U-08",Files on S3; no EXIF in stored images,M,"BPMS-060,061",In progress,Automated tests
 BPMS-212,WORK,Delegate a single work item; send back to an earlier step,P1,R2,Backend,"12 §9/§10, FX-E05",Delegation audited; SoD re-checked,M,BPMS-086,Done,Automated tests
 BPMS-214,REQ,"Request comments, @mentions and watchers",P0,R2,Fullstack,"FR-R02, FX-R02",Mentioned people notified; access-checked,M,BPMS-103,Done,Automated tests
 BPMS-216,WORK,My work bulk decisions with preview; acknowledgement and signature tabs,P0,R2,FE,"FR-R03, FR-AK02",Bulk decision previews each item; audited per item,M,BPMS-105,Done,Automated tests

@@ -337,6 +337,30 @@ impl Files {
         self.get(tx, id).await
     }
 
+    /// Replaces a file's stored bytes (sealed again, chunk by chunk) and its recorded size.
+    async fn rewrite(&self, tx: &mut WsTx<'_>, id: Uuid, bytes: &[u8]) -> Result<(), FileError> {
+        let key: String = sqlx::query_scalar("SELECT storage_key FROM files WHERE id = $1")
+            .bind(id)
+            .fetch_one(tx.conn())
+            .await?;
+        let dek = self.dek(tx, id).await?;
+        self.store.delete(&key).await.map_err(internal)?;
+        let mut n = 0i32;
+        for part in bytes.chunks(MAX_CHUNK) {
+            let sealed = aead_seal(&dek, &format!("files:{id}:{n}"), part).map_err(internal)?;
+            self.store.put_chunk(&key, n, &sealed).await.map_err(internal)?;
+            n += 1;
+        }
+        let len = i64::try_from(bytes.len()).unwrap_or(i64::MAX);
+        sqlx::query("UPDATE files SET size = $2, received = $2, chunks = $3 WHERE id = $1")
+            .bind(id)
+            .bind(len)
+            .bind(n)
+            .execute(tx.conn())
+            .await?;
+        Ok(())
+    }
+
     /// The plaintext of a file (every chunk, in order).
     async fn read_all(&self, tx: &mut WsTx<'_>, id: Uuid) -> Result<Vec<u8>, FileError> {
         let (chunks, key, size): (i32, String, i64) =
@@ -366,8 +390,7 @@ impl Files {
         if f.received != f.size {
             return Err(FileError::Conflict(format!("{} of {} bytes received", f.received, f.size)));
         }
-        let data = self.read_all(tx, id).await?;
-        let sha: Vec<u8> = Sha256::digest(&data).to_vec();
+        let mut data = self.read_all(tx, id).await?;
         let sniffed = sniff::sniff(&data[..data.len().min(4096)]);
         let now = self.clock.now();
         let (state, result) = if sniff::denied(sniffed) {
@@ -382,6 +405,19 @@ impl Files {
                 }
             }
         };
+        // A clean JPEG loses its metadata (GPS, device, timestamps) before anyone can download it, when
+        // `files.exif_strip` is on (BPMS-209). The original was scanned; the stripped bytes replace it.
+        let mut metadata_removed = 0usize;
+        if state == "clean"
+            && sniffed == "image/jpeg"
+            && self.exif_strip(tx).await?
+            && let Some(stripped) = exif::strip_jpeg(&data).filter(|x| x.len() < data.len())
+        {
+            metadata_removed = data.len() - stripped.len();
+            self.rewrite(tx, id, &stripped).await?;
+            data = stripped;
+        }
+        let sha: Vec<u8> = Sha256::digest(&data).to_vec();
         sqlx::query("UPDATE files SET state = $2, scan_result = $3, sha256 = $4, sniffed_type = $5, completed_at = $6 WHERE id = $1")
             .bind(id).bind(state).bind(&result).bind(&sha).bind(sniffed).bind(now).execute(tx.conn()).await?;
         if state == "rejected" {
@@ -402,7 +438,7 @@ impl Files {
             Some(actor),
             action,
             id,
-            json!({"name": f.name, "size": f.size, "type": sniffed, "result": result}),
+            json!({"name": f.name, "size": data.len(), "type": sniffed, "result": result, "metadata_removed": metadata_removed}),
             outcome,
         )
         .await?;
