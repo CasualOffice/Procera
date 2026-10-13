@@ -162,6 +162,19 @@ pub struct Access {
 }
 
 /// Grants that apply to membership `$1`: direct, or through a static group it belongs to.
+/// Roles granted only over a department (docs/12 §4): a Team Manager answers for their own team,
+/// never the whole workspace.
+pub const DEPARTMENT_ONLY: &[&str] = &["team.manager"];
+
+fn department_only(role_key: &str, scope: Scope) -> Result<(), AccessError> {
+    if DEPARTMENT_ONLY.contains(&role_key) && !matches!(scope, Scope::Department(_)) {
+        return Err(AccessError::Invalid(
+            "Team Manager is granted for a department: choose the department they manage".into(),
+        ));
+    }
+    Ok(())
+}
+
 const APPLIES_TO_MEMBER: &str = "(g.membership_id = $1 OR g.group_id IN (SELECT gm.group_id FROM group_members gm WHERE gm.membership_id = $1))";
 
 fn uid(ty: &str, id: impl std::fmt::Display) -> Result<EntityUid, AccessError> {
@@ -365,6 +378,26 @@ impl Access {
         Self::bump(tx).await
     }
 
+    /// The departments where `membership` holds `permission` through a department-scoped grant
+    /// (direct or via a group), e.g. the teams a Team Manager answers for.
+    pub async fn departments_with(
+        &self,
+        tx: &mut WsTx<'_>,
+        membership: Uuid,
+        permission: &str,
+    ) -> Result<Vec<Uuid>, AccessError> {
+        let rows: Vec<(Uuid,)> = sqlx::query_as(&format!(
+            "SELECT DISTINCT g.scope_id FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+              WHERE {APPLIES_TO_MEMBER} AND g.scope_kind = 'department' AND g.scope_id IS NOT NULL AND $2 = ANY(r.permissions)
+                AND (g.expires_at IS NULL OR g.expires_at > now())"
+        ))
+        .bind(membership)
+        .bind(permission)
+        .fetch_all(tx.conn())
+        .await?;
+        Ok(rows.into_iter().map(|r| r.0).collect())
+    }
+
     /// Grants `role_key` to a member in `scope`. The granter must hold every permission in the role.
     #[allow(clippy::too_many_arguments)]
     pub async fn grant(
@@ -377,6 +410,7 @@ impl Access {
         expires_at: Option<OffsetDateTime>,
         reason: Option<&str>,
     ) -> Result<Uuid, AccessError> {
+        department_only(role_key, scope)?;
         let (role_id, perms) = Self::role_by_key(tx, role_key).await?;
         // Owners may appoint co-owners; admins cannot (they lack owner-only permissions).
         self.ensure_no_escalation(tx, actor, &perms).await?;
@@ -406,6 +440,7 @@ impl Access {
         if role_key == "workspace.owner" {
             return Err(AccessError::Invalid("the owner role is granted to people, not groups".into()));
         }
+        department_only(role_key, scope)?;
         let exists: bool = sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM groups WHERE id = $1)")
             .bind(group)
             .fetch_one(tx.conn())

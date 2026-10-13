@@ -93,12 +93,16 @@ async fn run(t: &test_support::TestDb, a: &Access, c: &Case) -> anyhow::Result<(
     // Granting a built-in template: allowed iff its permissions ⊆ held.
     let tpl = &TEMPLATES[c.template];
     let tpl_ok = tpl.permissions().iter().all(|p| held.contains(p));
+    let department_only = procera_access::DEPARTMENT_ONLY.contains(&tpl.key);
     match a.grant(&mut tx, Some(actor), grantee, tpl.key, Scope::Workspace, None, None).await {
         Ok(g) => {
+            assert!(!department_only, "granted department-only {} workspace-wide", tpl.key);
             assert!(tpl_ok, "granted {} beyond held permissions", tpl.key);
             // ... and the same actor may revoke what it could grant.
             a.revoke_grant(&mut tx, Some(actor), g).await?;
         }
+        // Department-only roles are refused workspace-wide whatever the actor holds.
+        Err(AccessError::Invalid(_)) if department_only => {}
         Err(AccessError::Escalation(_)) => assert!(!tpl_ok, "rejected {} within held permissions", tpl.key),
         Err(e) => return Err(e.into()),
     }

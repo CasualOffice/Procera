@@ -202,7 +202,7 @@ ul.plain { list-style: none; padding: 0; margin: 0; }
 .search-input input { border: 0; outline: none; background: transparent; font: inherit; font-size: 0.8438rem; color: var(--color-text); width: 100%; }
 .search-input[data-focus-within] { border-color: var(--color-text); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-text) 12%, transparent); }
 .check-row { display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.8438rem; cursor: pointer; }
-.check-row input { width: 1rem; height: 1rem; margin-top: 0.125rem; accent-color: var(--color-action-primary); }
+.check-row input { margin-top: -0.125rem; }
 .page-head h1 { font-size: 1.625rem !important; line-height: 2rem !important; font-weight: 700; letter-spacing: -0.022em !important; }
 .doc-details { margin-top: var(--space-6); font-size: 0.875rem; }
 .doc-details summary { cursor: pointer; color: var(--color-text-secondary); font-weight: var(--font-weight-medium); min-height: 1.5rem; width: fit-content; }
@@ -684,7 +684,7 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .profile-choice:first-child { border-top: 0; }
 .profile-choice:hover { background: var(--fill-hover); }
 .profile-choice-on { background: var(--color-bg); }
-.profile-choice input { margin-top: 0.1875rem; width: 1rem; height: 1rem; accent-color: var(--color-text); }
+.profile-choice input { margin-top: -0.0625rem; }
 .profile-choice-text { display: flex; flex-direction: column; gap: 0.125rem; }
 .profile-choice-name { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: var(--font-weight-medium); font-size: 0.875rem; }
 .profile-choice-about { font-size: 0.8125rem; color: var(--color-text-secondary); }

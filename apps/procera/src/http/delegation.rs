@@ -129,7 +129,8 @@ async fn others_tx(s: &AppState, me: &WsMember, id: Uuid) -> Result<procera_db::
         return Err(ApiError::not_found());
     }
     let admin =
-        m.access().check(&mut tx, me.actor.membership, "work:reassign", &Resource::Workspace).await?.allowed;
+        // Against the person: a workspace grant covers everyone, a department Team Manager their department.
+        m.access().check(&mut tx, me.actor.membership, "work:reassign", &Resource::Member(id)).await?.allowed;
     let manager =
         m.resolve_manager(&mut tx, id).await.map_err(internal)?.membership_id == Some(me.actor.membership);
     if !(admin || manager) {

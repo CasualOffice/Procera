@@ -9,7 +9,7 @@
 .grid-table th { font-weight: var(--font-weight-semibold); color: var(--color-text-on-tinted); background: var(--color-surface-muted); white-space: nowrap; }
 .grid-table tbody tr:hover { background: var(--color-surface-muted); }
 .grid-table tr[aria-selected='true'] { background: var(--color-info-bg); }
-.grid-table input[type="checkbox"] { width: 1.5rem; height: 1.5rem; margin: 0; accent-color: var(--color-action-primary); }
+.grid-table input[type="checkbox"] { margin: 0; }
 .grid-sort { display: inline-flex; align-items: center; gap: var(--space-1); min-height: var(--target-min); padding: 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
 .grid-sort-idle { opacity: 0.6; }
 .grid-empty { padding: var(--space-6) var(--space-4); color: var(--color-text-secondary); }

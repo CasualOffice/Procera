@@ -73,6 +73,11 @@ async fn allowed(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>, action: &str) -
     Ok(members(s)?.access().check(tx, me.actor.membership, action, &Resource::Workspace).await?.allowed)
 }
 
+/// The departments the caller manages by a department-scoped grant (a Team Manager, docs/12 §4).
+async fn team_departments(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>) -> Result<Vec<Uuid>, ApiError> {
+    Ok(members(s)?.access().departments_with(tx, me.actor.membership, "work:view_team").await?)
+}
+
 /// Sees every member's work: workspace oversight (`request:view_all` and `work:reassign`).
 async fn oversees(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>) -> Result<bool, ApiError> {
     Ok(allowed(s, me, tx, "request:view_all").await? && allowed(s, me, tx, "work:reassign").await?)
@@ -97,10 +102,11 @@ async fn workload(
         "team" => {
             // Managers in the directory have a team without a grant (docs/12 §4); `work:view_team` too.
             let svc = requests(&s)?;
-            if !svc.manages(&mut tx, me.actor.membership).await? {
+            let depts = team_departments(&s, &me, &mut tx).await?;
+            if !svc.manages(&mut tx, me.actor.membership, &depts).await? {
                 me.require(m, &mut tx, "work:view_team", Resource::Workspace).await?;
             }
-            Reach::Team(me.actor.membership)
+            Reach::Team(me.actor.membership, depts)
         }
         "all" => {
             if !oversees(&s, &me, &mut tx).await? {
@@ -128,8 +134,9 @@ async fn held(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let svc = requests(&s)?;
-    let ok =
-        oversees(&s, &me, &mut tx).await? || svc.reports_to(&mut tx, member, me.actor.membership).await?;
+    let depts = team_departments(&s, &me, &mut tx).await?;
+    let ok = oversees(&s, &me, &mut tx).await?
+        || svc.reports_to(&mut tx, member, me.actor.membership, &depts).await?;
     if !ok {
         return Err(ApiError::not_found());
     }
@@ -308,7 +315,11 @@ async fn reassign(
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     // A manager moves their own team's steps within the team without the grant (docs/12 §6).
-    if !requests(&s)?.may_reassign_within_team(&mut tx, me.actor.membership, id, r.membership_id).await? {
+    let depts = team_departments(&s, &me, &mut tx).await?;
+    if !requests(&s)?
+        .may_reassign_within_team(&mut tx, me.actor.membership, &depts, id, r.membership_id)
+        .await?
+    {
         me.require(m, &mut tx, "work:reassign", Resource::Workspace).await?;
     }
     let key = idempotency_key(&headers);

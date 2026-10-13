@@ -86,4 +86,33 @@ test.describe('team workload @r2 @ui', () => {
     const out = await mia.session.c.post(`/api/v1/work/${bens[0]!.id}/reassign`, { headers: mia.session.headers, data: { membership_id: dan.id, reason: 'outside' } });
     expect(out.status()).toBe(403);
   });
+
+  test('E2E-R2-UI-16 a Team Manager is granted for a department only, and their team is that department', async ({ page, request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const tess = await person(request, owner, ws.id, 'Tess Teamlead');
+    const sam = await person(request, owner, ws.id, 'Sam Support');
+    const nia = await person(request, owner, ws.id, 'Nia Night');
+    await person(request, owner, ws.id, 'Oz Outsider');
+    const h = owner.headers;
+    // Workspace-wide is refused: a Team Manager answers for a department.
+    const wide = await owner.c.post('/api/v1/role-grants', { headers: h, data: { membership_id: tess.id, role_key: 'team.manager', scope_kind: 'workspace' } });
+    expect(wide.status()).toBe(422);
+    expect(await wide.text()).toContain('granted for a department');
+    const ops = await (await owner.c.post('/api/v1/departments', { headers: h, data: { name: 'Operations' } })).json();
+    const night = await (await owner.c.post('/api/v1/departments', { headers: h, data: { name: 'Night shift', parent_id: ops.id } })).json();
+    for (const [who, d] of [[sam.id, ops.id], [nia.id, night.id], [tess.id, ops.id]] as const) {
+      expect((await owner.c.patch(`/api/v1/members/${who}`, { headers: h, data: { department_id: d } })).status()).toBe(200);
+    }
+    const g = await owner.c.post('/api/v1/role-grants', { headers: h, data: { membership_id: tess.id, role_key: 'team.manager', scope_kind: 'department', scope_id: ops.id } });
+    expect(g.status(), await g.text()).toBe(201);
+    // No workspace-wide oversight from it.
+    expect((await tess.session.c.get('/api/v1/work/workload?scope=all', { headers: tess.session.headers })).status()).toBe(403);
+
+    await signIn(page, tess.email, tess.recovery[0]!);
+    await nav(page, 'Team');
+    await expect(page.getByRole('link', { name: 'Sam Support', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Nia Night', exact: true })).toBeVisible(); // sub-team
+    await expect(page.getByRole('link', { name: 'Oz Outsider', exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Workload summary')).toContainText('People2');
+  });
 });

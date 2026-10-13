@@ -145,7 +145,7 @@ Permissions are `resource:action` strings, and the set is fixed per product vers
 | **Compliance Officer** | workspace | Controls, attestations, evidence, approve *controlled* changes, audit export | |
 | **Case Manager** | workspace/department | Create and manage cases, assign investigators | |
 | **Investigator** | per case | Edit case, add/view evidence | Usually granted per case |
-| **Team Manager** | department | View team requests and work, reassign within team, team analytics | Derived from directory where possible |
+| **Team Manager** | department | View team requests and work, reassign within team, team analytics | Derived from directory where possible. *As built (0.2, owner decision 2026-10-13):* granted **only** over a department (a workspace-wide grant is refused, 422); their team is their reporting line plus that department and its sub-departments; no workspace-wide oversight. Existing workspace grants were moved to the grantee's department (migration 0046) |
 | **Analyst / Report Viewer** | collection | Dashboards and reports, exports (redacted) | |
 | **Member** (default for everyone) | workspace | Browse visible library, start permitted processes, own requests, assigned work, acknowledge SOPs | |
 | **Guest** (external) | per item | Act on one specific work item or form | Magic link, expiring (P1) |

@@ -78,7 +78,7 @@ export function DesignGallery() {
             <input id="g-num" type="number" defaultValue={2} min={0} />
           </div>
           <div className="field">
-            <label className="field-label" htmlFor="g-search">Search</label>
+            <label className="field-label" htmlFor="g-search">Find a request</label>
             <input id="g-search" type="search" placeholder="Search requests" />
           </div>
           <div className="field gallery-wide">

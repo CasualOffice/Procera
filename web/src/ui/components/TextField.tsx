@@ -28,7 +28,7 @@ export function TextField({ label, description, errorMessage, placeholder, type,
       {password ? (
         <span className="field-affix">
           <Input className="field-input" placeholder={placeholder} />
-          <Button className="field-reveal" aria-label={`${shown ? 'Hide' : 'Show'} ${label.toLowerCase()}`} aria-pressed={shown} onPress={() => setShown((s) => !s)} excludeFromTabOrder={false}>
+          <Button className="field-reveal" aria-label={shown ? 'Hide password' : 'Show password'} aria-pressed={shown} onPress={() => setShown((s) => !s)} excludeFromTabOrder={false}>
             {shown ? <EyeOff aria-hidden="true" size="1rem" /> : <Eye aria-hidden="true" size="1rem" />}
           </Button>
         </span>

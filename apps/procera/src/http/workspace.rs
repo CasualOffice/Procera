@@ -374,14 +374,16 @@ async fn my_permissions(State(s): State<AppState>, me: WsMember) -> Result<Respo
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
     let perms = m.access().effective_workspace_permissions(&mut tx, me.actor.membership).await?;
-    // A manager in the directory has a team (docs/12 §4 "derived from directory"): it opens Team.
-    let (manages,): (bool,) = sqlx::query_as(
+    // A manager in the directory, or a Team Manager of a department, has a team: it opens Team.
+    let (reports,): (bool,) = sqlx::query_as(
         "SELECT EXISTS (SELECT 1 FROM memberships WHERE manager_membership_id = $1 AND status = 'active')",
     )
     .bind(me.actor.membership)
     .fetch_one(tx.conn())
     .await
     .map_err(internal)?;
+    let manages = reports
+        || !m.access().departments_with(&mut tx, me.actor.membership, "work:view_team").await?.is_empty();
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({"workspace_id": me.ctx.workspace_id, "membership_id": me.actor.membership, "permissions": perms, "manages": manages})).into_response())
 }

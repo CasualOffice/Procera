@@ -83,7 +83,7 @@ for (const [email, name, role] of people) {
 const ops = await call('POST', '/api/v1/departments', { token: o, body: { name: 'Operations' } });
 const ppl = await call('POST', '/api/v1/departments', { token: o, body: { name: 'People & Culture' } });
 const fin = await call('POST', '/api/v1/departments', { token: o, body: { name: 'Finance' } });
-const dept = { 'ben@acme.test': ops, 'cara@acme.test': ops, 'dev@acme.test': ops, 'ema@acme.test': ppl, 'finn@acme.test': fin, 'gia@acme.test': ops };
+const dept = { 'ben@acme.test': ops, 'cara@acme.test': ops, 'dev@acme.test': ops, 'ema@acme.test': ppl, 'finn@acme.test': fin, 'gia@acme.test': ops, 'hugo@acme.test': ops };
 for (const [email, , , title] of people) await call('PATCH', `/api/v1/members/${ids[email]}`, { token: o, body: { department_id: dept[email].id, title } });
 await call('POST', '/api/v1/members/invitations', { token: o, body: { email: 'nina@acme.test', roles: ['member'] } });
 

@@ -1,6 +1,7 @@
 //! Workload (FR-A03, docs/05 §3.18): per person, the open steps offered to them, how many are
 //! overdue or due within a week, the oldest one waiting, and whether they are away. A team is the
-//! viewer's reporting line (direct and indirect reports, active members); "all" is everyone active.
+//! viewer's reporting line (direct and indirect reports, active members) plus the departments they
+//! manage by a department-scoped Team Manager grant; "all" is everyone active.
 //! Someone away with open steps is a coverage gap: their delegate can decide them, but nobody else
 //! will see them in their own list.
 
@@ -14,10 +15,11 @@ use crate::{RequestError, Requests};
 type R<T> = Result<T, RequestError>;
 
 /// Whose workload a view covers.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Reach {
-    /// The viewer's direct and indirect reports.
-    Team(Uuid),
+    /// The viewer's direct and indirect reports, plus everyone in the departments (and their
+    /// sub-departments) the viewer manages by a department-scoped grant.
+    Team(Uuid, Vec<Uuid>),
     /// Every active member.
     All,
 }
@@ -61,17 +63,27 @@ pub struct Totals {
 type Row =
     (Uuid, String, Option<String>, i64, i64, i64, Option<OffsetDateTime>, Option<String>, Option<String>);
 
-const TEAM: &str = "WITH RECURSIVE people AS (
-        SELECT id FROM memberships WHERE manager_membership_id = $1 AND status = 'active'
-        UNION SELECT m.id FROM memberships m JOIN people p ON m.manager_membership_id = p.id WHERE m.status = 'active')";
-const ALL: &str = "WITH people AS (SELECT id FROM memberships WHERE status = 'active' AND $1 = $1)";
+/// A manager's team ($1 the manager, `$depts` their managed departments): the reporting line and
+/// the members of those departments' subtrees, never the manager themselves.
+fn team(depts: &str) -> String {
+    format!(
+        "WITH RECURSIVE line AS (
+            SELECT id FROM memberships WHERE manager_membership_id = $1 AND status = 'active'
+            UNION SELECT m.id FROM memberships m JOIN line l ON m.manager_membership_id = l.id WHERE m.status = 'active'),
+         people AS (
+            SELECT id FROM line
+            UNION SELECT m.id FROM memberships m JOIN departments d ON d.workspace_id = m.workspace_id AND d.id = m.department_id
+             WHERE m.status = 'active' AND m.id <> $1 AND d.path && {depts}::uuid[])"
+    )
+}
+const ALL: &str = "WITH people AS (SELECT id FROM memberships WHERE status = 'active' AND $1 = $1 AND $5::uuid[] IS NOT NULL)";
 
 impl Requests {
     /// The workload of a team or the whole workspace, busiest first.
     pub async fn workload(&self, tx: &mut WsTx<'_>, reach: Reach) -> R<Workload> {
-        let (with, root) = match reach {
-            Reach::Team(m) => (TEAM, m),
-            Reach::All => (ALL, Uuid::nil()),
+        let (with, root, depts) = match reach {
+            Reach::Team(m, d) => (team("$5"), m, d),
+            Reach::All => (ALL.to_owned(), Uuid::nil(), vec![]),
         };
         let now = self.clock.now();
         let rows: Vec<Row> = sqlx::query_as(&format!(
@@ -95,6 +107,7 @@ impl Requests {
         .bind(now)
         .bind(now + Duration::days(7))
         .bind(now.date())
+        .bind(&depts)
         .fetch_all(tx.conn())
         .await?;
         let people: Vec<WorkloadRow> = rows
@@ -120,8 +133,11 @@ impl Requests {
         Ok(Workload { people, totals })
     }
 
-    /// Whether `m` manages anyone active (has a team).
-    pub async fn manages(&self, tx: &mut WsTx<'_>, m: Uuid) -> R<bool> {
+    /// Whether `m` has a team: anyone active reports to them, or they manage a department.
+    pub async fn manages(&self, tx: &mut WsTx<'_>, m: Uuid, depts: &[Uuid]) -> R<bool> {
+        if !depts.is_empty() {
+            return Ok(true);
+        }
         let (yes,): (bool,) = sqlx::query_as(
             "SELECT EXISTS (SELECT 1 FROM memberships WHERE manager_membership_id = $1 AND status = 'active')",
         )
@@ -132,12 +148,13 @@ impl Requests {
     }
 
     /// Whether a manager may move this open step within their team without `work:reassign`
-    /// (docs/12 §6 "Team Manager (own department)"): everyone holding it is in their reporting
-    /// line, and so is the new person (or it is the manager themselves).
+    /// (docs/12 §6 "Team Manager (own department)"): everyone holding it is in their team, and so
+    /// is the new person (or it is the manager themselves).
     pub async fn may_reassign_within_team(
         &self,
         tx: &mut WsTx<'_>,
         manager: Uuid,
+        depts: &[Uuid],
         item: Uuid,
         to: Uuid,
     ) -> R<bool> {
@@ -150,19 +167,26 @@ impl Requests {
             return Ok(false);
         }
         for (h,) in holders {
-            if !self.reports_to(tx, h, manager).await? {
+            if !self.reports_to(tx, h, manager, depts).await? {
                 return Ok(false);
             }
         }
-        Ok(to == manager || self.reports_to(tx, to, manager).await?)
+        Ok(to == manager || self.reports_to(tx, to, manager, depts).await?)
     }
 
-    /// Whether `member` is in `manager`'s reporting line.
-    pub async fn reports_to(&self, tx: &mut WsTx<'_>, member: Uuid, manager: Uuid) -> R<bool> {
+    /// Whether `member` is in `manager`'s team (reporting line or managed departments).
+    pub async fn reports_to(
+        &self,
+        tx: &mut WsTx<'_>,
+        member: Uuid,
+        manager: Uuid,
+        depts: &[Uuid],
+    ) -> R<bool> {
         let (yes,): (bool,) =
-            sqlx::query_as(&format!("{TEAM} SELECT EXISTS (SELECT 1 FROM people WHERE id = $2)"))
+            sqlx::query_as(&format!("{} SELECT EXISTS (SELECT 1 FROM people WHERE id = $2)", team("$3")))
                 .bind(manager)
                 .bind(member)
+                .bind(depts)
                 .fetch_one(tx.conn())
                 .await?;
         Ok(yes)

@@ -31,7 +31,7 @@
 .pick-list li { border-top: 1px solid var(--line-subtle); }
 .pick-list li:first-child { border-top: 0; }
 .pick-list label { display: flex; align-items: center; gap: 0.625rem; min-height: 2.5rem; padding: 0.25rem 0.75rem; cursor: pointer; font-size: 0.875rem; }
-.pick-list input { width: 1rem; height: 1rem; accent-color: var(--color-action-primary); }
+.pick-list input { margin: -0.25rem; }
 .pick-list small { display: block; color: var(--color-text-secondary); font-size: 0.75rem; }
 .group-members .rows .btn { flex: none; }
 .tag-link { text-decoration: none; border-radius: 999px; }

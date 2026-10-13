@@ -95,6 +95,9 @@ export function GrantDialog({ isOpen, roles, roleKey, dir, onClose, onGranted }:
     ? dir.members.filter((m) => m.status === 'active').map((m) => ({ id: m.id, label: `${m.display_name} (${m.email})` }))
     : dir.groups.map((g) => ({ id: g.id, label: g.member_count != null ? `${g.name} (${people(g.member_count)})` : g.name }));
   const scopeOptions = (scope === 'collection' ? dir.collections : dir.departments).map((x) => ({ id: x.id, label: (scope === 'collection' ? dir.collection(x.id) : dir.department(x.id)) ?? x.name }));
+  // A Team Manager answers for one department, never the whole workspace (docs/12 §4).
+  const deptOnly = role === 'team.manager';
+  useEffect(() => { if (deptOnly && scope !== 'department') { setScope('department'); setScopeId(''); } }, [deptOnly, scope]);
   const pastExpiry = !!expires && expires < today();
   const ready = role && who && (scope === 'workspace' || scopeId) && !pastExpiry && !busy;
 
@@ -125,11 +128,13 @@ export function GrantDialog({ isOpen, roles, roleKey, dir, onClose, onGranted }:
           <Select label={target === 'member' ? 'Person' : 'Group'} options={whoOptions} selectedKey={who || null} onSelectionChange={(k) => setWho(String(k ?? ''))}
             placeholder={target === 'member' ? 'Choose a person' : 'Choose a group'} description={!whoOptions.length ? (target === 'member' ? 'No members to choose from.' : 'No groups yet. Create them in the directory.') : undefined} />
           <RadioCards label="Where it applies" value={scope} onChange={(v) => { setScope(v as typeof scope); setScopeId(''); }}
-            options={[
-              { id: 'workspace', label: 'Whole workspace', description: 'Everything in the workspace.' },
-              { id: 'collection', label: 'A collection', description: 'One library collection and the collections inside it.' },
-              { id: 'department', label: 'A department', description: 'One department and the teams under it.' },
-            ]} />
+            options={deptOnly
+              ? [{ id: 'department', label: 'A department', description: 'A Team Manager answers for one department and the teams under it, never the whole workspace.' }]
+              : [
+                { id: 'workspace', label: 'Whole workspace', description: 'Everything in the workspace.' },
+                { id: 'collection', label: 'A collection', description: 'One library collection and the collections inside it.' },
+                { id: 'department', label: 'A department', description: 'One department and the teams under it.' },
+              ]} />
           {scope !== 'workspace' && (
             <Select label={scope === 'collection' ? 'Collection' : 'Department'} options={scopeOptions} selectedKey={scopeId || null} onSelectionChange={(k) => setScopeId(String(k ?? ''))}
               placeholder={scope === 'collection' ? 'Choose a collection' : 'Choose a department'} description={!scopeOptions.length ? `No ${scope === 'collection' ? 'collections' : 'departments'} to choose from.` : undefined} />
