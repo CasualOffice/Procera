@@ -50,8 +50,8 @@ export function PdfPages({ data, label, overlay, onError, maxWidth = 900 }: {
   }, [maxWidth]);
 
   return (
-    <div ref={box} className="pdf-pages" role="region" aria-label={label}>
-      {!doc && <p className="muted pdf-pages-loading">Loading the document…</p>}
+    <div ref={box} className="sig-pages" role="region" aria-label={label}>
+      {!doc && <p className="muted sig-pages-loading">Loading the document…</p>}
       {doc && width > 0 && sizes.map((s, i) => (
         <Page key={i} doc={doc} n={i + 1} width={width} size={s} overlay={overlay} />
       ))}
@@ -93,10 +93,10 @@ function Page({ doc, n, width, size, overlay }: {
   }, [doc, n, seen, width, size.width]);
 
   return (
-    <div ref={wrap} className="pdf-page" style={{ width, height }} data-page={n}>
+    <div ref={wrap} className="sig-page" style={{ width, height }} data-page={n}>
       <canvas ref={canvas} style={{ width, height }} aria-hidden="true" />
-      <div className="pdf-page-overlay">{overlay?.(n, { width, height })}</div>
-      <span className="pdf-page-no" aria-hidden="true">{n}</span>
+      <div className="sig-page-overlay">{overlay?.(n, { width, height })}</div>
+      <span className="sig-page-no" aria-hidden="true">{n}</span>
     </div>
   );
 }

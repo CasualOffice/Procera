@@ -1,8 +1,64 @@
 /* E-signing (BPMS-107): the PDF page stack shared by placing fields and signing. */
-.pdf-pages { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; }
-.pdf-pages-loading { padding: var(--space-6); }
-.pdf-page { position: relative; background: #fff; box-shadow: 0 1px 2px rgba(40, 36, 30, .08), 0 8px 24px -12px rgba(40, 36, 30, .25); border-radius: 0.125rem; flex: none; }
-.pdf-page canvas { display: block; border-radius: inherit; }
-.pdf-page-overlay { position: absolute; inset: 0; }
-.pdf-page-no { position: absolute; right: -2rem; top: 0; font-size: 0.75rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
-@media (max-width: 47.99rem) { .pdf-page-no { display: none; } }
+.sig-pages { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-4) 0; }
+.sig-pages-loading { padding: var(--space-6); }
+.sig-page { position: relative; background: #fff; box-shadow: 0 1px 2px rgba(40, 36, 30, .08), 0 8px 24px -12px rgba(40, 36, 30, .25); border-radius: 0.125rem; flex: none; }
+.sig-page canvas { display: block; border-radius: inherit; }
+.sig-page-overlay { position: absolute; inset: 0; }
+.sig-page-no { position: absolute; right: -2rem; top: 0; font-size: 0.75rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
+@media (max-width: 47.99rem) { .sig-page-no { display: none; } }
+.sig-section { margin-top: var(--space-5); }
+.sig-section-title { margin: 0 0 var(--space-2); font-size: 0.8125rem; font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+/* The ceremony */
+.ceremony { max-width: 60rem; margin: 0 auto; display: flex; flex-direction: column; gap: var(--space-4); }
+.cer-head { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap;
+  padding: var(--space-3) 0; background: var(--color-surface); border-bottom: 1px solid var(--line); }
+.cer-head h1 { margin: 0; font-size: 1.375rem; line-height: 1.25; }
+.cer-eyebrow { margin: 0 0 0.125rem; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.cer-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.cer-left { font-size: 0.8125rem; color: var(--color-text-secondary); font-variant-numeric: tabular-nums; margin-right: var(--space-1); }
+.cer-intro { display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+.cer-message { margin: 0; padding: var(--space-3) var(--space-4); border-left: 0.1875rem solid var(--line-strong, var(--color-border-strong)); background: var(--color-surface-muted); border-radius: 0 0.5rem 0.5rem 0; }
+.cer-message p { margin: 0; white-space: pre-wrap; }
+.cer-message footer { margin-top: 0.375rem; font-size: 0.8125rem; color: var(--color-text-on-tinted); }
+.cer-consent { display: grid; gap: var(--space-2); }
+.cer-note { display: flex; align-items: center; gap: 0.375rem; margin: 0; font-size: 0.8125rem; color: var(--color-text-secondary); }
+.cer-adopt { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.cer-adopt-label { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.cer-meaning { margin: 0; font-size: 0.8125rem; }
+.cer-foot { font-size: 0.8125rem; text-align: center; }
+/* A typed signature reads as the PDF prints it (Times italic). */
+.sig-typed { font-family: 'Times New Roman', Times, serif; font-style: italic; font-size: 1.5rem; line-height: 1; color: #1c1c1a; white-space: nowrap; }
+.sig-img { max-height: 2.75rem; max-width: 100%; }
+.sig-field { position: absolute; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 0.25rem; border-radius: 0.25rem;
+  border: 1.5px dashed #b45309; background: rgba(251, 191, 36, 0.18); color: #78350f; font: inherit; font-size: 0.75rem; cursor: pointer; }
+.sig-field:focus-visible { outline: 2px solid var(--focus-ring, #EE4136); outline-offset: 2px; }
+.sig-field.is-done { border-style: solid; border-color: #047857; background: rgba(16, 185, 129, 0.10); color: #064e3b; }
+.sig-field:disabled { cursor: default; }
+.sig-field-cta { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; }
+.sig-field .sig-typed { font-size: min(1.5rem, 70%); }
+input.sig-field { cursor: text; justify-content: flex-start; color: #1c1c1a; }
+input.sig-field::placeholder { color: #92400e; opacity: 0.85; }
+.sig-field.kind-checkbox { padding: 0; }
+.sig-field.is-auto { cursor: default; border-style: dotted; border-color: #8c8a85; background: rgba(140, 138, 133, 0.08); color: #3f3d39; }
+/* Adopt dialog */
+.adopt-tabs { display: inline-flex; padding: 0.1875rem; border-radius: 0.5rem; background: var(--color-surface-muted); gap: 0.1875rem; margin-bottom: var(--space-3); }
+.adopt-tab { display: inline-flex; align-items: center; gap: 0.375rem; border: 0; background: none; padding: 0.375rem 0.875rem; border-radius: 0.375rem; font: inherit; font-size: 0.875rem; color: var(--color-text-secondary); cursor: pointer; }
+.adopt-tab[aria-checked='true'] { background: var(--color-surface); color: var(--color-text); box-shadow: var(--shadow-xs); font-weight: 600; }
+.adopt-tab:focus-visible { outline: 2px solid var(--focus-ring, #EE4136); outline-offset: 1px; }
+.adopt-preview { margin-top: var(--space-3); display: flex; align-items: center; justify-content: center; min-height: 6rem; border: 1px solid var(--line); border-radius: 0.625rem; background: #fff; }
+.adopt-preview .sig-typed { font-size: 2.25rem; }
+.drawpad { margin-top: var(--space-3); }
+.drawpad-canvas { display: block; width: 100%; height: 10rem; border: 1px solid var(--line); border-radius: 0.625rem; background: #fff; touch-action: none; cursor: crosshair; }
+.drawpad-bar { display: flex; align-items: center; justify-content: space-between; margin-top: var(--space-2); font-size: 0.8125rem; }
+@media (max-width: 47.99rem) {
+  .cer-head { position: static; }
+  .cer-actions { position: fixed; left: 0; right: 0; bottom: 0; z-index: 21; padding: var(--space-3) var(--space-4); background: var(--color-surface); border-top: 1px solid var(--line); justify-content: flex-end; box-shadow: 0 -4px 16px -8px rgba(40, 36, 30, .18); }
+  .ceremony { padding-bottom: 5rem; }
+  .sig-field { font-size: 0.625rem; }
+}
+/* On phones the app's bottom bar is fixed at the bottom: the actions sit just above it. */
+@media (max-width: 40rem) {
+  .cer-actions { bottom: calc(3.5rem + env(safe-area-inset-bottom)); }
+  .ceremony { padding-bottom: 9rem; }
+  .cer-left { flex-basis: 100%; }
+}

@@ -63,6 +63,7 @@ export function MyWork({ selected }: { selected: string | null }) {
       <SectionTabs label="Work views" tabs={[
         { label: 'Open', to: '/work', current: state === 'open' },
         { label: 'Done', to: '/work?state=done', current: state === 'done' },
+        { label: 'Signatures', to: '/work/signatures', current: false },
       ]} />
       {decided && ref && !bulkDone && <Notice tone="success" title={`${outcomePast(decided)} ${ref}. It’s off your list.`} />}
       {bulk && <BulkDecideDialog items={bulk.items} outcome={bulk.outcome} onClose={() => setBulk(null)}

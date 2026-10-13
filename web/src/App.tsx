@@ -59,6 +59,8 @@ import { AdminHub } from './pages/AdminHub';
 import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
+import { Signatures } from './pages/signing/Signatures';
+import { Ceremony } from './pages/signing/Ceremony';
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
@@ -125,6 +127,9 @@ export function App() {
   if (req) return <AppShell current="requests" crumbs={[['Requests', '/requests?view=mine'], 'Request']}><RequestDetail id={req.id!} /></AppShell>;
   if (path === '/team') return <AppShell current="team" crumbs={['Team']}><TeamPage /></AppShell>;
   if (path === '/work') return <AppShell current="work" crumbs={['My work']}><MyWork selected={null} /></AppShell>;
+  if (path === '/work/signatures') return <AppShell current="work" crumbs={[['My work', '/work'], 'Signatures']}><Signatures /></AppShell>;
+  const signing = match('/sign/:id', path);
+  if (signing) return <AppShell current="work" crumbs={[['My work', '/work/signatures'], 'Sign']}><Ceremony recipient={signing.id!} /></AppShell>;
   const workItem = match('/work/:id', path);
   if (workItem) return <AppShell current="work" crumbs={[['My work', '/work'], 'Item']}><MyWork selected={workItem.id!} /></AppShell>;
   if (path === '/welcome') return <AppShell current="home" crumbs={[['Home', '/'], 'Set up']}><Welcome /></AppShell>;
