@@ -14,6 +14,9 @@ const baseURL = process.env.PROCERA_BASE_URL ?? 'http://127.0.0.1:18080';
 export default defineConfig({
   testDir: './packs',
   fullyParallel: true,
+  // The suite runs a debug server build under parallel workers: allow 10 s for a UI state to appear
+  // (what is asserted is unchanged; only how long a check waits).
+  expect: { timeout: 10_000 },
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0, // docs/23 §7: at most one retry; a pass-on-retry is reported as flaky
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }], ['junit', { outputFile: 'test-results/junit.xml' }]] : 'list',

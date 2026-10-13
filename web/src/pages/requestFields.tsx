@@ -98,7 +98,7 @@ export function RequestFields({ fields, values, onChange, members, errors = {}, 
           }
           case 'principal': {
             const opts = (members ?? []).filter((m) => m.status === 'active').map((m) => ({ id: m.id, label: m.display_name }));
-            return <Select key={f.name} {...common} label={f.label} description={f.help} placeholder={members === null ? 'Loading people…' : 'Choose a person…'} options={opts} selectedKey={String(v ?? '') || null} onSelectionChange={(k) => onChange(f.name, k === null ? '' : String(k))} />;
+            return <Select key={f.name} {...common} label={f.label} description={f.help} placeholder={members === null ? 'Loading people…' : 'Choose a person…'} isDisabled={members === null} options={opts} selectedKey={String(v ?? '') || null} onSelectionChange={(k) => onChange(f.name, k === null ? '' : String(k))} />;
           }
           case 'money':
           case 'number':

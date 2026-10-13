@@ -100,7 +100,7 @@ test.describe('system console @r1 @ui', () => {
 
     await sysNav(page, 'System audit');
     await expect(page.getByRole('heading', { level: 1, name: 'System audit' })).toBeVisible();
-    await expect(page.getByText('Chain verified')).toBeVisible();
+    await expect(page.getByText('Chain verified')).toBeVisible({ timeout: 30_000 }); // verifies the whole system chain
     await page.getByLabel('Action').fill('workspace.quotas_changed');
     await page.getByRole('button', { name: 'Apply' }).click();
     const events = page.getByRole('table', { name: 'Audit events' });

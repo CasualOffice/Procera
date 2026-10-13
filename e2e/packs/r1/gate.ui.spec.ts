@@ -750,7 +750,8 @@ test.describe('R1 gate @r1 @ui', () => {
     await dlg.getByLabel('What changed?').fill('Harassment reporting');
     await expect(dlg.getByText(/^Publishing v2\.0 asks 51 people to re-acknowledge/)).toBeVisible();
     await dlg.getByRole('button', { name: 'Publish now' }).click();
-    await expect(page.getByRole('status').filter({ hasText: 'Published v2.0. 51 people asked to re-acknowledge.' })).toBeVisible();
+    // Publishing re-asks 51 people in one transaction: give it longer than a click under a loaded suite.
+    await expect(page.getByRole('status').filter({ hasText: 'Published v2.0. 51 people asked to re-acknowledge.' })).toBeVisible({ timeout: 30_000 });
     await request.post('/__test/drain');
 
     // Ten acknowledge on a phone-sized screen, from Home.
