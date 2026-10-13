@@ -59,6 +59,7 @@ import { AdminHub } from './pages/AdminHub';
 import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
+import { EmailApprove } from './pages/EmailApprove';
 import { Webhooks } from './pages/Webhooks';
 import { Signatures } from './pages/signing/Signatures';
 import { BatchPage } from './pages/signing/BatchPage';
@@ -99,6 +100,8 @@ export function App() {
   if (status === 'loading') return <PlainShell art={false}><Skeleton variant="doc" label="Loading Procera" /></PlainShell>;
   // The invitation link works signed in or out (it creates the account or joins with one click).
   if (path === '/invite') return <PlainShell><Invite /></PlainShell>;
+  const emailAction = match('/approve/:token', path);
+  if (emailAction) return <PlainShell art={false}><EmailApprove token={emailAction.token!} /></PlainShell>;
   // First-run setup (FR-S01): the one-time bootstrap token creates the first system owner.
   if (path === '/setup') return <PlainShell><Setup /></PlainShell>;
   // Account recovery (docs/06 §3.6.1): reachable signed out; a reset link also works signed in.

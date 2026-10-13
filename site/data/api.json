@@ -116,6 +116,32 @@
    ]
   },
   {
+   "key": "email_actions",
+   "name": "Email approvals",
+   "intro": "The confirm page behind Approve and Reject links in approval emails: read the request, then decide once. The link is the credential; no session.",
+   "routes": [
+    {
+     "method": "GET",
+     "path": "/api/v1/email-actions/{token}",
+     "handler": "view",
+     "summary": "What the confirm page shows (no session; the link is the key): `{state: open|used|expired|closed, deciding_as, workspace, step, outcomes, request {display_id, title, type_name, initiator, submitted_at, due_at}, answers [{label, type, value}], expires_at}`. Answers marked confidential or restricted are left out. 404 for an unknown link."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/email-actions/{token}",
+     "handler": "decide",
+     "summary": "Decides once through the link: `outcome` `approved`, or `rejected` with a `comment`. Candidacy, separation of duties and \"one decision wins\" apply as in My work. 409 when the link was used or expired or the step is already decided. Returns `{outcome, display_id, status}`.",
+     "audited": [
+      "instance.advanced",
+      "instance.completed",
+      "webhook.created",
+      "work.decided_by_email",
+      "work_item.decided"
+     ]
+    }
+   ]
+  },
+  {
    "key": "webhooks",
    "name": "Outgoing webhooks",
    "intro": "Endpoints that receive signed events, their delivery log, replay, test events and secret rolling, and the event catalogue.",
@@ -136,10 +162,7 @@
      "method": "POST",
      "path": "/api/v1/webhooks",
      "handler": "create",
-     "summary": "A new endpoint (`url` https, `events` types or `[\"*\"]`, `description`; `connector:configure`; at most 20). 201 with the endpoint and its `secret` (shown only here). 422 for a URL inside a private network or a port other than 443/80/8443/8080.",
-     "audited": [
-      "webhook.created"
-     ]
+     "summary": "A new endpoint (`url` https, `events` types or `[\"*\"]`, `description`; `connector:configure`; at most 20). 201 with the endpoint and its `secret` (shown only here). 422 for a URL inside a private network or a port other than 443/80/8443/8080."
     },
     {
      "method": "GET",

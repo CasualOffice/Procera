@@ -444,7 +444,7 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R4-03 | Scoped admin (Finance dept) cannot see or grant outside scope; escalation attempt denied | CFG-018 |
 | E2E-R4-04 | (in E2E-R4-WH-01..03) Webhook delivered with valid Standard Webhooks signature; replay outside tolerance rejected by receiver; retries on 500; disabled on 410 | WH-01–04 |
 | E2E-R4-05 | HTTP connector to `169.254.169.254` and to private IP refused (SSRF); allowlisted host OK | SSRF-01–06 |
-| E2E-R4-06 | Email-actionable approval: link → confirm page → approve; reusing link fails; a GET never mutates | FR-N03 |
+| E2E-R4-06 | (in E2E-R4-EA-01) Email-actionable approval: link → confirm page → approve; reusing link fails; a GET never mutates | FR-N03 |
 | E2E-R4-07 | External signer via magic link + email OTP; link single-use | FR-DS02, FR-P08 |
 | E2E-R4-08 | Envelope correction (change recipient email) audited; DOCX + merge fields; anchor tags place fields | FX-S03/S09 |
 | E2E-R4-09 | Public form with CAPTCHA + rate limit; save & resume | FX-F05/F06 |
@@ -461,6 +461,9 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R4-WH-02 | API: a 500 leaves the delivery pending with a later next attempt (a drain doesn't resend it); replay resends with the same webhook-id; a 410 turns the endpoint off with its reason and notifies the creator; turning it on clears the reason | WH-03 |
 | E2E-R4-WH-03 | API: rolling the secret signs the next event with both (each verifies); members can't list, add or delete endpoints | WH-04 |
 | E2E-R4-UI-06 | Browser: Admin › Webhooks — a metadata URL is refused in the dialog; add an endpoint, copy the secret from the show-once dialog, send a test event (the receiver gets it signed), see Delivered with the event body in the log, turn it off; axe | BPMS-143 |
+| E2E-R4-EA-01 | API: the manager's leave approval email carries a link; reading it (twice) decides nothing and shows who decides; rejecting without a reason and nonsense outcomes refused; approving decides once (request approved, decided by the manager); a second use is 409 and the page says used; unknown tokens 404 | FR-N03, E2E-R4-06 |
+| E2E-R4-EA-02 | API: a step decided in My work closes its link (409); with `notify.email_actions.enabled` off the next email has no link | FR-N03 |
+| E2E-R4-UI-07 | Browser, signed out: the Reject link opens the confirm page with the request, its answers and “deciding as”; Reject stays off until a reason; confirming rejects with that comment; opening the link again says it was used; axe | FR-N03 |
 | E2E-R4-TOK-01 | API: a personal token (`prc_live_…`, shown once) reads within its permissions; refused outside them (members, audit), for decisions, the account and token management; a wrong secret is 401; last used is recorded; revoked → 401 at once | 06 §3.5, BPMS-144 |
 | E2E-R4-TOK-02 | API: a member can't give a token permissions they lack (403) or unknown ones (422), nor list or revoke others' tokens | 12 §4 |
 | E2E-R4-UI-01 | Browser: Account › API tokens — make a read-only token, copy it from the show-once dialog, a script reads with it and is refused an invite, revoke it in the list → 401; axe | BPMS-144 |

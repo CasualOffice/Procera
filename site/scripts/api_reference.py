@@ -19,6 +19,7 @@ SYSTEM = {"system.rs", "system_console.rs", "system_email.rs"}
 # area key (router file) → (name, public introduction), in reference order
 AREAS = {
     "auth": ("Sign-in and account", "Signing in with a password and a second step, refreshing and ending sessions, two-step verification and passkeys. Browser flows; automation uses API tokens."),
+    "email_actions": ("Email approvals", "The confirm page behind Approve and Reject links in approval emails: read the request, then decide once. The link is the credential; no session."),
     "webhooks": ("Outgoing webhooks", "Endpoints that receive signed events, their delivery log, replay, test events and secret rolling, and the event catalogue."),
     "tokens": ("API tokens", "Personal API tokens: create, list and revoke your own; security admins list and revoke everyone's."),
     "workspace": ("Workspace and members", "Your workspaces and permissions, switching workspace and step-up, invitations, members, deactivation and reactivation."),

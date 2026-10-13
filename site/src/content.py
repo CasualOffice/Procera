@@ -134,6 +134,7 @@ FEATURES = [
                   "A conversation on every request: comments, internal notes the requester never sees, @mentions and watchers",
                   "Operations view: technical incidents kept apart from people problems, retried or dismissed with a reason in the audit log",
                   "Team workload for managers: who holds what, what is overdue, who is away with work waiting, and bulk reassign within the team",
+                  "Approve or reject from the email: the buttons open a confirm page through a single-use link, nothing is decided until you confirm",
                   "Out of office: one click from the account menu; colleagues see who's away and who covers on hover; a delegate decides your approvals, recorded on your behalf, and separation of duties still applies to them",
                   "Admins choose which request types are offered, who can ask for each, and the currency approval limits are read in",
                   "Before sending, the form says who will approve it; files (receipts, quotes, photos) attach to requests and decisions, virus-scanned and previewable; each decision records the policy version the approver saw",

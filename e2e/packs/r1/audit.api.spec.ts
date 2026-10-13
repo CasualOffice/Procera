@@ -220,6 +220,12 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const third = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-3` }, data: leave })).json();
   const [held] = ((await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items as { id: string; request: { id: string } }[]).filter((w) => w.request.id === third.id);
   await step('POST', '/api/v1/work/{id}/delegate', () => own.post(`/api/v1/work/${held.id}/delegate`, { headers: oh, data: { membership_id: rj.membership_id, note: 'audit drill' } }));
+  // Email approvals (BPMS-145): Adam asks again; the owner approves from the link in the email.
+  const fourth = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-4` }, data: leave })).json();
+  await request.post('/__test/drain');
+  const mails = (await (await request.get(`/__test/mail?workspace=${ws.id}&to=${encodeURIComponent(ownerEmail)}`)).json()).items as { kind: string; text: string }[];
+  const eaToken = mails.find((m) => m.kind === 'work_assigned' && m.text.includes(fourth.display_id))!.text.match(/\/approve\/([A-Za-z0-9_-]+)\?/)![1]!;
+  await step('POST', '/api/v1/email-actions/{token}', () => request.post(`/api/v1/email-actions/${eaToken}`, { headers: { 'user-agent': ua }, data: { outcome: 'approved' } }));
   // Processes (BPMS-100): create from a template, save the draft, publish.
   const proc = await (await step('POST', '/api/v1/processes', () => own.post('/api/v1/processes', { headers: oh, data: { key: 'aud.process', title: 'Audit process', template: 'hr.leave-request' } }))).json();
   const pd = await (await own.get(`/api/v1/processes/${proc.id}`, { headers: oh })).json();

@@ -215,6 +215,7 @@ As built (BPMS-103): `GET /request-types` lists only enabled types the caller is
 | `notify.channels.enabled` | subset of `in_app, email, push, webhook, chat` | in_app, email | workspace:settings.manage | P0 |
 | `notify.digest.schedule` | `off \| daily \| weekly` (weekly = Mondays) | daily | workspace:settings.manage (user may override) | P0 |
 | `notify.digest.hour` | int 0–23 (member's time zone) | 9 | workspace:settings.manage (user may override) | P0 |
+| `notify.email_actions.enabled` | bool | true | workspace:settings.manage | P1 (BPMS-145): plain approvals (nothing to fill in) email single-use Approve/Reject links that open a confirm page |
 | `notify.quiet_hours.enabled` | bool | true | workspace:settings.manage (user may override) | P0 |
 | `notify.quiet_hours.start` / `.end` | int 0–23 (member's time zone; wraps past midnight) | 20 / 8 | workspace:settings.manage (user may override) | P0 |
 | `notify.critical_override_quiet` | bool: critical emails break quiet hours | true | workspace:settings.manage | P0 |

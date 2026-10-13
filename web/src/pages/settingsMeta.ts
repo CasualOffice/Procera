@@ -81,6 +81,7 @@ export const PLACES: Record<string, Place> = {
 
   'notify.channels.enabled': B('notifications', 'Channels and digests'),
   'notify.digest.schedule': B('notifications', 'Channels and digests'),
+  'notify.email_actions.enabled': B('notifications', 'Email approvals'),
   'notify.quiet_hours.enabled': B('notifications', 'Quiet hours'),
   'notify.quiet_hours.start': B('notifications', 'Quiet hours'),
   'notify.quiet_hours.end': B('notifications', 'Quiet hours'),
@@ -166,6 +167,7 @@ export const SYNONYMS: Record<string, string> = {
   'locale.timezone': 'timezone tz',
   'branding.accent': 'color colour brand',
   'notify.digest.schedule': 'digest summary email',
+  'notify.email_actions.enabled': 'approve from email link one click',
   'notify.quiet_hours.enabled': 'do not disturb night',
   'requests.types.enabled': 'request types leave expense purchase access catalogue',
   'requests.currency': 'currency money euro dollar amount',
@@ -214,6 +216,7 @@ export const LABELS: Record<string, [string, string?]> = {
   'notify.channels.enabled': ['Send notifications by', 'People can turn channels off for themselves.'],
   'notify.digest.schedule': ['Send a summary email', 'Groups non-urgent notifications into one email. People can change this for themselves.'],
   'notify.digest.hour': ['Send the summary at', 'Hour of the day, 0 to 23.'],
+  'notify.email_actions.enabled': ['Approve and reject from email', 'Approval emails carry Approve and Reject buttons that open a confirm page through a single-use link (for steps with nothing to fill in).'],
   'notify.quiet_hours.enabled': ['Hold notifications during quiet hours', 'Non-urgent notifications wait until quiet hours end.'],
   'notify.quiet_hours.start': ['Quiet hours start at', 'Hour of the day, 0 to 23.'],
   'notify.quiet_hours.end': ['Quiet hours end at', 'Hour of the day, 0 to 23.'],

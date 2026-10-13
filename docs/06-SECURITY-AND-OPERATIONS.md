@@ -225,6 +225,13 @@ Outbound and inbound follow **Standard Webhooks** (WH-01…05): `webhook-id`,
 `webhook-timestamp`, `webhook-signature` (`v1` HMAC-SHA256 or `v1a` Ed25519), 5 min
 tolerance, dedup on id, multiple signatures for rotation.
 
+### 3.8a Email approval links (BPMS-145)
+A plain approval step emails each candidate a 256-bit single-use token (only its SHA-256 stored,
+found through a discovery function). `GET` only reads the confirm page's data; `POST` decides once as
+that member through the normal decision path (candidacy, SoD, one decision wins), spending every link
+of the step in the same transaction. Links expire at the step's due date or after 7 days. Workspaces
+can turn them off (`notify.email_actions.enabled`). See A-49 for the forwarding trade-off.
+
 ### 3.9 Signed object URLs
 Clients never receive raw bucket URLs persistently. `GET /v1/files/{id}/content` authorizes
 the user, logs access if required, then 302-redirects to a presigned URL with **TTL ≤ 5 min**,
