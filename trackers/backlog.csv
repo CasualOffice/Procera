@@ -23,14 +23,14 @@ BPMS-026,AUD,Audit chain append + coverage contract test,P0,R1,Platform,"FR-T01,
 BPMS-027,CFG,"Settings layering, floors, profiles, explainer",P0,R1,Platform,"FR-S05, FR-W04/W06, CFG-001..003",Never looser than floor,M,BPMS-020,Done,Automated tests
 BPMS-028,UX,"Shared DataGrid v1 (sort, filter builder, saved views, export, keyboard)",P0,R1,FE,FR-V01–V09,Used by Members & Workspaces,L,BPMS-010,Done,Automated tests
 BPMS-029,ENG,Outbox + dispatcher + inbox dedup + idempotency keys,P0,R1,Platform,ADR-0005,T02 skeleton passes,M,BPMS-011,Done,Automated tests
-BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,In progress,Automated tests
-BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,In progress,Automated tests
+BPMS-030,ENG,"Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",P0,R1,Platform/Sec,"04 §8, 06 §4",Rotation + shred tested,M,BPMS-020,Done,Automated tests
+BPMS-031,UX,"App shell, workspace switcher, system console shell, ⌘K",P0,R1,FE,UX-002/003,Keyboard nav,M,BPMS-010,Done,Automated tests
 BPMS-032,E2E,E2E-R1 pack (R1-01…19 + ISO),P0,R1,SDET + feature owners,23 §5,Green on Chromium + mobile,L,BPMS-013,Done,Automated tests
 BPMS-033,OPS,"Valkey cache port (rate limit, session cache, policy/settings cache, SSE fan-out) + cache-off fallback",P0,R1,Platform,ADR-0019,E2E passes with cache off,M,BPMS-020,Done,Code merged
-BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,In progress,Code merged
+BPMS-034,BRAND,"Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",P0,R1,Design + Product,"assets/brand, OQ-01, U-16",SVGs in assets/brand/vector; clearance memo,S,,Done,Code merged
 BPMS-040,LIB,"Artifacts, versions, lifecycle state machine, immutability trigger, SoD",P0,R1,Backend,"FR-G04, T07",T07 passes,L,"BPMS-024,026",Done,Automated tests
 BPMS-041,LIB,"Landscape, collections, owners, RACI, visibility",P0,R1,Fullstack,FR-G01/G02,Search authorized-only,M,BPMS-040,Done,Automated tests
-BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,In progress,Automated tests
+BPMS-042,LIB,SOP/policy block editor + renderer (web/PDF),P0,R1,FE,"FR-G03, ADR-0013, U-10",Tagged PDF export,L,BPMS-040,Done,Automated tests
 BPMS-043,LIB,Semantic diff across artifact kinds,P0,R1,Fullstack,FR-G05,Diff covers bundle artifacts,M,BPMS-040,Done,Automated tests
 BPMS-044,LIB,"Reviews, change requests, effective-date scheduling, renewal date, verification badge",P0,R1,Fullstack,"FR-G05/G07, FX-G01/G02",Expired flagged,M,BPMS-040,Done,Automated tests
 BPMS-045,LIB,Policy library + employee policy portal + applicability,P0,R1,Fullstack,FR-PL01–PL03,Applicability enforced,M,BPMS-042,Done,Automated tests
@@ -38,38 +38,49 @@ BPMS-046,CAMP,"Campaign engine: ack/quiz-lite, audience snapshot, reminders, esc
 BPMS-047,COMMS,"Announcements: compose, targeting, schedule/expiry, pin, required ack, approval, analytics",P0,R1,Fullstack,"FR-AN01–06, FX-C01",J14 passes,L,BPMS-046,Done,Automated tests
 BPMS-048,NOTIF,In-app notification centre + SMTP email + templates + digests,P0,R1,Fullstack,FR-N01/N02/N04,Bounce handling,M,BPMS-029,Done,Automated tests
 BPMS-049,SRCH,"Postgres FTS + trgm, permission-filtered search",P0,R1,Backend,04 §6,No restricted leakage,M,BPMS-040,Done,Automated tests
-BPMS-060,FILE,"Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",P0,R1,Backend,"FR-F01–F03, F05",EICAR quarantined; SEC-10,L,BPMS-030,In progress,Automated tests
-BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backend,"FR-F04, U-08",No active content,M,BPMS-060,In progress,Automated tests
-BPMS-062,FILE,"Workspace Files view, quotas, orphan cleanup",P0,R1,FE,FR-F06/F07,Held files undeletable,M,"BPMS-060,028",In progress,Automated tests
+BPMS-060,FILE,"Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",P0,R1,Backend,"FR-F01–F03, F05",EICAR quarantined; SEC-10,L,BPMS-030,Done,Automated tests
+BPMS-061,FILE,Previews (image/PDF) in sandbox; Office preview spike,P0,R1,Backend,"FR-F04, U-08",No active content,M,BPMS-060,Done,Automated tests
+BPMS-062,FILE,"Workspace Files view, quotas, orphan cleanup",P0,R1,FE,FR-F06/F07,Held files undeletable,M,"BPMS-060,028",Done,Automated tests
 BPMS-063,ADMIN,Workspace overview dashboard + people & access monitor,P0,R1,FE,FR-A01/A06,Every tile drills down,L,BPMS-028,Done,Automated tests
 BPMS-064,AUD,"Audit explorer, timelines, saved queries, export",P0,R1,Fullstack,FR-T03/T04,P95<2s @10M,L,BPMS-026,Done,Automated tests
 BPMS-065,PLAT,"System console: workspaces grid, quotas, health, system audit",P0,R1,FE,FR-S02–S09,—,M,BPMS-020,Done,Automated tests
 BPMS-120,PILOT,"Pilot workspaces (Starter + Enterprise profile), 3–5 real processes, 4 weeks",P0,R1,Product,G3,G3 checklist,L,M6,Not started,—
-BPMS-080,RT,"IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",P0,R2,Runtime,"11, ADR-0003",All checks covered,L,BPMS-009,In progress,Code merged
-BPMS-081,RT,"Expression engine integration (typed, budgeted, WASM build)",P0,R2,Runtime,ADR-0010,Budget exhaustion = incident,M,BPMS-009,In progress,Code merged
-BPMS-082,RT,"Interpreter: advance loop, tokens, splits/joins, end/terminate",P0,R2,Runtime,04 §4,Conformance green,L,BPMS-080,In progress,Code merged
-BPMS-083,RT,Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks,P0,R2,Runtime,"04 §4.4, FR-E12",T06; lateness SLO,L,BPMS-082,In progress,Automated tests
+BPMS-080,RT,"IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",P0,R2,Runtime,"11, ADR-0003",All checks covered,L,BPMS-009,Done,Code merged
+BPMS-081,RT,"Expression engine integration (typed, budgeted, WASM build)",P0,R2,Runtime,ADR-0010,Budget exhaustion = incident,M,BPMS-009,Done,Code merged
+BPMS-082,RT,"Interpreter: advance loop, tokens, splits/joins, end/terminate",P0,R2,Runtime,04 §4,Conformance green,L,BPMS-080,Done,Automated tests
+BPMS-083,RT,Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks,P0,R2,Runtime,"04 §4.4, FR-E12",T06; lateness SLO,L,BPMS-082,Done,Automated tests
 BPMS-084,RT,Release bundles + publish integration,P0,R2,Runtime,ADR-0012,T03 passes,M,"BPMS-040,080",Not started,—
-BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",In progress,Automated tests
-BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,In progress,Automated tests
+BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",Done,Automated tests
+BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,Done,Automated tests
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started,—
-BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,In progress,Automated tests
+BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,Done,Automated tests
 BPMS-089,QA,Conformance suite + model-based tests + deterministic simulation harness,P0,R2,SDET/Runtime,15 §4–6,Nightly chaos green,L,BPMS-082,Not started,—
 BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,Not started,—
 BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,In progress,Automated tests
-BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,In progress,Automated tests
-BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",P0,R2,FE,"FR-R03, FR-AK02",Decision ≤3 interactions,L,"BPMS-085,046",In progress,Automated tests
-BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,"BPMS-100,101",In progress,Automated tests
+BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,Done,Automated tests
+BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",P0,R2,FE,"FR-R03, FR-AK02",Decision ≤3 interactions,L,"BPMS-085,046",Done,Automated tests
+BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,"BPMS-100,101",Done,Automated tests
 BPMS-111,E2E,E2E-R2 pack (R2-01…16 + ISO) + Firefox,P0,R2,SDET + feature owners,23 §5,Green; race/restart/timer stable,L,BPMS-032,Not started,—
 BPMS-121,UX,Usability round + SUS measurement + fixes,P0,R2,Design,02 §9,SUS targets,M,BPMS-120,Not started,—
+BPMS-207,UX,Mobile bottom bar for the app shell,P1,R2,FE,UX-002,Thumb reach on phones; axe clean,S,BPMS-031,Not started,—
+BPMS-209,FILE,"S3-compatible storage backend, EXIF stripping at upload, separate preview origin",P0,R2,Backend,"FR-F01, FR-F04, U-08",Files on S3; no EXIF in stored images,M,"BPMS-060,061",Not started,—
+BPMS-212,WORK,Delegate a single work item; send back to an earlier step,P1,R2,Backend,"12 §9/§10, FX-E05",Delegation audited; SoD re-checked,M,BPMS-086,Not started,—
+BPMS-214,REQ,"Request comments, @mentions and watchers",P0,R2,Fullstack,"FR-R02, FX-R02",Mentioned people notified; access-checked,M,BPMS-103,Not started,—
+BPMS-216,WORK,My work bulk decisions with preview; acknowledgement and signature tabs,P0,R2,FE,"FR-R03, FR-AK02",Bulk decision previews each item; audited per item,M,BPMS-105,Not started,—
 BPMS-066,AUD,Retention policy per record class (policy only),P0,R3,Backend,PRV-04,Jobs honour classes,M,BPMS-026,Done,Automated tests
 BPMS-102,DATA,"Master-data tables (CSV import, lookups, versioned)",P0,R3,Fullstack,FX-E02,Cascading dropdowns,M,BPMS-101,Not started,—
 BPMS-104,REQ,"Recall/withdraw, edit-after-submit, request-on-behalf, numbering",P0,R3,Backend,FX-E03/E04/E06,Audited,M,BPMS-103,Not started,—
 BPMS-107,SIGN,"E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate",P0,R3,Fullstack,"FR-DS01–07, FX-S01/02/05/06/07",J13 passes,XL,"BPMS-046,060",Not started,—
-BPMS-108,ADMIN,All requests / all work / workload / process health / ops monitor,P0,R3,FE,FR-A02–A05,Bulk audited,L,"BPMS-063,085",In progress,Automated tests
+BPMS-108,ADMIN,All requests / all work / workload / process health / ops monitor,P0,R3,FE,FR-A02–A05,Bulk audited,L,"BPMS-063,085",Done,Automated tests
 BPMS-109,UX,"PWA (360px) for My Work, requests, acks, signing",P0,R3,FE,FR-P07,Lighthouse PWA pass,M,BPMS-105,Not started,—
 BPMS-110,LIB,BPMN 2.0 XML import (subset) + compatibility report,P0,R3,Runtime,"FR-G09, SP-06",Unsupported listed,M,BPMS-080,Not started,—
 BPMS-112,E2E,E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit,P0,R3,SDET + feature owners,23 §5,Green; bulk-sign 1000,L,BPMS-111,Not started,—
+BPMS-208,LIB,"Server-side tagged PDF, DOCX import (with pictures), variables blocks",P1,R3,Fullstack,"FR-G03, ADR-0013",Tagged PDF passes PAC-style checks,L,BPMS-042,Not started,—
+BPMS-210,RT,"Encrypted restricted instance data, at-risk SLA state, IANA time zones",P1,R3,Runtime,"04 §4.4, 06 §4",Restricted values sealed at rest; at-risk shown,M,BPMS-083,Not started,—
+BPMS-211,WORK,"Claim/unclaim, round-robin and least-loaded assignment, quorum, DoA matrix",P0,R3,Backend,"FR-E04/E05, FX-D01/D02",T01 strategies pass,L,BPMS-085,Not started,—
+BPMS-213,RT,"Instance admin ops: skip a step, cancel/terminate an instance, migrate version",P0,R3,Backend,FR-E13,Audited with a reason; step-up,M,BPMS-088,Not started,—
+BPMS-215,TPL,"Template install wizard, role mapping at install, remaining Wave-1 process templates",P1,R3,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,BPMS-106,Not started,—
+BPMS-217,ADMIN,"Process health, email bounces and timer lateness in Operations",P1,R3,Fullstack,"FR-A04/A05, docs/05 §3.18",Per-process cycle time and SLA %; bounce list,M,BPMS-108,Not started,—
 BPMS-140,IAM,"OIDC SSO, SAML-broker, SSO enforcement, JIT",P1,R4,Platform,"FR-P02, INT-001/002",Deprovision test,L,,Not started,—
 BPMS-141,IAM,SCIM 2.0 server,P1,R4,Platform,INT-003,<5 min deprovision,M,BPMS-140,Not started,—
 BPMS-142,IAM,Scoped/delegated admins; IP allowlists,P1,R4,Platform,"CFG-018, FR-W06",No escalation,M,BPMS-024,Not started,—
@@ -83,6 +94,7 @@ BPMS-149,EXEC,"Subprocesses, reusable sub-flows, duplicate detection, bulk impor
 BPMS-150,LIB,Auto-generated process documentation; policy exceptions; policy templates,P1,R4,Fullstack,"FX-G04, FR-PL04, FX-G03",—,M,BPMS-042,Not started,—
 BPMS-151,COMMS,"Emergency alerts, content validation period, moderation, quiz",P1,R4,Fullstack,FX-C02–C04,—,M,BPMS-047,Not started,—
 BPMS-152,E2E,"E2E-R4 pack incl. Keycloak, SCIM, webhook receiver",P1,R4,SDET + feature owners,23 §5,Green,L,BPMS-112,Not started,—
+BPMS-206,ENG,KMS / OpenBao root key adapters and yearly automatic root rotation,P1,R4,Platform/Sec,"04 §8, 06 §4",Root sealed by an external KMS; rotation scheduled,M,BPMS-030,Not started,—
 BPMS-160,CASE,"Case types, queues, macros, SLAs, link/merge, restricted cases",P1,R5,Fullstack,"FR-C01, FX-K01–K06",J4 passes,XL,BPMS-082,Not started,—
 BPMS-161,AUD,"Investigations: pins, legal hold, signed export, conflict-of-interest",P1,R5,Fullstack,"FR-T05/T06, FX-K08, FX-L01",J10 passes,L,"BPMS-064,160",Not started,—
 BPMS-162,AUD,"Checkpoints, RFC 3161, WORM export, procera-verify CLI",P1,R5,Platform,AUD-02–05,Verifier detects tamper,M,BPMS-026,Not started,—

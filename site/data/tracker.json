@@ -3,15 +3,15 @@
  "last_updated": "2026-10-13",
  "current_release": "P0",
  "totals": {
-  "Done": 35,
+  "Done": 53,
   "In review": 0,
-  "In progress": 19,
+  "In progress": 1,
   "Blocked": 0,
-  "Not started": 55,
+  "Not started": 67,
   "Deferred": 0,
-  "all": 109
+  "all": 121
  },
- "e2e_scenarios": 247,
+ "e2e_scenarios": 248,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -257,6 +257,7 @@
   "E2E-R2-UI-13",
   "E2E-R2-UI-14",
   "E2E-R2-UI-15",
+  "E2E-R2-UI-16",
   "E2E-R2-UI-20",
   "E2E-R2-UI-21",
   "E2E-R2-UI-22"
@@ -298,8 +299,8 @@
    "gate": "G-R1",
    "scope": "System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campaigns, announcements, files, audit, dashboard (old M2–M4 part)",
    "total": 32,
-   "done": 24,
-   "in_progress": 7,
+   "done": 31,
+   "in_progress": 0,
    "not_started": 1,
    "epics": [
     "BPMS-020",
@@ -343,10 +344,10 @@
    "end": "2027-03-12",
    "gate": "G-R2",
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
-   "total": 17,
-   "done": 0,
-   "in_progress": 11,
-   "not_started": 6,
+   "total": 22,
+   "done": 10,
+   "in_progress": 1,
+   "not_started": 11,
    "epics": [
     "BPMS-080",
     "BPMS-081",
@@ -364,7 +365,12 @@
     "BPMS-105",
     "BPMS-106",
     "BPMS-111",
-    "BPMS-121"
+    "BPMS-121",
+    "BPMS-207",
+    "BPMS-209",
+    "BPMS-212",
+    "BPMS-214",
+    "BPMS-216"
    ]
   },
   {
@@ -374,10 +380,10 @@
    "end": "2027-05-07",
    "gate": "G-R3",
    "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
-   "total": 8,
-   "done": 1,
-   "in_progress": 1,
-   "not_started": 6,
+   "total": 14,
+   "done": 2,
+   "in_progress": 0,
+   "not_started": 12,
    "epics": [
     "BPMS-066",
     "BPMS-102",
@@ -386,7 +392,13 @@
     "BPMS-108",
     "BPMS-109",
     "BPMS-110",
-    "BPMS-112"
+    "BPMS-112",
+    "BPMS-208",
+    "BPMS-210",
+    "BPMS-211",
+    "BPMS-213",
+    "BPMS-215",
+    "BPMS-217"
    ]
   },
   {
@@ -396,10 +408,10 @@
    "end": "2027-07-02",
    "gate": "G-R4",
    "scope": "SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8)",
-   "total": 13,
+   "total": 14,
    "done": 0,
    "in_progress": 0,
-   "not_started": 13,
+   "not_started": 14,
    "epics": [
     "BPMS-140",
     "BPMS-141",
@@ -413,7 +425,8 @@
     "BPMS-149",
     "BPMS-150",
     "BPMS-151",
-    "BPMS-152"
+    "BPMS-152",
+    "BPMS-206"
    ]
   },
   {
@@ -683,7 +696,7 @@
    "title": "Key hierarchy: KeyProvider (sealed local, OpenBao, KMS), per-workspace KEK",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-031",
@@ -691,7 +704,7 @@
    "title": "App shell, workspace switcher, system console shell, ⌘K",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-032",
@@ -715,7 +728,7 @@
    "title": "Brand vector masters (SVG symbol/wordmark/lockups, small-size symbol), favicon/PWA icon set from vector, trademark & domain search",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-040",
@@ -739,7 +752,7 @@
    "title": "SOP/policy block editor + renderer (web/PDF)",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-043",
@@ -803,7 +816,7 @@
    "title": "Files pipeline: resumable upload, hash, sniff, ClamAV, quarantine, signed URLs",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-061",
@@ -811,7 +824,7 @@
    "title": "Previews (image/PDF) in sandbox; Office preview spike",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-062",
@@ -819,7 +832,7 @@
    "title": "Workspace Files view, quotas, orphan cleanup",
    "priority": "P0",
    "release": "R1",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-063",
@@ -859,7 +872,7 @@
    "title": "IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-081",
@@ -867,7 +880,7 @@
    "title": "Expression engine integration (typed, budgeted, WASM build)",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-082",
@@ -875,7 +888,7 @@
    "title": "Interpreter: advance loop, tokens, splits/joins, end/terminate",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-083",
@@ -883,7 +896,7 @@
    "title": "Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-084",
@@ -899,7 +912,7 @@
    "title": "Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-086",
@@ -907,7 +920,7 @@
    "title": "Delegation, OOO substitution, SoD re-check, send-back",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-087",
@@ -923,7 +936,7 @@
    "title": "Incidents, retry/skip/cancel, instance admin ops",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-089",
@@ -955,7 +968,7 @@
    "title": "Request portal/catalogue, start form, request detail, comments/@mentions/watchers",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-105",
@@ -963,7 +976,7 @@
    "title": "My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-106",
@@ -971,7 +984,7 @@
    "title": "Template gallery + install wizard + Wave-1 templates (13)",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-111",
@@ -985,6 +998,46 @@
    "id": "BPMS-121",
    "area": "UX",
    "title": "Usability round + SUS measurement + fixes",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-207",
+   "area": "UX",
+   "title": "Mobile bottom bar for the app shell",
+   "priority": "P1",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-209",
+   "area": "FILE",
+   "title": "S3-compatible storage backend, EXIF stripping at upload, separate preview origin",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-212",
+   "area": "WORK",
+   "title": "Delegate a single work item; send back to an earlier step",
+   "priority": "P1",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-214",
+   "area": "REQ",
+   "title": "Request comments, @mentions and watchers",
+   "priority": "P0",
+   "release": "R2",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-216",
+   "area": "WORK",
+   "title": "My work bulk decisions with preview; acknowledgement and signature tabs",
    "priority": "P0",
    "release": "R2",
    "status": "Not started"
@@ -1027,7 +1080,7 @@
    "title": "All requests / all work / workload / process health / ops monitor",
    "priority": "P0",
    "release": "R3",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-109",
@@ -1050,6 +1103,54 @@
    "area": "E2E",
    "title": "E2E-R3 pack (R3-01…12 + MOB + ISO) + WebKit",
    "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-208",
+   "area": "LIB",
+   "title": "Server-side tagged PDF, DOCX import (with pictures), variables blocks",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-210",
+   "area": "RT",
+   "title": "Encrypted restricted instance data, at-risk SLA state, IANA time zones",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-211",
+   "area": "WORK",
+   "title": "Claim/unclaim, round-robin and least-loaded assignment, quorum, DoA matrix",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-213",
+   "area": "RT",
+   "title": "Instance admin ops: skip a step, cancel/terminate an instance, migrate version",
+   "priority": "P0",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-215",
+   "area": "TPL",
+   "title": "Template install wizard, role mapping at install, remaining Wave-1 process templates",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-217",
+   "area": "ADMIN",
+   "title": "Process health, email bounces and timer lateness in Operations",
+   "priority": "P1",
    "release": "R3",
    "status": "Not started"
   },
@@ -1153,6 +1254,14 @@
    "id": "BPMS-152",
    "area": "E2E",
    "title": "E2E-R4 pack incl. Keycloak, SCIM, webhook receiver",
+   "priority": "P1",
+   "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-206",
+   "area": "ENG",
+   "title": "KMS / OpenBao root key adapters and yearly automatic root rotation",
    "priority": "P1",
    "release": "R4",
    "status": "Not started"
