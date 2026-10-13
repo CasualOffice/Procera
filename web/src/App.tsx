@@ -35,6 +35,8 @@ import { AdminPeople } from './pages/AdminPeople';
 import { Retention } from './pages/Retention';
 import { AdminRequests } from './pages/AdminRequests';
 import { Operations } from './pages/Operations';
+import { Processes } from './pages/Processes';
+import { Designer } from './pages/studio/Designer';
 import { Encryption } from './pages/Encryption';
 import { FilesAdmin } from './pages/FilesAdmin';
 import { SignIn } from './pages/SignIn';
@@ -139,6 +141,9 @@ export function App() {
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
+  if (path === '/admin/processes') return <AppShell current="processes" crumbs={[ADMIN, 'Processes']}><Processes startNew={query.get('new') === '1'} /></AppShell>;
+  const proc = match('/admin/processes/:id', path);
+  if (proc) return <AppShell current="processes" crumbs={[ADMIN, ['Processes', '/admin/processes'], 'Process']}><Designer key={proc.id} id={proc.id!} /></AppShell>;
   if (path === '/admin/operations') return <AppShell current="operations" crumbs={[ADMIN, 'Operations']}><Operations /></AppShell>;
   if (path === '/admin/requests') return <AppShell current="request-oversight" crumbs={[ADMIN, 'Requests oversight']}><AdminRequests /></AppShell>;
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
