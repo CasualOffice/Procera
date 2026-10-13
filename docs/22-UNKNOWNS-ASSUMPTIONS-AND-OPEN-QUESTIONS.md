@@ -23,6 +23,7 @@ Purpose: to make sure **nothing turns into a wild card**. Every uncertainty that
 | OQ-13 | Is a public/anonymous intake (whistleblowing, public forms) in GA scope? | Public forms P1 (M8); anonymous two-way whistleblowing P2 | Product | M8 |
 | OQ-14 | Who curates the global template gallery long-term (in-house SMEs, community, partners)? | In-house for Waves 1–2; community contributions with review from Wave 3 | Product | M6 |
 | OQ-15 | ~~Forgotten passwords~~ **Decided 2026-10-12 (owner): option A.** Self-service "Forgot password?" by email link, change password while signed in, and admin controls (send reset link, require a password change at next sign-in, sign out everywhere, reset two-step verification). Designed in docs/06 §3.6.1; two-step verification is kept on reset (A-39). | — | Product owner | Closed |
+| OQ-16 | IR v1 fixes an approval's outcomes (approve, reject, send back). Should process owners choose which ones a step offers (e.g. an approval with no send-back), which needs an IR change (`outcomes` on `human.approval` meaning "only these")? Raised by the Guided Studio (0.3). | Keep the fixed three for 0.3; the studio shows them read-only | Product owner | 0.4 |
 
 ## 2. Technical unknowns (resolved by spikes or research)
 

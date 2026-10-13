@@ -2,7 +2,7 @@ import { type APIRequestContext, expect, test } from '@playwright/test';
 import { PW, client, hasDatabase, uniqueEmail } from '../../fixtures/accounts';
 import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixtures/workspace';
 
-// E2E-R3-01..03 — processes published from the Guided Studio's API (BPMS-100, BPMS-084): a process
+// E2E-R3-PROC-01..03 — processes published from the Guided Studio's API (BPMS-100, BPMS-084): a process
 // made from a template is validated, published (a release bundle is written) and offered under New
 // request, where an employee starts it and the manager approves it; a step given to a group that
 // doesn't exist is a problem on that step and publishing is refused; drafts are saved with If-Match
@@ -25,7 +25,7 @@ test.describe('processes @r3 @processes', () => {
     test.skip(!(await hasDatabase(request)), 'needs a database-backed e2e build');
   });
 
-  test('E2E-R3-01 a process from a template is published and offered under New request; an employee asks and the manager approves', async ({ request }) => {
+  test('E2E-R3-PROC-01 a process from a template is published and offered under New request; an employee asks and the manager approves', async ({ request }) => {
     const { ws, owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     const templates = (await (await owner.c.get('/api/v1/process-templates', { headers: h })).json()).items as { key: string }[];
@@ -71,7 +71,7 @@ test.describe('processes @r3 @processes', () => {
     await expect.poll(async () => (await (await ann.session.c.get(`/api/v1/requests/${rid}`, { headers: ann.session.headers })).json()).status).toBe('approved');
   });
 
-  test('E2E-R3-02 a step given to a group that does not exist is a problem on that step, and publishing is refused', async ({ request }) => {
+  test('E2E-R3-PROC-02 a step given to a group that does not exist is a problem on that step, and publishing is refused', async ({ request }) => {
     const { owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     const { id } = await (await owner.c.post('/api/v1/processes', { headers: h, data: { key: 'ops.badge', title: 'Badge request', template: 'blank' } })).json();
@@ -94,7 +94,7 @@ test.describe('processes @r3 @processes', () => {
     expect(JSON.stringify(await pub.json())).toContain('Nobody Here');
   });
 
-  test('E2E-R3-03 drafts are saved with If-Match; a published process opens a new draft', async ({ request }) => {
+  test('E2E-R3-PROC-03 drafts are saved with If-Match; a published process opens a new draft', async ({ request }) => {
     const { owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     const { id } = await (await owner.c.post('/api/v1/processes', { headers: h, data: { key: 'ops.simple', title: 'Simple', template: 'hr.leave-request' } })).json();
@@ -112,7 +112,7 @@ test.describe('processes @r3 @processes', () => {
     expect(v2.draft.content.ir.process.version).toBe(2);
   });
 
-  test('E2E-R3-04 a test run shows the path for these answers and choices, and stores nothing', async ({ request }) => {
+  test('E2E-R3-PROC-04 a test run shows the path for these answers and choices, and stores nothing', async ({ request }) => {
     const { owner } = await workspaceWithOwner(request);
     const h = owner.headers;
     const { id } = await (await owner.c.post('/api/v1/processes', { headers: h, data: { key: 'ops.leave-test', title: 'Leave test', template: 'hr.leave-request' } })).json();

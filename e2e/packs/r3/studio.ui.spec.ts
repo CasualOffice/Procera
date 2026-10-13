@@ -88,7 +88,7 @@ test.describe('guided studio @r3 @ui', () => {
     await dialog.getByRole('button', { name: /Type/ }).click();
     await page.getByRole('option', { name: 'Choice', exact: true }).click();
     await dialog.getByRole('textbox', { name: 'Options' }).fill('MacBook Air\nThinkPad X1');
-    await dialog.getByRole('checkbox', { name: 'Required' }).check();
+    await dialog.getByText('Required', { exact: true }).click(); // React Aria's input is visually hidden: press the label
     await dialog.getByRole('button', { name: 'Add field' }).click();
     await expect(dialog).toHaveCount(0);
     await fields.getByRole('button', { name: 'Add field' }).click();
@@ -96,7 +96,7 @@ test.describe('guided studio @r3 @ui', () => {
     await dialog.getByRole('textbox', { name: /^Label/ }).fill('Reason');
     await dialog.getByRole('button', { name: /Type/ }).click();
     await page.getByRole('option', { name: 'Long text', exact: true }).click();
-    await dialog.getByRole('checkbox', { name: 'Required' }).check();
+    await dialog.getByText('Required', { exact: true }).click(); // React Aria's input is visually hidden: press the label
     await dialog.getByRole('button', { name: 'Add field' }).click();
     const list = fields.getByRole('list', { name: 'Form fields' });
     await expect(list.getByRole('listitem')).toHaveCount(2);

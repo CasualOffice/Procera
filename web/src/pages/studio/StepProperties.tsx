@@ -35,7 +35,7 @@ export function StepProperties({ model, step, onChange, onDelete, directory, pro
   }
   const look = KIND_LOOK[step.kind];
   return (
-    <div className="props" key={step.uid}>
+    <div className="step-props" key={step.uid}>
       <div className="props-head">
         <span className={`step-kind tag tag-${look.color}`}><look.Icon aria-hidden="true" size="0.75rem" />{look.label}</span>
         <h2 id="props-h" className="props-title">{step.name.trim() || 'Untitled step'}</h2>
