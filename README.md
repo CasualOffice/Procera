@@ -128,6 +128,8 @@ Live progress: the [tracker dashboard](trackers/README.md) and the [website road
 
 Start at **[docs/00-INDEX.md](docs/00-INDEX.md)**.
 
+For self-hosting, configuration and the HTTP API (with an API reference generated from the router and an OpenAPI document), see the **[developer docs](https://casualoffice.github.io/Procera/developers.html)**.
+
 | Topic | Docs |
 |---|---|
 | Product | [PRD](docs/02-PRD.md) · [Feature catalogue](docs/21-FEATURE-CATALOGUE.md) · [Templates](docs/19-PROCESS-TEMPLATE-LIBRARY.md) · [Competitive analysis](docs/10-COMPETITIVE-ANALYSIS.md) |

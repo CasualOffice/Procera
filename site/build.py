@@ -33,7 +33,7 @@ import illustrations as IL  # noqa: E402
 esc = html.escape
 NAV = [("index", "Home"), ("features", "Features"), ("flows", "User flows"), ("compare", "Compare"),
        ("roadmap", "Roadmap"), ("security", "Security"), ("open-source", "Open source"),
-       ("get-started", "Get started")]
+       ("developers", "Developers"), ("get-started", "Get started")]
 
 ICONS = {
     "github": '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.04 0 0 .97-.31 3.17 1.18a10.9 10.9 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.58.23 2.75.11 3.04.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.26 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>',
@@ -242,6 +242,7 @@ def t_stats(_):
 # ---------------------------------------------------------------- guides (docs/guides/*.md)
 GUIDES = ROOT / "docs" / "guides"
 GUIDE_ORDER = ["install-docker-compose", "first-time-setup", "configuration"]
+DOCS_PAGES = {}  # guide stem → developer docs page, set while devdocs renders (see devdocs.py)
 
 
 def slugify(text):
@@ -259,7 +260,11 @@ def guide_href(url, guide):
     if url.startswith("#"):
         return f"#{guide}-{url[1:]}"
     target, _, frag = url.partition("#")
+    if target.endswith(".html") and "/" not in target:  # a site page (the developer docs link these)
+        return url
     stem = target[:-3] if target.endswith(".md") else None
+    if stem in DOCS_PAGES and "/" not in target:  # rendering the developer docs: each guide is a page
+        return f"{DOCS_PAGES[stem]}.html" + (f"#{stem}-{frag}" if frag else "")
     if stem in GUIDE_ORDER and "/" not in target:
         return f"#{stem}-{frag}" if frag else f"#{stem}"
     path = pathlib.PurePosixPath("docs/guides") / target
@@ -447,7 +452,7 @@ def nav_html(active, cls):
     return "".join(f'<a href="{p}.html"{CUR if p == active else ""}>{n}</a>' for p, n in NAV)
 
 
-CSS_PARTS = ["site.css", "story.css", "home.css", "illus.css", "pages.css"]
+CSS_PARTS = ["site.css", "story.css", "home.css", "illus.css", "pages.css", "docs.css"]
 JS_PARTS = ["site.js", "motion.js"]
 
 
@@ -498,6 +503,18 @@ def build():
         (DIST / p.name).write_text(page)
         if slug != "404":
             built.append(path)
+
+    def wrap_page(slug, title, description, body):
+        ctx = {
+            "title": esc(f"{title}: Procera developers"), "description": esc(description),
+            "canonical": f"{SITE_URL}/{slug}.html", "og_image": f"{SITE_URL}/assets/og.png",
+            "nav": nav_html("developers", "nav"), "site_url": SITE_URL, "robots": "index, follow",
+        }
+        return (f'<!doctype html>\n<html lang="en">\n{expand(partial["head"], ctx)}\n<body>\n'
+                f'{expand(partial["header"], ctx)}\n<main id="main">\n{body}\n</main>\n'
+                f'{expand(partial["footer"], ctx)}\n</body>\n</html>\n')
+    import devdocs
+    built += devdocs.build_docs(sys.modules[__name__], wrap_page)
     today = datetime.date.today().isoformat()
     urls = "".join(f"<url><loc>{SITE_URL}/{u}</loc><lastmod>{today}</lastmod></url>" for u in built)
     (DIST / "sitemap.xml").write_text('<?xml version="1.0" encoding="UTF-8"?>\n'

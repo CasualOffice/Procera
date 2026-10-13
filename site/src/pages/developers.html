@@ -1,0 +1,60 @@
+<!--
+title: Developers: Procera
+description: Run Procera on your own server and build on it: self-hosting guides, the configuration reference, the HTTP API with personal API tokens, and what's coming for webhooks and plugins.
+nav: developers
+-->
+<section class="page-head">
+  <div class="wrap">
+    <span class="eyebrow">Developers</span>
+    <h1>Run Procera yourself and build on it</h1>
+    <p class="lede">Everything the web app does goes through one HTTP API, and every installation is yours to run. Start with self-hosting, then automate with personal API tokens.</p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="dev-grid">
+      <div class="dev-card">
+        <h2>Self-hosting</h2>
+        <p>PostgreSQL, the server and the web app on one machine with Docker Compose, from an empty server to a first published policy.</p>
+        <ul>
+          <li><a href="docs-install.html">Install with Docker Compose <span aria-hidden="true">→</span></a></li>
+          <li><a href="docs-setup.html">First-time setup <span aria-hidden="true">→</span></a></li>
+          <li><a href="docs-configuration.html">Configuration reference <span aria-hidden="true">→</span></a></li>
+        </ul>
+      </div>
+      <div class="dev-card">
+        <h2>API</h2>
+        <p>A JSON API under <code>/api/v1</code> with RFC 9457 errors, safe retries and optimistic concurrency. Authenticate with a personal API token.</p>
+        <ul>
+          <li><a href="docs-api.html">Overview and authentication <span aria-hidden="true">→</span></a></li>
+          <li><a href="docs-conventions.html">Conventions <span aria-hidden="true">→</span></a></li>
+          <li><a href="docs-reference.html">API reference <span aria-hidden="true">→</span></a></li>
+          <li><a href="openapi.json">OpenAPI 3.1 document <span aria-hidden="true">↓</span></a></li>
+        </ul>
+      </div>
+      <div class="dev-card">
+        <h2>Extend</h2>
+        <p>Get told when things happen, and plug in your own systems, without bypassing permissions, auditing or workspace isolation.</p>
+        <ul>
+          <li><a href="docs-webhooks.html">Webhooks <span class="badge progress">In development</span></a></li>
+          <li><a href="docs-plugins.html">Plugins <span class="badge planned">Planned</span></a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="dev-try">
+      <div>
+        <span class="eyebrow">Try it</span>
+        <h2>Your first request in a minute</h2>
+        <p>Make a token in Procera (account menu › API tokens), pick only what it needs, and call the API. A token acts as you, with just those permissions, and never approves or signs.</p>
+      </div>
+      <pre class="cmd" aria-label="Example request"><code>curl https://procera.example.com/api/v1/requests?scope=mine \
+  -H "Authorization: Bearer $PROCERA_TOKEN"
+
+{"items": [{"display_id": "LR-2026-000123",
+            "type_name": "Leave request",
+            "status": "in_progress", ...}]}</code></pre>
+    </div>
+  </div>
+</section>

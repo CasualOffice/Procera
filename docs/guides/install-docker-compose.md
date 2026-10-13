@@ -4,8 +4,9 @@ This guide runs a complete Procera installation on one machine with Docker Compo
 server and the web app. It takes about 20 minutes, most of it the first build.
 
 > **Status: pre-release.** There are no published images yet, so Compose builds Procera from this
-> repository. Files are stored on local disk (a Docker volume). S3-compatible storage and external
-> key management (KMS) are designed but not built yet.
+> repository. Files are stored on local disk (a Docker volume) by default; set `PROCERA_STORAGE=s3`
+> to keep them in an S3-compatible bucket instead (see the configuration reference). External key
+> management (KMS) is designed but not built yet.
 
 Next steps after this guide: [First-time setup](first-time-setup.md) and the
 [configuration reference](configuration.md).
