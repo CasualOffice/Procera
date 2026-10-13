@@ -7,7 +7,7 @@ export function Checkbox({ children, ...rest }: AriaCheckboxProps & { children: 
     <AriaCheckbox {...rest} className="checkbox">
       {({ isSelected }) => (
         <>
-          <span className="box" aria-hidden="true">{isSelected && <Check size="0.875rem" strokeWidth={3} />}</span>
+          <span className="box" aria-hidden="true">{isSelected && <Check size="0.75rem" strokeWidth={3.5} />}</span>
           <span>{children}</span>
         </>
       )}

@@ -15,7 +15,7 @@ async function signInTo(page: Page, path: string, email: string, recovery: strin
   await page.goto(`${WEB}${path}`);
   await expect(page).toHaveURL(/\/sign-in\?next=/);
   await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password').fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.getByLabel('Code').fill(recovery);
   await page.getByRole('button', { name: 'Verify' }).click();

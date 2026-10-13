@@ -120,7 +120,7 @@ test.describe('journeys @r1 @ui', () => {
 
     await page.goto(`${WEB}/sign-in`);
     await page.getByLabel('Work email').fill(email);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Turn on two-step verification' })).toBeVisible();
     await axe(page);
@@ -142,7 +142,7 @@ test.describe('journeys @r1 @ui', () => {
     await page.getByRole('button', { name: /^Account:/ }).click();
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.getByLabel('Work email').fill(email);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.getByLabel('Code').fill(recovery);
     await page.getByRole('button', { name: 'Verify' }).click();

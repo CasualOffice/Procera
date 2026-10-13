@@ -39,7 +39,7 @@ test.describe('passkeys @r1 @ui', () => {
 
     await page.goto(`${origin}/sign-in`);
     await page.getByLabel('Work email').fill(ownerEmail);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     // TOTP account without a passkey: no passkey button yet.
     await expect(page.getByRole('heading', { level: 1, name: 'Two-step verification' })).toBeVisible();
@@ -70,7 +70,7 @@ test.describe('passkeys @r1 @ui', () => {
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Sign in to Procera' })).toBeVisible();
     await page.getByLabel('Work email').fill(ownerEmail);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByText('Use your passkey, or enter the 6-digit code')).toBeVisible();
     await axe(page);
@@ -86,7 +86,7 @@ test.describe('passkeys @r1 @ui', () => {
     await virtualAuthenticator(page);
     await page.goto(`${origin}/sign-in`);
     await page.getByLabel('Work email').fill(ownerEmail);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.getByLabel('Code').fill(owner.recovery[0]!);
     await page.getByRole('button', { name: 'Verify' }).click();

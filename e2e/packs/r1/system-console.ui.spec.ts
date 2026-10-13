@@ -10,7 +10,7 @@ async function signInToSystem(page: Page, email: string, recovery: string) {
   await page.goto(`${WEB}/system`);
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fsystem/);
   await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password').fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.getByLabel('Code').fill(recovery);
   await page.getByRole('button', { name: 'Verify' }).click();
@@ -120,7 +120,7 @@ async function signInToSystemAs(page: Page, email: string, recovery: string) {
   await page.goto(`${WEB}/system`);
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fsystem/);
   await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password').fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.getByLabel('Code').fill(recovery);
   await page.getByRole('button', { name: 'Verify' }).click();

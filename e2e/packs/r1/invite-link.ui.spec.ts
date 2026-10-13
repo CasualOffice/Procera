@@ -39,7 +39,7 @@ test.describe('invitation links @r1 @ui', () => {
     const sys = await mfaSession(sysEmail);
     await page.goto(`${WEB}/system`);
     await page.getByLabel('Work email').fill(sysEmail);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.getByLabel('Code').fill(sys.recovery[0]!);
     await page.getByRole('button', { name: 'Verify' }).click();

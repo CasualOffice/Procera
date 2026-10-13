@@ -12,7 +12,7 @@ async function signInTo(page: Page, path: string, email: string, recovery: strin
   await page.goto(`${WEB}${path}`);
   await expect(page).toHaveURL(/\/sign-in\?next=/);
   await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password').fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.getByLabel('Code').fill(recovery);
   await page.getByRole('button', { name: 'Verify' }).click();
@@ -40,7 +40,7 @@ test.describe('system email @r1 @ui', () => {
     await page.getByRole('option', { name: 'None (only for a relay on this server)' }).click();
     await page.getByLabel('Port').fill('1');
     await page.getByLabel('Username').fill('mailer');
-    await page.getByLabel('Password', { exact: true }).fill('never-shown-secret');
+    await page.getByLabel(/^Password/).fill('never-shown-secret');
     await page.getByLabel('From address').fill('no-reply@procera.test');
     await page.getByLabel('Sender name').fill('Procera Test');
     await page.getByLabel('Reason for the change').fill('Set up delivery');
@@ -48,7 +48,7 @@ test.describe('system email @r1 @ui', () => {
     await expect(page.getByText('Email settings saved')).toBeVisible();
     await expect(page.getByText('Configured', { exact: true })).toBeVisible();
     await expect(page.getByText('Leave blank to keep the current password.')).toBeVisible();
-    await expect(page.getByLabel('Password', { exact: true })).toHaveValue('');
+    await expect(page.getByLabel(/^Password/)).toHaveValue('');
     const api = await (await sys.c.get('/sysapi/v1/email', { headers: sys.headers })).text();
     expect(api).toContain('"password_set":true');
     expect(api).not.toContain('never-shown-secret');

@@ -24,7 +24,7 @@ async function member(request: APIRequestContext, owner: Session, ws: string, ta
 async function signInPassword(page: Page, email: string) {
   await page.goto(`${WEB}/sign-in`);
   await page.getByLabel('Work email').fill(email);
-  await page.getByLabel('Password').fill(PW);
+  await page.getByLabel(/^Password/).fill(PW);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 }
@@ -71,7 +71,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const fresh = await (await browser.newContext()).newPage();
     await fresh.goto(`${WEB}/sign-in`);
     await fresh.getByLabel('Work email').fill(m.email);
-    await fresh.getByLabel('Password').fill(PW);
+    await fresh.getByLabel(/^Password/).fill(PW);
     await fresh.getByRole('button', { name: 'Sign in' }).click();
     await expect(fresh.getByRole('heading', { level: 1, name: 'Choose a workspace' })).toBeVisible();
     await expect(fresh.getByRole('button', { name: /Acme/ })).toHaveCount(0);
@@ -124,7 +124,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await them.goto(`${WEB}/sign-in`);
     await tabTo(them, them.getByLabel('Work email'));
     await them.keyboard.type(m.email);
-    await tabTo(them, them.getByLabel('Password'));
+    await tabTo(them, them.getByLabel(/^Password/));
     await them.keyboard.type(PW);
     await them.keyboard.press('Enter');
     await expect(them.getByText('Acknowledge “Clean desk”')).toBeVisible();
@@ -457,7 +457,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await rp.getByRole('button', { name: 'Approve' }).click();
     const confirm = rp.getByRole('dialog', { name: 'Confirm it’s you' });
     await expect(confirm).toBeVisible();
-    await confirm.getByLabel('Password').fill(PW);
+    await confirm.getByLabel(/^Password/).fill(PW);
     await confirm.getByRole('button', { name: /Verify|Confirm/ }).click();
     await expect(rp.getByRole('status').filter({ hasText: 'Approved.' })).toBeVisible();
 
@@ -662,7 +662,7 @@ test.describe('R1 gate @r1 @ui', () => {
     const sys = await (await import('../../fixtures/accounts')).mfaSession(sysEmail);
     await page.goto(`${WEB}/system`);
     await page.getByLabel('Work email').fill(sysEmail);
-    await page.getByLabel('Password').fill(PW);
+    await page.getByLabel(/^Password/).fill(PW);
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.getByLabel('Code').fill(sys.recovery[0]!);
     await page.getByRole('button', { name: 'Verify' }).click();

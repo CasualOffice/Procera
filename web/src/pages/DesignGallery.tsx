@@ -52,10 +52,54 @@ export function DesignGallery() {
 
       <section aria-labelledby="fields">
         <h2 id="fields">Fields</h2>
-        <TextField label="Request title" description="Shown to approvers in their inbox." isRequired />
-        <TextField label="Cost centre" defaultValue="ENG-01" />
-        <Select label="Department" description="Used to route approvals." options={[{ id: 'fin', label: 'Finance' }, { id: 'hr', label: 'Human resources' }, { id: 'it', label: 'IT' }, { id: 'ops', label: 'Operations' }]} />
-        <Checkbox isSelected={ack} onChange={setAck}>I have read and understood the Code of Conduct</Checkbox>
+        <p className="muted">One control system: 2.25rem tall, a quiet border that darkens on hover, an ink border and soft ring on focus, errors as a red ring (nothing shifts).</p>
+        <div className="gallery-form">
+          <TextField label="Request title" description="Shown to approvers in their inbox." isRequired placeholder="For example “Laptops for design team”" />
+          <TextField label="Cost centre" defaultValue="ENG-01" />
+          <TextField label="Amount" isRequired isInvalid errorMessage="Enter an amount above zero." defaultValue="-20" />
+          <TextField label="Request ID" defaultValue="PR-2026-000123" isReadOnly description="Assigned when you send it." />
+          <TextField label="Approver" defaultValue="Finance approvers" isDisabled />
+          <Select label="Department" description="Used to route approvals." placeholder="Choose a department" options={[{ id: 'fin', label: 'Finance' }, { id: 'hr', label: 'Human resources' }, { id: 'it', label: 'IT' }, { id: 'ops', label: 'Operations' }]} />
+          <Select label="Priority" isRequired isInvalid errorMessage="Choose a priority." options={[{ id: 'low', label: 'Low' }, { id: 'high', label: 'High' }]} />
+          <div className="field">
+            <label className="field-label" htmlFor="g-native">Time range (native select)</label>
+            <select id="g-native" defaultValue="30"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option></select>
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="g-date">Start date</label>
+            <input id="g-date" type="date" defaultValue="2026-12-21" />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="g-dt">Go live</label>
+            <input id="g-dt" type="datetime-local" defaultValue="2026-11-02T09:00" />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="g-num">Reminder after (days)</label>
+            <input id="g-num" type="number" defaultValue={2} min={0} />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="g-search">Search</label>
+            <input id="g-search" type="search" placeholder="Search requests" />
+          </div>
+          <div className="field gallery-wide">
+            <label className="field-label" htmlFor="g-text">Justification</label>
+            <textarea id="g-text" placeholder="Why is this needed now?" />
+            <span className="field-description">Approvers see this first.</span>
+          </div>
+          <div className="field">
+            <span className="field-label">Brand colour</span>
+            <span className="row"><input type="color" defaultValue="#EE4136" aria-label="Brand colour" /><input defaultValue="#EE4136" aria-label="Hex value" style={{ width: '7rem' }} /></span>
+          </div>
+          <fieldset className="field gallery-choices">
+            <legend className="field-label">Choices</legend>
+            <Checkbox isSelected={ack} onChange={setAck}>I have read and understood the Code of Conduct</Checkbox>
+            <label className="check-row"><input type="checkbox" defaultChecked /> Email me a copy</label>
+            <label className="check-row"><input type="checkbox" ref={(el) => { if (el) el.indeterminate = true; }} /> Some selected</label>
+            <label className="check-row"><input type="checkbox" disabled /> Not available</label>
+            <label className="check-row"><input type="radio" name="g-r" defaultChecked /> Notify now</label>
+            <label className="check-row"><input type="radio" name="g-r" /> Notify in the daily digest</label>
+          </fieldset>
+        </div>
       </section>
 
       <section aria-labelledby="dialogs">
