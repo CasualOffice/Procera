@@ -63,6 +63,7 @@ import { Signatures } from './pages/signing/Signatures';
 import { Ceremony } from './pages/signing/Ceremony';
 import { DocumentNew } from './pages/signing/DocumentNew';
 import { Documents } from './pages/signing/Documents';
+import { EnvelopeEditor } from './pages/signing/EnvelopeEditor';
 import { EnvelopePage } from './pages/signing/EnvelopePage';
 
 function Redirect({ to }: { to: string }) {
@@ -150,6 +151,8 @@ export function App() {
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/documents') return <AppShell current="documents" crumbs={['Documents']}><Documents /></AppShell>;
   if (path === '/documents/new') return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Send for signature']}><DocumentNew /></AppShell>;
+  const envEdit = match('/documents/:id/edit', path);
+  if (envEdit) return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Draft']}><EnvelopeEditor key={envEdit.id} id={envEdit.id!} /></AppShell>;
   const envelope = match('/documents/:id', path);
   if (envelope) return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Document']}><EnvelopePage key={envelope.id} id={envelope.id!} /></AppShell>;
   if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
