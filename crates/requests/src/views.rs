@@ -30,9 +30,12 @@ pub struct RequestSummary {
     pub ty: String,
     pub type_name: String,
     pub title: String,
-    /// `in_progress`, `changes_requested`, `approved`, `rejected` or `cancelled`.
+    /// `in_progress`, `changes_requested`, `approved`, `rejected`, `cancelled` or `completed`.
     pub status: String,
+    /// The open steps' names joined with ", " (see `open_steps`).
     pub current_step: Option<String>,
+    /// The open steps' names, oldest first; several when steps run at the same time.
+    pub open_steps: Vec<String>,
     /// Names of the people the open steps are offered to.
     pub assignees: Vec<String>,
     #[serde(with = "time::serde::rfc3339")]
@@ -96,6 +99,8 @@ pub struct RequestDetail {
     pub summary: RequestSummary,
     #[serde(with = "time::serde::rfc3339::option")]
     pub ended_at: Option<OffsetDateTime>,
+    /// How a finished request ended, as its end step reads ("Onboarded", "Approved").
+    pub result: Option<String>,
     /// The start-form fields, for labels and types.
     pub fields: Vec<Field>,
     /// Current values by field name; principals as `{id, name}`.
@@ -151,7 +156,10 @@ pub struct WorkView {
     pub request: WorkRequest,
     pub step: String,
     pub kind: String,
+    /// What the person confirms, for an `acknowledge` step.
+    pub statement: Option<String>,
     pub state: String,
+    /// Outcomes a person may choose (`expired` is the system's, never offered).
     pub outcomes: Vec<String>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub due_at: Option<OffsetDateTime>,

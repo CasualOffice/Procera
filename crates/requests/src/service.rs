@@ -55,7 +55,9 @@ const SUMMARY: &str = "SELECT r.instance_id, r.display_id, r.process_key, r.titl
                  JOIN memberships m2 ON m2.workspace_id = c.workspace_id AND m2.id = c.membership_id
                  JOIN users u2 ON u2.id = m2.user_id
                  WHERE w.instance_id = r.instance_id AND w.state IN ('offered', 'claimed')), '{}'),
-       r.ended_at
+       r.ended_at,
+       coalesce((SELECT array_agg(w.name ORDER BY w.created_at, w.token_id, w.work_key) FROM work_items w
+                 WHERE w.instance_id = r.instance_id AND w.state IN ('offered', 'claimed')), '{}')
   FROM requests r JOIN memberships m ON m.workspace_id = r.workspace_id AND m.id = r.initiator_membership_id
   JOIN users u ON u.id = m.user_id";
 
@@ -72,6 +74,7 @@ type SummaryRow = (
     String,
     Vec<String>,
     Option<OffsetDateTime>,
+    Vec<String>,
 );
 
 #[derive(sqlx::FromRow)]
@@ -103,7 +106,17 @@ struct WorkListRow {
 }
 
 /// What the decision path reads under the row lock.
-type WorkRow = (Uuid, String, String, String, Vec<String>, i64, bool, Vec<String>, String);
+type WorkRow = (Uuid, String, String, String, Vec<String>, i64, bool, Vec<String>, String, String);
+
+/// The outcomes a person may choose on a step of `kind`: `expired` belongs to the system (a
+/// deadline), so it is never offered on an acknowledgement or a signature.
+pub(crate) fn human_outcomes(kind: &str, outcomes: &[String]) -> Vec<String> {
+    outcomes
+        .iter()
+        .filter(|o| !(matches!(kind, "acknowledge" | "sign") && *o == "expired"))
+        .cloned()
+        .collect()
+}
 
 /// A timeline line for one `resolution.history` entry of a step (reminders, escalations, reassignment).
 fn history_entry(step: &str, h: &Value) -> Option<TimelineEntry> {
@@ -154,6 +167,7 @@ impl Requests {
             title: r.3,
             status: r.4,
             current_step: r.5,
+            open_steps: r.12,
             assignees: r.10,
             created_at: r.6,
             updated_at: r.7,
@@ -404,6 +418,10 @@ impl Requests {
             .fetch_one(tx.conn())
             .await?;
         let vars: BTreeMap<String, Value> = serde_json::from_value(state["variables"].clone())?;
+        let result = match serde_json::from_value::<procera_runtime::InstanceState>(state) {
+            Ok(st) if st.status.is_final() => crate::handler::end_node(&rt, &st).map(|n| rt.node_name(n)),
+            _ => None,
+        };
         let input = self.display(tx, &rt.start_form, &vars).await?;
         type StepRow = (
             Uuid,
@@ -432,7 +450,7 @@ impl Requests {
                     (SELECT u.display_name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.id = w.completed_on_behalf_of),
                     coalesce((SELECT array_agg(c.membership_id ORDER BY c.membership_id) FROM work_item_candidates c WHERE c.work_item_id = w.id), '{}'),
                     w.resolution
-               FROM work_items w WHERE w.instance_id = $1 ORDER BY w.created_at, w.work_key",
+               FROM work_items w WHERE w.instance_id = $1 ORDER BY w.created_at, w.token_id, w.work_key",
         )
         .bind(id)
         .fetch_all(tx.conn())
@@ -528,14 +546,12 @@ impl Requests {
                 files: vec![],
             });
         }
-        if let (Some(at), "approved" | "rejected") = (ended_at, summary.status.as_str()) {
-            timeline.push(TimelineEntry {
-                at,
-                kind: "completed".into(),
-                text: format!("Request {}", summary.status),
-                actor: None,
-                files: vec![],
-            });
+        if let (Some(at), "approved" | "rejected" | "completed") = (ended_at, summary.status.as_str()) {
+            let text = match (summary.status.as_str(), &result) {
+                ("completed", Some(r)) => format!("Finished: {r}"),
+                (s, _) => format!("Request {s}"),
+            };
+            timeline.push(TimelineEntry { at, kind: "completed".into(), text, actor: None, files: vec![] });
         }
         timeline.sort_by_key(|t| t.at);
         let sla: Option<(OffsetDateTime, Option<OffsetDateTime>, Option<OffsetDateTime>)> = sqlx::query_as(
@@ -554,6 +570,7 @@ impl Requests {
             release,
             summary,
             ended_at,
+            result,
             fields: Self::priced(&rt.start_form, &vars).fields,
             input,
             steps,
@@ -685,9 +702,12 @@ impl Requests {
                     initiator: Person { id: r.initiator_membership_id, name: r.initiator_name },
                 },
                 step: r.name,
+                statement: (r.kind == "acknowledge")
+                    .then(|| rt.statements.get(&r.node_id).map(|s| (*s).to_owned()))
+                    .flatten(),
+                outcomes: human_outcomes(&r.kind, &r.outcomes),
                 kind: r.kind,
                 state: r.state,
-                outcomes: r.outcomes,
                 due_at: r.due_at,
                 created_at: r.created_at,
                 revision: r.revision,
@@ -797,8 +817,8 @@ impl Requests {
             .bind(instance)
             .execute(tx.conn())
             .await?;
-        let (_, key, node, state, outcomes, revision, ex_init, ex_actors, process_key): WorkRow = sqlx::query_as(
-            "SELECT w.instance_id, w.work_key, w.node_id, w.state, w.outcomes, w.revision, w.exclude_initiator, w.exclude_actors_of, r.process_key
+        let (_, key, node, state, outcomes, revision, ex_init, ex_actors, process_key, kind): WorkRow = sqlx::query_as(
+            "SELECT w.instance_id, w.work_key, w.node_id, w.state, w.outcomes, w.revision, w.exclude_initiator, w.exclude_actors_of, r.process_key, w.kind
                FROM work_items w JOIN requests r ON r.workspace_id = w.workspace_id AND r.instance_id = w.instance_id
               WHERE w.id = $1 FOR UPDATE OF w",
         )
@@ -822,6 +842,7 @@ impl Requests {
             }));
         }
         let mut errors = Vec::new();
+        let outcomes = human_outcomes(&kind, &outcomes);
         if !outcomes.iter().any(|o| o == outcome) {
             errors.push(FieldError::new(
                 "outcome",

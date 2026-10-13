@@ -161,8 +161,13 @@ const fn dept(d: Def) -> Def {
 }
 
 /// The built-in request types (`procera-requests` asserts this matches its catalogue).
-pub const REQUEST_TYPES: &[&str] =
-    &["fin.purchase-requisition", "hr.expense-claim", "hr.leave-request", "it.access-request"];
+pub const REQUEST_TYPES: &[&str] = &[
+    "fin.purchase-requisition",
+    "hr.expense-claim",
+    "hr.leave-request",
+    "hr.onboarding",
+    "it.access-request",
+];
 
 /// Currencies a workspace can price requests in (ISO 4217). Each money-bearing request type is
 /// compiled once per currency at boot, so the list is curated rather than open.

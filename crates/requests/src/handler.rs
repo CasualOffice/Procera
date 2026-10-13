@@ -79,17 +79,21 @@ fn kind(k: WorkKind) -> &'static str {
     }
 }
 
+/// The end node a finished instance reached (the last one entered).
+pub(crate) fn end_node<'a>(rt: &RequestType, st: &'a procera_runtime::InstanceState) -> Option<&'a str> {
+    st.trace
+        .iter()
+        .rev()
+        .filter(|t| matches!(t.event, TraceEvent::NodeEntered))
+        .find_map(|t| t.node.as_deref().filter(|n| rt.end_status.contains_key(*n)))
+}
+
 /// The request status for an instance state (BPMS-103).
 pub(crate) fn status(rt: &RequestType, st: &procera_runtime::InstanceState) -> &'static str {
     match st.status {
-        InstanceStatus::Completed => st
-            .trace
-            .iter()
-            .rev()
-            .filter(|t| matches!(t.event, TraceEvent::NodeEntered))
-            .find_map(|t| t.node.as_ref().and_then(|n| rt.end_status.get(n)))
-            .copied()
-            .unwrap_or("approved"),
+        InstanceStatus::Completed => {
+            end_node(rt, st).and_then(|n| rt.end_status.get(n)).copied().unwrap_or("approved")
+        }
         InstanceStatus::Terminated => "cancelled",
         _ if rt.revise_node.is_some_and(|r| st.tokens.values().any(|t| t.node == r)) => "changes_requested",
         _ => "in_progress",
@@ -139,7 +143,9 @@ impl Effects {
                 } => {
                     let res = match assignment {
                         Some(a) => {
-                            resolve(tx, &rt.exe, st, at, Site { node, field: "assignment" }, a, true).await?
+                            let personal = *k == WorkKind::Acknowledge;
+                            let site = Site { node, field: "assignment" };
+                            resolve(tx, &rt.exe, st, at, site, a, true, !personal).await?
                         }
                         None => crate::resolve::Resolution {
                             candidates: vec![],
@@ -205,7 +211,8 @@ impl Effects {
                     done(tx, key, "cancel_work_item").await?;
                 }
                 Command::Notify { key, node, to: Some(a), .. } => {
-                    let res = resolve(tx, &rt.exe, st, at, Site { node, field: "to" }, a, false).await?;
+                    let res =
+                        resolve(tx, &rt.exe, st, at, Site { node, field: "to" }, a, false, false).await?;
                     let mut vars = base.clone();
                     vars["step"] = json!(rt.node_name(node));
                     for m in &res.candidates {

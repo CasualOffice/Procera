@@ -213,6 +213,8 @@ pub(crate) struct Route {
     pub node: String,
     pub conds: Vec<Cond>,
     pub first: bool,
+    /// Reached through a parallel split: it runs at the same time as its sibling branches.
+    pub parallel: bool,
 }
 
 /// Adds a condition, keeping only the tighter of two bounds on the same value in the same
@@ -247,17 +249,22 @@ fn forward(on: &str) -> bool {
 }
 
 fn human(k: NodeKind) -> bool {
-    matches!(k, NodeKind::HumanApproval | NodeKind::HumanTask | NodeKind::HumanSign)
+    matches!(
+        k,
+        NodeKind::HumanApproval | NodeKind::HumanTask | NodeKind::HumanSign | NodeKind::HumanAcknowledge
+    )
 }
 
 /// Every person-facing step reachable from the start, first steps first, in path order. A step
 /// reached by paths with different conditions is treated as unconditional.
 pub(crate) fn routes(ir: &Process) -> Vec<Route> {
+    #[allow(clippy::too_many_arguments)]
     fn visit(
         ir: &Process,
         id: &str,
         conds: Vec<Cond>,
         first: bool,
+        parallel: bool,
         path: &mut Vec<String>,
         out: &mut Vec<Route>,
     ) {
@@ -277,10 +284,10 @@ pub(crate) fn routes(ir: &Process) -> Vec<Route> {
                         }
                         r.first |= first;
                     }
-                    None => out.push(Route { node: id.to_owned(), conds: conds.clone(), first }),
+                    None => out.push(Route { node: id.to_owned(), conds: conds.clone(), first, parallel }),
                 }
                 for e in edges.filter(|e| forward(&e.on)) {
-                    visit(ir, &e.to, conds.clone(), false, path, out);
+                    visit(ir, &e.to, conds.clone(), false, false, path, out);
                 }
             }
             NodeKind::Decision => {
@@ -302,12 +309,13 @@ pub(crate) fn routes(ir: &Process) -> Vec<Route> {
                         Some((_, c)) => add(&mut next, c.clone()),
                         None => branches.iter().for_each(|(_, c)| add(&mut next, negated(c))),
                     }
-                    visit(ir, &e.to, next, first, path, out);
+                    visit(ir, &e.to, next, first, parallel, path, out);
                 }
             }
-            _ => {
+            k => {
+                let parallel = parallel || k == NodeKind::ParallelSplit;
                 for e in edges.filter(|e| forward(&e.on)) {
-                    visit(ir, &e.to, conds.clone(), first, path, out);
+                    visit(ir, &e.to, conds.clone(), first, parallel, path, out);
                 }
             }
         }
@@ -315,7 +323,7 @@ pub(crate) fn routes(ir: &Process) -> Vec<Route> {
     }
     let mut out = Vec::new();
     if let Some(start) = ir.nodes.iter().find(|n| n.kind == NodeKind::Start) {
-        visit(ir, &start.id.clone(), vec![], true, &mut Vec::new(), &mut out);
+        visit(ir, &start.id.clone(), vec![], true, false, &mut Vec::new(), &mut out);
     }
     let (mut firsts, later): (Vec<Route>, Vec<Route>) = out.into_iter().partition(|r| r.first);
     firsts.extend(later);
@@ -382,7 +390,7 @@ impl Requests {
                 };
                 match depth {
                     0 if root == "initiator" => Some("you".to_owned()),
-                    0 => None,
+                    0 => Some(whose.strip_suffix("'s").unwrap_or(&whose).to_owned()),
                     1 => Some(format!("{whose} manager")),
                     _ => Some(format!("{whose} manager's manager")),
                 }
@@ -496,7 +504,9 @@ impl Requests {
             revision: 0,
         };
         let mut steps = Vec::new();
-        for r in routes(exe.program.ir()) {
+        let all = routes(exe.program.ir());
+        let first_parallel = all.iter().filter(|r| r.first).all(|r| r.parallel);
+        for r in all {
             let conds: Vec<String> = r.conds.iter().map(|c| c.text(&form)).collect();
             let holds: Vec<Option<bool>> = r.conds.iter().map(|c| c.holds(&vars)).collect();
             // An unconditional step always applies (no conditions: every one holds).
@@ -523,7 +533,7 @@ impl Requests {
             match (r.first, assignment) {
                 (true, Some(a)) => {
                     let site = Site { node: &r.node, field: "assignment" };
-                    match resolve::resolve(tx, &exe, &st, now, site, &a, true).await {
+                    match resolve::resolve(tx, &exe, &st, now, site, &a, true, true).await {
                         Ok(res) => {
                             step.people = self.explain(tx, &res, &form, &vars).await?;
                             step.unassigned = res.unassigned();
@@ -563,9 +573,14 @@ impl Requests {
         };
         let firsts: Vec<String> =
             shown.iter().filter(|s| s.first).map(|s| format!("{}{}", s.who, suffix(s))).collect();
+        let together = firsts.len() > 1 && first_parallel;
         let mut parts = vec![];
-        if !firsts.is_empty() {
-            parts.push(firsts.join(", or "));
+        match firsts.as_slice() {
+            [] => {}
+            [init @ .., last] if together => {
+                parts.push(format!("{} and {last} at the same time", init.join(", ")));
+            }
+            all => parts.push(all.join(", or ")),
         }
         parts.extend(shown.iter().filter(|s| !s.first).map(|s| format!("then {}{}", s.who, suffix(s))));
         let summary =
@@ -668,6 +683,16 @@ mod tests {
                 ("manager_approval", true, 1),
                 ("security_approval", false, 1),
                 ("provision", false, 0)
+            ])
+        );
+        // Onboarding: three tasks at once, then the new member's acknowledgement.
+        assert_eq!(
+            route_names("hr.onboarding"),
+            n(&[
+                ("it_setup", true, 0),
+                ("workspace", true, 0),
+                ("first_week", true, 0),
+                ("welcome", false, 0)
             ])
         );
     }

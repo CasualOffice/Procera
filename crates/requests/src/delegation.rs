@@ -384,7 +384,8 @@ fn substituted_for(snapshot: &Value, me: Uuid) -> Option<Uuid> {
 }
 
 /// `me`'s standing on a work item; `None` = neither a candidate nor acting for one. `principals`
-/// is [`acting_for`]`(me)`. Never for the initiator: their own steps are not handed on.
+/// is [`acting_for`]`(me)`. Never for the initiator: their own steps are not handed on, and never
+/// for an acknowledgement: only the person themselves can confirm it.
 pub(crate) async fn standing(
     tx: &mut WsTx<'_>,
     work_id: Uuid,
@@ -392,14 +393,17 @@ pub(crate) async fn standing(
     principals: &[Uuid],
     initiator: Uuid,
 ) -> R<Option<Standing>> {
-    let (candidates, snapshot): (Vec<Uuid>, Value) = sqlx::query_as(
+    let (candidates, snapshot, kind): (Vec<Uuid>, Value, String) = sqlx::query_as(
         "SELECT coalesce((SELECT array_agg(c.membership_id ORDER BY c.membership_id) FROM work_item_candidates c WHERE c.work_item_id = w.id), '{}'),
-                w.resolution
+                w.resolution, w.kind
            FROM work_items w WHERE w.id = $1",
     )
     .bind(work_id)
     .fetch_one(tx.conn())
     .await?;
+    if kind == "acknowledge" {
+        return Ok(candidates.contains(&me).then_some(Standing::Own));
+    }
     if candidates.contains(&me) {
         return Ok(Some(substituted_for(&snapshot, me).map_or(Standing::Own, Standing::For)));
     }

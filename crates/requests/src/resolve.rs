@@ -10,7 +10,8 @@
 //! 4. When still nobody is left the work item is created **unassigned**: visible to admins, never
 //!    lost. The strategy is claim (first decision wins), quorum one.
 //! 5. A candidate who is out of office is replaced by their delegate (see [`crate::delegation`]);
-//!    the snapshot lists each substitution under `substitutions`.
+//!    the snapshot lists each substitution under `substitutions`. A personal step (an
+//!    acknowledgement: only the person can confirm it) is never handed to a delegate.
 //!
 //! The snapshot of what each source resolved to is stored on the work item.
 
@@ -235,7 +236,9 @@ pub async fn resolve_candidate(
     Ok(members.into_iter().filter(|m| !excluded.contains(m)).collect::<BTreeSet<_>>().into_iter().collect())
 }
 
-/// Resolves an assignment. `sod` is false for notifications (`notify.to`).
+/// Resolves an assignment. `sod` is false for notifications (`notify.to`); `delegate` is false for
+/// personal steps, which stay with the person even when they are away.
+#[allow(clippy::too_many_arguments)]
 pub async fn resolve(
     tx: &mut WsTx<'_>,
     exe: &Executable,
@@ -244,6 +247,7 @@ pub async fn resolve(
     site: Site<'_>,
     a: &Assignment,
     sod: bool,
+    delegate: bool,
 ) -> Result<Resolution, String> {
     let initiator = st.initiator.get("id").and_then(Value::as_str).and_then(|s| Uuid::parse_str(s).ok());
     let (excluded, excluded_why) = if sod {
@@ -285,7 +289,7 @@ pub async fn resolve(
             .collect();
     }
     // 5. Out of office (BPMS-086): an away candidate's step goes to their delegate (SoD applies).
-    let (left, substitutions) = if sod {
+    let (left, substitutions) = if sod && delegate {
         crate::delegation::substitute(tx, at, left, &excluded, initiator).await?
     } else {
         (left, vec![])

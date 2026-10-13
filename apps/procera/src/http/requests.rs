@@ -248,7 +248,10 @@ async fn list(
         }
     };
     if let Some(st) = q.status.as_deref()
-        && !matches!(st, "in_progress" | "changes_requested" | "approved" | "rejected" | "cancelled")
+        && !matches!(
+            st,
+            "in_progress" | "changes_requested" | "approved" | "rejected" | "cancelled" | "completed"
+        )
     {
         return Err(ApiError::new(400, "bad_request", "Unknown status").detail(st.to_owned()));
     }

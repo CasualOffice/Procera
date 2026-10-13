@@ -13,7 +13,7 @@ use serde_json::json;
 async fn a_disabled_type_is_not_offered_and_cannot_be_started() {
     let Some(mut w) = world().await else { return };
     let ann = w.member("Ann", None).await;
-    assert_eq!(w.offered(ann).await.len(), 4, "every built-in by default");
+    assert_eq!(w.offered(ann).await.len(), 5, "every built-in by default");
     w.set("requests.types.enabled", json!(["hr.expense-claim", "it.access-request"])).await;
     assert_eq!(w.offered(ann).await, ["hr.expense-claim", "it.access-request"]);
     match w.start(ann, "hr.leave-request", leave()).await {
@@ -41,7 +41,7 @@ async fn a_type_audience_limits_who_may_start_it() {
     assert!(w.offered(fin).await.contains(&"fin.purchase-requisition"), "in the group");
     assert!(w.offered(ivan).await.contains(&"fin.purchase-requisition"), "holds the role");
     assert!(!w.offered(ann).await.contains(&"fin.purchase-requisition"));
-    assert_eq!(w.offered(ann).await.len(), 3, "the other types stay open to everyone");
+    assert_eq!(w.offered(ann).await.len(), 4, "the other types stay open to everyone");
     match w.start(ann, "fin.purchase-requisition", purchase("100.00", "EUR")).await {
         Err(RequestError::Forbidden(m)) => assert!(m.contains("limited"), "{m}"),
         other => panic!("{other:?}"),

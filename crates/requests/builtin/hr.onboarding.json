@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "process": { "key": "hr.onboarding", "version": 1, "name": { "en": "Employee onboarding" }, "criticality": "standard" },
+  "variables": [
+    { "name": "new_hire", "type": "principal", "classification": "internal", "required": true },
+    { "name": "start_date", "type": "date", "classification": "internal", "required": true },
+    { "name": "role_title", "type": "string", "classification": "internal", "required": true },
+    { "name": "department", "type": "string", "classification": "internal" },
+    { "name": "equipment", "type": { "enum": ["standard_laptop", "engineering_laptop", "no_equipment"] }, "classification": "internal", "required": true },
+    { "name": "notes", "type": "text", "classification": "internal" },
+    { "name": "asset_tag", "type": "string", "classification": "internal" },
+    { "name": "desk", "type": "string", "classification": "internal" },
+    { "name": "first_week_plan", "type": "text", "classification": "internal" }
+  ],
+  "nodes": [
+    { "id": "start", "kind": "start", "name": { "en": "Start onboarding" }, "trigger": "manual", "inputForm": "onboarding" },
+    {
+      "id": "prepare",
+      "kind": "parallel.split",
+      "name": { "en": "Prepare at the same time" },
+      "joinId": "ready",
+      "branches": [{ "name": "it" }, { "name": "facilities" }, { "name": "manager" }]
+    },
+    {
+      "id": "it_setup",
+      "kind": "human.task",
+      "name": { "en": "Set up accounts and equipment" },
+      "form": "it_record",
+      "outcomes": ["done"],
+      "assignment": {
+        "candidates": [{ "type": "group", "ref": "IT" }],
+        "strategy": "claim",
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "due": { "after": "P3D", "business": true },
+      "escalations": [
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "remind" },
+        { "at": "P4D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator" }, "reason": "overdue" }
+      ]
+    },
+    {
+      "id": "workspace",
+      "kind": "human.task",
+      "name": { "en": "Prepare workspace and access badge" },
+      "form": "workspace_record",
+      "outcomes": ["done"],
+      "assignment": {
+        "candidates": [{ "type": "group", "ref": "Facilities" }],
+        "strategy": "claim",
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "due": { "after": "P3D", "business": true },
+      "escalations": [
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "remind" },
+        { "at": "P4D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator" }, "reason": "overdue" }
+      ]
+    },
+    {
+      "id": "first_week",
+      "kind": "human.task",
+      "name": { "en": "Plan the first week" },
+      "form": "first_week_record",
+      "outcomes": ["done"],
+      "assignment": {
+        "candidates": [{ "type": "user", "ref": "expr:cel: new_hire.manager" }],
+        "strategy": "claim",
+        "fallback": { "type": "role", "ref": "process.owner" }
+      },
+      "due": { "after": "P3D", "business": true },
+      "escalations": [
+        { "at": "P2D", "action": "remind" },
+        { "at": "P3D", "action": "remind" },
+        { "at": "P4D", "action": "notify", "to": { "type": "user", "ref": "expr:cel: initiator" }, "reason": "overdue" }
+      ]
+    },
+    { "id": "ready", "kind": "parallel.join", "name": { "en": "Everything is ready" } },
+    {
+      "id": "welcome",
+      "kind": "human.acknowledge",
+      "name": { "en": "Confirm equipment and handbook" },
+      "subject": "handbook",
+      "assignment": { "candidates": [{ "type": "user", "ref": "expr:cel: new_hire" }] },
+      "due": { "after": "P5D", "business": true },
+      "escalations": [
+        { "at": "P2D", "action": "remind" },
+        { "at": "P4D", "action": "remind" }
+      ]
+    },
+    {
+      "id": "notify_onboarded",
+      "kind": "notify",
+      "name": { "en": "Onboarding complete" },
+      "channels": ["in_app", "email"],
+      "to": {
+        "candidates": [
+          { "type": "user", "ref": "expr:cel: initiator" },
+          { "type": "user", "ref": "expr:cel: new_hire" }
+        ]
+      },
+      "template": "request_notice"
+    },
+    { "id": "end_onboarded", "kind": "end", "name": { "en": "Onboarded" }, "result": "completed" },
+    { "id": "end_unconfirmed", "kind": "end", "name": { "en": "Onboarded, not confirmed" }, "result": "completed" }
+  ],
+  "edges": [
+    { "id": "e1", "from": "start", "to": "prepare" },
+    { "id": "e2", "from": "prepare", "to": "it_setup", "on": "it" },
+    { "id": "e3", "from": "prepare", "to": "workspace", "on": "facilities" },
+    { "id": "e4", "from": "prepare", "to": "first_week", "on": "manager" },
+    { "id": "e5", "from": "it_setup", "to": "ready", "on": "done" },
+    { "id": "e6", "from": "workspace", "to": "ready", "on": "done" },
+    { "id": "e7", "from": "first_week", "to": "ready", "on": "done" },
+    { "id": "e8", "from": "ready", "to": "welcome" },
+    { "id": "e9", "from": "welcome", "to": "notify_onboarded", "on": "acknowledged" },
+    { "id": "e10", "from": "welcome", "to": "end_unconfirmed", "on": "expired" },
+    { "id": "e11", "from": "notify_onboarded", "to": "end_onboarded" }
+  ],
+  "sla": [{ "id": "sla_total", "scope": "instance", "target": "P8D", "business": true }],
+  "refs": {
+    "forms": {
+      "onboarding": "form:hr.onboarding@1",
+      "it_record": "form:hr.onboarding-it@1",
+      "workspace_record": "form:hr.onboarding-workspace@1",
+      "first_week_record": "form:hr.onboarding-first-week@1"
+    },
+    "documents": { "handbook": "document:hr.employee-handbook@1" },
+    "calendars": { "default": "calendar:default@1" }
+  },
+  "meta": { "sourceFormat": "template", "templateRef": "tpl:hr.onboarding@1.0.0" }
+}

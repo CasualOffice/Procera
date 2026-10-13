@@ -168,7 +168,7 @@ async fn rule_phrase(
         }
         Some("requester") => "the requester".to_owned(),
         Some("field") => {
-            format!("the person named in {}", rule["name"].as_str().unwrap_or_default().replace('_', " "))
+            format!("the {} on this request", rule["name"].as_str().unwrap_or_default().replace('_', " "))
         }
         Some("named") => "the person the process names".to_owned(),
         Some("group") if many => {
@@ -300,7 +300,7 @@ pub(crate) async fn explain(
         lines.push((at, 0, WhyLine { at, step: rt.node_name(&node), text, facts: f }));
     }
     let items: Vec<(String, String, OffsetDateTime, Value, bool)> = sqlx::query_as(
-        "SELECT node_id, name, created_at, resolution, unassigned FROM work_items WHERE instance_id = $1 ORDER BY created_at, work_key",
+        "SELECT node_id, name, created_at, resolution, unassigned FROM work_items WHERE instance_id = $1 ORDER BY created_at, token_id, work_key",
     )
     .bind(id)
     .fetch_all(tx.conn())
@@ -356,7 +356,10 @@ pub(crate) async fn why_you(
             Some("role") => format!("You have the {} role", rule["key"].as_str().unwrap_or_default()),
             Some("position") => format!("You're the {}", rule["title"].as_str().unwrap_or_default()),
             Some("field") => {
-                format!("You're named in {}", rule["name"].as_str().unwrap_or_default().replace('_', " "))
+                format!(
+                    "You're the {} on this request",
+                    rule["name"].as_str().unwrap_or_default().replace('_', " ")
+                )
             }
             Some(_) => "The process picked you".to_owned(),
             None => continue,

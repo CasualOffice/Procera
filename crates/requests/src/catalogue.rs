@@ -91,6 +91,8 @@ pub struct RequestType {
     /// Request status by end node.
     pub end_status: BTreeMap<String, &'static str>,
     pub check: Option<Check>,
+    /// What the person confirms on each acknowledgement step, by node id.
+    pub statements: BTreeMap<String, &'static str>,
     title: fn(&BTreeMap<String, Value>) -> String,
 }
 
@@ -151,6 +153,8 @@ struct Def {
     revise: Option<&'static str>,
     end_status: &'static [(&'static str, &'static str)],
     check: Option<Check>,
+    /// Acknowledgement steps: node → the statement the person confirms.
+    statements: &'static [(&'static str, &'static str)],
     title: fn(&BTreeMap<String, Value>) -> String,
 }
 
@@ -199,6 +203,7 @@ const DEFS: &[Def] = &[
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
         check: Some(leave_dates),
+        statements: &[],
         title: |v| {
             format!(
                 "{} leave, {} to {}",
@@ -227,6 +232,7 @@ const DEFS: &[Def] = &[
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
         check: None,
+        statements: &[],
         title: |v| format!("{} expense, {}", capitalised(s(v, "category")), money(v, "amount")),
     },
     Def {
@@ -248,6 +254,7 @@ const DEFS: &[Def] = &[
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
         check: None,
+        statements: &[],
         title: |v| format!("{}, {}", s(v, "vendor"), money(v, "amount")),
     },
     Def {
@@ -270,12 +277,49 @@ const DEFS: &[Def] = &[
         revise: Some("revise"),
         end_status: &[("end_granted", "approved"), ("end_rejected", "rejected")],
         check: None,
+        statements: &[],
         title: |v| format!("{} on {}", s(v, "access_role"), s(v, "system")),
+    },
+    Def {
+        key: "hr.onboarding",
+        prefix: "ON",
+        name: "Employee onboarding",
+        description: "Get a new member ready for their first day. IT, Facilities and their manager prepare at the same time; then the new member confirms.",
+        category: "HR",
+        icon: "onboarding",
+        ir: include_str!("../builtin/hr.onboarding.json"),
+        labels: &[
+            ("new_hire", "New member"),
+            ("start_date", "First day"),
+            ("role_title", "Job title"),
+            ("department", "Department"),
+            ("equipment", "Equipment"),
+            ("notes", "Notes for the team"),
+        ],
+        files: &[("attachments", "Attachments")],
+        tasks: &[
+            ("it_setup", &["asset_tag"]),
+            ("workspace", &["desk"]),
+            ("first_week", &["first_week_plan"]),
+        ],
+        revise: None,
+        end_status: &[("end_onboarded", "completed"), ("end_unconfirmed", "completed")],
+        check: None,
+        statements: &[(
+            "welcome",
+            "Welcome aboard. I confirm I have my equipment and have read the employee handbook.",
+        )],
+        title: |v| format!("Onboarding: {}, starting {}", s(v, "role_title"), s(v, "start_date")),
     },
 ];
 
 /// Labels of fields that only appear on a step form.
-const TASK_LABELS: &[(&str, &str)] = &[("ticket_ref", "Ticket reference")];
+const TASK_LABELS: &[(&str, &str)] = &[
+    ("ticket_ref", "Ticket reference"),
+    ("asset_tag", "Laptop asset tag"),
+    ("desk", "Desk and badge number"),
+    ("first_week_plan", "Plan for the first week"),
+];
 
 fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
     let ir = program.ir();
@@ -483,6 +527,7 @@ impl Catalogue {
                 revise_node: d.revise,
                 end_status: d.end_status.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
                 check: d.check,
+                statements: d.statements.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
                 title: d.title,
             }));
         }
@@ -510,7 +555,7 @@ mod tests {
     #[tokio::test]
     async fn every_builtin_compiles_and_pins_its_checksum() {
         let c = Catalogue::builtin().unwrap_or_else(|e| panic!("{e}"));
-        assert_eq!(c.list().len(), 4);
+        assert_eq!(c.list().len(), 5);
         for t in c.list() {
             assert!(t.program.checksum.is_some(), "{} is pinned", t.key);
             assert!(!t.start_form.fields.is_empty());
@@ -540,6 +585,19 @@ mod tests {
         );
         let ar = c.get("it.access-request").unwrap_or_else(|| panic!("ar"));
         assert_eq!(ar.task_forms["provision"].fields[0].name, "ticket_ref");
+        // Onboarding: a member picker, three parallel tasks with small forms, one acknowledgement.
+        let on = c.get("hr.onboarding").unwrap_or_else(|| panic!("onboarding"));
+        assert_eq!(on.prefix, "ON");
+        let kinds: Vec<&str> = on.start_form.fields.iter().map(|f| f.ty).collect();
+        assert_eq!(kinds, ["principal", "date", "string", "string", "enum", "text", "file"]);
+        assert!(on.start_form.fields[0].required && !on.start_form.fields[3].required);
+        assert_eq!(on.task_forms["it_setup"].fields[0].label, "Laptop asset tag");
+        assert_eq!(on.task_forms["first_week"].fields[0].ty, "text");
+        assert!(on.revise_node.is_none());
+        assert!(on.statements["welcome"].contains("employee handbook"));
+        assert_eq!(on.end_status["end_onboarded"], "completed");
+        let welcome = on.exe.program.node("welcome").unwrap_or_else(|| panic!("welcome"));
+        assert_eq!(welcome.outcomes(), ["acknowledged", "expired"]);
         // Builds from before the file fields still load, for requests pinned to them.
         let authored: Value = serde_json::from_str(DEFS[1].ir).unwrap_or_default();
         let old = build("x", &in_currency(&authored, "USD")).unwrap_or_else(|e| panic!("{e}"));
