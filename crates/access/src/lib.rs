@@ -614,7 +614,9 @@ impl Access {
         Ok(ps)
     }
 
-    /// Authorizes `membership` to perform `action` on `resource` in the current workspace.
+    /// Authorizes `membership` to perform `action` on `resource` in the current workspace. Inside
+    /// a request made with an API token ([`token_scope`]), the token's member is also limited to
+    /// the permissions chosen for the token.
     pub async fn check(
         &self,
         tx: &mut WsTx<'_>,
@@ -624,6 +626,9 @@ impl Access {
     ) -> Result<AccessDecision, AccessError> {
         if !is_permission(action) {
             return Err(AccessError::UnknownPermission(action.to_owned()));
+        }
+        if token_scope::denies(membership, action) {
+            return Ok(AccessDecision { allowed: false, reasons: vec![] });
         }
         let ws = tx.ctx.workspace_id;
         let policies = self.policy_set(tx).await?;
@@ -697,5 +702,68 @@ impl Access {
             allowed: resp.decision() == Decision::Allow,
             reasons: resp.diagnostics().reason().map(|id| id.to_string()).collect(),
         })
+    }
+}
+
+/// The scope of an API token for the request it authenticates (BPMS-144, docs/06 §3.5): set around
+/// the whole request by the HTTP layer, read by [`Access::check`]. Checks on other members (whether
+/// an approver may see a request, say) are not narrowed.
+pub mod token_scope {
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    use uuid::Uuid;
+
+    /// The token's member and the permissions chosen for it.
+    #[derive(Debug, Clone)]
+    pub struct Scope {
+        pub membership: Uuid,
+        pub permissions: Arc<BTreeSet<String>>,
+    }
+
+    tokio::task_local! {
+        static SCOPE: Scope;
+    }
+
+    /// Runs `f` with `scope` in force.
+    pub async fn with<F: std::future::Future>(scope: Scope, f: F) -> F::Output {
+        SCOPE.scope(scope, f).await
+    }
+
+    /// True when a token scope is in force for `membership` and leaves `action` out.
+    pub fn denies(membership: Uuid, action: &str) -> bool {
+        SCOPE.try_with(|s| s.membership == membership && !s.permissions.contains(action)).unwrap_or(false)
+    }
+
+    /// True inside a request made with an API token.
+    pub fn active() -> bool {
+        SCOPE.try_with(|_| ()).is_ok()
+    }
+}
+
+#[cfg(test)]
+mod token_scope_tests {
+    use std::collections::BTreeSet;
+    use std::sync::Arc;
+
+    use uuid::Uuid;
+
+    use super::token_scope::{Scope, active, denies, with};
+
+    #[tokio::test]
+    async fn a_token_scope_narrows_only_its_own_member_and_only_inside_the_request() {
+        let me = Uuid::now_v7();
+        let other = Uuid::now_v7();
+        assert!(!denies(me, "member:view"));
+        let scope =
+            Scope { membership: me, permissions: Arc::new(BTreeSet::from(["request:view_own".to_owned()])) };
+        with(scope, async {
+            assert!(active());
+            assert!(!denies(me, "request:view_own"));
+            assert!(denies(me, "member:view"));
+            assert!(!denies(other, "member:view"));
+        })
+        .await;
+        assert!(!active());
     }
 }

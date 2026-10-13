@@ -148,7 +148,8 @@ impl FromRequestParts<AppState> for WsMember {
             return Err(ApiError::not_found());
         }
         // MFA required by role (docs/20 §2.3 auth.mfa.required_roles, ⚡: read from the database).
-        let has_mfa = claims.amr.iter().any(|a| a == "otp" || a == "hwk");
+        // An API token counts: making one needed a recent sign-in that met this rule (step-up).
+        let has_mfa = claims.amr.iter().any(|a| a == "otp" || a == "hwk" || a == "token");
         if !has_mfa {
             let required =
                 super::settings::settings(s)?.effective(&mut tx, "auth.mfa.required_roles").await?.value;

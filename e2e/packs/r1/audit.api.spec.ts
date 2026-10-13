@@ -226,6 +226,11 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/processes/validate', () => own.post('/api/v1/processes/validate', { headers: oh, data: { content: pd.draft.content } }));
   await step('POST', '/api/v1/processes/test-run', () => own.post('/api/v1/processes/test-run', { headers: oh, data: { content: pd.draft.content, input: { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' } } }));
   await step('POST', '/api/v1/processes/who', () => own.post('/api/v1/processes/who', { headers: oh, data: { candidates: [{ type: 'role', ref: 'workspace.owner' }] } }));
+  // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
+  const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
+  await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));
+  const tok2 = await (await own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token 2', permissions: ['request:view_own'] } })).json();
+  await step('DELETE', '/api/v1/api-tokens/{id}', () => own.delete(`/api/v1/api-tokens/${tok2.id}`, { headers: oh }));
   await step('POST', '/api/v1/processes/{id}/publish', () => own.post(`/api/v1/processes/${proc.id}/publish`, { headers: oh }));
   const [pw1, pw2, pw3] = ['Audit drill one 2026!', 'Audit drill two 2026!', 'Audit drill three 2026!'];
   await step('POST', '/api/v1/me/password', () => rita.post('/api/v1/me/password', { headers: bearer(ritaPw.access_token), data: { current_password: PW, new_password: pw1 } }));

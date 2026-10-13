@@ -35,6 +35,7 @@ pub mod system_email;
 pub mod templates;
 #[cfg(feature = "e2e")]
 pub mod test_controls;
+pub mod tokens;
 pub mod views;
 pub mod work;
 pub mod workspace;
@@ -378,8 +379,10 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", requests::router())
         .nest("/api/v1", work::router())
         .nest("/api/v1", delegation::router())
+        .nest("/api/v1", tokens::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))
         .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024));
     #[cfg(feature = "e2e")]
     let router = router.nest("/__test", test_controls::router());

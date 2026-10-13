@@ -191,6 +191,10 @@ pub const CONTRACT: &[Entry] = &[
     emits("PATCH", "/api/v1/views/{id}", &[&["view.updated"]]),
     emits("DELETE", "/api/v1/views/{id}", &[&["view.deleted"]]),
     emits("POST", "/api/v1/exports", &[&["data.exported"]]),
+    // Personal API tokens (BPMS-144): created, revoked by their owner or an admin (again: no-op).
+    emits("POST", "/api/v1/me/api-tokens", &[&["api_token.created"]]),
+    emits("DELETE", "/api/v1/me/api-tokens/{id}", &[&["api_token.revoked"], &[]]),
+    emits("DELETE", "/api/v1/api-tokens/{id}", &[&["api_token.revoked"], &[]]),
     // Files (BPMS-060/062).
     exempt(
         "POST",
@@ -388,6 +392,7 @@ mod tests {
             ("/api/v1", include_str!("requests.rs")),
             ("/api/v1", include_str!("work.rs")),
             ("/api/v1", include_str!("processes.rs")),
+            ("/api/v1", include_str!("tokens.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

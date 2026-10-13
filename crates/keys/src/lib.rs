@@ -105,6 +105,12 @@ impl Keys {
         Self { db, root, clock, ids }
     }
 
+    /// HMAC-SHA256 of `data` under the root key's `purpose` key (API token secrets, BPMS-144). A
+    /// root key rotation changes it, so what it protects must be re-issued then.
+    pub fn mac(&self, purpose: &str, data: &[u8]) -> Result<[u8; 32], KeyError> {
+        Ok(procera_crypto::mac(self.root.as_ref(), purpose, data)?)
+    }
+
     fn aad(ws: Uuid, version: i32) -> String {
         format!("workspace_keys:{ws}:{version}")
     }

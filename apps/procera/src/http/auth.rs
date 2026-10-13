@@ -219,6 +219,32 @@ impl FromRequestParts<AppState> for AuthUser {
     type Rejection = ApiError;
 
     async fn from_request_parts(parts: &mut Parts, s: &AppState) -> Result<Self, Self::Rejection> {
+        // An API token, already checked by the token layer (BPMS-144): it acts as its member, whose
+        // account must still be active. Step-up is never satisfied (`auth_time` 0).
+        if let Some(t) = parts.extensions.get::<super::tokens::TokenAuth>().cloned() {
+            let id = identity(s)?;
+            let Some((status, tv)) = id.token_state(t.user_id).await? else {
+                return Err(ApiError::new(401, "invalid_token", "Invalid, expired or revoked API token"));
+            };
+            if status != "active" {
+                return Err(ApiError::new(401, "invalid_token", "Invalid, expired or revoked API token"));
+            }
+            return Ok(Self(Claims {
+                iss: procera_identity::jwt::ISSUER.to_owned(),
+                aud: procera_identity::jwt::AUDIENCE.to_owned(),
+                sub: t.user_id,
+                sid: t.token_id,
+                plane: "workspace".to_owned(),
+                ws: Some(t.workspace),
+                amr: vec!["token".to_owned()],
+                auth_time: 0,
+                tv,
+                typ: "access".to_owned(),
+                iat: 0,
+                exp: 0,
+                jti: t.token_id,
+            }));
+        }
         let token = parts
             .headers
             .get(header::AUTHORIZATION)
