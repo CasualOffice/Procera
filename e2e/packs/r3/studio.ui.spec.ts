@@ -12,6 +12,8 @@ import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixt
 // E2E-R3-UI-01 also test-runs the draft (send back, then approve) before publishing.
 // E2E-R3-UI-02 — a step assigned to a group that doesn't exist: Validate lists the problem, it shows
 // on that step, and Publish is refused with the same problems.
+// E2E-R3-UI-05 — "who will this go to": under each Who row the designer shows who it reaches today
+// (a group's members by name, a missing group as nobody, the manager rule with how many lack one).
 
 /** A member who joined by invitation with a display name; returns what a browser sign-in needs. */
 async function person(request: APIRequestContext, owner: Session, ws: string, name: string) {
@@ -187,6 +189,7 @@ test.describe('guided studio @r3 @ui', () => {
     await props.getByRole('button', { name: /Who/ }).click();
     await page.getByRole('option', { name: 'Anyone in a group' }).click();
     await props.getByRole('combobox', { name: 'Group' }).fill('Night owls');
+    await expect(props.getByTestId('who-reach')).toHaveText('Nobody yet: it would go to the fallback.');
     await saved(page);
 
     await page.getByRole('button', { name: 'Validate' }).click();
@@ -205,5 +208,30 @@ test.describe('guided studio @r3 @ui', () => {
     const listed = await (await owner.c.get('/api/v1/processes', { headers: owner.headers })).json();
     const row = (listed.items as { title: string; published: unknown }[]).find((p) => p.title === 'Night desk request');
     expect(row?.published).toBeNull();
+  });
+
+  test('E2E-R3-UI-05 each Who row shows who it reaches today', async ({ page, request }) => {
+    const { ws, owner, ownerEmail } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const ann = await person(request, owner, ws.id, 'Ann Asker');
+    const bo = await person(request, owner, ws.id, 'Bo Boss');
+    const grp = await (await owner.c.post('/api/v1/groups', { headers: h, data: { name: 'Laptop desk' } })).json();
+    for (const m of [bo, ann]) expect((await owner.c.post(`/api/v1/groups/${grp.id}/members`, { headers: h, data: { membership_id: m.id } })).ok()).toBe(true);
+    await signIn(page, ownerEmail, owner.recovery[0]!);
+    await newBlankProcess(page, 'Desk request');
+
+    const props = await addStep(page, 'Approval', 'Desk approval');
+    const reach = props.getByTestId('who-reach');
+    // The default is the requester's manager: nobody in this workspace has one yet.
+    await expect(reach).toHaveText('3 people have no manager set; their requests go to the fallback.');
+    await props.getByRole('button', { name: /Who/ }).click();
+    await page.getByRole('option', { name: 'Anyone in a group' }).click();
+    await props.getByRole('combobox', { name: 'Group' }).fill('Laptop desk');
+    await expect(reach).toHaveText('Goes to 2 people: Ann Asker, Bo Boss.');
+    await page.keyboard.press('Escape'); // close the group suggestions
+    await props.getByRole('button', { name: 'Add someone else' }).click();
+    await props.getByRole('combobox', { name: 'Group' }).nth(1).fill('Nobody here');
+    await expect(reach.nth(1)).toHaveText('Nobody yet: it would go to the fallback.');
+    await axe(page);
   });
 });

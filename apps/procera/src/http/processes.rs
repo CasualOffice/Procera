@@ -31,6 +31,7 @@ pub fn router() -> Router<AppState> {
         .route("/process-templates", get(templates))
         .route("/processes/validate", post(validate))
         .route("/processes/test-run", post(test_run))
+        .route("/processes/who", post(who))
         .route("/processes/{id}", get(one))
         .route("/processes/{id}/draft", put(save_draft))
         .route("/processes/{id}/publish", post(publish))
@@ -388,4 +389,23 @@ async fn test_run(
         Ok(sim) => Ok(Json(sim).into_response()),
         Err(e) => Err(ApiError::from(LibraryError::Invalid(e))),
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct WhoReq {
+    candidates: Vec<procera_processes::reach::Candidate>,
+}
+
+/// `POST /processes/who`: who each candidate of a step reaches in the directory today.
+async fn who(State(s): State<AppState>, me: WsMember, Json(r): Json<WhoReq>) -> Result<Response, ApiError> {
+    if r.candidates.len() > 20 {
+        return Err(ApiError::from(LibraryError::Invalid("at most 20 candidates".into())));
+    }
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    require(&s, &me, &mut tx, "view").await?;
+    let items = procera_processes::reach::reach(&mut tx, &r.candidates).await.map_err(internal)?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
 }

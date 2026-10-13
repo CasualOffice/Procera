@@ -1,4 +1,4 @@
-import { CornerDownRight, Info, Plus, Trash2, X } from 'lucide-react';
+import { CornerDownRight, Info, Plus, Trash2, Users, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { type Artifact, type Member, useItems } from '../../lib/data';
@@ -10,7 +10,7 @@ import { Select } from '../../ui/components/Select';
 import { TextField } from '../../ui/components/TextField';
 import type { Problem } from './api';
 import {
-  type Condition, type Model, type Step, type Who, type WhoType, STEP_KINDS, WHO_TYPES, conditionFields, emptyWho, routes,
+  type Condition, type Model, type Step, type Who, type WhoType, STEP_KINDS, WHO_TYPES, candidateOf, conditionFields, emptyWho, routes,
 } from './model';
 import { KIND_LOOK, Suggest, daysValue } from './parts';
 
@@ -77,9 +77,44 @@ export function StepProperties({ model, step, onChange, onDelete, directory, pro
 
 const ROW_LABEL = (i: number) => (i === 0 ? 'Who' : i === 1 ? 'Or also' : `Or also (${i + 1})`);
 
+interface Reach { count: number | null; people: string[]; note: string | null }
+
+/** Who each row reaches in the directory today (BPMS-100 “who will this go to”), refreshed as it is edited. */
+function useReach(who: Who[]): (Reach | null)[] {
+  const asks = who.map(candidateOf);
+  const key = JSON.stringify(asks);
+  const [reach, setReach] = useState<{ key: string; items: (Reach | null)[] }>({ key: '', items: [] });
+  useEffect(() => {
+    const filled = asks.filter((c) => c.ref.trim());
+    if (!filled.length) return;
+    let live = true;
+    const t = window.setTimeout(() => {
+      api<{ items: Reach[] }>('/api/v1/processes/who', { method: 'POST', body: { candidates: filled } })
+        .then((r) => {
+          if (!live) return;
+          let i = 0;
+          setReach({ key, items: asks.map((c) => (c.ref.trim() ? (r.items[i++] ?? null) : null)) });
+        })
+        .catch(() => live && setReach({ key, items: [] }));
+    }, 350);
+    return () => { live = false; window.clearTimeout(t); };
+  }, [key]);
+  return reach.key === key ? reach.items : [];
+}
+
+function reachText(r: Reach): string {
+  if (r.count === null) return r.note ?? '';
+  if (r.count === 0) return r.note ?? 'Nobody yet.';
+  const names = r.people.join(', ');
+  if (r.count === 1) return `Goes to ${names}.`;
+  const more = r.count - r.people.length;
+  return `Goes to ${r.count} people: ${names}${more > 0 ? ` and ${more} more` : ''}.`;
+}
+
 function WhoSection({ step, onChange, directory, readOnly }: { step: Step; onChange: (p: Partial<Step>) => void; directory: Directory; readOnly: boolean }) {
   const set = (i: number, w: Who) => onChange({ who: step.who.map((x, j) => (j === i ? w : x)) });
   const rows = step.who.length ? step.who : [];
+  const reach = useReach(rows);
   return (
     <fieldset className="props-section" disabled={readOnly}>
       <legend>Who</legend>
@@ -104,6 +139,11 @@ function WhoSection({ step, onChange, directory, readOnly }: { step: Step; onCha
             )}
             {w.type === 'position' && <TextField label="Position" value={w.title} onChange={(title) => set(i, { type: 'position', title })} placeholder="e.g. CFO" isReadOnly={readOnly} />}
             {w.type === 'custom' && <p className="props-code"><code>{w.candidate.type}: {w.candidate.ref}</code></p>}
+            {reach[i] && (
+              <p className={`who-reach${reach[i]?.count === 0 ? ' is-empty' : ''}`} aria-live="polite" data-testid="who-reach">
+                <Users aria-hidden="true" size="0.8125rem" /> {reachText(reach[i]!)}
+              </p>
+            )}
           </div>
           {rows.length > 1 && !readOnly && (
             <button type="button" className="icon-btn" aria-label={`Remove “${ROW_LABEL(i)}”`} onClick={() => onChange({ who: step.who.filter((_, j) => j !== i) })}><X aria-hidden="true" size="0.875rem" /></button>

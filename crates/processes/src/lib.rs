@@ -7,6 +7,7 @@
 //! checksum, recompiling once per checksum and refusing a program whose checksum no longer matches
 //! its bundle; [`Chain`] puts it behind the built-in programs.
 
+pub mod reach;
 pub mod simulate;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};

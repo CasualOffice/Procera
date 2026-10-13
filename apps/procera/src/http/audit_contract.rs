@@ -346,6 +346,7 @@ pub const CONTRACT: &[Entry] = &[
         "/api/v1/processes/test-run",
         "a read: simulates a draft in memory; nothing is stored or sent",
     ),
+    exempt("POST", "/api/v1/processes/who", "a read: counts who a step's candidates reach in the directory"),
     emits(
         "POST",
         "/api/v1/processes/{id}/publish",
