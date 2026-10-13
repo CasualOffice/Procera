@@ -16,6 +16,7 @@ pub mod attach;
 pub mod catalogue;
 pub mod comments;
 pub mod delegation;
+pub mod email_actions;
 mod escalate;
 pub mod forms;
 pub mod handler;

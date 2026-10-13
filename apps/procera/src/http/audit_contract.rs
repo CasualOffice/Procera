@@ -208,6 +208,15 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/envelopes/{id}/remind", &[&["envelope.reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/remind", &[&["envelope.batch_reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/void", &[&["envelope.batch_voided"], &[]]),
+    // Email-actionable approvals (BPMS-145): the decision's own records plus the email marker.
+    emits(
+        "POST",
+        "/api/v1/email-actions/{token}",
+        &[
+            &["instance.advanced", "work.decided_by_email", "work_item.decided"],
+            &["instance.completed", "work.decided_by_email", "work_item.decided"],
+        ],
+    ),
     // Outgoing webhooks (BPMS-143).
     emits("POST", "/api/v1/webhooks", &[&["webhook.created"]]),
     emits("PATCH", "/api/v1/webhooks/{id}", &[&["webhook.updated"]]),
@@ -419,6 +428,7 @@ mod tests {
             ("/api/v1", include_str!("tokens.rs")),
             ("/api/v1", include_str!("signing.rs")),
             ("/api/v1", include_str!("webhooks.rs")),
+            ("/api/v1", include_str!("email_actions.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

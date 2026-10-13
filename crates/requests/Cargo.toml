@@ -9,6 +9,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+procera-crypto.workspace = true
 procera-audit.workspace = true
 procera-db.workspace = true
 procera-engine.workspace = true

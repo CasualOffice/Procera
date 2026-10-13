@@ -15,6 +15,7 @@ pub mod auth;
 pub mod campaigns;
 pub mod delegation;
 pub mod directory;
+pub mod email_actions;
 pub mod encryption;
 pub mod error;
 pub mod files;
@@ -416,6 +417,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", tokens::router())
         .nest("/api/v1", signing::router())
         .nest("/api/v1", webhooks::router())
+        .nest("/api/v1", email_actions::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))

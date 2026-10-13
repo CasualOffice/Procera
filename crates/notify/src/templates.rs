@@ -383,14 +383,17 @@ const TEMPLATES: &[(&str, &str)] = &[
     ("work_assigned.subject", "{{ step }} needed: {{ display_id }} {{ title }}"),
     (
         "work_assigned.text",
-        "{{ initiator }} submitted a {{ type_name | lower }} ({{ display_id }}): {{ title }}.\n\nYou are asked for: {{ step }}{% if due %}, by {{ due }}{% endif %}.\n\nOpen it:\n{{ link }}\n",
+        "{{ initiator }} submitted a {{ type_name | lower }} ({{ display_id }}): {{ title }}.\n\nYou are asked for: {{ step }}{% if due %}, by {{ due }}{% endif %}.\n\n{% if approve_link is defined and approve_link %}Approve:\n{{ approve_link }}\n\nReject:\n{{ reject_link }}\n\nEach opens a page to confirm; the link works once.\n\n{% endif %}Open it:\n{{ link }}\n",
     ),
     (
         "work_assigned.html",
         r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ initiator }}</strong> submitted a {{ type_name | lower }} (<strong>{{ display_id }}</strong>): {{ title }}.</p>
 <p style="margin:0 0 16px">You are asked for: <strong>{{ step }}</strong>{% if due %}, by <strong>{{ due }}</strong>{% endif %}.</p>
-<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endblock %}
-{% block footer %}You receive this because a step of this {{ terms.request.lower }} is offered to you.{% endblock %}"#,
+{% if approve_link is defined and approve_link %}<p style="margin:0 0 12px"><a href="{{ approve_link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Approve</a>
+<a href="{{ reject_link }}" style="display:inline-block;margin-left:8px;background:#ffffff;color:#1c1c1a;border:1px solid #8c8a85;text-decoration:none;padding:11px 19px;border-radius:6px;font-weight:600">Reject…</a></p>
+<p style="margin:0 0 24px;font-size:14px;color:#5f5f5a">Each button opens a page where you confirm. The link works once. <a href="{{ link }}" style="color:#5f5f5a">Open it in Procera</a> to see everything.</p>
+{% else %}<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open it</a></p>{% endif %}{% endblock %}
+{% block footer %}You receive this because a step of this {{ terms.request.lower }} is offered to you.{% if approve_link is defined and approve_link %} Don't forward it: the buttons decide as you.{% endif %}{% endblock %}"#,
     ),
     // work_reminder: same vars as work_assigned (BPMS-085 reminders).
     (

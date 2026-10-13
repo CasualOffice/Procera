@@ -391,6 +391,8 @@ pub const CATALOGUE: &[Def] = &[
         || json!("daily"),
     ),
     def("notify.digest.hour", "notifications", Kind::Int { min: 0, max: 23 }, Some(SETTINGS), || json!(9)),
+    // Approve or reject plain approvals from the email, through a single-use link (BPMS-145, FR-N03).
+    def("notify.email_actions.enabled", "notifications", Kind::Bool, Some(SETTINGS), || json!(true)),
     def("notify.quiet_hours.enabled", "notifications", Kind::Bool, Some(SETTINGS), || json!(true)),
     def("notify.quiet_hours.start", "notifications", Kind::Int { min: 0, max: 23 }, Some(SETTINGS), || {
         json!(20)

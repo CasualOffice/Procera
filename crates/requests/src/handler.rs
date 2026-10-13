@@ -192,7 +192,29 @@ impl Effects {
                         vars["step"] = json!(rt.node_name(node));
                         vars["due"] = json!(due_at.map(human_date));
                         vars["initiator"] = json!(name(tx, initiator).await?);
+                        // A plain approval (nothing to fill in) can be decided from the email (BPMS-145).
+                        let plain = *k == WorkKind::Approval
+                            && rt.task_forms.get(node.as_str()).is_none_or(|f| f.fields.is_empty())
+                            && outcomes.iter().any(|o| o == "approved" || o == "rejected")
+                            && procera_settings::Settings::new(self.clock.clone(), self.ids.clone())
+                                .effective(tx, "notify.email_actions.enabled")
+                                .await
+                                .map_err(|e| e.to_string())?
+                                .value
+                                .as_bool()
+                                .unwrap_or(true);
                         for m in &res.candidates {
+                            let mut vars = vars.clone();
+                            if plain {
+                                let token =
+                                    crate::email_actions::issue(tx, self.ids.new_id(), id, *m, at, due_at)
+                                        .await
+                                        .map_err(db)?;
+                                vars["approve_link"] =
+                                    json!(format!("{}/approve/{token}?outcome=approved", self.public_url));
+                                vars["reject_link"] =
+                                    json!(format!("{}/approve/{token}?outcome=rejected", self.public_url));
+                            }
                             self.tell(
                                 tx,
                                 *m,
