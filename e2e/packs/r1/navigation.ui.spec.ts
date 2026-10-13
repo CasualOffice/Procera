@@ -36,7 +36,7 @@ test.describe('navigation and onboarding @r1 @ui', () => {
     // Owner: everyday items plus Admin; the hub groups admin pages and explains each one.
     await signIn(page, ownerEmail, owner.recovery![0]!);
     const main = page.getByRole('navigation', { name: 'Main' });
-    await expect(sidebarLinks(page)).toHaveText(['Home', 'Library', 'Requests', 'My work', 'Announcements', 'My documents', 'Campaigns', 'Admin']);
+    await expect(sidebarLinks(page)).toHaveText(['Home', 'Library', 'Requests', 'My work', 'Announcements', 'My documents', 'Signing', 'Campaigns', 'Admin']);
     await main.getByRole('link', { name: 'Admin', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Admin' })).toBeVisible();
     for (const group of ['People', 'Data & security', 'Workspace']) await expect(page.getByRole('heading', { level: 2, name: group })).toBeVisible();

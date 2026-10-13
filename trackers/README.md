@@ -8,7 +8,7 @@
 ```text
 Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
 Partial   ███████████████░░░░░░░░░░░░░░░  50% counting in-progress epics as half done
-Tests     265 automated E2E scenarios · 446 Rust tests (incl. property tests)
+Tests     268 automated E2E scenarios · 446 Rust tests (incl. property tests)
 Status    done 61 · in review 0 · in progress 2 · blocked 0 · not started 62 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 Evidence  automated tests 50 · code merged 13  (separate from status; none user-validated yet)
@@ -33,7 +33,7 @@ Evidence  automated tests 50 · code merged 13  (separate from status; none user
 
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
-| BPMS-107 | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | **In progress** | Automated tests | E-sign v1 slice 1 (server, migration 0050, crate procera-signing): envelopes from a clean PDF (hash and page sizes frozen on send), member signers in order or parallel plus CC, fields (signature, initials, date signed, name, text, checkbox) placed as page fractions, send/void, the ceremony (view, consent, typed or drawn signature, own fields, hash and turn checks, strong mode = recent sign-in), decline, and completion in the same transaction: values stamped onto the PDF with lopdf, a certificate of completion appended, the signed copy stored through the files pipeline and linked (undeletable), its SHA-256 recorded; notifications in-app + email; evidence frozen by triggers. E2E-R4-SIGN-01..02, AUD-01, PDF unit tests. Next: web (send flow with click-to-place fields, My work › Signatures, ceremony page, sent tracking), then bulk send, reminders/expiry. |
+| BPMS-107 | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | **In progress** | Automated tests | E-sign v1 slice 1 (server, migration 0050, crate procera-signing): envelopes from a clean PDF (hash and page sizes frozen on send), member signers in order or parallel plus CC, fields (signature, initials, date signed, name, text, checkbox) placed as page fractions, send/void, the ceremony (view, consent, typed or drawn signature, own fields, hash and turn checks, strong mode = recent sign-in), decline, and completion in the same transaction: values stamped onto the PDF with lopdf, a certificate of completion appended, the signed copy stored through the files pipeline and linked (undeletable), its SHA-256 recorded; notifications in-app + email; evidence frozen by triggers. E2E-R4-SIGN-01..02, AUD-01, PDF unit tests. Web: Signing (sidebar) lists sent envelopes; Send for signature uploads a PDF and opens a draft editor (recipients in order, click-to-place fields with keyboard placement and arrow-key moves, autosave with If-Match, review and send); the envelope page tracks each signer and offers the original and signed copy, with cancel; My work › Signatures and the ceremony (/sign/{recipient}: consent, typed or drawn signature applied per field, Next field, Finish, Decline, step-up for strong, phone layout). E2E-R4-UI-02..04. Next (slice 3): bulk send to groups via campaigns, reminders and expiry jobs, signatures in process steps (human.sign). |
 | BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | **In progress** | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 
 ## Done
@@ -302,7 +302,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 323 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 326 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 16 / 16 / 46 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

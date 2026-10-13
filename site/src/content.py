@@ -142,7 +142,11 @@ FEATURES = [
          shot="work"),
     dict(id="esign", pillar="execute", title="Employee e-signing",
          summary="Send documents to people or groups for signature, with an accessible signing ceremony and a certificate of completion.",
-         bullets=["PDF, recipients and routing, bulk send, fields, consent step and certificate"],
+         bullets=["Send a PDF to people in your workspace to sign one after another or all at once, with copies for others",
+                  "Place signature, initials, date, name, text and checkbox fields by clicking the page (or from the keyboard)",
+                  "A guided signing page on any screen: consent, a typed or drawn signature, Next field, decline with a reason",
+                  "The signed copy has the values stamped in and a certificate of completion; its fingerprint is kept with the audit trail",
+                  "Bulk sending to groups, reminders and signing steps inside processes (planned)"],
          epics=["BPMS-107"]),
     # ---------------- Govern
     dict(id="directory", pillar="govern", title="Directory with CSV import and locations",

@@ -2009,6 +2009,108 @@
      "summary": "Read-only deployment facts: nothing here is configurable from the console yet."
     }
    ]
+  },
+  {
+   "key": "signing",
+   "name": "Signing",
+   "intro": "Employee e-signing: envelopes from a PDF, recipients, fields, send and void for senders (`document:send_for_signature`; everyone's with `document:view_all`, voiding anyone's with `document:void`), and the signing ceremony for recipients: open it, sign (consent, a typed or drawn signature, their fields) or decline. `strong` envelopes need a recent sign-in to sign. API tokens never reach `/signing/*`. The document is served from here.",
+   "routes": [
+    {
+     "method": "GET",
+     "path": "/api/v1/envelopes",
+     "handler": "list",
+     "summary": "Envelopes I sent (default), or every envelope with `document:view_all`; newest first, at most 500, without fields."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/envelopes",
+     "handler": "create",
+     "summary": "A draft envelope for an uploaded, clean PDF (`title`, optional `message`, `file_id`, `order` sequential|parallel, `mode` simple|strong, `expires_in_days` 1–365, default 30; `document:send_for_signature`). 201 with the envelope; 422 for a PDF that can't be signed.",
+     "audited": [
+      "envelope.created",
+      "file.linked"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/envelopes/{id}",
+     "handler": "one",
+     "summary": "An envelope with its recipients and fields, for its sender, its recipients (once sent) or `document:view_all`."
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/envelopes/{id}/recipients",
+     "handler": "recipients",
+     "summary": "Replaces a draft's recipients in signing order (`[{membership_id, role: signer|cc}]`, at most 50, active members). Honours `If-Match`.",
+     "audited": [
+      "envelope.recipients_set"
+     ]
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/envelopes/{id}/fields",
+     "handler": "fields",
+     "summary": "Replaces a draft's fields (`kind` signature|initials|date_signed| name|text|checkbox, `recipient_id` of a signer, `page`, `x`/`y`/`w`/`h` as fractions of the page from its top-left corner, `required`, `label`). Honours `If-Match`.",
+     "audited": [
+      "envelope.fields_set"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/envelopes/{id}/send",
+     "handler": "send",
+     "summary": "Sends a draft (every signer needs a signature field); the document and fields are frozen and the signers whose turn it is are notified. Honours `If-Match`.",
+     "audited": [
+      "envelope.sent"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/envelopes/{id}/void",
+     "handler": "void",
+     "summary": "Cancels a sent envelope with a `reason` (its sender, or anyone with `document:void`); signers who were asked are told.",
+     "audited": [
+      "envelope.voided"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/envelopes/{id}/document",
+     "handler": "document",
+     "summary": "The PDF (`application/pdf`): the original the signers review, or the signed copy with its certificate once everyone has signed (409 before)."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/me/signatures",
+     "handler": "inbox",
+     "summary": "The envelopes I'm on: `to_sign` when it's my turn, then the rest (waiting, signed, declined, completed copies)."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/signing/{recipient}",
+     "handler": "ceremony",
+     "summary": "The signing ceremony for my recipient row: the envelope, my fields, whether it's my turn, everyone's progress, and the consent text. The first open is recorded."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/signing/{recipient}/sign",
+     "handler": "sign",
+     "summary": "Signs on my turn with `document_hash` (the one shown), `consent: true`, `adopted {kind: typed|drawn, text, image?}` and `values` for my text and checkbox fields. `strong` envelopes need a recent sign-in (401 `step_up_required`). The last signature completes the envelope.",
+     "audited": [
+      "envelope.completed",
+      "envelope.declined",
+      "envelope.signed",
+      "file.linked",
+      "file.uploaded"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/signing/{recipient}/decline",
+     "handler": "decline",
+     "summary": "Declines with a `reason`; the envelope ends for everyone and the sender is told."
+    }
+   ]
   }
  ]
 }

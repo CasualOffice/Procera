@@ -165,7 +165,7 @@ export function EnvelopeEditor({ id }: { id: string }) {
                     <span className="row-meta">{r.role === 'signer' && env.order_mode === 'sequential' ? `${signers(env).findIndex((s) => s.id === r.id) + 1}.` : '·'}</span>
                     <div className="row-main">
                       <p className="row-title">{r.name}</p>
-                      <p className="row-sub">{r.role === 'signer' ? `Signs · ${fields.filter((f) => f.recipient_id === r.id).length} fields` : 'Gets a copy when everyone has signed'}</p>
+                      <p className="row-sub">{r.role === 'signer' ? (() => { const n = fields.filter((f) => f.recipient_id === r.id).length; return `Signs · ${n} ${n === 1 ? 'field' : 'fields'}`; })() : 'Gets a copy when everyone has signed'}</p>
                     </div>
                   </li>
                 ))}

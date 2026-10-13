@@ -23,7 +23,7 @@ export function workNav(can: (p: string) => boolean): NavItem[] {
     (can('directory:has_team') || (can('work:view_team') && !(can('request:view_all') && can('work:reassign')))) && { key: 'team', label: 'Team', to: '/team', icon: UsersRound, keywords: 'my team reports workload overdue away cover reassign manager' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
     any('policy:create', 'sop:create') && { key: 'my-documents', label: 'My documents', to: '/library?view=mine', icon: FileText, keywords: 'drafts owned in review mine' },
-    any('document:send_for_signature', 'document:view_all') && { key: 'documents', label: 'Documents', to: '/documents', icon: FileSignature, keywords: 'sign signature e-sign envelope pdf send for signature contract offer letter' },
+    any('document:send_for_signature', 'document:view_all') && { key: 'documents', label: 'Signing', to: '/documents', icon: FileSignature, keywords: 'sign signature e-sign envelope pdf send for signature contract offer letter' },
     can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },
     adminNav(can).length > 0 && { key: 'admin', label: 'Admin', to: '/admin', icon: SlidersHorizontal, keywords: 'administration settings people configure' },
   ]);

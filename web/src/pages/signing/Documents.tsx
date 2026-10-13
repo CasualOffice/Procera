@@ -26,7 +26,7 @@ export function Documents() {
     <>
       <div className="page-head">
         <div>
-          <h1>Documents</h1>
+          <h1>Signing</h1>
           <p>Send a PDF to people in your workspace to sign, in order or all at once, and keep the signed copy with its certificate.</p>
         </div>
         {send && <Button onPress={() => navigate('/documents/new')}><Plus aria-hidden="true" size="1rem" /> Send for signature</Button>}

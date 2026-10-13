@@ -149,12 +149,12 @@ export function App() {
   const ack = match('/acknowledgements/:id', path);
   if (ack) return <AppShell current="home" crumbs={['Home']}><AckLink id={ack.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
-  if (path === '/documents') return <AppShell current="documents" crumbs={['Documents']}><Documents /></AppShell>;
-  if (path === '/documents/new') return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Send for signature']}><DocumentNew /></AppShell>;
+  if (path === '/documents') return <AppShell current="documents" crumbs={['Signing']}><Documents /></AppShell>;
+  if (path === '/documents/new') return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Send for signature']}><DocumentNew /></AppShell>;
   const envEdit = match('/documents/:id/edit', path);
-  if (envEdit) return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Draft']}><EnvelopeEditor key={envEdit.id} id={envEdit.id!} /></AppShell>;
+  if (envEdit) return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Draft']}><EnvelopeEditor key={envEdit.id} id={envEdit.id!} /></AppShell>;
   const envelope = match('/documents/:id', path);
-  if (envelope) return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Document']}><EnvelopePage key={envelope.id} id={envelope.id!} /></AppShell>;
+  if (envelope) return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Document']}><EnvelopePage key={envelope.id} id={envelope.id!} /></AppShell>;
   if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/account/api-tokens') return <AppShell current="none" crumbs={['Account', 'API tokens']}><ApiTokens /></AppShell>;

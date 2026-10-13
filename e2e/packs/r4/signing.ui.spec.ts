@@ -29,8 +29,8 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     await signIn(page, ownerEmail, owner.recovery![0]!);
 
     // Documents: empty, with the way in.
-    await nav(page, 'Documents');
-    await expect(page.getByRole('heading', { level: 1, name: 'Documents' })).toBeVisible();
+    await nav(page, 'Signing');
+    await expect(page.getByRole('heading', { level: 1, name: 'Signing' })).toBeVisible();
     await expect(page.getByText('You haven’t sent anything for signature')).toBeVisible();
     await axe(page);
     await page.getByRole('button', { name: 'Send for signature' }).first().click();
@@ -68,7 +68,7 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     await expect(page.getByRole('radio', { name: /Ann Asker/ })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Signature' })).toBeChecked();
     // Nothing is lost: leave for Documents and come back to the draft through its link (no reload).
-    await nav(page, 'Documents');
+    await nav(page, 'Signing');
     await page.getByRole('table', { name: 'Documents sent for signature' }).getByRole('link', { name: 'Offer letter' }).click();
     await expect(page).toHaveURL(new RegExp(`/documents/${envelopeId}/edit$`));
     await expect(page.getByRole('list', { name: 'Recipients' }).getByRole('listitem')).toHaveCount(2);
@@ -81,14 +81,14 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     await annSig.press('ArrowRight');
     await expect(page.getByRole('heading', { name: 'Selected field' })).toBeVisible();
 
-    await page.getByRole('radio', { name: /Bo Boss/ }).click();
+    await page.getByRole('radiogroup', { name: 'Who fills it' }).getByText('Bo Boss').click(); // the input is visually hidden
     const page2 = page.locator('[data-place-page="2"]');
     await page2.scrollIntoViewIfNeeded();
     const box2 = await page2.boundingBox();
     await page2.click({ position: { x: box2!.width * 0.3, y: box2!.height * 0.6 } });
     await expect(page.getByRole('button', { name: 'Signature for Bo Boss, page 2' })).toBeVisible();
     // A date for Bo from the keyboard path ("Add to page"), then removed from the side list.
-    await page.getByRole('radio', { name: 'Date signed' }).click();
+    await page.getByRole('radiogroup', { name: 'Field type' }).getByText('Date signed', { exact: true }).click();
     const pageNo = page.getByLabel('Page', { exact: true });
     await pageNo.fill('2');
     await pageNo.press('Enter');
@@ -133,7 +133,7 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     expect(sent).toMatchObject({ state: 'sent', title: 'Offer letter', message: 'Welcome aboard!', order_mode: 'sequential' });
 
     // Back on Documents it is listed with its progress.
-    await nav(page, 'Documents');
+    await nav(page, 'Signing');
     const row = page.getByRole('table', { name: 'Documents sent for signature' }).getByRole('row').filter({ hasText: 'Offer letter' });
     await expect(row).toContainText('Waiting for signatures');
     await expect(row).toContainText('0 of 2 signed');

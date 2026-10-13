@@ -5,13 +5,13 @@
  "totals": {
   "Done": 61,
   "In review": 0,
-  "In progress": 1,
+  "In progress": 2,
   "Blocked": 0,
-  "Not started": 63,
+  "Not started": 62,
   "Deferred": 0,
   "all": 125
  },
- "e2e_scenarios": 263,
+ "e2e_scenarios": 268,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -273,9 +273,14 @@
   "E2E-R3-UI-03",
   "E2E-R3-UI-04",
   "E2E-R3-UI-05",
+  "E2E-R4-SIGN-01",
+  "E2E-R4-SIGN-02",
   "E2E-R4-TOK-01",
   "E2E-R4-TOK-02",
-  "E2E-R4-UI-01"
+  "E2E-R4-UI-01",
+  "E2E-R4-UI-02",
+  "E2E-R4-UI-03",
+  "E2E-R4-UI-04"
  ],
  "releases": [
   {
@@ -397,8 +402,8 @@
    "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
    "total": 18,
    "done": 2,
-   "in_progress": 0,
-   "not_started": 16,
+   "in_progress": 1,
+   "not_started": 15,
    "epics": [
     "BPMS-066",
     "BPMS-102",
@@ -1091,7 +1096,7 @@
    "title": "E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate",
    "priority": "P0",
    "release": "R3",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-108",
