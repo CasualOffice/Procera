@@ -93,6 +93,66 @@ const TEMPLATES: &[(&str, &str)] = &[
     ("member_joined.title", "{{ name }} joined {{ workspace }}"),
     ("member_joined.body", "{{ name }} accepted your invitation."),
     // Acknowledgement campaigns (BPMS-046). Vars: title, version, due, link (+ name for escalations).
+    // E-signing (BPMS-107). Vars: title, sender, name, reason, due, link.
+    ("signature_requested.title", "Please sign {{ title }}"),
+    (
+        "signature_requested.body",
+        "{{ sender }} asked you to sign this document{% if due %} by {{ due }}{% endif %}.",
+    ),
+    ("signature_requested.subject", "{{ sender }} asked you to sign {{ title }}"),
+    (
+        "signature_requested.text",
+        "{{ sender }} asked you to sign {{ title }}{% if due %} by {{ due }}{% endif %}.{% if message %}\n\n{{ message }}{% endif %}\n\nReview and sign:\n{{ link }}\n",
+    ),
+    (
+        "signature_requested.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ sender }}</strong> asked you to sign <strong>{{ title }}</strong>{% if due %} by <strong>{{ due }}</strong>{% endif %}.{% if message %}</p><p style="margin:0 0 16px">{{ message }}{% endif %}</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Review and sign</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because someone sent you a document to sign in Procera.{% endblock %}"#,
+    ),
+    ("signature_completed.title", "{{ title }} is signed"),
+    ("signature_completed.body", "Everyone has signed. The signed copy has a certificate of completion."),
+    ("signature_completed.subject", "Signed by everyone: {{ title }}"),
+    (
+        "signature_completed.text",
+        "Everyone has signed {{ title }}. Download the signed copy with its certificate of completion:\n{{ link }}\n",
+    ),
+    (
+        "signature_completed.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px">Everyone has signed <strong>{{ title }}</strong>. The signed copy includes a certificate of completion.</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Download the signed copy</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you sent or signed this document.{% endblock %}"#,
+    ),
+    ("signature_declined.title", "{{ name }} declined to sign {{ title }}"),
+    ("signature_declined.body", "Reason: {{ reason }}"),
+    ("signature_declined.subject", "{{ name }} declined to sign {{ title }}"),
+    (
+        "signature_declined.text",
+        "{{ name }} declined to sign {{ title }}.\n\nReason: {{ reason }}\n\nOpen it:\n{{ link }}\n",
+    ),
+    (
+        "signature_declined.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ name }}</strong> declined to sign <strong>{{ title }}</strong>.</p><p style="margin:0 0 16px">Reason: {{ reason }}</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open the document</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you sent this document for signature.{% endblock %}"#,
+    ),
+    ("signature_voided.title", "{{ title }} no longer needs your signature"),
+    ("signature_voided.body", "{{ sender }} cancelled it: {{ reason }}"),
+    ("signature_voided.subject", "Cancelled: {{ title }}"),
+    (
+        "signature_voided.text",
+        "{{ sender }} cancelled {{ title }}, so it no longer needs your signature.\n\nReason: {{ reason }}\n",
+    ),
+    (
+        "signature_voided.html",
+        r#"{% extends "layout.html" %}{% block content %}<p style="margin:0 0 16px"><strong>{{ sender }}</strong> cancelled <strong>{{ title }}</strong>, so it no longer needs your signature.</p><p style="margin:0 0 16px">Reason: {{ reason }}</p>
+<p style="margin:0 0 24px"><a href="{{ link }}" style="display:inline-block;background:#1c1c1a;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:6px;font-weight:600">Open Procera</a></p>
+<p style="margin:0;font-size:14px;color:#5f5f5a">If the button doesn't work, paste this address into your browser:<br><span style="word-break:break-all">{{ link }}</span></p>{% endblock %}
+{% block footer %}You receive this because you were asked to sign this document.{% endblock %}"#,
+    ),
     ("campaign_assigned.title", "Please acknowledge {{ title }}"),
     ("campaign_assigned.body", "Read version {{ version }} and acknowledge it by {{ due }}."),
     ("campaign_assigned.subject", "Please acknowledge {{ title }} by {{ due }}"),

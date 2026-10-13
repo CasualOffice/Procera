@@ -696,13 +696,13 @@ impl Files {
         .await
     }
 
-    /// Whether the file is held by an object that can no longer change (a version past draft, or a
-    /// request: its files are part of the execution record).
+    /// Whether the file is held by an object that can no longer change (a version past draft, a
+    /// request or a signing envelope: its files are part of the record).
     async fn held(tx: &mut WsTx<'_>, id: Uuid) -> Result<bool, FileError> {
         Ok(sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM file_links l JOIN artifact_versions v ON v.workspace_id = l.workspace_id AND v.id = l.object_id
                             WHERE l.file_id = $1 AND l.object_type = 'artifact_version' AND v.lifecycle <> 'draft')
-                 OR EXISTS (SELECT 1 FROM file_links l WHERE l.file_id = $1 AND l.object_type = 'request')",
+                 OR EXISTS (SELECT 1 FROM file_links l WHERE l.file_id = $1 AND l.object_type IN ('request', 'envelope'))",
         )
         .bind(id)
         .fetch_one(tx.conn())
