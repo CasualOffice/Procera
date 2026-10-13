@@ -55,8 +55,8 @@ BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Back
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started,—
 BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,Done,Automated tests
 BPMS-089,QA,Conformance suite + model-based tests + deterministic simulation harness,P0,R2,SDET/Runtime,15 §4–6,Nightly chaos green,L,BPMS-082,Not started,—
-BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,In progress,Automated tests
-BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,In progress,Automated tests
+BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,Done,Automated tests
+BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,Done,Automated tests
 BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,Done,Automated tests
 BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",P0,R2,FE,"FR-R03, FR-AK02",Decision ≤3 interactions,L,"BPMS-085,046",Done,Automated tests
 BPMS-106,TPL,Template gallery + install wizard + Wave-1 templates (13),P0,R2,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,"BPMS-100,101",Done,Automated tests
@@ -82,6 +82,8 @@ BPMS-213,RT,"Instance admin ops: skip a step, cancel/terminate an instance, migr
 BPMS-215,TPL,"Template install wizard, role mapping at install, remaining Wave-1 process templates",P1,R3,Fullstack/SMEs,"FR-G08, TPL-001..",All W1 test-run green,XL,BPMS-106,Not started,—
 BPMS-217,ADMIN,"Process health, email bounces and timer lateness in Operations",P1,R3,Fullstack,"FR-A04/A05, docs/05 §3.18",Per-process cycle time and SLA %; bounce list,M,BPMS-108,Not started,—
 BPMS-218,FILE,"Separate preview origin for file previews (own domain/host, cookie-less)",P1,R3,Platform/Sec,"FR-F04, U-08",Preview host shares no cookies with the app,S,BPMS-209,Not started,—
+BPMS-219,DES,"Designer next: editable parallel and notify steps, connect on the canvas, owner-chosen approval outcomes (OQ-16), review in the designer",P1,R3,FE,FR-E01/E11,Every built-in editable in the studio,L,BPMS-100,Not started,—
+BPMS-220,FORM,"Form builder next: form artifacts, calculated fields, repeating groups, prefill, lookups, sections, preview as a role, PDF of submission",P1,R3,Fullstack,"FR-E03, FX-F01–F04",Server = client validation,L,BPMS-101,Not started,—
 BPMS-140,IAM,"OIDC SSO, SAML-broker, SSO enforcement, JIT",P1,R4,Platform,"FR-P02, INT-001/002",Deprovision test,L,,Not started,—
 BPMS-141,IAM,SCIM 2.0 server,P1,R4,Platform,INT-003,<5 min deprovision,M,BPMS-140,Not started,—
 BPMS-142,IAM,Scoped/delegated admins; IP allowlists,P1,R4,Platform,"CFG-018, FR-W06",No escalation,M,BPMS-024,Not started,—

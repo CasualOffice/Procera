@@ -259,17 +259,12 @@ test.describe('guided studio @r3 @ui', () => {
     await expect(canvas).toBeVisible();
     await expect(canvas.getByRole('group', { name: /^Prepare at the same time/ })).toBeVisible();
     const tasks = ['Set up accounts and equipment', 'Prepare workspace and access badge', 'Plan the first week'];
-    const boxes: { x: number; y: number }[] = [];
-    for (const name of tasks) {
-      const node = canvas.getByRole('group', { name: `${name} (task)` });
-      await expect(node).toBeVisible();
-      boxes.push((await node.boundingBox())!);
-    }
-    // Side by side: one row, left to right.
-    expect(Math.abs(boxes[0]!.y - boxes[1]!.y)).toBeLessThan(2);
-    expect(Math.abs(boxes[1]!.y - boxes[2]!.y)).toBeLessThan(2);
-    expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
-    expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+    for (const name of tasks) await expect(canvas.getByRole('group', { name: `${name} (task)` })).toBeVisible();
+    // Side by side: one row, left to right (measured together, once the fit-to-view zoom settles).
+    await expect.poll(async () => {
+      const b = await Promise.all(tasks.map(async (name) => (await canvas.getByRole('group', { name: `${name} (task)` }).boundingBox())!));
+      return Math.abs(b[0]!.y - b[1]!.y) < 2 && Math.abs(b[1]!.y - b[2]!.y) < 2 && b[0]!.x < b[1]!.x && b[1]!.x < b[2]!.x;
+    }).toBe(true);
     await expect(canvas.getByRole('group', { name: /^Everything is ready/ })).toBeVisible();
     await expect(canvas.getByRole('button', { name: /^Actions for/ })).toHaveCount(0); // read-only: no step menus
     await axe(page);
