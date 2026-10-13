@@ -49,7 +49,7 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     await expect(page.getByRole('radio', { name: /One after another/ })).toBeChecked();
     await page.getByRole('button', { name: 'Continue to recipients' }).click();
 
-    // The draft editor (a saved draft: reloading keeps it).
+    // The draft editor (a saved draft).
     await expect(page).toHaveURL(/\/documents\/[0-9a-f-]+\/edit$/);
     const envelopeId = page.url().match(/\/documents\/([0-9a-f-]+)\/edit$/)![1]!;
     await expect(page.getByRole('heading', { level: 1, name: 'Offer letter' })).toBeVisible();
@@ -67,7 +67,10 @@ test.describe('e-signing, sender @r4 @ui @signing', () => {
     // 2 Fields: the first signer is chosen; click the page to place a signature, nudge it with the keyboard.
     await expect(page.getByRole('radio', { name: /Ann Asker/ })).toBeChecked();
     await expect(page.getByRole('radio', { name: 'Signature' })).toBeChecked();
-    await page.reload(); // nothing is lost
+    // Nothing is lost: leave for Documents and come back to the draft through its link (no reload).
+    await nav(page, 'Documents');
+    await page.getByRole('table', { name: 'Documents sent for signature' }).getByRole('link', { name: 'Offer letter' }).click();
+    await expect(page).toHaveURL(new RegExp(`/documents/${envelopeId}/edit$`));
     await expect(page.getByRole('list', { name: 'Recipients' }).getByRole('listitem')).toHaveCount(2);
     const page1 = page.locator('[data-place-page="1"]');
     await expect(page1).toBeVisible();

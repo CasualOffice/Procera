@@ -133,7 +133,7 @@ export function FieldPlacer({ env, fields, onChange, pdf, pdfError }: {
                 })}
               </>
             )} />
-          ) : <p className="muted pdf-pages-loading">Loading the document…</p>}
+          ) : <p className="muted placer-loading">Loading the document…</p>}
         </div>
 
         <aside className="placer-side">
