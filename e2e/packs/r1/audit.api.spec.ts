@@ -224,6 +224,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const pd = await (await own.get(`/api/v1/processes/${proc.id}`, { headers: oh })).json();
   await step('PUT', '/api/v1/processes/{id}/draft', () => own.put(`/api/v1/processes/${proc.id}/draft`, { headers: { ...oh, 'if-match': `"${pd.draft.revision}"` }, data: { content: pd.draft.content } }));
   await step('POST', '/api/v1/processes/validate', () => own.post('/api/v1/processes/validate', { headers: oh, data: { content: pd.draft.content } }));
+  await step('POST', '/api/v1/processes/test-run', () => own.post('/api/v1/processes/test-run', { headers: oh, data: { content: pd.draft.content, input: { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' } } }));
   await step('POST', '/api/v1/processes/{id}/publish', () => own.post(`/api/v1/processes/${proc.id}/publish`, { headers: oh }));
   const [pw1, pw2, pw3] = ['Audit drill one 2026!', 'Audit drill two 2026!', 'Audit drill three 2026!'];
   await step('POST', '/api/v1/me/password', () => rita.post('/api/v1/me/password', { headers: bearer(ritaPw.access_token), data: { current_password: PW, new_password: pw1 } }));

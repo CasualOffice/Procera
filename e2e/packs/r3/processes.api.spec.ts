@@ -111,4 +111,23 @@ test.describe('processes @r3 @processes', () => {
     expect(v2.draft.version_no).toBe(2);
     expect(v2.draft.content.ir.process.version).toBe(2);
   });
+
+  test('E2E-R3-04 a test run shows the path for these answers and choices, and stores nothing', async ({ request }) => {
+    const { owner } = await workspaceWithOwner(request);
+    const h = owner.headers;
+    const { id } = await (await owner.c.post('/api/v1/processes', { headers: h, data: { key: 'ops.leave-test', title: 'Leave test', template: 'hr.leave-request' } })).json();
+    const content = (await (await owner.c.get(`/api/v1/processes/${id}`, { headers: h })).json()).draft.content;
+    const input = { leave_type: 'annual', start_date: '2026-12-21', end_date: '2026-12-23' };
+    const run = async (choices: Record<string, string[]>) => (await owner.c.post('/api/v1/processes/test-run', { headers: h, data: { content, input, choices } })).json();
+    const plain = await run({});
+    expect(plain).toMatchObject({ result: 'approved', ended_at: 'Approved' });
+    expect(plain.steps).toEqual([expect.objectContaining({ node: 'manager_approval', who: "the requester's manager", outcome: 'approved' })]);
+    const back = await run({ manager_approval: ['changes_requested', 'rejected'] });
+    expect(back.steps.map((s: { outcome: string }) => s.outcome)).toEqual(['changes_requested', 'submitted', 'rejected']);
+    expect(back.result).toBe('rejected');
+    const bad = await owner.c.post('/api/v1/processes/test-run', { headers: h, data: { content, input, choices: { manager_approval: ['maybe'] } } });
+    expect(bad.status()).toBe(422);
+    // Nothing was stored: no requests exist.
+    expect((await (await owner.c.get('/api/v1/requests?scope=all', { headers: h })).json()).items).toEqual([]);
+  });
 });

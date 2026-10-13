@@ -30,6 +30,7 @@ pub fn router() -> Router<AppState> {
         .route("/processes", get(list).post(create))
         .route("/process-templates", get(templates))
         .route("/processes/validate", post(validate))
+        .route("/processes/test-run", post(test_run))
         .route("/processes/{id}", get(one))
         .route("/processes/{id}/draft", put(save_draft))
         .route("/processes/{id}/publish", post(publish))
@@ -358,4 +359,33 @@ async fn publish(
     let v = lib.publish(&mut tx, &who, d.0, None, reason, change, &policy).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(json!({ "state": v.lifecycle, "version_no": v.version_no })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TestRunReq {
+    content: Value,
+    #[serde(default)]
+    input: std::collections::BTreeMap<String, Value>,
+    /// Step id → the outcomes to take there, in order.
+    #[serde(default)]
+    choices: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+/// `POST /processes/test-run`: what a draft does for these answers and choices, worked out in
+/// memory (nothing is stored, nobody is told).
+async fn test_run(
+    State(s): State<AppState>,
+    me: WsMember,
+    Json(r): Json<TestRunReq>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    require(&s, &me, &mut tx, "view").await?;
+    tx.rollback().await.map_err(internal)?;
+    let initiator = json!({ "id": me.actor.membership });
+    match procera_processes::simulate(&r.content, r.input, initiator, &r.choices, s.clock.now()) {
+        Ok(sim) => Ok(Json(sim).into_response()),
+        Err(e) => Err(ApiError::from(LibraryError::Invalid(e))),
+    }
 }

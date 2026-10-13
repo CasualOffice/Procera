@@ -7,6 +7,8 @@
 //! checksum, recompiling once per checksum and refusing a program whose checksum no longer matches
 //! its bundle; [`Chain`] puts it behind the built-in programs.
 
+pub mod simulate;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex};
 
@@ -20,6 +22,7 @@ use procera_library::{PublishHook, Publishing};
 use procera_runtime::Program;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
+pub use simulate::{SimStep, Simulation, simulate};
 use uuid::Uuid;
 
 /// A process version's content is `{"ir": …, "studio": …}` (BPMS-100) or, for older drafts, a bare
