@@ -1,4 +1,4 @@
-import { Ban, Check, Clock, Download, Eye, Pencil, X } from 'lucide-react';
+import { Ban, BellRing, Check, Clock, Download, Eye, Pencil, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Form, Label, Text, TextArea, TextField as AriaTextField } from 'react-aria-components';
 import { api, download } from '../../lib/api';
@@ -50,6 +50,14 @@ export function EnvelopePage({ id }: { id: string }) {
   const cc = env.recipients.filter((r) => r.role === 'cc');
   const ended = env.state === 'declined' || env.state === 'voided';
   const fail = (e: unknown, fallback: string) => setNotice({ tone: 'danger', title: problemText(e, fallback) });
+  const remindNow = async () => {
+    try {
+      const r = await api<{ reminded: number }>(`/api/v1/envelopes/${id}/remind`, { method: 'POST' });
+      setNotice(r.reminded
+        ? { tone: 'success', title: r.reminded === 1 ? 'Reminder sent.' : `${r.reminded} reminders sent.` }
+        : { tone: 'success', title: 'They were reminded recently. You can remind them again an hour after the last reminder.' });
+    } catch (e) { fail(e, 'Couldn’t send the reminder.'); }
+  };
 
   return (
     <>
@@ -68,6 +76,7 @@ export function EnvelopePage({ id }: { id: string }) {
           {env.state === 'draft' && mine && <Button onPress={() => navigate(`/documents/${id}/edit`)}><Pencil aria-hidden="true" size="0.9375rem" /> Continue editing</Button>}
           {env.state === 'completed' && <Button onPress={() => void download(`/api/v1/envelopes/${id}/document?signed=true`, `${env.title} (signed).pdf`).catch((e) => fail(e, 'The download failed.'))}><Download aria-hidden="true" size="0.9375rem" /> Download signed copy</Button>}
           <Button variant="secondary" onPress={() => void download(`/api/v1/envelopes/${id}/document`, `${env.title}.pdf`).catch((e) => fail(e, 'The download failed.'))}><Download aria-hidden="true" size="0.9375rem" /> Download original</Button>
+          {env.state === 'sent' && mine && <Button variant="secondary" onPress={() => void remindNow()}><BellRing aria-hidden="true" size="0.9375rem" /> Remind now</Button>}
           {env.state === 'sent' && (mine || can('document:void')) && <Button variant="secondary" onPress={() => setVoiding(true)}><Ban aria-hidden="true" size="0.9375rem" /> Cancel…</Button>}
         </div>
       </div>

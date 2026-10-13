@@ -1,10 +1,10 @@
-import { FileSignature, Plus } from 'lucide-react';
+import { FileSignature, Plus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { useItems } from '../../lib/data';
 import { shortDate } from '../../lib/format';
 import { Link, navigate } from '../../lib/router';
 import { useSession } from '../../lib/session';
-import { type Envelope, STATE_COLOR, STATE_LABEL } from '../../lib/signing';
+import { type Batch, type Envelope, STATE_COLOR, STATE_LABEL } from '../../lib/signing';
 import { Button } from '../../ui/components/Button';
 import { Empty, LoadError, Skeleton } from '../../ui/States';
 import { Tag } from '../../ui/Tag';
@@ -21,6 +21,12 @@ export function Documents() {
   const send = can('document:send_for_signature');
   const [scope, setScope] = useState<'sent' | 'all'>(send ? 'sent' : 'all');
   const [items, reload, error] = useItems<Envelope>(`/api/v1/envelopes${scope === 'all' ? '?scope=all' : ''}`);
+  const [batches] = useItems<Batch>(`/api/v1/envelope-batches${scope === 'all' ? '?scope=all' : ''}`);
+  // Group sends and single envelopes in one list, newest first.
+  const rows: ({ kind: 'env'; at: string; e: Envelope } | { kind: 'batch'; at: string; b: Batch })[] = [
+    ...(items ?? []).map((e) => ({ kind: 'env' as const, at: e.sent_at ?? e.created_at, e })),
+    ...(batches ?? []).map((b) => ({ kind: 'batch' as const, at: b.created_at, b })),
+  ].sort((x, y) => y.at.localeCompare(x.at));
 
   return (
     <>
@@ -41,7 +47,7 @@ export function Documents() {
       )}
       {error ? <LoadError error={error} onRetry={reload} what="documents" />
         : items === null ? <Skeleton variant="table" rows={4} label="Loading documents" />
-          : items.length === 0 ? (
+          : rows.length === 0 ? (
             <Empty icon={FileSignature} title={scope === 'all' ? 'Nothing has been sent for signature yet' : 'You haven’t sent anything for signature'}
               action={send ? <Button onPress={() => navigate('/documents/new')}><Plus aria-hidden="true" size="1rem" /> Send for signature</Button> : undefined}>
               Upload a PDF, choose who signs and in what order, and place where each person signs. Everyone is told when it’s their turn, and you get the signed copy.
@@ -51,7 +57,22 @@ export function Documents() {
               <table className="table" aria-label="Documents sent for signature">
                 <thead><tr><th>Document</th><th>Status</th><th>Signatures</th><th className="col-optional">Sent</th></tr></thead>
                 <tbody>
-                  {items.map((e) => (
+                  {rows.map((row) => row.kind === 'batch' ? (
+                    <tr key={row.b.id}>
+                      <td>
+                        <span className="cell-entity">
+                          <span className="doc-icon tag-gray"><Users aria-hidden="true" size="0.875rem" /></span>
+                          <span className="cell-stack">
+                            <Link to={`/documents/batches/${row.b.id}`}>{row.b.title}</Link>
+                            <span className="cell-sub">{scope === 'all' ? `From ${row.b.sender_name} · ` : ''}Sent to {row.b.counts.total} {row.b.counts.total === 1 ? 'person' : 'people'}</span>
+                          </span>
+                        </span>
+                      </td>
+                      <td>{row.b.counts.waiting > 0 ? <Tag color="blue" dot>Waiting for signatures</Tag> : row.b.counts.signed === row.b.counts.total ? <Tag color="green" dot>Completed</Tag> : <Tag color="gray" dot>Closed</Tag>}</td>
+                      <td className="cell-muted">{row.b.counts.signed} of {row.b.counts.total} signed</td>
+                      <td className="col-optional cell-muted">{shortDate(row.b.created_at)}</td>
+                    </tr>
+                  ) : ((e) => (
                     <tr key={e.id}>
                       <td>
                         <span className="cell-entity">
@@ -66,7 +87,7 @@ export function Documents() {
                       <td className="cell-muted">{e.state === 'draft' ? 'Not sent' : progressText(e)}</td>
                       <td className="col-optional cell-muted">{e.sent_at ? shortDate(e.sent_at) : '—'}</td>
                     </tr>
-                  ))}
+                  ))(row.e))}
                 </tbody>
               </table>
             </div>

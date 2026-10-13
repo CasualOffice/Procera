@@ -10,6 +10,7 @@ export interface Envelope {
   order_mode: 'sequential' | 'parallel'; mode: 'simple' | 'strong'; state: EnvelopeState; created_by: string; sender_name: string;
   created_at: string; sent_at: string | null; expires_at: string | null; completed_at: string | null; completed_file_id: string | null;
   completed_hash: string | null; ended_reason: string | null; revision: number; recipients: Recipient[]; fields: SignField[];
+  /** A group send's draft: its one signer stands for each person. */ bulk: boolean; batch_id: string | null; reminder_days: number | null;
 }
 export interface InboxItem {
   recipient_id: string; envelope_id: string; title: string; sender_name: string; role: 'signer' | 'cc'; state: Recipient['state'];
@@ -45,4 +46,14 @@ export const RECIPIENT_HUES = ['#2563EB', '#C2410C', '#047857', '#7C3AED', '#B45
 /** The document as bytes (the original, or the signed copy once completed). */
 export async function envelopePdf(id: string, signed = false): Promise<ArrayBuffer> {
   return bytes(`/api/v1/envelopes/${id}/document${signed ? '?signed=true' : ''}`);
+}
+
+export interface BatchRow {
+  envelope_id: string; recipient_id: string; membership_id: string; name: string; email: string; department: string | null;
+  state: EnvelopeState; viewed_at: string | null; signed_at: string | null; decline_reason: string | null; reminders_sent: number;
+}
+export interface Batch {
+  id: string; title: string; template_id: string; total: number; created_by: string; sender_name: string; created_at: string; expires_at: string | null;
+  counts: { total: number; signed: number; waiting: number; viewed: number; declined: number; cancelled: number; expired: number };
+  rows: BatchRow[];
 }

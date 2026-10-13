@@ -146,7 +146,9 @@ FEATURES = [
                   "Place signature, initials, date, name, text and checkbox fields by clicking the page (or from the keyboard)",
                   "A guided signing page on any screen: consent, a typed or drawn signature, Next field, decline with a reason",
                   "The signed copy has the values stamped in and a certificate of completion; its fingerprint is kept with the audit trail",
-                  "Bulk sending to groups, reminders and signing steps inside processes (planned)"],
+                  "Send one document to a whole group: each person signs their own copy, and one page shows who has signed",
+                  "Automatic reminders, remind now, and an expiry date after which nobody can sign",
+                  "Signing steps inside processes and external signers (planned)"],
          epics=["BPMS-107"]),
     # ---------------- Govern
     dict(id="directory", pillar="govern", title="Directory with CSV import and locations",

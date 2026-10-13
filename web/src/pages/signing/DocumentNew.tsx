@@ -15,6 +15,10 @@ import { problemText } from './shared';
 import './sender.css';
 
 const EXPIRY = [7, 14, 30, 60, 90].map((d) => ({ id: String(d), label: `${d} days` }));
+const WHO = [
+  { id: 'people', label: 'Specific people', description: 'Choose who signs, in order or all at once, on one copy.' },
+  { id: 'group', label: 'Everyone in a group', description: 'Each person signs their own copy, for example a policy everyone must sign.' },
+];
 const ORDER = [
   { id: 'sequential', label: 'One after another', description: 'Each person is asked when the one before them has signed.' },
   { id: 'parallel', label: 'All at once', description: 'Everyone is asked straight away and can sign in any order.' },
@@ -38,6 +42,7 @@ export function DocumentNew() {
   const [titleTouched, setTitleTouched] = useState(false);
   const [message, setMessage] = useState('');
   const [order, setOrder] = useState('sequential');
+  const [who, setWho] = useState('people');
   const [strong, setStrong] = useState(false);
   const [expiry, setExpiry] = useState('30');
   const [busy, setBusy] = useState(false);
@@ -69,7 +74,7 @@ export function DocumentNew() {
     try {
       const e = await api<Envelope>('/api/v1/envelopes', {
         method: 'POST', headers: { 'Idempotency-Key': crypto.randomUUID() },
-        body: { title: title.trim(), message: message.trim() || null, file_id: file.info.id, order, mode: strong ? 'strong' : 'simple', expires_in_days: Number(expiry) },
+        body: { title: title.trim(), message: message.trim() || null, file_id: file.info.id, order, mode: strong ? 'strong' : 'simple', expires_in_days: Number(expiry), bulk: who === 'group' },
       });
       navigate(`/documents/${e.id}/edit`, { replace: true });
     } catch (e) { setError(problemText(e, 'Couldn’t save the draft. Try again.')); setBusy(false); }
@@ -122,7 +127,8 @@ export function DocumentNew() {
         <section className="sign-step" aria-labelledby="step-how">
           <h2 id="step-how" className="sign-step-title"><span className="sign-step-no" aria-hidden="true">2</span> How it’s signed</h2>
           <div className="stack">
-            <RadioCards label="Signing order" options={ORDER} value={order} onChange={setOrder} />
+            <RadioCards label="Who signs" options={WHO} value={who} onChange={setWho} />
+            {who === 'people' && <RadioCards label="Signing order" options={ORDER} value={order} onChange={setOrder} />}
             <Checkbox isSelected={strong} onChange={setStrong}>Ask signers to confirm it’s them</Checkbox>
             <p className="muted sign-hint">Each signer signs in again just before signing (password and two-step, or a passkey). Use it for contracts and regulated records.</p>
             <Select label="Expires after" options={EXPIRY} selectedKey={expiry} onSelectionChange={(k) => k && setExpiry(String(k))} description="Anyone who hasn’t signed by then can’t any more." />

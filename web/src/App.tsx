@@ -60,6 +60,7 @@ import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
 import { Signatures } from './pages/signing/Signatures';
+import { BatchPage } from './pages/signing/BatchPage';
 import { Ceremony } from './pages/signing/Ceremony';
 import { DocumentNew } from './pages/signing/DocumentNew';
 import { Documents } from './pages/signing/Documents';
@@ -150,6 +151,8 @@ export function App() {
   if (ack) return <AppShell current="home" crumbs={['Home']}><AckLink id={ack.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/documents') return <AppShell current="documents" crumbs={['Signing']}><Documents /></AppShell>;
+  const batchPage = match('/documents/batches/:id', path);
+  if (batchPage) return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Group send']}><BatchPage key={batchPage.id} id={batchPage.id!} /></AppShell>;
   if (path === '/documents/new') return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Send for signature']}><DocumentNew /></AppShell>;
   const envEdit = match('/documents/:id/edit', path);
   if (envEdit) return <AppShell current="documents" crumbs={[['Signing', '/documents'], 'Draft']}><EnvelopeEditor key={envEdit.id} id={envEdit.id!} /></AppShell>;
