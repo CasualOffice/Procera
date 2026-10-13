@@ -267,8 +267,9 @@ export function Designer({ id }: { id: string }) {
   const roleName = (k: string) => (roles ?? []).find((r) => r.key === k)?.name;
   const step = model.steps.find((s) => s.id === selected) ?? null;
   const tag = stateTag(detail);
-  const inReview = !!detail.draft && detail.draft.lifecycle !== 'draft';
-  const canPublish = detail.can.publish && !inReview && !model.readOnly && (!!detail.draft || save !== 'saved');
+  const inReview = !!detail.draft && detail.draft.lifecycle === 'in_review';
+  const approved = !!detail.draft && detail.draft.lifecycle === 'approved';
+  const canPublish = detail.can.publish && !inReview && !model.readOnly && (!detail.draft || ['draft', 'approved'].includes(detail.draft.lifecycle)) && (!!detail.draft || save !== 'saved');
   const errorCount = problems?.list.filter((p) => p.severity === 'error').length ?? 0;
   const readOnly = !editable;
 
@@ -309,6 +310,7 @@ export function Designer({ id }: { id: string }) {
       {notice && <div className="studio-notice"><Notice tone={notice.tone} title={notice.title} /><button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => setNotice(null)}><X aria-hidden="true" size="0.875rem" /></button></div>}
       {model.readOnly && <Notice tone="warning" title="The studio can’t edit this process yet">{model.readOnly} It keeps working as it is.</Notice>}
       {inReview && <Notice tone="info" title="This version is in review">You can edit again once it’s approved or sent back.</Notice>}
+      {approved && <Notice tone="info" title="This version is approved">Publish it to make it live. It can’t be edited now.</Notice>}
       {!detail.can.edit && <Notice tone="info" title="You can look, but not edit">Ask a workspace admin for process design rights if you need them.</Notice>}
       {!wide && <div className="studio-mobile-note"><Monitor aria-hidden="true" size="1.125rem" /><p>Editing needs a larger screen. Here is a summary of the steps.</p></div>}
 
