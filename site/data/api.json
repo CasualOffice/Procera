@@ -116,6 +116,91 @@
    ]
   },
   {
+   "key": "webhooks",
+   "name": "Outgoing webhooks",
+   "intro": "Endpoints that receive signed events, their delivery log, replay, test events and secret rolling, and the event catalogue.",
+   "routes": [
+    {
+     "method": "GET",
+     "path": "/api/v1/webhook-events",
+     "handler": "catalogue",
+     "summary": "The event types a webhook can receive, with what each means."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/webhooks",
+     "handler": "list",
+     "summary": "The workspace's endpoints with their last delivery (`connector:view`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks",
+     "handler": "create",
+     "summary": "A new endpoint (`url` https, `events` types or `[\"*\"]`, `description`; `connector:configure`; at most 20). 201 with the endpoint and its `secret` (shown only here). 422 for a URL inside a private network or a port other than 443/80/8443/8080.",
+     "audited": [
+      "webhook.created"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/webhooks/{id}",
+     "handler": "one",
+     "summary": "One endpoint (`connector:view`), with an `ETag` of its revision."
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/webhooks/{id}",
+     "handler": "update",
+     "summary": "Changes the URL, events, description or on/off (`connector:configure`; honours `If-Match`). Turning an endpoint back on clears why it was turned off.",
+     "audited": [
+      "webhook.updated"
+     ]
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/webhooks/{id}",
+     "handler": "remove",
+     "summary": "Removes an endpoint and its delivery log (`connector:configure`). 204.",
+     "audited": [
+      "webhook.deleted"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks/{id}/rotate-secret",
+     "handler": "rotate",
+     "summary": "A new signing secret (`connector:manage_secrets`); the previous one also signs for 24 hours. Returns `{secret, previous_valid_until}`.",
+     "audited": [
+      "webhook.secret_rotated"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks/{id}/test",
+     "handler": "test",
+     "summary": "Queues a `webhook.test` event for the endpoint (`connector:configure`); the next delivery pass sends it. 202 with the delivery.",
+     "audited": [
+      "webhook.tested"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/webhooks/{id}/deliveries",
+     "handler": "deliveries",
+     "summary": "The endpoint's deliveries, newest first (at most 200), each with its state, attempts, last status, error and duration, a response excerpt and the event body (`connector:view`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/webhooks/deliveries/{id}/replay",
+     "handler": "replay",
+     "summary": "Sends a delivery again from the start of its retry schedule, with the same event id (`connector:configure`).",
+     "audited": [
+      "webhook.replayed"
+     ]
+    }
+   ]
+  },
+  {
    "key": "tokens",
    "name": "API tokens",
    "intro": "Personal API tokens: create, list and revoke your own; security admins list and revoke everyone's.",

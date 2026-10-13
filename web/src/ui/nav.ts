@@ -1,9 +1,9 @@
-import { Activity, Archive, Workflow, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileSignature, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Archive, Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, FileSignature, FileText, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, ListChecks, Megaphone, Network, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, type LucideIcon, UserCog, UserPlus, Users, UsersRound, Webhook, Workflow } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns' | 'documents'
-  | 'admin' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'webhooks' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -56,6 +56,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('file:view_all') && { key: 'files', label: 'Files', to: '/admin/files', icon: Files, keywords: 'uploads attachments storage quota quarantine malware' },
       can('workspace:settings.view') && { key: 'retention', label: 'Retention', to: '/admin/retention', icon: Archive, keywords: 'records keep delete drafts logs disposition' },
       can('workspace:settings.view') && { key: 'encryption', label: 'Encryption', to: '/admin/encryption', icon: KeyRound, keywords: 'keys rotate kek security crypto' },
+      can('connector:view') && { key: 'webhooks', label: 'Webhooks', to: '/admin/webhooks', icon: Webhook, keywords: 'integrations events callbacks http notify systems api automation' },
     ]) },
     { label: 'Workspace', items: pick([
       can('workspace:settings.view') && { key: 'settings', label: 'Settings', to: '/admin/settings', icon: Settings, keywords: 'configuration name branding security preferences' },

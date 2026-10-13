@@ -252,6 +252,13 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/envelope-batches/{id}/remind', () => own.post(`/api/v1/envelope-batches/${batch.id}/remind`, { headers: oh }));
   await step('POST', '/api/v1/envelopes/{id}/remind', () => own.post(`/api/v1/envelopes/${batch.rows[0].envelope_id}/remind`, { headers: oh }));
   await step('POST', '/api/v1/envelope-batches/{id}/void', () => own.post(`/api/v1/envelope-batches/${batch.id}/void`, { headers: oh, data: { reason: 'drill' } }));
+  // Webhooks (BPMS-143): create (to a public name; nothing is delivered here), change, test, replay, roll, delete.
+  const hook = await (await step('POST', '/api/v1/webhooks', () => own.post('/api/v1/webhooks', { headers: oh, data: { url: 'https://hooks.example.com/procera', events: ['*'] } }))).json();
+  await step('PATCH', '/api/v1/webhooks/{id}', () => own.patch(`/api/v1/webhooks/${hook.id}`, { headers: { ...oh, 'if-match': `"${hook.revision}"` }, data: { description: 'Audit drill' } }));
+  const tested = await (await step('POST', '/api/v1/webhooks/{id}/test', () => own.post(`/api/v1/webhooks/${hook.id}/test`, { headers: oh }))).json();
+  await step('POST', '/api/v1/webhooks/deliveries/{id}/replay', () => own.post(`/api/v1/webhooks/deliveries/${tested.id}/replay`, { headers: oh }));
+  await step('POST', '/api/v1/webhooks/{id}/rotate-secret', () => own.post(`/api/v1/webhooks/${hook.id}/rotate-secret`, { headers: oh }));
+  await step('DELETE', '/api/v1/webhooks/{id}', () => own.delete(`/api/v1/webhooks/${hook.id}`, { headers: oh }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
   await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));

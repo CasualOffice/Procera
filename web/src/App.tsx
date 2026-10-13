@@ -59,6 +59,7 @@ import { AdminHub } from './pages/AdminHub';
 import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
+import { Webhooks } from './pages/Webhooks';
 import { Signatures } from './pages/signing/Signatures';
 import { BatchPage } from './pages/signing/BatchPage';
 import { Ceremony } from './pages/signing/Ceremony';
@@ -169,6 +170,7 @@ export function App() {
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
   if (path === '/admin/files') return <AppShell current="files" crumbs={[ADMIN, 'Files']}><FilesAdmin /></AppShell>;
   if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
+  if (path === '/admin/webhooks') return <AppShell current="webhooks" crumbs={[ADMIN, 'Webhooks']}><Webhooks /></AppShell>;
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;
   const person = match('/members/:id', path);

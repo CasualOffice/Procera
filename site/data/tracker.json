@@ -5,13 +5,13 @@
  "totals": {
   "Done": 61,
   "In review": 0,
-  "In progress": 2,
+  "In progress": 3,
   "Blocked": 0,
-  "Not started": 62,
+  "Not started": 61,
   "Deferred": 0,
   "all": 125
  },
- "e2e_scenarios": 270,
+ "e2e_scenarios": 274,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -282,7 +282,11 @@
   "E2E-R4-UI-02",
   "E2E-R4-UI-03",
   "E2E-R4-UI-04",
-  "E2E-R4-UI-05"
+  "E2E-R4-UI-05",
+  "E2E-R4-UI-06",
+  "E2E-R4-WH-01",
+  "E2E-R4-WH-02",
+  "E2E-R4-WH-03"
  ],
  "releases": [
   {
@@ -436,8 +440,8 @@
    "scope": "SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8)",
    "total": 14,
    "done": 0,
-   "in_progress": 1,
-   "not_started": 13,
+   "in_progress": 2,
+   "not_started": 12,
    "epics": [
     "BPMS-140",
     "BPMS-141",
@@ -1242,7 +1246,7 @@
    "title": "Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events",
    "priority": "P1",
    "release": "R4",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-144",

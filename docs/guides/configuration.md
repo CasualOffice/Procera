@@ -52,6 +52,7 @@ counts as not set. Logs are JSON lines on standard error; standard output is res
 | `PROCERA_S3_ALLOW_HTTP` | `false` | — | No | Plain HTTP endpoints, for development or a private network only. |
 | `PROCERA_S3_PREFIX` | (none) | — | No | A folder inside the bucket, so several environments can share one bucket. |
 | `PROCERA_CLAMD_ADDR` | (none) | none | Recommended | ClamAV `clamd` address (`host:port`, e.g. `clamav:3310`). Without it, uploads are checked only for the EICAR test file. |
+| `PROCERA_EGRESS_ALLOW` | (none) | none | Only for internal receivers | Comma-separated address ranges (CIDR, e.g. `10.0.0.0/8,192.168.10.5/32`) that webhooks may reach even though they are private. Without it, webhooks go only to public `https` addresses on ports 443, 80, 8443 or 8080; with it, the listed ranges also accept plain `http` and any port. |
 | `PROCERA_LOG` | (none) | `info` | No | Log filter in `tracing` EnvFilter syntax, e.g. `warn`, `debug`, `info,procera_notify=debug`. |
 
 ### `procera migrate`

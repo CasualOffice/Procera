@@ -8,10 +8,10 @@
 ```text
 Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
 Partial   ███████████████░░░░░░░░░░░░░░░  50% counting in-progress epics as half done
-Tests     270 automated E2E scenarios · 446 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 2 · blocked 0 · not started 62 · deferred 0
+Tests     274 automated E2E scenarios · 453 Rust tests (incl. property tests)
+Status    done 61 · in review 0 · in progress 3 · blocked 0 · not started 61 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 50 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 51 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -34,6 +34,7 @@ Evidence  automated tests 50 · code merged 13  (separate from status; none user
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
 | BPMS-107 | E-sign v1: PDF, recipients/roles, routing, bulk, fields, consent step, ceremony, certificate | **In progress** | Automated tests | E-sign v1 slice 1 (server, migration 0050, crate procera-signing): envelopes from a clean PDF (hash and page sizes frozen on send), member signers in order or parallel plus CC, fields (signature, initials, date signed, name, text, checkbox) placed as page fractions, send/void, the ceremony (view, consent, typed or drawn signature, own fields, hash and turn checks, strong mode = recent sign-in), decline, and completion in the same transaction: values stamped onto the PDF with lopdf, a certificate of completion appended, the signed copy stored through the files pipeline and linked (undeletable), its SHA-256 recorded; notifications in-app + email; evidence frozen by triggers. E2E-R4-SIGN-01..02, AUD-01, PDF unit tests. Web: Signing (sidebar) lists sent envelopes; Send for signature uploads a PDF and opens a draft editor (recipients in order, click-to-place fields with keyboard placement and arrow-key moves, autosave with If-Match, review and send); the envelope page tracks each signer and offers the original and signed copy, with cancel; My work › Signatures and the ceremony (/sign/{recipient}: consent, typed or drawn signature applied per field, Next field, Finish, Decline, step-up for strong, phone layout). E2E-R4-UI-02..04. Slice 3 (migration 0051): group sends (a bulk draft with an “Each person” signer sent to an audience: one copy each, ≤ 2000, a batch page with progress, per-person status, remind everyone waiting and cancel the rest), reminders every 3 days (at most 3) and remind now, expiry with a notice to the sender, in the scheduler and /__test/drain. E2E-R4-SIGN-03, E2E-R4-UI-05. Next: signing as a step in processes (human.sign), external signers. |
+| BPMS-143 | Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events | **In progress** | Automated tests | Outgoing webhooks (0.4, migration 0052, crate procera-webhooks): endpoints with sealed whsec_ secrets (roll keeps the previous for 24 h), a public catalogue of 15 thin events (requests, documents, announcements, acknowledgements, memberships, signatures) queued by the outbox bus, Standard Webhooks v1 signatures, an in-process SSRF guard (resolve, block non-public ranges, pinned address, no redirects, 10 s, 4 KB kept; PROCERA_EGRESS_ALLOW for internal ranges), retries 1 m to 12 h then failed, 410 / three failures turn an endpoint off and notify its creator, delivery log with replay and test events; Admin › Webhooks page; developer docs page. E2E-R4-WH-01..03, E2E-R4-UI-06, AUD-01. Remaining: inbound webhooks and the HTTP connector (with connectors), Ed25519 v1a. |
 | BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | **In progress** | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 
 ## Done
@@ -230,7 +231,7 @@ _SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (
 - [ ] **BPMS-140** (P1, L) OIDC SSO, SAML-broker, SSO enforcement, JIT
 - [ ] **BPMS-141** (P1, M) SCIM 2.0 server
 - [ ] **BPMS-142** (P1, M) Scoped/delegated admins; IP allowlists
-- [ ] **BPMS-143** (P1, L) Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events
+- [ ] **BPMS-143** (P1, L) Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events **[In progress]**
 - [ ] **BPMS-144** (P1, M) Public API hardening, OpenAPI, CLI, TS/Python SDKs **[In progress]**
 - [ ] **BPMS-145** (P1, M) Email-actionable approvals, reply-by-email, web push
 - [ ] **BPMS-146** (P1, M) Guests + external signers (magic link + OTP); self-serve signing links
@@ -302,7 +303,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 328 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 332 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 16 / 16 / 46 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 16 / 16 / 47 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

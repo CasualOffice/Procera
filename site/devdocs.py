@@ -29,7 +29,7 @@ DOCS = [
     ("docs-reference", "API reference", None, "API",
      "Every endpoint, generated from the server's router."),
     ("docs-webhooks", "Webhooks", "site/src/developers/webhooks.md", "Extend",
-     "Signed event delivery to your systems (in development)."),
+     "Signed events delivered to your systems, with retries and a delivery log."),
     ("docs-plugins", "Plugins", "site/src/developers/plugins.md", "Extend",
      "Connectors and extensions (planned)."),
 ]
