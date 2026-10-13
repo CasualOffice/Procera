@@ -429,6 +429,8 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R3-12 | All 13 Wave-1 templates: install → test run green (data-driven) | TPL-*, 19 |
 | E2E-R3-MOB | Mobile pack (360×740, touch): start request, approve, ack, sign | FR-P07 |
 | E2E-R3-ISO | Isolation sweep incl. envelopes, master data, files | SEC-01/02/10 |
+| E2E-R3-UI-01 | Browser (packs/r3/studio.ui.spec.ts): the owner opens Admin › Processes, **New process** "Laptop request" from **Blank** (key derived as `laptop-request`); in the designer sets the **Request** card (name, description, category IT, **Reference prefix** LAP), adds **Model** (Choice, two options, required) and **Reason** (Long text, required) with **Add field**, adds an Approval step "Manager approval" (**Who**: the requester's manager; due in 2 business days; **Reminders**: one after a day; the card reads "Due in 2 business days · 1 reminder" and its outcomes); "All changes saved"; **Validate** finds no problems (axe on the designer); **Publish** says "Published v1. People can now request it under New request."; an employee whose manager is set opens Requests › New request, submits Laptop request (`LAP-…`, "… will review it"); the manager approves it from My work; the request ends Approved | BPMS-100, FR-E01 (subset) |
+| E2E-R3-UI-02 | Browser: an Approval step whose **Who** is a group that doesn't exist ("Night owls") → **Validate** lists it under "… to fix" with **Go to <step>** and `IR-E025` under Details, the step card and its settings show the problem; **Publish** is refused ("Not published. Fix the problems below first.") and the process has no published version | BPMS-100, 11 §14 (IR-E025) |
 
 ### E2E-R4: Enterprise Connect
 
