@@ -12,11 +12,13 @@ use uuid::Uuid;
 
 async fn kinds(w: &World, to: Uuid) -> Vec<String> {
     let mut tx = w.tx().await;
-    let k = sqlx::query_scalar("SELECT kind FROM notifications WHERE membership_id = $1 AND kind LIKE 'request_%' ORDER BY kind")
-        .bind(to)
-        .fetch_all(tx.conn())
-        .await
-        .unwrap();
+    let k = sqlx::query_scalar(
+        "SELECT kind FROM notifications WHERE membership_id = $1 AND kind LIKE 'request_%' ORDER BY kind",
+    )
+    .bind(to)
+    .fetch_all(tx.conn())
+    .await
+    .unwrap();
     tx.rollback().await.unwrap();
     k
 }
