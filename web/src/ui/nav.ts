@@ -43,7 +43,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     ]) },
     { label: 'Work', items: pick([
-      can('process:view') && { key: 'processes', label: 'Processes', to: '/admin/processes', icon: Workflow, keywords: 'designer studio request types workflow approval steps build publish form fields' },
+      any('process:create', 'process:edit_draft', 'process:publish') && { key: 'processes', label: 'Processes', to: '/admin/processes', icon: Workflow, keywords: 'designer studio request types workflow approval steps build publish form fields' },
       (can('request:retry') || can('monitoring:view_dashboards')) && { key: 'operations', label: 'Operations', to: '/admin/operations', icon: Activity, keywords: 'incidents failed jobs errors retry dismiss ops monitor exceptions stuck' },
       can('request:view_all') && can('work:reassign') && { key: 'request-oversight', label: 'Requests oversight', to: '/admin/requests', icon: ListChecks, keywords: 'unassigned overdue stuck approvals reassign escalate work items' },
     ]) },
