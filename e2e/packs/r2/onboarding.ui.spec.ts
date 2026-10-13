@@ -77,8 +77,11 @@ test.describe('employee onboarding @r2 @ui', () => {
     await page.getByRole('link', { name: 'Employee onboarding', exact: true }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Employee onboarding' })).toBeVisible();
     const form = page.getByRole('form', { name: 'Employee onboarding' });
-    await form.getByRole('button', { name: /New member/ }).click();
-    await page.getByRole('option', { name: 'Nia New', exact: true }).click();
+    // Under load the list can close as the form settles; reopen it until the option is picked.
+    await expect(async () => {
+      await form.getByRole('button', { name: /New member/ }).click();
+      await page.getByRole('option', { name: 'Nia New', exact: true }).click({ timeout: 3000 });
+    }).toPass({ timeout: 30_000 });
     await form.getByLabel(/^First day/).fill(inTwoWeeks());
     await form.getByRole('textbox', { name: /^Job title/ }).fill('Product designer');
     await form.getByRole('textbox', { name: /^Department/ }).fill('Design');

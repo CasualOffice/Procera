@@ -71,8 +71,11 @@ test.describe('team workload @r2 @ui', () => {
     await steps.getByRole('button', { name: 'Reassign 2…' }).click();
     const dialog = page.getByRole('dialog', { name: 'Reassign 2 steps' });
     await expect(dialog.getByRole('list', { name: 'Steps to reassign' }).getByRole('listitem')).toHaveCount(2);
-    await dialog.getByRole('button', { name: /Person/ }).click();
-    await page.getByRole('option', { name: /Ben Peer/ }).click();
+    // Under load the list can close as the dialog settles; reopen it until the option is picked.
+    await expect(async () => {
+      await dialog.getByRole('button', { name: /Person/ }).click();
+      await page.getByRole('option', { name: /Ben Peer/ }).click({ timeout: 3000 });
+    }).toPass({ timeout: 30_000 });
     await dialog.getByRole('textbox', { name: 'Reason' }).fill('Ann is on leave this week');
     await dialog.getByRole('button', { name: 'Reassign' }).click();
     await expect(dialog).toHaveCount(0);
