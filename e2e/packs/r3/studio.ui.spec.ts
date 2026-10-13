@@ -144,7 +144,7 @@ test.describe('guided studio @r3 @ui', () => {
     const done = emp.getByRole('status').filter({ hasText: /^Success: Submitted / });
     await expect(done).toContainText('Mo Manager will review it.');
     const ref = (/Submitted (\S+)\./.exec((await done.textContent()) ?? '') ?? [])[1] ?? '';
-    expect(ref).toMatch(/^LAP-\d+$/);
+    expect(ref).toMatch(/^LAP-[\d-]+$/); // e.g. LAP-2026-000001
     const eveRequest = emp.url();
     await controls.drain();
 

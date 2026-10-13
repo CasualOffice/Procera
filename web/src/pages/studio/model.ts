@@ -31,10 +31,10 @@ export interface IrDocument {
 
 export type Category = 'hr' | 'finance' | 'it' | 'operations' | 'other';
 export const CATEGORIES: { id: Category; label: string }[] = [
-  { id: 'hr', label: 'People & HR' }, { id: 'finance', label: 'Finance' }, { id: 'it', label: 'IT' }, { id: 'operations', label: 'Operations' }, { id: 'other', label: 'Other' },
+  { id: 'hr', label: 'HR' }, { id: 'finance', label: 'Finance' }, { id: 'it', label: 'IT' }, { id: 'operations', label: 'Operations' }, { id: 'other', label: 'Other' },
 ];
 export interface StudioRequest { name: string; description: string; category: Category; prefix: string }
-export interface Content { ir: IrDocument; studio: { request: StudioRequest; fields: Record<string, { label: string; help?: string }> } }
+export interface Content { ir: IrDocument; studio: { request: StudioRequest; fields: Record<string, { label: string; help?: string }>; [k: string]: unknown } }
 
 /* ------------------------------------------------------------------ fields */
 
@@ -205,6 +205,8 @@ export interface Model {
   ends: { approved: IrNode; rejected: IrNode; revise: IrNode | null };
   /** Why the studio can't edit this version (it shows it read-only), or null. */
   readOnly: string | null;
+  /** Studio members this editor doesn't edit (e.g. an acknowledgement's statement), kept as they are. */
+  studioExtra: Record<string, unknown>;
 }
 
 const days = (iso: string | undefined): number | null => {
@@ -359,14 +361,18 @@ export function fromContent(content: Partial<Content> | null | undefined, fallba
     return { name: v.name, label: labels[v.name]?.label ?? v.name.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()), help: labels[v.name]?.help ?? '', kind: k.kind, required: v.required === true, options: k.options, currency: k.currency, base: v };
   });
   const request: StudioRequest = { ...BLANK_REQUEST, name: ir.process.name?.en ?? fallbackName, ...(studio?.request ?? {}) };
+  // A built-in's category arrives as its display name ("HR"); the studio's are ids.
+  const cat = String(request.category ?? '').toLowerCase();
+  request.category = CATEGORIES.find((c) => c.id === cat || c.label.toLowerCase() === cat)?.id ?? (cat === 'people' ? 'hr' : 'other');
+  const { request: _r, fields: _f, ...studioExtra } = (studio ?? {}) as Json;
   const flow = readFlow(ir);
   if ('unsupported' in flow) {
-    return { request, fields, steps: [], base: ir, ends: { approved: endNode('end_approved', 'Approved'), rejected: endNode('end_rejected', 'Rejected'), revise: null }, readOnly: flow.unsupported };
+    return { request, fields, steps: [], base: ir, ends: { approved: endNode('end_approved', 'Approved'), rejected: endNode('end_rejected', 'Rejected'), revise: null }, readOnly: flow.unsupported, studioExtra };
   }
   return {
     request, fields, steps: flow.steps, base: ir,
     ends: { approved: flow.approved ?? endNode('end_approved', 'Approved'), rejected: flow.rejected ?? endNode('end_rejected', 'Rejected'), revise: flow.revise ?? null },
-    readOnly: null,
+    readOnly: null, studioExtra,
   };
 }
 
@@ -433,7 +439,7 @@ export function routes(m: Model, s: Step): { outcome: string; label: string; to:
 /** The content to save: IR v1 for this artifact's key and draft version, plus the studio's wording. */
 export function toContent(m: Model, key: string, version: number): Content {
   if (m.readOnly) {
-    return { ir: { ...m.base, process: { ...m.base.process, key, version } }, studio: { request: m.request, fields: studioFields(m.fields) } };
+    return { ir: { ...m.base, process: { ...m.base.process, key, version } }, studio: { ...m.studioExtra, request: m.request, fields: studioFields(m.fields) } };
   }
   const ir = m.base;
   const start: IrNode = ir.nodes.find((n) => n.kind === 'start') ?? { id: 'start', kind: 'start', name: { en: 'Submit request' }, trigger: 'manual' };
@@ -505,7 +511,7 @@ export function toContent(m: Model, key: string, version: number): Content {
     ...(Object.keys(refs).length ? { refs } : {}),
     ...(ir.meta && Object.keys(ir.meta).length ? { meta: ir.meta } : {}),
   };
-  return { ir: doc, studio: { request: m.request, fields: studioFields(m.fields) } };
+  return { ir: doc, studio: { ...m.studioExtra, request: m.request, fields: studioFields(m.fields) } };
 }
 
 function toVariable(f: Field): IrVariable {

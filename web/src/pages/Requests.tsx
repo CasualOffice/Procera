@@ -9,6 +9,7 @@ import { DataGrid, type GridColumn } from '../ui/components/DataGrid';
 import { SectionTabs } from '../ui/SectionTabs';
 import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag, type TagColor } from '../ui/Tag';
+import { CATEGORIES } from './studio/model';
 import './requests.css';
 
 export type RequestView = 'new' | 'mine' | 'all';
@@ -58,11 +59,14 @@ export function Requests({ view }: { view: RequestView }) {
   );
 }
 
+/** A request type's category as a heading: a designed process's id ("it") reads like a built-in's ("IT"). */
+const categoryLabel = (c: string) => CATEGORIES.find((x) => x.id === c)?.label ?? (c || 'General');
+
 function Catalogue() {
   const [types, reload, error] = useItems<RequestType>('/api/v1/request-types');
   const groups = useMemo(() => {
     const by = new Map<string, RequestType[]>();
-    for (const t of types ?? []) by.set(t.category || 'General', [...(by.get(t.category || 'General') ?? []), t]);
+    for (const t of types ?? []) { const c = categoryLabel(t.category); by.set(c, [...(by.get(c) ?? []), t]); }
     return [...by.entries()].sort(([a], [b]) => a.localeCompare(b));
   }, [types]);
   if (error) return <LoadError error={error} onRetry={reload} what="request types" />;
