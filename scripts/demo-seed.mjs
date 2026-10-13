@@ -70,6 +70,7 @@ const people = [
   ['ema@acme.test', 'Ema Rossi', 'workspace.admin', 'People partner'],
   ['finn@acme.test', 'Finn Walsh', 'member', 'Finance analyst'],
   ['gia@acme.test', 'Gia Nguyen', 'member', 'Office manager'],
+  ['hugo@acme.test', 'Hugo Silva', 'member', 'Product designer'],
 ];
 const ids = {};
 for (const [email, name, role] of people) {
@@ -138,9 +139,9 @@ await call('POST', '/__test/drain');
 
 // Requests and approvals (0.2): a manager hierarchy, approver groups, and requests at different stages.
 const oid = (await call('GET', '/api/v1/me/permissions', { token: o })).membership_id;
-const mgr = { 'ben@acme.test': oid, 'cara@acme.test': oid, 'ema@acme.test': oid, 'finn@acme.test': oid, 'dev@acme.test': ids['cara@acme.test'], 'gia@acme.test': ids['cara@acme.test'] };
+const mgr = { 'ben@acme.test': oid, 'cara@acme.test': oid, 'ema@acme.test': oid, 'finn@acme.test': oid, 'dev@acme.test': ids['cara@acme.test'], 'gia@acme.test': ids['cara@acme.test'], 'hugo@acme.test': ids['cara@acme.test'] };
 for (const [email, m] of Object.entries(mgr)) await call('PATCH', `/api/v1/members/${ids[email]}`, { token: o, body: { manager_membership_id: m } });
-for (const [name, members] of [['Finance', ['finn@acme.test']], ['IT', ['dev@acme.test']], ['Security', ['ben@acme.test']]]) {
+for (const [name, members] of [['Finance', ['finn@acme.test']], ['IT', ['dev@acme.test']], ['Security', ['ben@acme.test']], ['Facilities', ['gia@acme.test']]]) {
   const g = await call('POST', '/api/v1/groups', { token: o, body: { name } });
   for (const e of members) await call('POST', `/api/v1/groups/${g.id}/members`, { token: o, body: { membership_id: ids[e] } });
 }
@@ -161,6 +162,9 @@ await decide(o, exp.id, 'approved', 'Thanks for keeping it under budget.');
 await ask(dev, 'fin.purchase-requisition', { amount: { amount: '7200.00', currency: 'EUR' }, vendor: 'Northwind Laptops', cost_center: 'OPS-IT', justification: 'Replacement laptop for the support team' });
 const own = await ask(finn, 'hr.leave-request', { leave_type: 'sick', start_date: '2026-10-05', end_date: '2026-10-06', reason: 'Flu' });
 await decide(o, own.id, 'approved', 'Get well soon.');
+// Onboarding in progress: IT is done; Facilities (Gia) and Hugo's manager (Cara) are still on it.
+const hugo = await ask(ema, 'hr.onboarding', { new_hire: ids['hugo@acme.test'], start_date: '2026-11-02', role_title: 'Product designer', department: 'Design', equipment: 'standard_laptop', notes: 'Prefers a standing desk near the design team' });
+await decide(dev, hugo.id, 'done');
 await call('POST', '/__test/drain');
 
-console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, note: 'Password only — the demo workspace does not require two-step verification.', system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test', try_requests: 'cara@acme.test has a leave and a purchase to approve; finn@acme.test has an expense at the finance step; gia@acme.test and dev@acme.test can follow their requests' }, null, 2));
+console.log(JSON.stringify({ owner: 'olivia@acme.test', password: PW, note: 'Password only — the demo workspace does not require two-step verification.', system_admin: 'root@acme.test', system_recovery_codes: sys.recovery, others: people.map((x) => x[0]), reviewer: 'ben@acme.test', try_requests: 'cara@acme.test has a leave and a purchase to approve; finn@acme.test has an expense at the finance step; gia@acme.test and dev@acme.test can follow their requests; ema@acme.test started an onboarding that waits on gia@acme.test (Facilities) and cara@acme.test (the manager), then hugo@acme.test acknowledges' }, null, 2));
