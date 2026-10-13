@@ -296,6 +296,22 @@ impl Requests {
         .await?;
         let who = actor.runtime();
         let a = self.engine.start_in(tx, &program, initiator, vars, Some(who)).await?;
+        if rt.published {
+            // The release bundle it runs (BPMS-084): the authored build's bundle, whatever currency
+            // variant was started.
+            sqlx::query(
+                "UPDATE process_instances SET bundle_id = (SELECT b.id FROM release_bundles b
+                   WHERE b.process_key = $2 AND b.version_no = $3 AND b.program_checksum = $4
+                   ORDER BY b.created_at DESC LIMIT 1)
+                 WHERE id = $1",
+            )
+            .bind(a.instance_id)
+            .bind(&rt.program.process_key)
+            .bind(i32::try_from(rt.program.version).unwrap_or(i32::MAX))
+            .bind(&rt.program.checksum)
+            .execute(tx.conn())
+            .await?;
+        }
         let started = self.started(tx, a.instance_id).await?;
         crate::attach::link(tx, a.instance_id, &files, actor.membership, self.clock.now()).await?;
         self.audit(

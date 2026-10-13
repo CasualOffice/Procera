@@ -6,12 +6,12 @@
 ## At a glance
 
 ```text
-Overall   ███████████████░░░░░░░░░░░░░░░  60/124 epics done  (48%)
+Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
 Partial   ███████████████░░░░░░░░░░░░░░░  49% counting in-progress epics as half done
 Tests     260 automated E2E scenarios · 439 Rust tests (incl. property tests)
-Status    done 60 · in review 0 · in progress 1 · blocked 0 · not started 63 · deferred 0
+Status    done 61 · in review 0 · in progress 0 · blocked 0 · not started 64 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 47 · code merged 14  (separate from status; none user-validated yet)
+Evidence  automated tests 48 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -22,8 +22,8 @@ Evidence  automated tests 47 · code merged 14  (separate from status; none user
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
 | **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████████` | 31/32 |
-| **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `█████████░░░` | 17/22 |
-| **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `█░░░░░░░░░░░` | 2/17 |
+| **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `██████████░░` | 18/22 |
+| **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `█░░░░░░░░░░░` | 2/18 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/14 |
 | **R5** | Cases & Compliance | 2027-07-05 → 2027-08-27 | G-R5 | `░░░░░░░░░░░░` | 0/11 |
 | **GA** | 1.0 hardening + release | 2027-08-30 → 2027-10-15 | G4/G5 | `░░░░░░░░░░░░` | 0/8 |
@@ -31,9 +31,7 @@ Evidence  automated tests 47 · code merged 14  (separate from status; none user
 
 ## Active right now
 
-| ID | Item | Status | Evidence | Note |
-|---|---|---|---|---|
-| BPMS-084 | Release bundles + publish integration | **In progress** | Code merged | Release bundles (migration 0048, crates/processes): processes are library artifacts whose content is their IR; publishing one runs a hook in the publish transaction that compiles it against a workspace snapshot (references must be published, named groups/roles/positions/people must exist) and either refuses the publish with the diagnostics or writes an immutable release bundle (pinned versions manifest + SHA-256 + program checksum). DbPrograms serves published programs to the engine by key/version/checksum behind the built-ins. Integration test: refused while the SOP is a draft, bundle pins it once published, bundles immutable, engine starts the published program and refuses an unknown build. Next (0.3): starting published processes from the designer, filling process_instances.bundle_id, dependents to update. |
+_Nothing in progress._
 
 ## Done
 
@@ -82,6 +80,7 @@ Evidence  automated tests 47 · code merged 14  (separate from status; none user
 - [x] **BPMS-081** Expression engine integration (typed, budgeted, WASM build) — procera-expr: a typed CEL subset of our own (A-22): static checker with null policy and exact decimal/money, budgeted pure evaluator (10k steps, 1 MiB, 64 KiB strings, 10k lists; exhaustion is IR-R010), stdlib, read sets with the restricted-in-event-facing check; wasm32 build checked; unit + property tests; docs/11 §6.1. Wired end to end: the IR compiler type-checks with it and the runtime CelEvaluator runs stored checked expressions (injected now/tz, budget → IR-R010). Done: wired end to end; business-time functions arrive with calendars in the runtime.
 - [x] **BPMS-082** Interpreter: advance loop, tokens, splits/joins, end/terminate — procera-runtime: pure deterministic interpreter (Program, InstanceState, Stimulus) -> (state, commands) with injected Clock/IdGen; advance loop with a step budget (ContinueAdvance) and loop guard (IR-R004); start/end/terminate, set, decision (+rule tables via the Evaluator port), parallel split/join released exactly once, human.* work items, wait.timer/signal, service.call with typed error boundaries, notify, subprocess.call, case.open, timeout boundaries, cancel; commands with deterministic idempotency keys; unit tests per node kind, the five reference processes end to end, 22 conformance/runtime fixtures, property tests (replay, budgets, joins, terminate); docs/11 §15, A-23. Runs real CEL via CelEvaluator; conformance (24 cases) green on CEL and the stand-in; determinism property over compiled CEL. Done: persistence, timers and work items shipped in BPMS-083/085 and run end to end through the request API (E2E-R2-*).
 - [x] **BPMS-083** Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks — procera-engine + migration 0031: instances persisted (state JSONB, optimistic revision) with an append-only stimulus log and replay; advance = interpreter + state + log + effects (timers, advance jobs, outbox, pending effects) + SLA clocks + audit in one transaction; jobs with SKIP LOCKED claims, 30 s leases, fencing tokens checked on completion, backoff, dead letter, idempotency keys; scheduler run_once fires due timers once, lateness histogram for the 60 s SLO; business calendars (fixed offset, working days/hours, holidays) with property-tested arithmetic; SLA clocks start/pause/resume/stop/breach; unit, property and PostgreSQL integration tests; docs/04 §4.4, A-27..A-29. Wired (0.2): serve --all runs the scheduler every second, /__test/drain drains it, EffectHandler port consumes work items/notifications in the advance transaction, user audit actor (A-28 (4)), pinned checksums, lazy default calendar. Handler timers (0.2): TimerPurpose reminder/escalation armed by the effect port, fired through EffectHandler::fire under a savepoint. Proofs (0.2): restart durability, atomic advance with a failing effect handler, lost-lease re-claim with fencing (E2E-R2-SYS-01) and version pinning — StaticPrograms keeps every registered build by checksum so pinned instances finish on their build while new starts use the new one, audit names the checksum (E2E-R2-SYS-02). Decision trace (PR-08): migration 0042 instance_decisions (branch, conditions, inputs with values except restricted, build) written in the advance transaction. Done for 0.2; release bundles are BPMS-084; restricted-data encryption, at-risk SLA and IANA zones moved to BPMS-210.
+- [x] **BPMS-084** Release bundles + publish integration — 0.3 scope shipped; dependents-to-update split to BPMS-221. Requests started from a published process record their release bundle (process_instances.bundle_id, request detail release.bundle_id; E2E-R3-PROC-01). Release bundles (migration 0048, crates/processes): processes are library artifacts whose content is their IR; publishing one runs a hook in the publish transaction that compiles it against a workspace snapshot (references must be published, named groups/roles/positions/people must exist) and either refuses the publish with the diagnostics or writes an immutable release bundle (pinned versions manifest + SHA-256 + program checksum). DbPrograms serves published programs to the engine by key/version/checksum behind the built-ins. Integration test: refused while the SOP is a draft, bundle pins it once published, bundles immutable, engine starts the published program and refuses an unknown build. 
 - [x] **BPMS-085** Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group — crates/requests + migration 0040: work items and materialised candidates; assignment resolution (user from principal expressions incl. manager chain, group, role incl. group grants, position; excludeInitiator, excludeActorsOf; fallback; unassigned when nobody remains, A-45); claim strategy, quorum one; decisions lock instance then item (one winner, already_decided, If-Match), SoD re-check; work_assigned/request_decided/request_completed notices; GET /work, POST /work/{id}/decisions; DB tests + E2E-R2-04/-18. Reminders and escalations (0.2): built-in IRs remind before/at due and escalate a business day after (reassign to the manager's manager, or notify the requester's manager), armed as handler timers and cancelled on decision; work_reminder/work_escalated/work_reassigned; timeline Reminded/Escalated; DB tests + E2E-R2-21/-22. Proofs (0.2): 20 concurrent decisions on one step have exactly one winner (E2E-R2-SYS-03); open steps and reminder timers survive a restart and a reminder fires once (E2E-R2-SYS-01). Resolution snapshots record the rule behind each candidate source and why SoD excluded each member.; a failing reminder/escalation handler is retried with backoff (1m→4h, 5 retries) then marked failed with its error (migration 0044). Done for 0.2; claim/unclaim, round-robin/least-loaded, quorum and the DoA matrix moved to BPMS-211.
 - [x] **BPMS-086** Delegation, OOO substitution, SoD re-check, send-back — Out-of-office substitution (0.2, migration 0041): one out-of-office per member (inclusive UTC dates, delegate, note); the resolver hands an away candidate's new work items to the delegate (snapshot records it), the delegate may decide existing open items, decisions record completed_on_behalf_of ('X on behalf of Y'); access.delegation.max_depth (default 1, cycles stop), SoD re-checked for the delegate, the initiator's own steps never handed on, expiry fails closed. GET/PUT/DELETE /me/out-of-office and /members/{id}/out-of-office (admin or manager), audited member.ooo_set/ooo_cleared; Profile and Person page UI; Away chips in My work and the stepper. DB tests + E2E-R2-33/-34, E2E-R2-UI-11.; status at a glance (E2E-R2-UI-12): the account menu sets Available / Out of office, an orange dot on avatars, a Home banner with "I'm back", and others see it on Home › People hover cards, Members and the Person page. Done for 0.2; single-item delegation and send-back to an earlier step moved to BPMS-212.
 - [x] **BPMS-088** Incidents, retry/skip/cancel, instance admin ops — Oversight first slice (0.2): GET /work?state=unassigned|overdue and POST /work/{id}/reassign {membership_id, reason} (work:reassign; SoD re-run, 422 sod_excluded; audited work_item.reassigned; work_assigned/work_reassigned notices); Admin › Work › Requests oversight page and Home Needs attention lines; DB tests + E2E-R2-23, E2E-R2-UI-05, AUD-01 step. Done for 0.2: oversight + incidents with retry/dismiss (E2E-R2-UI-14); skip/cancel/migrate instance ops moved to BPMS-213.
@@ -165,7 +164,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 </details>
 
 <details>
-<summary><b>R2 — Requests & Approvals</b> · 2027-01-18 → 2027-03-12 · gate G-R2 · 17/22 done</summary>
+<summary><b>R2 — Requests & Approvals</b> · 2027-01-18 → 2027-03-12 · gate G-R2 · 18/22 done</summary>
 
 _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)_
 
@@ -173,7 +172,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [x] **BPMS-081** (P0, M) Expression engine integration (typed, budgeted, WASM build)
 - [x] **BPMS-082** (P0, L) Interpreter: advance loop, tokens, splits/joins, end/terminate
 - [x] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks
-- [ ] **BPMS-084** (P0, M) Release bundles + publish integration **[In progress]**
+- [x] **BPMS-084** (P0, M) Release bundles + publish integration
 - [x] **BPMS-085** (P0, L) Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group
 - [x] **BPMS-086** (P0, M) Delegation, OOO substitution, SoD re-check, send-back
 - [ ] **BPMS-087** (P0, M) Rule tables (UNIQUE/FIRST/COLLECT)
@@ -195,7 +194,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 </details>
 
 <details>
-<summary><b>R3 — Operate & Sign</b> · 2027-03-15 → 2027-05-07 · gate G-R3 · 2/17 done</summary>
+<summary><b>R3 — Operate & Sign</b> · 2027-03-15 → 2027-05-07 · gate G-R3 · 2/18 done</summary>
 
 _Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)_
 
@@ -216,6 +215,7 @@ _Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPM
 - [ ] **BPMS-218** (P1, S) Separate preview origin for file previews (own domain/host, cookie-less)
 - [ ] **BPMS-219** (P1, L) Designer next: editable parallel and notify steps, connect on the canvas, owner-chosen approval outcomes (OQ-16), review in the designer
 - [ ] **BPMS-220** (P1, L) Form builder next: form artifacts, calculated fields, repeating groups, prefill, lookups, sections, preview as a role, PDF of submission
+- [ ] **BPMS-221** (P1, M) Dependents to update: when an SOP or policy a published process pins gets a new version, list the processes to republish
 
 </details>
 

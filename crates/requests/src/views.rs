@@ -137,6 +137,8 @@ pub struct WhyLine {
 pub struct Release {
     pub version: u32,
     pub checksum: Option<String>,
+    /// The release bundle of a process published from the library (BPMS-084); null for built-ins.
+    pub bundle_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]

@@ -276,12 +276,13 @@ pub(crate) async fn explain(
     requester: &str,
     vars: &BTreeMap<String, Value>,
 ) -> R<(Vec<WhyLine>, Release)> {
-    let (version, checksum): (i32, Option<String>) =
-        sqlx::query_as("SELECT process_version, program_checksum FROM process_instances WHERE id = $1")
-            .bind(id)
-            .fetch_one(tx.conn())
-            .await?;
-    let release = Release { version: u32::try_from(version).unwrap_or_default(), checksum };
+    let (version, checksum, bundle_id): (i32, Option<String>, Option<Uuid>) = sqlx::query_as(
+        "SELECT process_version, program_checksum, bundle_id FROM process_instances WHERE id = $1",
+    )
+    .bind(id)
+    .fetch_one(tx.conn())
+    .await?;
+    let release = Release { version: u32::try_from(version).unwrap_or_default(), checksum, bundle_id };
     let mut lines: Vec<(OffsetDateTime, u8, WhyLine)> = Vec::new();
     let routes: Vec<(String, String, Value, OffsetDateTime, i32, Option<String>)> = sqlx::query_as(
         "SELECT node_id, branch, facts, decided_at, process_version, program_checksum FROM instance_decisions

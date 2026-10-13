@@ -69,6 +69,9 @@ test.describe('processes @r3 @processes', () => {
     expect(item.request.type_name).toBe('Time off');
     expect((await bo.session.c.post(`/api/v1/work/${item.id}/decisions`, { headers: { ...bo.session.headers, 'if-match': `"${item.revision}"` }, data: { outcome: 'approved' } })).status()).toBe(200);
     await expect.poll(async () => (await (await ann.session.c.get(`/api/v1/requests/${rid}`, { headers: ann.session.headers })).json()).status).toBe('approved');
+    // It runs the release bundle written when it was published (BPMS-084).
+    const release = (await (await ann.session.c.get(`/api/v1/requests/${rid}`, { headers: ann.session.headers })).json()).release;
+    expect(release).toMatchObject({ version: 1, bundle_id: expect.stringMatching(/^[0-9a-f-]{36}$/) });
   });
 
   test('E2E-R3-PROC-02 a step given to a group that does not exist is a problem on that step, and publishing is refused', async ({ request }) => {
