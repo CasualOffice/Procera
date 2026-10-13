@@ -705,6 +705,19 @@ a.choice-system:hover { background: color-mix(in srgb, var(--color-text) 4%, tra
 .account-count { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-variant-numeric: tabular-nums; }
 .account-add { margin-left: auto; }
 .account-lede { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); max-width: 40rem; }
+.token-last4 { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 400; color: var(--color-text-secondary); }
+.token-perms { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40rem; }
+.token-head { display: grid; grid-template-columns: minmax(0, 1fr) 11rem; gap: var(--space-3); align-items: start; }
+.token-perms-pick { border: 0; margin: 0; padding: 0; min-width: 0; }
+.token-perms-pick legend { padding: 0; margin-bottom: var(--space-2); font-size: 0.875rem; font-weight: var(--font-weight-semibold); }
+.token-presets { display: flex; gap: var(--space-2); margin-bottom: var(--space-3); }
+.token-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: var(--space-3) var(--space-4); max-height: 18rem; overflow: auto; padding: var(--space-3); border: 1px solid var(--line); border-radius: 0.625rem; background: var(--color-bg); }
+.token-group { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.token-group-name { margin: 0 0 0.125rem; font-size: 0.75rem; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); }
+.token-note { margin: var(--space-2) 0 0; font-size: 0.8125rem; }
+.token-once { display: flex; gap: var(--space-2); align-items: center; padding: var(--space-3); border: 1px solid var(--line); border-radius: 0.625rem; background: var(--color-bg); margin-bottom: var(--space-3); }
+.token-once code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: 0.8125rem; overflow-wrap: anywhere; user-select: all; }
+@media (max-width: 40rem) { .token-head { grid-template-columns: 1fr; } }
 .account-section .notice { margin-bottom: var(--space-3); }
 .account-section .row-title .tag { margin-left: 0.375rem; vertical-align: 0.0625rem; }
 

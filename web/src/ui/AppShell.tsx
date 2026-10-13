@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Menu as Menu2, Check, ChevronsUpDown, History, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
+import { ArrowLeft, Bell, Menu as Menu2, Check, ChevronsUpDown, History, KeyRound, LogOut, Monitor, Moon, PauseCircle, Search, ShieldCheck, UserRound, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Button as AriaButton, Header, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Separator } from 'react-aria-components';
 import { ApiError, api, blobUrl } from '../lib/api';
@@ -209,6 +209,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
                   await signOut();
                   navigate('/sign-in', { replace: true });
                 } else if (key === 'security') navigate('/account/security');
+                else if (key === 'api-tokens') navigate('/account/api-tokens');
                 else if (key === 'profile') navigate('/account/profile');
                 else if (key === 'activity') navigate('/admin/audit');
                 else if (key === 'status-ooo') setOooOpen(true);
@@ -235,6 +236,9 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
               </MenuItem>
               <MenuItem id="security" className="menu-item" textValue="Security">
                 <ShieldCheck aria-hidden="true" size="1rem" /> Security
+              </MenuItem>
+              <MenuItem id="api-tokens" className="menu-item" textValue="API tokens">
+                <KeyRound aria-hidden="true" size="1rem" /> API tokens
               </MenuItem>
               {can('audit:view_own') && !can('audit:view') && (
                 <MenuItem id="activity" className="menu-item" textValue="My activity">

@@ -58,6 +58,7 @@ import { Profile } from './pages/Profile';
 import { AdminHub } from './pages/AdminHub';
 import { Welcome } from './pages/onboarding';
 import { Security } from './pages/Security';
+import { ApiTokens } from './pages/ApiTokens';
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
@@ -141,6 +142,7 @@ export function App() {
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
   if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
+  if (path === '/account/api-tokens') return <AppShell current="none" crumbs={['Account', 'API tokens']}><ApiTokens /></AppShell>;
   if (path === '/admin/processes') return <AppShell current="processes" crumbs={[ADMIN, 'Processes']}><Processes startNew={query.get('new') === '1'} /></AppShell>;
   const proc = match('/admin/processes/:id', path);
   if (proc) return <AppShell current="processes" crumbs={[ADMIN, ['Processes', '/admin/processes'], 'Process']}><Designer key={proc.id} id={proc.id!} /></AppShell>;

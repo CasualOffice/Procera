@@ -449,7 +449,10 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R4-08 | Envelope correction (change recipient email) audited; DOCX + merge fields; anchor tags place fields | FX-S03/S09 |
 | E2E-R4-09 | Public form with CAPTCHA + rate limit; save & resume | FX-F05/F06 |
 | E2E-R4-10 | Config export from sandbox → import into prod workspace shows diff; secrets absent | FR-W12, FR-P09 |
-| E2E-R4-11 | API token scoped to `request:start` cannot read audit | 12 §5 |
+| E2E-R4-11 | API token scoped to `request:start` cannot read audit (in E2E-R4-TOK-01) | 12 §5 |
+| E2E-R4-TOK-01 | API: a personal token (`prc_live_…`, shown once) reads within its permissions; refused outside them (members, audit), for decisions, the account and token management; a wrong secret is 401; last used is recorded; revoked → 401 at once | 06 §3.5, BPMS-144 |
+| E2E-R4-TOK-02 | API: a member can't give a token permissions they lack (403) or unknown ones (422), nor list or revoke others' tokens | 12 §4 |
+| E2E-R4-UI-01 | Browser: Account › API tokens — make a read-only token, copy it from the show-once dialog, a script reads with it and is refused an invite, revoke it in the list → 401; axe | BPMS-144 |
 | E2E-R4-ISO | Isolation sweep incl. tokens, webhooks, connectors | SEC-* |
 
 ### E2E-R5: Cases & Compliance

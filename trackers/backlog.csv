@@ -89,7 +89,7 @@ BPMS-140,IAM,"OIDC SSO, SAML-broker, SSO enforcement, JIT",P1,R4,Platform,"FR-P0
 BPMS-141,IAM,SCIM 2.0 server,P1,R4,Platform,INT-003,<5 min deprovision,M,BPMS-140,Not started,—
 BPMS-142,IAM,Scoped/delegated admins; IP allowlists,P1,R4,Platform,"CFG-018, FR-W06",No escalation,M,BPMS-024,Not started,—
 BPMS-143,INT,"Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events",P1,R4,Backend,"INT-*, WH/SSRF",SEC SSRF tests,L,BPMS-029,Not started,—
-BPMS-144,INT,"Public API hardening, OpenAPI, CLI, TS/Python SDKs",P1,R4,Backend,08,Spec published,M,,Not started,—
+BPMS-144,INT,"Public API hardening, OpenAPI, CLI, TS/Python SDKs",P1,R4,Backend,08,Spec published,M,,In progress,Automated tests
 BPMS-145,NOTIF,"Email-actionable approvals, reply-by-email, web push",P1,R4,Fullstack,"FR-N03/N05, FX-R03",Replay rejected,M,BPMS-048,Not started,—
 BPMS-146,IAM,Guests + external signers (magic link + OTP); self-serve signing links,P1,R4,Fullstack,"FR-P08, FX-S10",Single-use,M,BPMS-107,Not started,—
 BPMS-147,SIGN,"E-sign v2: DOCX + merge, anchor tags, conditional fields, delegate, correction, embedded",P1,R4,Fullstack,FX-S03/04/08/09/12,Audited corrections,L,BPMS-107,Not started,—

@@ -8,10 +8,10 @@
 ```text
 Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
 Partial   ███████████████░░░░░░░░░░░░░░░  49% counting in-progress epics as half done
-Tests     260 automated E2E scenarios · 439 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 0 · blocked 0 · not started 64 · deferred 0
+Tests     263 automated E2E scenarios · 442 Rust tests (incl. property tests)
+Status    done 61 · in review 0 · in progress 1 · blocked 0 · not started 63 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 48 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 49 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -31,7 +31,9 @@ Evidence  automated tests 48 · code merged 13  (separate from status; none user
 
 ## Active right now
 
-_Nothing in progress._
+| ID | Item | Status | Evidence | Note |
+|---|---|---|---|---|
+| BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | **In progress** | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 
 ## Done
 
@@ -228,7 +230,7 @@ _SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (
 - [ ] **BPMS-141** (P1, M) SCIM 2.0 server
 - [ ] **BPMS-142** (P1, M) Scoped/delegated admins; IP allowlists
 - [ ] **BPMS-143** (P1, L) Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events
-- [ ] **BPMS-144** (P1, M) Public API hardening, OpenAPI, CLI, TS/Python SDKs
+- [ ] **BPMS-144** (P1, M) Public API hardening, OpenAPI, CLI, TS/Python SDKs **[In progress]**
 - [ ] **BPMS-145** (P1, M) Email-actionable approvals, reply-by-email, web push
 - [ ] **BPMS-146** (P1, M) Guests + external signers (magic link + OTP); self-serve signing links
 - [ ] **BPMS-147** (P1, L) E-sign v2: DOCX + merge, anchor tags, conditional fields, delegate, correction, embedded
@@ -299,7 +301,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 318 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 321 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 16 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

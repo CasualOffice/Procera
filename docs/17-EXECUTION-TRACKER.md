@@ -111,7 +111,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-141 | IAM | SCIM 2.0 server | P1 | R4 | Platform | INT-003 | <5 min deprovision | M | BPMS-140 | Not started | — |
 | BPMS-142 | IAM | Scoped/delegated admins; IP allowlists | P1 | R4 | Platform | CFG-018, FR-W06 | No escalation | M | BPMS-024 | Not started | — |
 | BPMS-143 | INT | Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events | P1 | R4 | Backend | INT-*, WH/SSRF | SEC SSRF tests | L | BPMS-029 | Not started | — |
-| BPMS-144 | INT | Public API hardening, OpenAPI, CLI, TS/Python SDKs | P1 | R4 | Backend | 08 | Spec published | M |  | Not started | — |
+| BPMS-144 | INT | Public API hardening, OpenAPI, CLI, TS/Python SDKs | P1 | R4 | Backend | 08 | Spec published | M |  | In progress | Automated tests |
 | BPMS-145 | NOTIF | Email-actionable approvals, reply-by-email, web push | P1 | R4 | Fullstack | FR-N03/N05, FX-R03 | Replay rejected | M | BPMS-048 | Not started | — |
 | BPMS-146 | IAM | Guests + external signers (magic link + OTP); self-serve signing links | P1 | R4 | Fullstack | FR-P08, FX-S10 | Single-use | M | BPMS-107 | Not started | — |
 | BPMS-147 | SIGN | E-sign v2: DOCX + merge, anchor tags, conditional fields, delegate, correction, embedded | P1 | R4 | Fullstack | FX-S03/04/08/09/12 | Audited corrections | L | BPMS-107 | Not started | — |
@@ -147,7 +147,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started | — |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started | — |
 
-**Progress:** Done: 61 · In review: 0 · In progress: 0 · Blocked: 0 · Not started: 64 · Deferred: 0 (of 125)
+**Progress:** Done: 61 · In review: 0 · In progress: 1 · Blocked: 0 · Not started: 63 · Deferred: 0 (of 125)
 
 ### Active and recently completed
 
@@ -214,6 +214,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-216 | My work bulk decisions with preview; acknowledgement and signature tabs | Done | Automated tests | My work: kind filters with counts (All, Approvals, Tasks, Acknowledgements); "Decide several" selects plain approvals (nothing to fill in), Approve N… / Reject N… preview every request, decide each on its own with its revision as If-Match and report per item (an item decided elsewhere is named, never overwritten); Reject needs a reason. E2E-R2-UI-20. Person pickers stay disabled until people load. A signatures tab arrives with e-signing (0.4). |
 | BPMS-066 | Retention policy per record class (policy only) | Done | Automated tests | Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26. |
 | BPMS-108 | All requests / all work / workload / process health / ops monitor | Done | Automated tests | Workload (FR-A03) shipped early with 0.2: GET /work/workload?scope=team|all (per person open / overdue / due in 7 days / oldest, away + delegate, coverage gaps) and /work/workload/{member} (their open steps); Team page for managers (team = reporting line, derived from the directory, no grant needed) and Requests oversight › Workload for admins; bulk reassign with a preview, refusals per step; a manager reassigns within their team without work:reassign (docs/12 §6). E2E-R2-UI-13. Ops monitor (PR-09): Admin › Operations lists technical incidents (dead-lettered jobs, failed reminder/escalation timers) apart from business exceptions; retry/dismiss with a reason (request:retry), audited incident.retried/incident.dismissed; E2E-R2-UI-14. Done for 0.2: workload (team + all) and Operations (E2E-R2-UI-13/14/16); process health, email bounces and timer lateness moved to BPMS-217. |
+| BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | In progress | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 
 ## Domain backlogs (detail, owned by their docs)
 
@@ -222,7 +223,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 - **Integrations (INT)** — 32 items (INT-001…INT-028), source: `13-INTEGRATIONS.md`
 - **Config (CFG)** — 25 items (CFG-001…CFG-025), source: `20-WORKSPACE-CONFIGURATION.md`
 - **AI (AI)** — 25 items (AI-001…AI-025), source: `16-AI-ASSISTANCE.md`
-- **E2E scenarios (E2E)** — 318 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
+- **E2E scenarios (E2E)** — 321 items (E2E-P0-01…E2E-R5-ISO), source: `23-E2E-TEST-PLAN.md`
 - **Security tests** — 37 (06) · **Test matrix** — 40 (15)
 
 ## Risks

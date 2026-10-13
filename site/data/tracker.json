@@ -3,15 +3,15 @@
  "last_updated": "2026-10-14",
  "current_release": "P0",
  "totals": {
-  "Done": 58,
+  "Done": 61,
   "In review": 0,
-  "In progress": 3,
+  "In progress": 1,
   "Blocked": 0,
-  "Not started": 61,
+  "Not started": 63,
   "Deferred": 0,
-  "all": 122
+  "all": 125
  },
- "e2e_scenarios": 257,
+ "e2e_scenarios": 263,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -269,7 +269,13 @@
   "E2E-R3-PROC-03",
   "E2E-R3-PROC-04",
   "E2E-R3-UI-01",
-  "E2E-R3-UI-02"
+  "E2E-R3-UI-02",
+  "E2E-R3-UI-03",
+  "E2E-R3-UI-04",
+  "E2E-R3-UI-05",
+  "E2E-R4-TOK-01",
+  "E2E-R4-TOK-02",
+  "E2E-R4-UI-01"
  ],
  "releases": [
   {
@@ -354,8 +360,8 @@
    "gate": "G-R2",
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
    "total": 22,
-   "done": 15,
-   "in_progress": 3,
+   "done": 18,
+   "in_progress": 0,
    "not_started": 4,
    "epics": [
     "BPMS-080",
@@ -389,10 +395,10 @@
    "end": "2027-05-07",
    "gate": "G-R3",
    "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
-   "total": 15,
+   "total": 18,
    "done": 2,
    "in_progress": 0,
-   "not_started": 13,
+   "not_started": 16,
    "epics": [
     "BPMS-066",
     "BPMS-102",
@@ -408,7 +414,10 @@
     "BPMS-213",
     "BPMS-215",
     "BPMS-217",
-    "BPMS-218"
+    "BPMS-218",
+    "BPMS-219",
+    "BPMS-220",
+    "BPMS-221"
    ]
   },
   {
@@ -420,8 +429,8 @@
    "scope": "SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8)",
    "total": 14,
    "done": 0,
-   "in_progress": 0,
-   "not_started": 14,
+   "in_progress": 1,
+   "not_started": 13,
    "epics": [
     "BPMS-140",
     "BPMS-141",
@@ -914,7 +923,7 @@
    "title": "Release bundles + publish integration",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-085",
@@ -962,7 +971,7 @@
    "title": "Step builder + React Flow canvas + properties + validate/test-run/review/publish",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-101",
@@ -970,7 +979,7 @@
    "title": "Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",
    "priority": "P0",
    "release": "R2",
-   "status": "In progress"
+   "status": "Done"
   },
   {
    "id": "BPMS-103",
@@ -1173,6 +1182,30 @@
    "status": "Not started"
   },
   {
+   "id": "BPMS-219",
+   "area": "DES",
+   "title": "Designer next: editable parallel and notify steps, connect on the canvas, owner-chosen approval outcomes (OQ-16), review in the designer",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-220",
+   "area": "FORM",
+   "title": "Form builder next: form artifacts, calculated fields, repeating groups, prefill, lookups, sections, preview as a role, PDF of submission",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-221",
+   "area": "LIB",
+   "title": "Dependents to update: when an SOP or policy a published process pins gets a new version, list the processes to republish",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
    "id": "BPMS-140",
    "area": "IAM",
    "title": "OIDC SSO, SAML-broker, SSO enforcement, JIT",
@@ -1210,7 +1243,7 @@
    "title": "Public API hardening, OpenAPI, CLI, TS/Python SDKs",
    "priority": "P1",
    "release": "R4",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-145",
