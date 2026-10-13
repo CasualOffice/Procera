@@ -31,6 +31,8 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [delegating, setDelegating] = useState(false);
+  // With an earlier step to return to, the two kinds of send-back say where they go.
+  const verb = (o: string) => (o === 'send_back' && item.send_back_to ? `Send back to ${item.send_back_to}` : o === 'changes_requested' && item.send_back_to ? 'Send back to requester' : outcomeVerb(o));
   const { can } = useSession();
   const [problem, setProblem] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
@@ -38,7 +40,7 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const headingId = useId();
   const due = dueInfo(item.due_at);
-  const commentWhy = item.outcomes.filter(needsComment).map((o) => outcomeVerb(o).toLowerCase());
+  const commentWhy = item.outcomes.filter(needsComment).map((o) => verb(o).replace(/^\w/, (c) => c.toLowerCase()));
 
   const decide = async (outcome: string) => {
     setProblem(null);
@@ -104,7 +106,7 @@ export function DecisionPanel({ item, detail, onDecided, showFiles = true }: { i
               const Icon = ICON[tone];
               return (
                 <Button key={o} variant={tone === 'primary' ? 'primary' : 'secondary'} className={tone === 'reject' ? 'btn-reject' : undefined} isDisabled={busy !== null} onPress={() => void decide(o)}>
-                  <Icon aria-hidden="true" size="0.9375rem" /> {busy === o ? `${outcomeVerb(o)}…` : outcomeVerb(o)}
+                  <Icon aria-hidden="true" size="0.9375rem" /> {busy === o ? `${verb(o)}…` : verb(o)}
                 </Button>
               );
             })}

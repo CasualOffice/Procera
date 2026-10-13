@@ -478,7 +478,11 @@ impl Requests {
                     (who, _) => format!(
                         "{}: {} by {}{}",
                         r.2,
-                        outcome.replace('_', " "),
+                        if outcome == "send_back" {
+                            "sent back to an earlier step".to_owned()
+                        } else {
+                            outcome.replace('_', " ")
+                        },
                         who.as_deref().unwrap_or("Someone"),
                         r.13.as_ref().map(|n| format!(" on behalf of {n}")).unwrap_or_default()
                     ),
@@ -707,6 +711,12 @@ impl Requests {
                     .then(|| rt.statements.get(&r.node_id).map(|s| (*s).to_owned()))
                     .flatten(),
                 outcomes: human_outcomes(&r.kind, &r.outcomes),
+                send_back_to: r
+                    .outcomes
+                    .iter()
+                    .any(|o| o == "send_back")
+                    .then(|| rt.send_back_to(&r.node_id))
+                    .flatten(),
                 kind: r.kind,
                 state: r.state,
                 due_at: r.due_at,
@@ -852,7 +862,7 @@ impl Requests {
             ));
         }
         let comment = comment.map(str::trim).filter(|c| !c.is_empty());
-        if comment.is_none() && matches!(outcome, "rejected" | "changes_requested") {
+        if comment.is_none() && matches!(outcome, "rejected" | "changes_requested" | "send_back") {
             errors.push(FieldError::new("comment", "required", "Say why, so the requester knows what to do"));
         }
         if comment.is_some_and(|c| c.chars().count() > 2_000) {

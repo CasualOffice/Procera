@@ -449,3 +449,38 @@ async fn access_requests_route_by_sensitivity_to_groups_and_notify_the_beneficia
     assert_eq!(w.notes(bea, "request_notice").await, 1);
     assert_eq!(w.notes(ann, "request_completed").await, 1);
 }
+
+#[tokio::test]
+async fn finance_sends_an_expense_back_to_the_manager_who_approves_again() {
+    let Some(mut w) = world().await else { return };
+    let boss = w.member("Boss", None).await;
+    let ann = w.member("Ann", Some(boss)).await;
+    let fin = w.member("Fiona", None).await;
+    w.grant("finance.approver", fin).await;
+    let id = w.start(ann, "hr.expense-claim", expense("900.00")).await.unwrap();
+    assert_eq!(w.decide(boss, "approved", None, json!({})).await.unwrap(), "in_progress");
+    let item = w.open(fin).await.pop().expect("with finance");
+    assert_eq!(item.send_back_to.as_deref(), Some("Manager approval"));
+    assert!(item.outcomes.contains(&"send_back".to_owned()));
+    // A reason is required to send back.
+    assert!(matches!(w.decide(fin, "send_back", None, json!({})).await, Err(RequestError::Invalid(_))));
+    assert_eq!(
+        w.decide(fin, "send_back", Some("Which client was this for?"), json!({})).await.unwrap(),
+        "in_progress"
+    );
+    let d = w.detail(id).await;
+    assert_eq!(d.summary.current_step.as_deref(), Some("Manager approval"));
+    assert_eq!(d.summary.assignees, ["Boss"]);
+    assert!(
+        d.timeline.iter().any(|t| t.text.contains("Finance approval: sent back to an earlier step by Fiona")),
+        "{:?}",
+        d.timeline
+    );
+    // The manager approves again; finance approves.
+    assert_eq!(w.decide(boss, "approved", None, json!({})).await.unwrap(), "in_progress");
+    assert_eq!(w.decide(fin, "approved", None, json!({})).await.unwrap(), "approved");
+    // The manager's first step offers no send-back (nothing earlier to return to).
+    let first = w.start(ann, "hr.expense-claim", expense("50.00")).await.unwrap();
+    let mine = w.open(boss).await.into_iter().find(|i| i.request.id == first).expect("boss");
+    assert!(mine.send_back_to.is_none() && !mine.outcomes.contains(&"send_back".to_owned()));
+}

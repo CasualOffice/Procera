@@ -163,6 +163,9 @@ pub struct WorkView {
     pub state: String,
     /// Outcomes a person may choose (`expired` is the system's, never offered).
     pub outcomes: Vec<String>,
+    /// The earlier step a `send_back` returns the request to (BPMS-212).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub send_back_to: Option<String>,
     #[serde(with = "time::serde::rfc3339::option")]
     pub due_at: Option<OffsetDateTime>,
     #[serde(with = "time::serde::rfc3339")]

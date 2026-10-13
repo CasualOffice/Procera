@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   █████████████░░░░░░░░░░░░░░░░░  54/121 epics done  (45%)
-Partial   ██████████████░░░░░░░░░░░░░░░░  45% counting in-progress epics as half done
-Tests     250 automated E2E scenarios · 429 Rust tests (incl. property tests)
-Status    done 54 · in review 0 · in progress 2 · blocked 0 · not started 65 · deferred 0
+Overall   ██████████████░░░░░░░░░░░░░░░░  55/121 epics done  (45%)
+Partial   ██████████████░░░░░░░░░░░░░░░░  46% counting in-progress epics as half done
+Tests     251 automated E2E scenarios · 430 Rust tests (incl. property tests)
+Status    done 55 · in review 0 · in progress 1 · blocked 0 · not started 65 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 Evidence  automated tests 43 · code merged 13  (separate from status; none user-validated yet)
 ```
@@ -22,7 +22,7 @@ Evidence  automated tests 43 · code merged 13  (separate from status; none user
 |---|---|---|---|---|---|
 | **P0** ◀ now | Spikes + G1 + design system | 2026-11-02 → 2026-11-20 | G1 | `█████████░░░` | 10/14 |
 | **R1** | Workspace & Policies | 2026-11-23 → 2027-01-15 | G-R1 | `████████████` | 31/32 |
-| **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `██████░░░░░░` | 11/22 |
+| **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `███████░░░░░` | 12/22 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `██░░░░░░░░░░` | 2/14 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/14 |
 | **R5** | Cases & Compliance | 2027-07-05 → 2027-08-27 | G-R5 | `░░░░░░░░░░░░` | 0/11 |
@@ -34,7 +34,6 @@ Evidence  automated tests 43 · code merged 13  (separate from status; none user
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
 | BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Automated tests | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. File fields (`file`, multiple): ids checked for workspace, uploader, clean scan and allowed type (images, PDF, Word, Excel, CSV), stored as file refs (E2E-R2-41). Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
-| BPMS-212 | Delegate a single work item; send back to an earlier step | **In progress** | Automated tests | Single-step delegation shipped: POST /work/{id}/delegate {membership_id, note?} by someone the step waits on (work:delegate), separation of duties re-checked, the requester never offered, audited work_item.delegated, timeline "delegated by X: note"; Delegate… in the decision panel (My work and the request page). DB test in crates/requests/tests/delegation.rs, E2E-R2-UI-18, AUD-01 step. Next: send back to an earlier step. |
 
 ## Done
 
@@ -89,6 +88,7 @@ Evidence  automated tests 43 · code merged 13  (separate from status; none user
 - [x] **BPMS-103** Request portal/catalogue, start form, request detail, comments/@mentions/watchers — Request API (0.2): GET /request-types, POST /requests (Idempotency-Key, display ids LR-2026-000123), GET /requests?scope=mine|all, GET /requests/{id} (steps, timeline, SLA), POST /requests/{id}/cancel; status derived per stimulus; audited request.started/cancelled with the runtime record; DB tests + e2e/packs/r2 (E2E-R2-17, -20, -ISO). Why this route (PR-08): GET /requests/{id} returns why[{at, step, text, facts}] (threshold routes and assignment reasons) and release{version, checksum}; GET /work items carry why_you; request page Why this route disclosure and decision panel Why you (E2E-R2-24, E2E-R2-UI-01).; /requests/new/{type} rendered from the form schema with required checks and 422 field errors; /requests/{id} with steps, answers, timeline and cancel; Home quick action and requests in progress; E2E-R2-UI-01..04). Server API in progress alongside. Workspace request settings: requests.types.enabled / requests.types.audience / requests.currency (curated ISO list, default EUR; money-bearing built-ins compiled per currency, thresholds read in it); GET /request-types lists only enabled types the caller is in the audience of, POST /requests refuses others with 403; Settings › Requests with 'Offer <type>' switches and 'Who can ask' (E2E-R2-30..32, E2E-R2-UI-10). Slice 3: Who approves this — POST /requests/preview (a read, audit-exempt) dry-runs the routing with the real resolver and words later steps from IR conditions, shown live on the form (E2E-R2-40, E2E-R2-UI-20); attachments on every built-in and with decisions (E2E-R2-41/42, E2E-R2-UI-21); requests.types.policy links a published policy/SOP, shown to deciders, the decision records the version shown (E2E-R2-43, E2E-R2-UI-22). Onboarding: built-in hr.onboarding (ON), three parallel tasks (IT, Facilities, the new member's manager) then a personal acknowledgement by the new member, ending completed as Onboarded (migration 0045 adds status completed); open_steps, steps[].parallel, result and the work item statement; the stepper groups parallel steps and My work has an Acknowledge panel; DB crates/requests/tests/onboarding.rs, E2E-R2-UI-15. Done for 0.2 (catalogue, start forms, request page, five built-ins incl. onboarding); comments, @mentions and watchers moved to BPMS-214.
 - [x] **BPMS-105** My Work 3-pane inbox (tasks, acks, signatures), bulk with preview — web: requests catalogue, forms, my/all requests, request page with stepper, My work inbox with decisions (/work list + detail with Open/Done, J/K, decision panel with If-Match and required comment to send back or reject, sidebar count "My work, N open", Home "Needs you" approvals, request notifications); Overdue tag by the server clock; Admin › Requests oversight (Unassigned, Overdue, All open; Reassign… with SoD errors on the field; E2E-R2-UI-05). Bulk with preview and acks/signatures tabs remain. Done for 0.2 (inbox, decisions, acknowledgement panel); bulk decisions with preview and ack/signature tabs moved to BPMS-216.
 - [x] **BPMS-106** Template gallery + install wizard + Wave-1 templates (13) — P0 subset (A-38): built-in template packs (employee handbook, starter policies) installed as drafts with the right kind permissions, Templates gallery page; E2E-R1-18. Built-in request types (0.2, docs/19 §5.6): leave, expense claim, purchase requisition, access request compiled at boot and pinned. Done for P0/0.2 (gallery, starter packs, five built-in request types); install wizard, role mapping and the other Wave-1 templates moved to BPMS-215.
+- [x] **BPMS-212** Delegate a single work item; send back to an earlier step — Single-step delegation shipped: POST /work/{id}/delegate {membership_id, note?} by someone the step waits on (work:delegate), separation of duties re-checked, the requester never offered, audited work_item.delegated, timeline "delegated by X: note"; Delegate… in the decision panel (My work and the request page). DB test in crates/requests/tests/delegation.rs, E2E-R2-UI-18, AUD-01 step. Send back to an earlier step: later approvals offer send_back (expense/purchase finance → manager, CFO → finance, access security → system owner), comment required, added in code so builds without it stay loadable for requests in flight; work items carry send_back_to and the buttons read "Send back to <step>" / "Send back to requester"; DB test, E2E-R2-UI-19.
 - [x] **BPMS-214** Request comments, @mentions and watchers — Request conversation (migration 0047): append-only comments with internal notes hidden from the requester, @mentions of people who can already see the request (per-person access check, 422 cannot_see), watchers; request_comment / request_mention notices in-app + email to the requester, open-step people and watchers (never the author), watchers hear the outcome; audited request.commented / watched / unwatched (AUD-01). Request viewing is team-aware (a Team Manager's department, a manager's reporting line). DB crates/requests/tests/comments.rs, E2E-R2-UI-17. CC and editing comments are not in.
 - [x] **BPMS-066** Retention policy per record class (policy only) — Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26.
 - [x] **BPMS-108** All requests / all work / workload / process health / ops monitor — Workload (FR-A03) shipped early with 0.2: GET /work/workload?scope=team|all (per person open / overdue / due in 7 days / oldest, away + delegate, coverage gaps) and /work/workload/{member} (their open steps); Team page for managers (team = reporting line, derived from the directory, no grant needed) and Requests oversight › Workload for admins; bulk reassign with a preview, refusals per step; a manager reassigns within their team without work:reassign (docs/12 §6). E2E-R2-UI-13. Ops monitor (PR-09): Admin › Operations lists technical incidents (dead-lettered jobs, failed reminder/escalation timers) apart from business exceptions; retry/dismiss with a reason (request:retry), audited incident.retried/incident.dismissed; E2E-R2-UI-14. Done for 0.2: workload (team + all) and Operations (E2E-R2-UI-13/14/16); process health, email bounces and timer lateness moved to BPMS-217.
@@ -160,7 +160,7 @@ _System console, auth+MFA, roles, settings, DataGrid, SOP/policy library, campai
 </details>
 
 <details>
-<summary><b>R2 — Requests & Approvals</b> · 2027-01-18 → 2027-03-12 · gate G-R2 · 11/22 done</summary>
+<summary><b>R2 — Requests & Approvals</b> · 2027-01-18 → 2027-03-12 · gate G-R2 · 12/22 done</summary>
 
 _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)_
 
@@ -183,7 +183,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-121** (P0, M) Usability round + SUS measurement + fixes
 - [ ] **BPMS-207** (P1, S) Mobile bottom bar for the app shell
 - [ ] **BPMS-209** (P0, M) S3-compatible storage backend, EXIF stripping at upload, separate preview origin
-- [ ] **BPMS-212** (P1, M) Delegate a single work item; send back to an earlier step **[In progress]**
+- [x] **BPMS-212** (P1, M) Delegate a single work item; send back to an earlier step
 - [x] **BPMS-214** (P0, M) Request comments, @mentions and watchers
 - [ ] **BPMS-216** (P0, M) My work bulk decisions with preview; acknowledgement and signature tabs
 
@@ -291,7 +291,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 305 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 306 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 15 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

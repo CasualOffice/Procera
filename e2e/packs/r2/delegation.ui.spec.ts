@@ -67,4 +67,41 @@ test.describe('delegating a step @r2 @ui', () => {
     await expect.poll(async () => (await detail()).status).toBe('approved');
     expect(JSON.stringify((await detail()).timeline)).toContain('delegated by Bo Boss: I am at the offsite');
   });
+
+  test('E2E-R2-UI-19 finance sends an expense back to the manager with a reason; the manager approves again', async ({ page, browser, request }) => {
+    const { ws, owner } = await workspaceWithOwner(request);
+    const bo = await person(request, owner, ws.id, 'Bo Boss');
+    const ann = await person(request, owner, ws.id, 'Ann Asker');
+    const fin = await person(request, owner, ws.id, 'Fia Finance');
+    expect((await owner.c.patch(`/api/v1/members/${ann.id}`, { headers: owner.headers, data: { manager_membership_id: bo.id } })).ok()).toBe(true);
+    const g = await (await owner.c.post('/api/v1/groups', { headers: owner.headers, data: { name: 'Finance' } })).json();
+    await owner.c.post(`/api/v1/groups/${g.id}/members`, { headers: owner.headers, data: { membership_id: fin.id } });
+    const expense = { amount: { amount: '900', currency: 'EUR' }, category: 'travel', description: 'Client visit', expense_date: '2026-10-01' };
+    const r = await ann.session.c.post('/api/v1/requests', { headers: { ...ann.session.headers, 'idempotency-key': key() }, data: { type: 'hr.expense-claim', input: expense } });
+    expect(r.status(), await r.text()).toBe(201);
+    const { id, display_id: ref } = await r.json();
+    const itemFor = async (p: { session: Session }) => ((await (await p.session.c.get('/api/v1/work', { headers: p.session.headers })).json()).items as { id: string; revision: number; request: { id: string } }[]).find((w) => w.request.id === id)!;
+    const boItem = await itemFor(bo);
+    expect((await bo.session.c.post(`/api/v1/work/${boItem.id}/decisions`, { headers: { ...bo.session.headers, 'if-match': `"${boItem.revision}"` }, data: { outcome: 'approved' } })).status()).toBe(200);
+
+    await signIn(page, fin.email, fin.recovery[0]!);
+    await nav(page, 'My work');
+    await page.getByRole('navigation', { name: 'Open work' }).getByRole('link').filter({ hasText: ref }).click();
+    const panel = page.getByRole('region', { name: 'Your decision' });
+    await expect(panel.getByRole('button', { name: 'Send back to requester' })).toBeVisible();
+    await panel.getByRole('button', { name: 'Send back to Manager approval' }).click();
+    await expect(panel.getByText(/Enter a comment|Say why|comment/i).first()).toBeVisible();
+    await panel.getByRole('textbox', { name: /Comment/ }).fill('Which client was this for?');
+    await panel.getByRole('button', { name: 'Send back to Manager approval' }).click();
+    await expect(page.getByRole('navigation', { name: 'Open work' }).getByRole('link').filter({ hasText: ref })).toHaveCount(0);
+
+    const other = await (await browser.newContext()).newPage();
+    await signIn(other, bo.email, bo.recovery[0]!);
+    await nav(other, 'My work');
+    await other.getByRole('navigation', { name: 'Open work' }).getByRole('link').filter({ hasText: ref }).click();
+    await other.getByRole('region', { name: 'Your decision' }).getByRole('button', { name: 'Approve' }).click();
+    await expect.poll(async () => (await (await ann.session.c.get(`/api/v1/requests/${id}`, { headers: ann.session.headers })).json()).current_step).toBe('Finance approval');
+    const d = await (await ann.session.c.get(`/api/v1/requests/${id}`, { headers: ann.session.headers })).json();
+    expect(JSON.stringify(d.timeline)).toContain('Finance approval: sent back to an earlier step by Fia Finance');
+  });
 });

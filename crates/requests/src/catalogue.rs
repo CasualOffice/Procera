@@ -128,6 +128,12 @@ impl RequestType {
     }
 
     /// The display name of a node, or its id.
+    /// Where a `send_back` from `node` leads (the earlier step's name), if it can send back.
+    pub fn send_back_to(&self, node: &str) -> Option<String> {
+        let ir = self.exe.program.ir();
+        ir.edges.iter().find(|e| e.from == node && e.on == "send_back").map(|e| self.node_name(&e.to))
+    }
+
     pub fn node_name(&self, node: &str) -> String {
         self.exe
             .program
@@ -150,6 +156,9 @@ struct Def {
     labels: &'static [(&'static str, &'static str)],
     /// Optional file fields added to the authored IR (a list of files each), after `labels`.
     files: &'static [(&'static str, &'static str)],
+    /// Approvals that may send the request back to an earlier approval (BPMS-212): (from, to).
+    /// Added in code like `files`, so the builds without it stay loadable for requests in flight.
+    send_back: &'static [(&'static str, &'static str)],
     /// Human steps whose people may edit fields: node → variables. `*` = the whole start form.
     tasks: &'static [(&'static str, &'static [&'static str])],
     revise: Option<&'static str>,
@@ -201,6 +210,7 @@ const DEFS: &[Def] = &[
             ("reason", "Reason"),
         ],
         files: &[("supporting_document", "Supporting document"), ("attachments", "Attachments")],
+        send_back: &[],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -230,6 +240,7 @@ const DEFS: &[Def] = &[
             ("expense_date", "Date of the expense"),
         ],
         files: &[("receipts", "Receipts"), ("attachments", "Attachments")],
+        send_back: &[("finance_approval", "manager_approval")],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -252,6 +263,7 @@ const DEFS: &[Def] = &[
             ("justification", "Justification"),
         ],
         files: &[("quote", "Quote"), ("attachments", "Attachments")],
+        send_back: &[("finance_approval", "manager_approval"), ("cfo_approval", "finance_approval")],
         tasks: &[("revise", &["*"])],
         revise: Some("revise"),
         end_status: &[("end_approved", "approved"), ("end_rejected", "rejected")],
@@ -275,6 +287,7 @@ const DEFS: &[Def] = &[
             ("justification", "Why is it needed?"),
         ],
         files: &[("attachments", "Attachments")],
+        send_back: &[("security_approval", "owner_approval")],
         tasks: &[("revise", &["*"]), ("provision", &["ticket_ref"])],
         revise: Some("revise"),
         end_status: &[("end_granted", "approved"), ("end_rejected", "rejected")],
@@ -299,6 +312,7 @@ const DEFS: &[Def] = &[
             ("notes", "Notes for the team"),
         ],
         files: &[("attachments", "Attachments")],
+        send_back: &[],
         tasks: &[
             ("it_setup", &["asset_tag"]),
             ("workspace", &["desk"]),
@@ -417,6 +431,22 @@ fn with_files(doc: &Value, files: &[(&str, &str)]) -> Value {
     d
 }
 
+/// The document with a `send_back` outcome on each `from` approval, leading back to `to`.
+fn with_send_back(doc: &Value, pairs: &[(&str, &str)]) -> Value {
+    let mut d = doc.clone();
+    for (from, to) in pairs {
+        if let Some(n) = d["nodes"].as_array_mut().and_then(|ns| ns.iter_mut().find(|n| n["id"] == *from)) {
+            let mut outs: Vec<Value> = n["outcomes"].as_array().cloned().unwrap_or_default();
+            outs.push(Value::String("send_back".into()));
+            n["outcomes"] = Value::Array(outs);
+        }
+        if let Some(edges) = d["edges"].as_array_mut() {
+            edges.push(serde_json::json!({ "id": format!("send_back_{from}"), "from": from, "to": to, "on": "send_back" }));
+        }
+    }
+    d
+}
+
 /// The document with every money variable priced in `currency`.
 fn in_currency(doc: &Value, currency: &str) -> Value {
     let mut d = doc.clone();
@@ -471,7 +501,8 @@ impl Catalogue {
         let mut types = Vec::new();
         for d in DEFS {
             let authored: Value = serde_json::from_str(d.ir).map_err(|e| format!("{}: {e}", d.key))?;
-            let doc = with_files(&authored, d.files);
+            let with_files_only = with_files(&authored, d.files);
+            let doc = with_send_back(&with_files_only, d.send_back);
             let program = build(d.key, &doc)?;
             let start_form = Form {
                 fields: d
@@ -535,6 +566,19 @@ impl Catalogue {
             };
             for doc in &legacy {
                 programs.insert(Executable::new(build(d.key, doc)?));
+            }
+            // Builds from before send-back (files, no send-back edges) stay loadable too.
+            if !d.send_back.is_empty() {
+                let before: Vec<Value> = match &money {
+                    Some(_) => procera_settings::catalogue::CURRENCIES
+                        .iter()
+                        .map(|c| in_currency(&with_files_only, c))
+                        .collect(),
+                    None => vec![with_files_only.clone()],
+                };
+                for doc in &before {
+                    programs.insert(Executable::new(build(d.key, doc)?));
+                }
             }
             let parallel = parallel_steps(exe.program.ir());
             types.push(Arc::new(RequestType {

@@ -36,6 +36,7 @@ Write a policy or SOP → review (separation of duties) → approve → publish 
 - **Works on phones:** a bottom bar for the everyday pages.
 
 - **Requests and approvals (0.2, first slice):** leave, expense, purchase and access requests with forms; approvals routed to the requester's manager, finance, the CFO or IT; a My Work inbox to approve, reject or send back; a request page with steps and timeline. Designing your own workflows, e-signing and cases are planned, **not built yet**.
+- **Delegate and send back (0.2):** hand a step you hold to a colleague with a note, or send a request back to an earlier approver (finance back to the manager) instead of all the way to the requester; separation of duties still applies.
 - **Request conversation (0.2):** comment on any request you can see, write internal notes the requester never sees, @mention colleagues (only people who can see the request) and watch a request to follow it; everyone involved is told in-app and by email.
 - **Operations (0.2):** Admin › Operations separates technical incidents (a step that couldn't run, a reminder that kept failing) from business exceptions (steps with nobody, overdue, people away holding work); incidents are retried or dismissed with a reason, and both are audited.
 - **Team workload (0.2):** managers get a Team page (their reporting line from the directory): open, overdue and due-this-week steps per person, who is away holding work, and bulk reassign within the team; admins see everyone under Requests oversight › Workload.
