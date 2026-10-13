@@ -61,6 +61,9 @@ import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
 import { Signatures } from './pages/signing/Signatures';
 import { Ceremony } from './pages/signing/Ceremony';
+import { DocumentNew } from './pages/signing/DocumentNew';
+import { Documents } from './pages/signing/Documents';
+import { EnvelopePage } from './pages/signing/EnvelopePage';
 
 function Redirect({ to }: { to: string }) {
   useEffect(() => navigate(to, { replace: true }), [to]);
@@ -145,6 +148,10 @@ export function App() {
   const ack = match('/acknowledgements/:id', path);
   if (ack) return <AppShell current="home" crumbs={['Home']}><AckLink id={ack.id!} /></AppShell>;
   if (path === '/announcements') return <AppShell current="announcements" crumbs={['Announcements']}><Announcements /></AppShell>;
+  if (path === '/documents') return <AppShell current="documents" crumbs={['Documents']}><Documents /></AppShell>;
+  if (path === '/documents/new') return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Send for signature']}><DocumentNew /></AppShell>;
+  const envelope = match('/documents/:id', path);
+  if (envelope) return <AppShell current="documents" crumbs={[['Documents', '/documents'], 'Document']}><EnvelopePage key={envelope.id} id={envelope.id!} /></AppShell>;
   if (path === '/account/profile') return <AppShell current="none" crumbs={['Account', 'Profile']}><Profile /></AppShell>;
   if (path === '/account/security') return <AppShell current="none" crumbs={['Account', 'Security']}><Security /></AppShell>;
   if (path === '/account/api-tokens') return <AppShell current="none" crumbs={['Account', 'API tokens']}><ApiTokens /></AppShell>;

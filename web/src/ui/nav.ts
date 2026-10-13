@@ -1,8 +1,8 @@
-import { Activity, Archive, Workflow, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Archive, Workflow, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileSignature, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
-  | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
+  | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns' | 'documents'
   | 'admin' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
@@ -23,6 +23,7 @@ export function workNav(can: (p: string) => boolean): NavItem[] {
     (can('directory:has_team') || (can('work:view_team') && !(can('request:view_all') && can('work:reassign')))) && { key: 'team', label: 'Team', to: '/team', icon: UsersRound, keywords: 'my team reports workload overdue away cover reassign manager' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
     any('policy:create', 'sop:create') && { key: 'my-documents', label: 'My documents', to: '/library?view=mine', icon: FileText, keywords: 'drafts owned in review mine' },
+    any('document:send_for_signature', 'document:view_all') && { key: 'documents', label: 'Documents', to: '/documents', icon: FileSignature, keywords: 'sign signature e-sign envelope pdf send for signature contract offer letter' },
     can('campaign:view') && { key: 'campaigns', label: 'Campaigns', to: '/admin/campaigns', icon: ClipboardCheck, keywords: 'acknowledgement attestation evidence' },
     adminNav(can).length > 0 && { key: 'admin', label: 'Admin', to: '/admin', icon: SlidersHorizontal, keywords: 'administration settings people configure' },
   ]);
