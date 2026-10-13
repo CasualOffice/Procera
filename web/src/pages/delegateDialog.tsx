@@ -44,7 +44,7 @@ export function DelegateDialog({ item, onClose, onDone }: { item: WorkItem; onCl
       {failure && <Notice tone="danger" title={failure} />}
       <div className="stack">
         <Select label="Delegate to" isRequired options={options} selectedKey={who || null} onSelectionChange={(k) => setWho(String(k ?? ''))}
-          placeholder={members === null ? 'Loading people…' : 'Choose a person'} isInvalid={!!errors.membership_id} errorMessage={errors.membership_id}
+          placeholder={members === null ? 'Loading people…' : 'Choose a person'} isDisabled={members === null} isInvalid={!!errors.membership_id} errorMessage={errors.membership_id}
           description="Separation of duties still applies: someone who decided an earlier step can’t take it." />
         <TextField label="Note" value={note} onChange={setNote} isInvalid={!!errors.note} errorMessage={errors.note} placeholder="For example “I’m at the offsite until Friday”" description="Optional. They see it in the timeline." />
       </div>

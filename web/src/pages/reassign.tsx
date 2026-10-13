@@ -72,7 +72,7 @@ export function ReassignDialog({ items, exclude, only, onClose, onDone }: { item
           </ul>
         )}
         <Select label="Person" isRequired options={options} selectedKey={who || null} onSelectionChange={(k) => setWho(String(k ?? ''))}
-          placeholder={members === null ? 'Loading people…' : 'Choose a person'} isInvalid={!!errors.membership_id} errorMessage={errors.membership_id}
+          placeholder={members === null ? 'Loading people…' : 'Choose a person'} isDisabled={members === null} isInvalid={!!errors.membership_id} errorMessage={errors.membership_id}
           description="The person who started a request, and anyone separation of duties excludes, can’t take it." />
         <TextField label="Reason" isRequired value={reason} onChange={setReason} isInvalid={!!errors.reason} errorMessage={errors.reason}
           description="For example “Manager on leave until Monday”." />

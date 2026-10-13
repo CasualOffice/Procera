@@ -1,5 +1,5 @@
-import { ArrowLeft, ArrowUpRight, Inbox } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { ArrowLeft, ArrowUpRight, Check, Inbox, ListChecks, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { type Member, useItems, useResource } from '../lib/data';
 import { shortDate, timeAgo } from '../lib/format';
 import { Link, navigate, useRoute } from '../lib/router';
@@ -12,6 +12,8 @@ import { Empty, LoadError, Skeleton } from '../ui/States';
 import { Tag } from '../ui/Tag';
 import { Stepper } from './RequestDetail';
 import { DecisionPanel } from './workDecision';
+import { BulkDecideDialog, bulkable } from './bulkDecide';
+import { Button } from '../ui/components/Button';
 import './requests.css';
 
 /**
@@ -25,8 +27,15 @@ export function MyWork({ selected }: { selected: string | null }) {
   const [items, reload, error] = useItems<WorkItem>(`/api/v1/work?state=${state}`);
   // A decision (here or on a request page) changes the list even though its address stays the same.
   useEffect(() => { const on = () => reload(); window.addEventListener('procera:work-changed', on); return () => window.removeEventListener('procera:work-changed', on); }, [reload]);
-  const suffix = state === 'done' ? '?state=done' : '';
-  const sorted = useMemo(() => [...(items ?? [])].sort((a, b) => (state === 'open' ? due(a) - due(b) : Date.parse(b.decided_at ?? b.created_at) - Date.parse(a.decided_at ?? a.created_at))), [items, state]);
+  const kind = state === 'open' ? (KINDS.find((k) => k.id === query.get('kind'))?.id ?? 'all') : 'all';
+  const suffix = state === 'done' ? '?state=done' : kind !== 'all' ? `?kind=${kind}` : '';
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  // The items are fixed when the dialog opens, so its list stays put while decisions reload My work.
+  const [bulk, setBulk] = useState<{ outcome: 'approved' | 'rejected'; items: WorkItem[] } | null>(null);
+  const [bulkDone, setBulkDone] = useState<string | null>(null);
+  const counts = useMemo(() => Object.fromEntries(KINDS.map((k) => [k.id, (items ?? []).filter((w) => k.id === 'all' || (w.kind ?? 'approval') === k.id).length])), [items]);
+  const sorted = useMemo(() => [...(items ?? [])].filter((w) => kind === 'all' || (w.kind ?? 'approval') === kind).sort((a, b) => (state === 'open' ? due(a) - due(b) : Date.parse(b.decided_at ?? b.created_at) - Date.parse(a.decided_at ?? a.created_at))), [items, state, kind]);
   const current = sorted.find((w) => w.id === selected) ?? null;
   const decided = query.get('decided');
   const ref = query.get('ref');
@@ -55,7 +64,29 @@ export function MyWork({ selected }: { selected: string | null }) {
         { label: 'Open', to: '/work', current: state === 'open' },
         { label: 'Done', to: '/work?state=done', current: state === 'done' },
       ]} />
-      {decided && ref && <Notice tone="success" title={`${outcomePast(decided)} ${ref}. It’s off your list.`} />}
+      {decided && ref && !bulkDone && <Notice tone="success" title={`${outcomePast(decided)} ${ref}. It’s off your list.`} />}
+      {bulk && <BulkDecideDialog items={bulk.items} outcome={bulk.outcome} onClose={() => setBulk(null)}
+            onDone={(n) => { setBulk(null); setPicked(new Set()); setPicking(false); setBulkDone(`${bulk.outcome === 'approved' ? 'Approved' : 'Rejected'} ${n} ${n === 1 ? 'request' : 'requests'}.`); reload(); }} />}
+      {bulkDone && <Notice tone="success" title={bulkDone} />}
+      {state === 'open' && (items ?? []).length > 0 && (
+        <div className="work-toolbar">
+          <nav className="work-kinds" aria-label="Kinds of work">
+            {KINDS.filter((k) => k.id === 'all' || counts[k.id]).map((k) => (
+              <Link key={k.id} to={k.id === 'all' ? '/work' : `/work?kind=${k.id}`} aria-current={kind === k.id ? 'page' : undefined} className="work-kind">
+                {k.label}<span className="work-kind-n">{counts[k.id]}</span>
+              </Link>
+            ))}
+          </nav>
+          {sorted.some(bulkable) && (picking ? (
+            <span className="work-bulk" role="group" aria-label="Decide several">
+              <span className="muted">{picked.size} selected</span>
+              <Button className="btn-sm" isDisabled={!picked.size} onPress={() => setBulk({ outcome: 'approved', items: sorted.filter((w) => picked.has(w.id)) })}><Check aria-hidden="true" size="0.875rem" /> Approve {picked.size || ''}…</Button>
+              <Button variant="secondary" className="btn-sm btn-reject" isDisabled={!picked.size} onPress={() => setBulk({ outcome: 'rejected', items: sorted.filter((w) => picked.has(w.id)) })}><X aria-hidden="true" size="0.875rem" /> Reject {picked.size || ''}…</Button>
+              <Button variant="ghost" className="btn-sm" onPress={() => { setPicking(false); setPicked(new Set()); }}>Done</Button>
+            </span>
+          ) : <Button variant="secondary" className="btn-sm" onPress={() => { setPicking(true); setBulkDone(null); }}><ListChecks aria-hidden="true" size="0.875rem" /> Decide several</Button>)}
+        </div>
+      )}
       {error ? <LoadError error={error} onRetry={reload} what="your work" /> : items === null ? <Skeleton rows={4} label="Loading your work" /> : sorted.length === 0 && !selected ? (
         state === 'open'
           ? <Empty art="caught-up" title="Nothing is waiting for you">Approvals and tasks assigned to you land here. You’ll also get a notification.</Empty>
@@ -67,7 +98,13 @@ export function MyWork({ selected }: { selected: string | null }) {
               {sorted.map((w) => {
                 const d = state === 'open' ? (w.overdue ? { label: 'Overdue', color: 'red' as const, overdue: true } : dueInfo(w.due_at, w.overdue === false)) : null;
                 return (
-                  <li key={w.id}>
+                  <li key={w.id} className={picking ? 'is-picking' : undefined}>
+                    {picking && (
+                      <span className="work-pick-box" title={bulkable(w) ? undefined : 'This one has something to fill in or confirm: decide it on its own.'}>
+                        <input type="checkbox" aria-label={`Select ${w.request.display_id} ${w.request.title}`} disabled={!bulkable(w)} checked={picked.has(w.id)}
+                          onChange={(e) => setPicked((p) => { const n = new Set(p); if (e.target.checked) n.add(w.id); else n.delete(w.id); return n; })} />
+                      </span>
+                    )}
                     <Link to={`/work/${w.id}${suffix}`} data-work={w.id} aria-current={w.id === selected ? 'page' : undefined} className="work-item">
                       <Avatar name={w.request.initiator.name} size="1.75rem" />
                       <span className="work-item-main">
@@ -94,6 +131,13 @@ export function MyWork({ selected }: { selected: string | null }) {
     </div>
   );
 }
+
+const KINDS = [
+  { id: 'all', label: 'All' },
+  { id: 'approval', label: 'Approvals' },
+  { id: 'task', label: 'Tasks' },
+  { id: 'acknowledge', label: 'Acknowledgements' },
+] as const;
 
 const due = (w: WorkItem) => (w.due_at ? Date.parse(w.due_at) : Number.MAX_SAFE_INTEGER);
 

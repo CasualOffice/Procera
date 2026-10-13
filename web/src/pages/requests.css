@@ -264,3 +264,22 @@
 .conv-internal { margin-bottom: 0.5rem; }
 .conv-actions > .btn { margin-left: auto; }
 .decide-actions .decide-delegate { margin-left: auto; }
+/* My work: kind filters and deciding several (BPMS-216). */
+.work-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; margin: 0 0 0.75rem; }
+.work-kinds { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.work-kind { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2rem; padding: 0 0.75rem; border: 1px solid var(--line); border-radius: 999px; background: var(--color-surface); color: var(--color-text-secondary); font-size: 0.8125rem; text-decoration: none; }
+.work-kind:hover { color: var(--color-text); border-color: var(--color-border-strong); }
+.work-kind[aria-current='page'] { color: var(--color-action-primary-text); background: var(--color-action-primary); border-color: var(--color-action-primary); }
+.work-kind-n { font-variant-numeric: tabular-nums; font-size: 0.75rem; opacity: .8; }
+.work-bulk { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+.work-list li.is-picking { display: flex; align-items: center; }
+.work-list li.is-picking .work-item { flex: 1; min-width: 0; }
+.work-pick-box { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 2.5rem; align-self: stretch; border-right: 1px solid var(--line-subtle); }
+.bulk-preview { list-style: none; margin: 0 0 1rem; padding: 0; max-height: 16rem; overflow: auto; border: 1px solid var(--line); border-radius: 0.5rem; }
+.bulk-preview li { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.5rem 0.75rem; font-size: 0.8125rem; }
+.bulk-preview li + li { border-top: 1px solid var(--line-subtle); }
+.bulk-state { flex: none; width: 1rem; margin-top: 0.125rem; }
+.bulk-preview li.is-ok .bulk-state { color: var(--color-success); }
+.bulk-preview li.is-failed .bulk-state { color: var(--color-danger); }
+.bulk-main { display: flex; flex-direction: column; min-width: 0; }
+.bulk-sub { color: var(--color-text-secondary); font-size: 0.75rem; }

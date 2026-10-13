@@ -103,6 +103,7 @@ export function OutOfOfficeDialog({ base, current, you, self, onClose, onSaved }
         {errors.ends_on && <span id="ooo-to-e" className="field-error">{errors.ends_on}</span>}
       </div>
       <Select label="Delegate" description="They decide requests meanwhile. Separation of duties still applies to them." options={options} selectedKey={delegate} onSelectionChange={(k) => setDelegate(k ? String(k) : null)}
+        placeholder={members === null ? 'Loading people…' : 'Choose a person'} isDisabled={members === null}
         isInvalid={!!errors.delegate} errorMessage={errors.delegate} isRequired />
       <div className="field">
         <label className="field-label" htmlFor="ooo-note">Note <span className="muted">(optional)</span></label>
