@@ -173,6 +173,8 @@ if __name__ == "__main__":
     print(f"{len(ref['areas'])} areas, {n} operations, {len(missing)} without a summary")
     for m in missing[:400]:
         print("  no summary:", m)
+    if "--check" in sys.argv:
+        sys.exit(1 if missing else 0)
     if len(sys.argv) > 1:
         out = Path(sys.argv[1])
         out.mkdir(parents=True, exist_ok=True)

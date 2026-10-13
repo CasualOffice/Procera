@@ -6,6 +6,8 @@ on:
     branches: [main]
     paths:
       - "site/**"
+      - "apps/procera/src/http/**" # the API reference is generated from the router
+      - "docs/guides/**"
       - "scripts/build_tracker.py"
       - "assets/brand/**"
       - ".github/workflows/site.yml"

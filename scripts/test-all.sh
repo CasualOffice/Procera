@@ -57,11 +57,14 @@ import re, pathlib, sys
 bad = []
 for f in pathlib.Path('.').rglob('*.md'):
     if any(x in f.parts for x in ('archive', 'node_modules', 'source', 'target', '.claude')): continue
+    if f.parts[:3] == ('site', 'src', 'developers'): continue  # these link site pages, built by site/build.py
     for m in re.finditer(r'\]\(([^)#\s]+)(#[^)]*)?\)', f.read_text()):
         t = m.group(1)
         if not t.startswith(('http', 'mailto')) and not (f.parent / t).exists(): bad.append(f"{f}: {t}")
 print("links ok" if not bad else "\n".join(bad)); sys.exit(1 if bad else 0)
 PY
+step "API reference: every endpoint has a summary (site/scripts/api_reference.py)"
+python3 site/scripts/api_reference.py --check
 step "Compose stack definition"
 docker compose -f deploy/compose.e2e.yml config -q && echo "compose ok"
 step "Web: tokens, contrast, types, build"
