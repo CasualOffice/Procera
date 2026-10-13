@@ -1,17 +1,17 @@
 {
  "source": "scripts/build_tracker.py",
- "last_updated": "2026-10-13",
+ "last_updated": "2026-10-14",
  "current_release": "P0",
  "totals": {
-  "Done": 54,
+  "Done": 58,
   "In review": 0,
-  "In progress": 1,
+  "In progress": 3,
   "Blocked": 0,
-  "Not started": 66,
+  "Not started": 61,
   "Deferred": 0,
-  "all": 121
+  "all": 122
  },
- "e2e_scenarios": 249,
+ "e2e_scenarios": 257,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -259,9 +259,17 @@
   "E2E-R2-UI-15",
   "E2E-R2-UI-16",
   "E2E-R2-UI-17",
+  "E2E-R2-UI-18",
+  "E2E-R2-UI-19",
   "E2E-R2-UI-20",
   "E2E-R2-UI-21",
-  "E2E-R2-UI-22"
+  "E2E-R2-UI-22",
+  "E2E-R3-PROC-01",
+  "E2E-R3-PROC-02",
+  "E2E-R3-PROC-03",
+  "E2E-R3-PROC-04",
+  "E2E-R3-UI-01",
+  "E2E-R3-UI-02"
  ],
  "releases": [
   {
@@ -346,9 +354,9 @@
    "gate": "G-R2",
    "scope": "Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part)",
    "total": 22,
-   "done": 11,
-   "in_progress": 1,
-   "not_started": 10,
+   "done": 15,
+   "in_progress": 3,
+   "not_started": 4,
    "epics": [
     "BPMS-080",
     "BPMS-081",
@@ -381,10 +389,10 @@
    "end": "2027-05-07",
    "gate": "G-R3",
    "scope": "Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7)",
-   "total": 14,
+   "total": 15,
    "done": 2,
    "in_progress": 0,
-   "not_started": 12,
+   "not_started": 13,
    "epics": [
     "BPMS-066",
     "BPMS-102",
@@ -399,7 +407,8 @@
     "BPMS-211",
     "BPMS-213",
     "BPMS-215",
-    "BPMS-217"
+    "BPMS-217",
+    "BPMS-218"
    ]
   },
   {
@@ -905,7 +914,7 @@
    "title": "Release bundles + publish integration",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-085",
@@ -953,7 +962,7 @@
    "title": "Step builder + React Flow canvas + properties + validate/test-run/review/publish",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-101",
@@ -1009,7 +1018,7 @@
    "title": "Mobile bottom bar for the app shell",
    "priority": "P1",
    "release": "R2",
-   "status": "Not started"
+   "status": "Done"
   },
   {
    "id": "BPMS-209",
@@ -1017,7 +1026,7 @@
    "title": "S3-compatible storage backend, EXIF stripping at upload, separate preview origin",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "Done"
   },
   {
    "id": "BPMS-212",
@@ -1025,7 +1034,7 @@
    "title": "Delegate a single work item; send back to an earlier step",
    "priority": "P1",
    "release": "R2",
-   "status": "Not started"
+   "status": "Done"
   },
   {
    "id": "BPMS-214",
@@ -1041,7 +1050,7 @@
    "title": "My work bulk decisions with preview; acknowledgement and signature tabs",
    "priority": "P0",
    "release": "R2",
-   "status": "Not started"
+   "status": "Done"
   },
   {
    "id": "BPMS-066",
@@ -1151,6 +1160,14 @@
    "id": "BPMS-217",
    "area": "ADMIN",
    "title": "Process health, email bounces and timer lateness in Operations",
+   "priority": "P1",
+   "release": "R3",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-218",
+   "area": "FILE",
+   "title": "Separate preview origin for file previews (own domain/host, cookie-less)",
    "priority": "P1",
    "release": "R3",
    "status": "Not started"
