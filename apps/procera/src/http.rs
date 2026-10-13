@@ -45,7 +45,8 @@ pub struct PlatformInfo {
     pub public_url_source: &'static str,
     /// Local directory holding stored files.
     pub files_dir: String,
-    /// `environment` (PROCERA_FILES_DIR) or `temporary` (a temporary directory: lost on reboot).
+    /// `environment` (PROCERA_FILES_DIR), `temporary` (a temporary directory: lost on reboot) or
+    /// `s3` (an S3-compatible bucket, PROCERA_S3_*).
     pub files_dir_source: &'static str,
     /// The clamd address (PROCERA_CLAMD_ADDR), or `None` for the built-in EICAR-only check.
     pub clamd_addr: Option<String>,
@@ -120,7 +121,7 @@ impl AppState {
         mut self,
         keys: Option<Arc<dyn procera_crypto::KeyProvider>>,
         public_url: &str,
-    ) -> Self {
+    ) -> Result<Self, String> {
         self.public_url = public_url.trim_end_matches('/').to_owned();
         if let (Some(db), Some(id), Some(keys)) = (&self.db, &self.identity, keys) {
             let ids: Arc<dyn procera_kernel::IdGen> = Arc::new(procera_kernel::UuidV7Gen);
@@ -145,14 +146,32 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             ));
-            // Files: storage directory (PROCERA_FILES_DIR) and malware scanner (PROCERA_CLAMD_ADDR).
-            self.platform_info.files_dir_source =
-                if std::env::var("PROCERA_FILES_DIR").is_ok() { "environment" } else { "temporary" };
-            let files_dir = std::env::var("PROCERA_FILES_DIR").unwrap_or_else(|_| {
-                let d = std::env::temp_dir().join("procera-files");
-                tracing::warn!(dir = %d.display(), "no PROCERA_FILES_DIR: files are stored in a temporary directory");
-                d.display().to_string()
-            });
+            // Files: storage (PROCERA_STORAGE=local|s3; PROCERA_FILES_DIR or PROCERA_S3_*) and malware
+            // scanner (PROCERA_CLAMD_ADDR). A misconfigured S3 store stops the server at boot.
+            let env = |k: &str| std::env::var(k).ok().filter(|v| !v.trim().is_empty());
+            let store = if env("PROCERA_STORAGE").as_deref() == Some("s3") {
+                let c = procera_files::S3Config {
+                    bucket: env("PROCERA_S3_BUCKET").ok_or("PROCERA_STORAGE=s3 needs PROCERA_S3_BUCKET")?,
+                    region: env("PROCERA_S3_REGION"),
+                    endpoint: env("PROCERA_S3_ENDPOINT"),
+                    access_key_id: env("PROCERA_S3_ACCESS_KEY_ID"),
+                    secret_access_key: env("PROCERA_S3_SECRET_ACCESS_KEY"),
+                    allow_http: env("PROCERA_S3_ALLOW_HTTP").as_deref() == Some("true"),
+                    path_style: env("PROCERA_S3_PATH_STYLE").as_deref() != Some("false"),
+                    prefix: env("PROCERA_S3_PREFIX").unwrap_or_default(),
+                };
+                self.platform_info.files_dir_source = "s3";
+                procera_files::Store::s3(&c)?
+            } else {
+                self.platform_info.files_dir_source =
+                    if env("PROCERA_FILES_DIR").is_some() { "environment" } else { "temporary" };
+                let files_dir = env("PROCERA_FILES_DIR").unwrap_or_else(|| {
+                    let d = std::env::temp_dir().join("procera-files");
+                    tracing::warn!(dir = %d.display(), "no PROCERA_FILES_DIR: files are stored in a temporary directory");
+                    d.display().to_string()
+                });
+                procera_files::Store::local(files_dir)
+            };
             let scanner = match std::env::var("PROCERA_CLAMD_ADDR") {
                 Ok(addr) if !addr.trim().is_empty() => {
                     self.platform_info.clamd_addr = Some(addr.clone());
@@ -165,11 +184,11 @@ impl AppState {
                     procera_files::Scanner::EicarOnly
                 }
             };
-            self.platform_info.files_dir = files_dir.clone();
+            self.platform_info.files_dir = store.describe();
             self.files = Some(procera_files::Files::new(
                 db.clone(),
                 keys.clone(),
-                procera_files::LocalStore::new(files_dir),
+                store,
                 scanner,
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
@@ -236,7 +255,7 @@ impl AppState {
             self.announcements = Some(announcements);
             self.members = Some(members);
         }
-        self
+        Ok(self)
     }
 
     /// Compiles the built-in request types and wires the runtime engine. A built-in that does not

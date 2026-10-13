@@ -8,6 +8,9 @@ publish = false
 
 [dependencies]
 base64 = "0.22"
+bytes = "1"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+object_store = { version = "0.14", default-features = false, features = ["aws"] }
 procera-audit.workspace = true
 procera-crypto.workspace = true
 procera-db.workspace = true

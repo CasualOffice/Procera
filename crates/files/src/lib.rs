@@ -37,7 +37,7 @@ use uuid::Uuid;
 use zeroize::Zeroizing;
 
 pub use scan::{Scanner, Verdict};
-pub use store::LocalStore;
+pub use store::{LocalStore, S3Config, Store};
 
 /// Largest chunk accepted in one request.
 pub const MAX_CHUNK: usize = 8 * 1024 * 1024;
@@ -164,7 +164,7 @@ pub struct Actor {
 pub struct Files {
     keys: Keys,
     root: Arc<dyn KeyProvider>,
-    store: LocalStore,
+    store: Store,
     scanner: Scanner,
     settings: procera_settings::Settings,
     clock: Arc<dyn Clock>,
@@ -181,14 +181,14 @@ impl Files {
     pub fn new(
         db: Db,
         root: Arc<dyn KeyProvider>,
-        store: LocalStore,
+        store: impl Into<Store>,
         scanner: Scanner,
         clock: Arc<dyn Clock>,
         ids: Arc<dyn IdGen>,
     ) -> Self {
         let keys = Keys::new(db.clone(), root.clone(), clock.clone(), ids.clone());
         let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
-        Self { keys, root, store, scanner, settings, clock, ids }
+        Self { keys, root, store: store.into(), scanner, settings, clock, ids }
     }
 
     pub fn scanner_name(&self) -> &'static str {

@@ -206,6 +206,7 @@ async fn main() -> anyhow::Result<()> {
             let mut state = base
                 .with_identity(identity, !insecure_cookies)
                 .with_services(keys, &public_url)
+                .map_err(|e| anyhow::anyhow!("services: {e}"))?
                 .with_requests()
                 .map_err(|e| anyhow::anyhow!("built-in request types: {e}"))?;
             state.login_rate_per_min = login_rate_per_min;

@@ -42,7 +42,15 @@ counts as not set. Logs are JSON lines on standard error; standard output is res
 | `PROCERA_INSECURE_COOKIES` | `--insecure-cookies` | `false` | No | Use non-`Secure` cookies without the `__Host-` prefix. **Only** for local HTTP development and tests. |
 | `PROCERA_LOGIN_RATE_PER_MIN` | `--login-rate-per-min` | `30` | No | Sign-in attempts allowed per client IP per minute. Raise only for test environments where everyone shares one IP. |
 | `PROCERA_TRUSTED_PROXY_HOPS` | `--trusted-proxy-hops` | `1` | No | How many reverse proxies in front of the server append to `X-Forwarded-For`. The client address is taken that many entries from the end, so earlier (client-supplied) entries are ignored. Use `0` if the server is reached directly with no proxy. |
-| `PROCERA_FILES_DIR` | (none) | a `procera-files` folder in the system temp directory (the container image sets `/var/lib/procera/files`) | Yes, in practice | Where uploaded files are stored (encrypted). Without it, files can be lost on restart, and the console warns about it. Local disk is the only storage today; S3-compatible storage is not built yet. |
+| `PROCERA_FILES_DIR` | (none) | a `procera-files` folder in the system temp directory (the container image sets `/var/lib/procera/files`) | Yes, in practice | Where uploaded files are stored (encrypted). Without it, files can be lost on restart, and the console warns about it. Used when `PROCERA_STORAGE` is `local` (the default). |
+| `PROCERA_STORAGE` | `local` | — | No | `local` keeps files on disk (`PROCERA_FILES_DIR`); `s3` keeps them in an S3-compatible bucket (AWS S3, Ceph, SeaweedFS, Cloudflare R2…; checked against SeaweedFS). Files are encrypted before they leave the server either way. A wrong S3 setting stops the server at start-up rather than failing uploads later. |
+| `PROCERA_S3_BUCKET` | (none) | — | With `s3` | The bucket. |
+| `PROCERA_S3_REGION` | (from the AWS environment) | — | Often | For example `eu-west-1`. |
+| `PROCERA_S3_ENDPOINT` | AWS | — | For non-AWS stores | For example `https://s3.example.com` or `http://seaweedfs:8333`. |
+| `PROCERA_S3_ACCESS_KEY_ID` / `PROCERA_S3_SECRET_ACCESS_KEY` | (from the AWS environment or instance role) | — | Unless a role provides them | Keys for the bucket. Keep them in your secret store. |
+| `PROCERA_S3_PATH_STYLE` | `true` | — | No | `endpoint/bucket/key` addressing, which most non-AWS stores need. Set `false` for virtual-hosted AWS buckets. |
+| `PROCERA_S3_ALLOW_HTTP` | `false` | — | No | Plain HTTP endpoints, for development or a private network only. |
+| `PROCERA_S3_PREFIX` | (none) | — | No | A folder inside the bucket, so several environments can share one bucket. |
 | `PROCERA_CLAMD_ADDR` | (none) | none | Recommended | ClamAV `clamd` address (`host:port`, e.g. `clamav:3310`). Without it, uploads are checked only for the EICAR test file. |
 | `PROCERA_LOG` | (none) | `info` | No | Log filter in `tracing` EnvFilter syntax, e.g. `warn`, `debug`, `info,procera_notify=debug`. |
 

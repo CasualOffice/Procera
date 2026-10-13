@@ -8,10 +8,10 @@
 ```text
 Overall   ██████████████░░░░░░░░░░░░░░░░  56/121 epics done  (46%)
 Partial   ██████████████░░░░░░░░░░░░░░░░  47% counting in-progress epics as half done
-Tests     251 automated E2E scenarios · 430 Rust tests (incl. property tests)
-Status    done 56 · in review 0 · in progress 1 · blocked 0 · not started 64 · deferred 0
+Tests     251 automated E2E scenarios · 433 Rust tests (incl. property tests)
+Status    done 56 · in review 0 · in progress 2 · blocked 0 · not started 63 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 44 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 44 · code merged 14  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -34,6 +34,7 @@ Evidence  automated tests 44 · code merged 13  (separate from status; none user
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
 | BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Automated tests | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. File fields (`file`, multiple): ids checked for workspace, uploader, clean scan and allowed type (images, PDF, Word, Excel, CSV), stored as file refs (E2E-R2-41). Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
+| BPMS-209 | S3-compatible storage backend, EXIF stripping at upload, separate preview origin | **In progress** | Code merged | S3-compatible storage: procera-files Store is local disk or any S3-compatible bucket through object_store 0.14 (Apache-2.0), chosen by PROCERA_STORAGE=s3 with PROCERA_S3_* (bucket, region, endpoint, keys, path style, plain HTTP, prefix); chunks are sealed before they reach the store; a misconfigured store stops the server at boot; Platform health shows where files live. Backend contract unit-tested on local disk and the object_store in-memory backend, and the file E2E packs (uploads, resume, scan/quarantine, previews, request attachments: 17 tests) run green against a live SeaweedFS S3 endpoint on 2026-10-14 (52 sealed chunk objects under the prefix). Next: EXIF stripping at upload, separate preview origin. |
 
 ## Done
 
@@ -183,7 +184,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-111** (P0, L) E2E-R2 pack (R2-01…16 + ISO) + Firefox
 - [ ] **BPMS-121** (P0, M) Usability round + SUS measurement + fixes
 - [ ] **BPMS-207** (P1, S) Mobile bottom bar for the app shell
-- [ ] **BPMS-209** (P0, M) S3-compatible storage backend, EXIF stripping at upload, separate preview origin
+- [ ] **BPMS-209** (P0, M) S3-compatible storage backend, EXIF stripping at upload, separate preview origin **[In progress]**
 - [x] **BPMS-212** (P1, M) Delegate a single work item; send back to an earlier step
 - [x] **BPMS-214** (P0, M) Request comments, @mentions and watchers
 - [x] **BPMS-216** (P0, M) My work bulk decisions with preview; acknowledgement and signature tabs

@@ -107,7 +107,9 @@ export function SystemEmail() {
           <>
             <dl className="ws-facts sys-facts" aria-label="Storage and scanning">
               <dt>File storage</dt>
-              <dd>Local disk: <code>{basics.storage.path}</code><span className="sys-source">{basics.storage.source === 'environment' ? 'From PROCERA_FILES_DIR on the server.' : 'A temporary folder. Set PROCERA_FILES_DIR to keep files across restarts.'} S3-compatible storage isn’t available yet.</span></dd>
+              <dd>{basics.storage.kind === 's3'
+                ? <>S3-compatible bucket: <code>{basics.storage.path}</code><span className="sys-source">From PROCERA_STORAGE=s3 and PROCERA_S3_* on the server. Files are encrypted before they’re stored.</span></>
+                : <>Local disk: <code>{basics.storage.path}</code><span className="sys-source">{basics.storage.source === 'environment' ? 'From PROCERA_FILES_DIR on the server.' : 'A temporary folder. Set PROCERA_FILES_DIR to keep files across restarts.'} For an S3-compatible bucket, set PROCERA_STORAGE=s3.</span></>}</dd>
               <dt>Malware scanning</dt>
               <dd>{basics.scanning.kind === 'clamd' ? <>ClamAV at <code>{basics.scanning.address}</code></> : 'Built-in check'}<span className="sys-source">{basics.scanning.kind === 'clamd' ? 'From PROCERA_CLAMD_ADDR on the server.' : 'Detects only the EICAR test file.'}</span></dd>
             </dl>

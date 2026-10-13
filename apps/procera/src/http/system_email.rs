@@ -135,7 +135,7 @@ async fn platform_basics(State(s): State<AppState>, u: SystemUser) -> Result<Res
         "public_url": s.public_url,
         "public_url_source": i.public_url_source,
         "sender_name": sender_name,
-        "storage": {"kind": "local", "path": i.files_dir, "source": i.files_dir_source, "s3_available": false},
+        "storage": {"kind": if i.files_dir_source == "s3" { "s3" } else { "local" }, "path": i.files_dir, "source": i.files_dir_source},
         "scanning": match &i.clamd_addr {
             Some(addr) => json!({"kind": "clamd", "address": addr}),
             None => json!({"kind": "eicar_only", "address": null}),

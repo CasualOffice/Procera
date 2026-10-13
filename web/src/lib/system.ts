@@ -51,7 +51,7 @@ export interface PlatformBasics {
   public_url: string;
   public_url_source: 'environment' | 'command_line' | 'default';
   sender_name: string | null;
-  storage: { kind: 'local'; path: string; source: 'environment' | 'temporary'; s3_available: boolean };
+  storage: { kind: 'local' | 's3'; path: string; source: 'environment' | 'temporary' | 's3' };
   scanning: { kind: 'clamd' | 'eicar_only'; address: string | null };
 }
 
