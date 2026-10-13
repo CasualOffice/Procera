@@ -12,6 +12,10 @@ import { type Session, enter, inviteToken, workspaceWithOwner } from '../../fixt
 // E2E-R3-UI-01 also test-runs the draft (send back, then approve) before publishing.
 // E2E-R3-UI-02 — a step assigned to a group that doesn't exist: Validate lists the problem, it shows
 // on that step, and Publish is refused with the same problems.
+// E2E-R3-UI-03 — the flow canvas: a process from the Leave request template shown as Flow (start, the
+// approval, Approved, Rejected, back to the requester), a step selected with the keyboard and renamed
+// in its settings, the Steps view showing the new name; and the read-only Employee onboarding drawn
+// with its three parallel tasks side by side (axe on both canvases).
 // E2E-R3-UI-05 — "who will this go to": under each Who row the designer shows who it reaches today
 // (a group's members by name, a missing group as nobody, the manager rule with how many lack one).
 
@@ -30,15 +34,15 @@ async function secondPage(browser: Browser): Promise<Page> {
   return (await browser.newContext()).newPage();
 }
 
-/** Admin › Processes › New process from the Blank template; lands in the designer. */
-async function newBlankProcess(page: Page, title: string) {
+/** Admin › Processes › New process from a template (Blank by default); lands in the designer. */
+async function newBlankProcess(page: Page, title: string, template = 'Blank') {
   await nav(page, 'Processes');
   await expect(page.getByRole('heading', { level: 1, name: 'Processes' })).toBeVisible();
   await page.getByRole('button', { name: 'New process' }).first().click();
   const dialog = page.getByRole('dialog', { name: 'New process' });
   await dialog.getByRole('textbox', { name: /^Name/ }).fill(title);
   await expect(dialog.getByRole('textbox', { name: /^Key/ })).toHaveValue(title.toLowerCase().replace(/\s+/g, '-'));
-  await dialog.getByRole('radiogroup', { name: /Start from/ }).getByText(/^Blank/).first().click(); // the input is visually hidden
+  await dialog.getByRole('radiogroup', { name: /Start from/ }).getByText(new RegExp(`^${template}`)).first().click(); // the input is visually hidden
   await dialog.getByRole('button', { name: 'Create and open' }).click();
   await expect(page).toHaveURL(/\/admin\/processes\/[^/?]+$/);
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
@@ -208,6 +212,67 @@ test.describe('guided studio @r3 @ui', () => {
     const listed = await (await owner.c.get('/api/v1/processes', { headers: owner.headers })).json();
     const row = (listed.items as { title: string; published: unknown }[]).find((p) => p.title === 'Night desk request');
     expect(row?.published).toBeNull();
+  });
+
+  test('E2E-R3-UI-03 the flow canvas draws the steps, selects and renames one by keyboard, and shows a read-only parallel process', async ({ page, request }) => {
+    const { owner, ownerEmail } = await workspaceWithOwner(request);
+    await signIn(page, ownerEmail, owner.recovery[0]!);
+    await newBlankProcess(page, 'Team leave', 'Leave request');
+    const views = page.getByRole('radiogroup', { name: 'Show the steps as' });
+    await expect(views.getByRole('radio', { name: 'Steps' })).toBeChecked();
+    await views.getByRole('radio', { name: 'Flow' }).click();
+    await expect(views.getByRole('radio', { name: 'Flow' })).toBeChecked();
+
+    const canvas = page.getByRole('region', { name: 'Process flow' });
+    await expect(canvas).toBeVisible();
+    for (const text of ['Request submitted', 'Approved', 'Rejected', 'Back to the requester']) await expect(canvas.getByText(text, { exact: true })).toBeVisible();
+    const step = canvas.getByRole('button', { name: 'Manager approval', exact: true });
+    await expect(step).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Actions for Manager approval' })).toBeVisible(); // the canvas has the step menu too
+    await expect(page.getByRole('list', { name: 'Steps' })).toHaveCount(0); // one view at a time
+
+    // Keyboard: focus the step and press Enter; its settings open as in the Steps view.
+    await step.focus();
+    await page.keyboard.press('Enter');
+    const props = page.getByRole('complementary', { name: 'Manager approval' });
+    await expect(props).toBeVisible();
+    await expect(step).toHaveAttribute('aria-pressed', 'true');
+    await axe(page);
+    // Arrow keys follow the arrows: down from the approval is Approved, then back up.
+    await page.keyboard.press('ArrowDown');
+    await expect(canvas.getByRole('group', { name: 'Approved (end)' })).toBeFocused();
+    await page.keyboard.press('ArrowUp');
+    await expect(step).toBeFocused();
+
+    await props.getByRole('textbox', { name: /^Step name/ }).fill('Line manager approval');
+    await expect(page.getByRole('complementary', { name: 'Line manager approval' })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: 'Line manager approval', exact: true })).toBeVisible();
+    await saved(page);
+    await views.getByRole('radio', { name: 'Steps' }).click();
+    await expect(canvas).toHaveCount(0);
+    await expect(page.getByRole('list', { name: 'Steps' }).getByRole('button', { name: 'Line manager approval', exact: true })).toBeVisible();
+
+    // A process the studio can't edit (parallel tasks, a notification) is still drawn.
+    await newBlankProcess(page, 'New starter onboarding', 'Employee onboarding');
+    await expect(page.getByText('The studio can’t edit this process yet')).toBeVisible();
+    await views.getByRole('radio', { name: 'Flow' }).click();
+    await expect(canvas).toBeVisible();
+    await expect(canvas.getByRole('group', { name: /^Prepare at the same time/ })).toBeVisible();
+    const tasks = ['Set up accounts and equipment', 'Prepare workspace and access badge', 'Plan the first week'];
+    const boxes: { x: number; y: number }[] = [];
+    for (const name of tasks) {
+      const node = canvas.getByRole('group', { name: `${name} (task)` });
+      await expect(node).toBeVisible();
+      boxes.push((await node.boundingBox())!);
+    }
+    // Side by side: one row, left to right.
+    expect(Math.abs(boxes[0]!.y - boxes[1]!.y)).toBeLessThan(2);
+    expect(Math.abs(boxes[1]!.y - boxes[2]!.y)).toBeLessThan(2);
+    expect(boxes[0]!.x).toBeLessThan(boxes[1]!.x);
+    expect(boxes[1]!.x).toBeLessThan(boxes[2]!.x);
+    await expect(canvas.getByRole('group', { name: /^Everything is ready/ })).toBeVisible();
+    await expect(canvas.getByRole('button', { name: /^Actions for/ })).toHaveCount(0); // read-only: no step menus
+    await axe(page);
   });
 
   test('E2E-R3-UI-05 each Who row shows who it reaches today', async ({ page, request }) => {
