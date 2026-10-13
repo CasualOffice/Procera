@@ -1,9 +1,9 @@
-import { Activity, Archive, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
+import { Activity, Archive, Workflow, ListChecks, Bell, BookOpen, Network, UsersRound, ClipboardCheck, FileCheck, FilePlus2, FileText, Files, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, Megaphone, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, type LucideIcon } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns'
-  | 'admin' | 'overview' | 'request-oversight' | 'operations' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -43,6 +43,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('monitoring:view_dashboards') && can('member:view') && { key: 'people', label: 'People & access', to: '/admin/people', icon: ShieldCheck, keywords: 'mfa two-step dormant admins grants security' },
     ]) },
     { label: 'Work', items: pick([
+      can('process:view') && { key: 'processes', label: 'Processes', to: '/admin/processes', icon: Workflow, keywords: 'designer studio request types workflow approval steps build publish form fields' },
       (can('request:retry') || can('monitoring:view_dashboards')) && { key: 'operations', label: 'Operations', to: '/admin/operations', icon: Activity, keywords: 'incidents failed jobs errors retry dismiss ops monitor exceptions stuck' },
       can('request:view_all') && can('work:reassign') && { key: 'request-oversight', label: 'Requests oversight', to: '/admin/requests', icon: ListChecks, keywords: 'unassigned overdue stuck approvals reassign escalate work items' },
     ]) },
@@ -61,7 +62,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
   ].filter((g) => g.items.length);
 }
 
-const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'request-oversight', 'members', 'departments', 'groups', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
+const ADMIN_KEYS = new Set<NavKey>(['admin', 'overview', 'request-oversight', 'processes', 'members', 'departments', 'groups', 'roles', 'people', 'templates', 'audit', 'files', 'retention', 'encryption', 'settings']);
 /** Pages that show the admin sidebar. */
 export const isAdminPage = (key: NavKey) => ADMIN_KEYS.has(key);
 
@@ -90,6 +91,7 @@ export function createActions(can: (p: string) => boolean): CreateAction[] {
     can('template:install') && { id: 'from-template', label: 'Start from a template', to: '/templates', icon: LayoutTemplate, keywords: 'create starter pack handbook' },
     (can('announcement:create') || can('announcement:manage')) && { id: 'new-announcement', label: 'New announcement', to: '/admin/announcements?new=1', icon: SquarePen, keywords: 'compose post write' },
     can('campaign:manage') && { id: 'new-campaign', label: 'New campaign', to: '/admin/campaigns?new=1', icon: ClipboardCheck, keywords: 'acknowledgement attestation' },
+    can('process:create') && { id: 'new-process', label: 'New process', to: '/admin/processes?new=1', icon: Workflow, keywords: 'design request type workflow approval studio' },
     can('member:invite') && { id: 'invite', label: 'Invite people', to: '/admin/members?invite=1', icon: UserPlus, keywords: 'add member user' },
   ].filter(Boolean) as CreateAction[];
 }
