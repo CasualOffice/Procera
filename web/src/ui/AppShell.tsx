@@ -104,6 +104,9 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
 
   if (!workspace || !user) return <ShellSkeleton />;
   const adminGroups = adminNav(can);
+  // Bottom bar: the first three of these the person has.
+  const quick = (['home', 'work', 'requests', 'library', 'announcements'] as const)
+    .map((k) => workNav(can).find((i) => i.key === k)).filter((i): i is NonNullable<typeof i> => !!i).slice(0, 3);
   const adminMode = isAdminPage(current) && adminGroups.length > 0;
   const item = (i: NavItem) => (
     <li key={i.key}>
@@ -276,11 +279,14 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
         )}
         <main id="main" className="page" tabIndex={-1}>{children}</main>
       </div>
-      {/* Phones (≤ 40rem): the everyday destinations at the thumb, everything else under More. */}
+      {/* Phones (≤ 40rem): the three everyday destinations this person has, at the thumb (My work and
+          Requests first, BPMS-207), then Search and More for everything else. */}
       <nav className="bottom-bar" aria-label="Quick">
-        {workNav(can).filter((i) => ['home', 'library', 'announcements'].includes(i.key)).map((i) => (
-          <Link key={i.key} to={i.to} aria-current={i.key === current ? 'page' : undefined}>
-            <i.icon aria-hidden="true" size="1.25rem" /><span>{i.key === 'announcements' ? 'News' : i.label}</span>
+        {quick.map((i) => (
+          <Link key={i.key} to={i.to} aria-current={i.key === current ? 'page' : undefined}
+            aria-label={i.key === 'work' && openWork > 0 ? `My work, ${openWork} open` : undefined}>
+            <span className="bottom-bar-icon"><i.icon aria-hidden="true" size="1.25rem" />{i.key === 'work' && openWork > 0 && <span className="bottom-bar-count" aria-hidden="true">{openWork > 99 ? '99+' : openWork}</span>}</span>
+            <span className="bottom-bar-label">{i.key === 'announcements' ? 'News' : i.label}</span>
           </Link>
         ))}
         <AriaButton className="bottom-bar-btn" onPress={() => setPalette(true)}>
@@ -293,7 +299,7 @@ export function AppShell({ children, current = 'home', crumbs = [], actions }: {
           <Popover className="menu-popover" placement="top end">
             <Menu className="menu" aria-label="More destinations" onAction={(key) => { const to = [...workNav(can), ...adminGroups.flatMap((g) => g.items)].find((i) => i.key === key)?.to; if (to) navigate(to); }}>
               <MenuSection>
-                {workNav(can).filter((i) => !['home', 'library', 'announcements', 'admin'].includes(i.key)).map((i) => (
+                {workNav(can).filter((i) => !quick.some((q) => q.key === i.key) && i.key !== 'admin').map((i) => (
                   <MenuItem key={i.key} id={i.key} className="menu-item" textValue={i.label}><i.icon aria-hidden="true" size="1rem" /> {i.label}{i.key === 'work' && openWork > 0 && <span className="menu-item-meta">{openWork} open</span>}</MenuItem>
                 ))}
               </MenuSection>
