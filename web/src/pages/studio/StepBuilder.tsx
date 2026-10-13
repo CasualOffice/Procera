@@ -59,7 +59,6 @@ function StepCard({ model, step: s, index, selected, onSelect, onAction, problem
   problems: Problem[]; readOnly: boolean; roleName: (key: string) => string | undefined;
 }) {
   const look = KIND_LOOK[s.kind];
-  const last = index === model.steps.length - 1;
   const errors = problems.filter((p) => p.severity === 'error');
   const name = s.name.trim() || 'Untitled step';
   return (
@@ -95,35 +94,40 @@ function StepCard({ model, step: s, index, selected, onSelect, onAction, problem
         {errors.map((p, i) => (
           <p key={i} className="step-problem"><CircleAlert aria-hidden="true" size="0.875rem" /><span><span className="visually-hidden">Problem: </span>{p.message}</span></p>
         ))}
-        {!readOnly && (
-          <MenuTrigger>
-            <AriaButton className="icon-btn step-menu-btn" aria-label={`Actions for ${name}`}><Ellipsis aria-hidden="true" size="1rem" /></AriaButton>
-            <Popover className="menu-popover" placement="bottom end">
-              <Menu className="menu" aria-label={`Actions for ${name}`} onAction={(k) => {
-                const key = String(k);
-                if (key.startsWith('add-')) onAction({ type: 'add', after: index, kind: key.slice(4) as StepKind });
-                else if (key === 'up') onAction({ type: 'move', id: s.id, by: -1 });
-                else if (key === 'down') onAction({ type: 'move', id: s.id, by: 1 });
-                else if (key === 'delete') onAction({ type: 'remove', id: s.id });
-              }}>
-                {STEP_KINDS.map((k) => (
-                  <MenuItem key={k.id} id={`add-${k.id}`} className="menu-item" textValue={`Add ${k.label.toLowerCase()} after`}><Plus aria-hidden="true" size="0.875rem" /> Add {k.label.toLowerCase()} after</MenuItem>
-                ))}
-                <Separator className="menu-separator" />
-                <MenuItem id="up" className="menu-item" isDisabled={index === 0} textValue="Move up"><ArrowUp aria-hidden="true" size="0.875rem" /> Move up<kbd className="menu-item-meta">Alt ↑</kbd></MenuItem>
-                <MenuItem id="down" className="menu-item" isDisabled={last} textValue="Move down"><ArrowDown aria-hidden="true" size="0.875rem" /> Move down<kbd className="menu-item-meta">Alt ↓</kbd></MenuItem>
-                <Separator className="menu-separator" />
-                <MenuItem id="delete" className="menu-item menu-item-danger" textValue="Delete step"><Trash2 aria-hidden="true" size="0.875rem" /> Delete step</MenuItem>
-              </Menu>
-            </Popover>
-          </MenuTrigger>
-        )}
+        {!readOnly && <StepMenu name={name} index={index} count={model.steps.length} stepId={s.id} onAction={onAction} />}
       </div>
     </li>
   );
 }
 
-function AddStepMenu({ label, onAdd, compact = false }: { label: string; onAdd: (kind: StepKind) => void; compact?: boolean }) {
+/** A step's "Actions for <name>" menu: add a step after it, move it, delete it (the non-drag path). */
+export function StepMenu({ name, index, count, stepId, onAction }: { name: string; index: number; count: number; stepId: string; onAction: (a: Action) => void }) {
+  return (
+    <MenuTrigger>
+      <AriaButton className="icon-btn step-menu-btn" aria-label={`Actions for ${name}`}><Ellipsis aria-hidden="true" size="1rem" /></AriaButton>
+      <Popover className="menu-popover" placement="bottom end">
+        <Menu className="menu" aria-label={`Actions for ${name}`} onAction={(k) => {
+          const key = String(k);
+          if (key.startsWith('add-')) onAction({ type: 'add', after: index, kind: key.slice(4) as StepKind });
+          else if (key === 'up') onAction({ type: 'move', id: stepId, by: -1 });
+          else if (key === 'down') onAction({ type: 'move', id: stepId, by: 1 });
+          else if (key === 'delete') onAction({ type: 'remove', id: stepId });
+        }}>
+          {STEP_KINDS.map((k) => (
+            <MenuItem key={k.id} id={`add-${k.id}`} className="menu-item" textValue={`Add ${k.label.toLowerCase()} after`}><Plus aria-hidden="true" size="0.875rem" /> Add {k.label.toLowerCase()} after</MenuItem>
+          ))}
+          <Separator className="menu-separator" />
+          <MenuItem id="up" className="menu-item" isDisabled={index === 0} textValue="Move up"><ArrowUp aria-hidden="true" size="0.875rem" /> Move up<kbd className="menu-item-meta">Alt ↑</kbd></MenuItem>
+          <MenuItem id="down" className="menu-item" isDisabled={index === count - 1} textValue="Move down"><ArrowDown aria-hidden="true" size="0.875rem" /> Move down<kbd className="menu-item-meta">Alt ↓</kbd></MenuItem>
+          <Separator className="menu-separator" />
+          <MenuItem id="delete" className="menu-item menu-item-danger" textValue="Delete step"><Trash2 aria-hidden="true" size="0.875rem" /> Delete step</MenuItem>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+export function AddStepMenu({ label, onAdd, compact = false }: { label: string; onAdd: (kind: StepKind) => void; compact?: boolean }) {
   return (
     <MenuTrigger>
       <AriaButton className={compact ? 'flow-add-mini' : 'btn btn-secondary btn-md flow-add-btn'} aria-label={compact ? label : undefined}>

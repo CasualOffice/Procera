@@ -1,5 +1,6 @@
-import { Check, CircleAlert, CloudOff, FlaskConical, LoaderCircle, Monitor, Redo2, RotateCw, ShieldCheck, TriangleAlert, Undo2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, CircleAlert, CloudOff, FlaskConical, ListOrdered, LoaderCircle, Monitor, Redo2, RotateCw, ShieldCheck, TriangleAlert, Undo2, Workflow, X } from 'lucide-react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { ApiError, api } from '../../lib/api';
 import { type LoadFailure, type Member, toFailure, useItems } from '../../lib/data';
 import { type Group, problemText } from '../../lib/directory';
@@ -24,6 +25,15 @@ import './studio.css';
 
 type SaveState = 'saved' | 'dirty' | 'saving' | 'error' | 'conflict';
 const WIDE = '(min-width: 64rem)';
+// React Flow is only loaded when someone opens the flow view.
+const StudioCanvas = lazy(() => import('./StudioCanvas').then((m) => ({ default: m.StudioCanvas })));
+
+/** Steps or Flow, remembered for the browser session (storage may be unavailable: then it's per page). */
+type View = 'steps' | 'flow';
+const VIEW_KEY = 'procera.studio.view';
+function storedView(): View | null {
+  try { const v = sessionStorage.getItem(VIEW_KEY); return v === 'steps' || v === 'flow' ? v : null; } catch { return null; }
+}
 
 function useWide(): boolean {
   const [wide, setWide] = useState(() => typeof window === 'undefined' || window.matchMedia(WIDE).matches);
@@ -63,6 +73,11 @@ export function Designer({ id }: { id: string }) {
   const [deleting, setDeleting] = useState<Step | null>(null);
   const [busy, setBusy] = useState<'validate' | 'publish' | null>(null);
   const [said, setSaid] = useState('');
+  const [view, setView] = useState<View | null>(storedView);
+  const chooseView = (v: View) => {
+    setView(v);
+    try { sessionStorage.setItem(VIEW_KEY, v); } catch { /* not remembered */ }
+  };
   const [groups] = useItems<Group>('/api/v1/groups');
   const [roles] = useItems<Role>('/api/v1/roles');
   const [members] = useItems<Member>('/api/v1/members');
@@ -275,6 +290,8 @@ export function Designer({ id }: { id: string }) {
   const canPublish = detail.can.publish && !inReview && !model.readOnly && (!detail.draft || ['draft', 'approved'].includes(detail.draft.lifecycle)) && (!!detail.draft || save !== 'saved');
   const errorCount = problems?.list.filter((p) => p.severity === 'error').length ?? 0;
   const readOnly = !editable;
+  // A process the studio can't edit has no step list to show: the flow is the useful view.
+  const shown: View = view ?? (model.readOnly ? 'flow' : 'steps');
 
   return (
     <div className={`studio${wide ? '' : ' studio-narrow'}`}>
@@ -319,7 +336,7 @@ export function Designer({ id }: { id: string }) {
       {inReview && <Notice tone="info" title="This version is in review">You can edit again once it’s approved or sent back.</Notice>}
       {approved && <Notice tone="info" title="This version is approved">Publish it to make it live. It can’t be edited now.</Notice>}
       {!detail.can.edit && <Notice tone="info" title="You can look, but not edit">Ask a workspace admin for process design rights if you need them.</Notice>}
-      {!wide && <div className="studio-mobile-note"><Monitor aria-hidden="true" size="1.125rem" /><p>Editing needs a larger screen. Here is a summary of the steps.</p></div>}
+      {!wide && <div className="studio-mobile-note"><Monitor aria-hidden="true" size="1.125rem" /><p>Editing needs a larger screen. Here is a summary of the steps; switch to Flow to see them as a diagram.</p></div>}
 
       {problems && problems.list.length > 0 && (
         <section className="studio-problems" aria-labelledby="studio-problems-h">
@@ -362,11 +379,24 @@ export function Designer({ id }: { id: string }) {
             onRemoveField={(name) => { change((m) => removeField(m, name)); setOpenField(null); }} />
         </aside>
         <section className="studio-centre" aria-labelledby="studio-steps-h">
-          <div className="studio-col-head">
-            <h2 id="studio-steps-h">Steps</h2>
-            <p className="muted">What happens after someone submits, in order.</p>
+          <div className="studio-col-head studio-col-head-row">
+            <div>
+              <h2 id="studio-steps-h">Steps</h2>
+              <p className="muted">{shown === 'flow' ? 'The same steps as a diagram, with where each outcome leads.' : 'What happens after someone submits, in order.'}</p>
+            </div>
+            <ToggleButtonGroup className="seg" aria-label="Show the steps as" selectionMode="single" disallowEmptySelection selectedKeys={[shown]}
+              onSelectionChange={(keys) => { const k = [...keys][0]; if (k === 'steps' || k === 'flow') chooseView(k); }}>
+              <ToggleButton id="steps" className="seg-btn"><ListOrdered aria-hidden="true" size="0.875rem" />Steps</ToggleButton>
+              <ToggleButton id="flow" className="seg-btn"><Workflow aria-hidden="true" size="0.875rem" />Flow</ToggleButton>
+            </ToggleButtonGroup>
           </div>
-          <StepBuilder model={model} selected={selected} onSelect={setSelected} onAction={onStepAction} problems={target.steps} readOnly={readOnly} roleName={roleName} />
+          {shown === 'flow' ? (
+            <Suspense fallback={<Skeleton variant="doc" label="Loading the flow" />}>
+              <StudioCanvas model={model} selected={selected} onSelect={setSelected} onAction={onStepAction} problems={target.steps} readOnly={readOnly} roleName={roleName} narrow={!wide} />
+            </Suspense>
+          ) : (
+            <StepBuilder model={model} selected={selected} onSelect={setSelected} onAction={onStepAction} problems={target.steps} readOnly={readOnly} roleName={roleName} />
+          )}
         </section>
         {wide && (
           <aside className="studio-right" aria-labelledby="props-h">
