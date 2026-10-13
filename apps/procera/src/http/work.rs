@@ -45,6 +45,8 @@ struct ListQuery {
     state: Option<String>,
 }
 
+/// `GET /work`: work items by `state`: `open` (default) and `done` are yours (`work:view_assigned`);
+/// `unassigned` and `overdue` are workspace-wide and need `work:reassign`.
 async fn list(
     State(s): State<AppState>,
     me: WsMember,
@@ -231,6 +233,9 @@ fn if_match(headers: &HeaderMap) -> Option<i64> {
         .and_then(|v| v.trim().trim_matches('"').parse().ok())
 }
 
+/// `POST /work/{id}/decisions`: records your decision (`outcome`, `comment`, `fields`, `files`).
+/// Requires `If-Match` with the item's revision (428 without) and `work:complete`; 409 when already
+/// decided. An optional `Idempotency-Key` replays the first response.
 async fn decide(
     State(s): State<AppState>,
     headers: HeaderMap,

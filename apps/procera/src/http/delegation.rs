@@ -64,6 +64,8 @@ async fn self_service(s: &AppState, tx: &mut procera_db::WsTx<'_>) -> Result<boo
         .unwrap_or(true))
 }
 
+/// `GET /me/out-of-office`: your current out-of-office period and delegate, if any, and `can_set`:
+/// whether you may change it (`work:delegate` and the self-service setting). Membership only.
 async fn mine(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -89,6 +91,8 @@ async fn own_tx(s: &AppState, me: &WsMember) -> Result<procera_db::WsTx<'static>
     Ok(tx)
 }
 
+/// `PUT /me/out-of-office`: sets your out-of-office from `starts_on` to `ends_on` (dates) with a
+/// `delegate` and optional `note`. Needs `work:delegate`; 403 when self-service is turned off.
 async fn set_mine(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -103,6 +107,7 @@ async fn set_mine(
     Ok(Json(out).into_response())
 }
 
+/// `DELETE /me/out-of-office`: clears your out-of-office (204). Same checks as setting it.
 async fn clear_mine(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -140,6 +145,8 @@ async fn others_tx(s: &AppState, me: &WsMember, id: Uuid) -> Result<procera_db::
     Ok(tx)
 }
 
+/// `GET /members/{id}/out-of-office`: someone's out-of-office. Needs `work:delegate` and either
+/// `work:reassign` over that person or being their manager; 404 if they are not in the workspace.
 async fn theirs(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -> Result<Response, ApiError> {
     let mut tx = others_tx(&s, &me, id).await?;
     let ooo = requests(&s)?.out_of_office(&mut tx, id).await?;
@@ -147,6 +154,8 @@ async fn theirs(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -
     Ok(Json(json!({ "out_of_office": ooo, "can_set": true })).into_response())
 }
 
+/// `PUT /members/{id}/out-of-office`: sets someone's out-of-office (`starts_on`, `ends_on`,
+/// `delegate`, `note`). Needs `work:delegate` and either `work:reassign` or being their manager.
 async fn set_theirs(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -161,6 +170,8 @@ async fn set_theirs(
     Ok(Json(out).into_response())
 }
 
+/// `DELETE /members/{id}/out-of-office`: clears someone's out-of-office (204). Needs `work:delegate`
+/// and either `work:reassign` or being their manager.
 async fn clear_theirs(
     State(s): State<AppState>,
     headers: HeaderMap,

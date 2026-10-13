@@ -91,6 +91,9 @@ struct InstallReq {
     on_conflict: Option<String>,
 }
 
+/// `POST /templates/{key}/install`: creates a pack's documents as drafts (`documents` to pick some,
+/// `on_conflict` `skip` or `copy`, `campaign` for a suggested plan). 201 when anything was created.
+/// Needs `template:install` and `<kind>:create` for each kind installed.
 async fn install(
     State(s): State<AppState>,
     headers: HeaderMap,

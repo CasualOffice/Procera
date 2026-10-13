@@ -122,6 +122,8 @@ struct StateQuery {
     state: Option<String>,
 }
 
+/// `GET /campaigns`: every acknowledgement campaign in the workspace, optionally filtered by `?state=`.
+/// Needs `campaign:view`.
 async fn list(
     State(s): State<AppState>,
     me: WsMember,
@@ -150,6 +152,8 @@ struct NewReq {
     ack_text: Option<String>,
 }
 
+/// `POST /campaigns`: a draft campaign for a published SOP or policy version (`version_id`, `audience`,
+/// optional `title`, `due_at`, `audience_snapshot`, `ack_text`). Needs `campaign:manage`; 201.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -173,6 +177,8 @@ async fn create(
     Ok((StatusCode::CREATED, Json(c)).into_response())
 }
 
+/// `GET /campaigns/{id}`: one campaign with an `ETag`; a draft also carries `audience_preview`, the number
+/// of active members its audience reaches now. Needs `campaign:view`.
 async fn get_campaign(
     State(s): State<AppState>,
     me: WsMember,
@@ -197,6 +203,8 @@ async fn get_campaign(
     Ok(res)
 }
 
+/// `GET /campaigns/{id}/recipients`: the campaign's assignments, optionally `?state=pending|completed|overdue`
+/// (422 otherwise). Needs `campaign:view`.
 async fn recipients(
     State(s): State<AppState>,
     me: WsMember,
@@ -241,6 +249,8 @@ async fn evidence(
         .into_response())
 }
 
+/// `POST /campaigns/{id}/activate`: launches a draft, snapshotting its audience into assignments and
+/// notifying every assignee. Needs `campaign:manage`; 409 unless it is a draft.
 async fn activate(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -278,6 +288,8 @@ async fn end(
     Ok(Json(c).into_response())
 }
 
+/// `POST /campaigns/{id}/close`: closes an active campaign (optional `reason`), freezing it as evidence;
+/// open assignments stay as the record. Needs `campaign:manage`; 409 in any other state.
 async fn close(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -288,6 +300,8 @@ async fn close(
     end(&s, &headers, &me, id, "closed", r.reason.as_deref()).await
 }
 
+/// `POST /campaigns/{id}/cancel`: cancels a draft or active campaign; a `reason` is required (422).
+/// Needs `campaign:manage`; 409 in any other state.
 async fn cancel(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -298,6 +312,8 @@ async fn cancel(
     end(&s, &headers, &me, id, "cancelled", r.reason.as_deref()).await
 }
 
+/// `POST /campaigns/{id}/remind`: sends a reminder now to every open assignment of active members and
+/// returns `{reminded}`. Needs `campaign:manage`; 409 unless the campaign is active.
 async fn remind(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -356,6 +372,9 @@ struct CompleteReq {
     content_hash: Option<String>,
 }
 
+/// `POST /acknowledgements/{id}/complete`: acknowledges the caller's own assignment, optionally checking
+/// `content_hash` (409 `content_changed`). 409 `already_acknowledged` on repeat; needs `sop:acknowledge`
+/// for SOPs or `policy:view` for policies (announcements are acknowledged on the announcement).
 async fn complete(
     State(s): State<AppState>,
     headers: HeaderMap,

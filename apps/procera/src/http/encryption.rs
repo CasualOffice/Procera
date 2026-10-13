@@ -29,6 +29,8 @@ fn keys(s: &AppState) -> Result<&procera_keys::Keys, ApiError> {
     s.keys.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
+/// `GET /security/encryption`: the active key version, every key version with how many values it
+/// still wraps, and how many await rewrap. Needs `workspace:settings.view`.
 async fn status(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -50,6 +52,8 @@ struct RotateReq {
     reason: String,
 }
 
+/// `POST /security/encryption/rotate`: rotates to a new key version; existing values are rewrapped in
+/// the background. Needs `workspace:settings.manage`, a recent sign-in and a `reason` (422 if empty).
 async fn rotate(
     State(s): State<AppState>,
     headers: HeaderMap,

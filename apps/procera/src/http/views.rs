@@ -224,6 +224,8 @@ struct CreateReq {
     is_default: bool,
 }
 
+/// `POST /views`: saves a view of a list (`list`, `name`, `state`), private or shared with everyone
+/// (`shared`) or one role (`shared_role`); `is_default` makes it your default for that list. 201.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -354,6 +356,7 @@ async fn update(
     Ok(Json(view_json(&row, me.actor.membership)))
 }
 
+/// `DELETE /views/{id}`: deletes one of your saved views (204). 403 for a shared view you don't own.
 async fn remove(
     State(s): State<AppState>,
     headers: HeaderMap,

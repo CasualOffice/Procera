@@ -53,12 +53,16 @@ async fn email_view(s: &AppState) -> Result<(Value, i64), ApiError> {
     ))
 }
 
+/// `GET /email`: the email relay in use (`source`: environment, database or none), the stored settings
+/// without the password, and the mail queue, with an `ETag`. Needs owner, admin or auditor.
 async fn email(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
     u.require(SystemAction::PlatformConfigRead)?;
     let (body, revision) = email_view(&s).await?;
     Ok(etag(Json(body).into_response(), revision))
 }
 
+/// `PUT /email`: saves the SMTP relay settings. Requires `If-Match` (428 without; `"0"` when none
+/// stored), a recent sign-in and `system.owner`/`system.admin`; 409 when set by the environment.
 async fn set_email(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -88,6 +92,8 @@ struct TestReq {
     to: String,
 }
 
+/// `POST /email/test`: sends one test message to `to` through the relay in use and returns whether it
+/// was sent (or a safe error category); audited either way. 409 if email is not set up.
 async fn test_email(
     State(s): State<AppState>,
     headers: HeaderMap,

@@ -137,6 +137,8 @@ struct CreateReq {
     content_type: Option<String>,
 }
 
+/// `POST /files`: starts a resumable upload from `name`, `size` and optional `content_type`
+/// (`file:upload`). 201 with the file and the `chunk_size` to send it in.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -172,6 +174,8 @@ async fn append(
     Ok(Json(f))
 }
 
+/// `POST /files/{id}/complete`: finishes the caller's own upload once every byte has arrived; the file
+/// is hashed, type-sniffed and scanned. 409 when the upload is not open or bytes are still missing.
 async fn complete(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -184,6 +188,8 @@ async fn complete(
     Ok(Json(f))
 }
 
+/// `GET /files/{id}`: one file and the records it is linked to, for anyone who may see it
+/// (its uploader, `file:view_all`, or a reader of what it is attached to); otherwise 404.
 async fn get_file(
     State(s): State<AppState>,
     me: WsMember,
@@ -205,6 +211,8 @@ async fn get_file(
     Ok(Json(json!({ "file": f, "links": links })))
 }
 
+/// `DELETE /files/{id}`: deletes a file (204). Uploaders may delete their own unattached files;
+/// anything else needs `file:delete`. Your own file attached to a record without it is 409 `file_linked`.
 async fn delete_file(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -300,6 +308,7 @@ async fn set_retention(
     Ok(Json(json!({ "updated": n })))
 }
 
+/// `GET /files/usage`: storage usage for the workspace Files view (`file:view_all`).
 async fn usage(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -309,6 +318,8 @@ async fn usage(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, A
     Ok(Json(u))
 }
 
+/// `GET /files/orphans`: completed files nothing links to, older than `files.orphan_purge_after`
+/// (`file:view_all`).
 async fn orphans(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -318,6 +329,7 @@ async fn orphans(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>,
     Ok(Json(json!({ "items": items })))
 }
 
+/// `POST /files/orphans/purge`: deletes every orphaned file and returns how many (`file:delete`).
 async fn purge_orphans(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -512,6 +524,8 @@ async fn authorize_draft(
     Ok(())
 }
 
+/// `POST /files/{id}/links`: attaches a file the caller can see to a draft document version
+/// (`object_type: artifact_version`, `object_id`); needs `edit_draft` on its kind. 204; 409 past draft.
 async fn link(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -529,6 +543,8 @@ async fn link(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// `DELETE /files/{id}/links/{object_type}/{object_id}`: detaches a file from a draft document version
+/// (`edit_draft` on its kind). 204; 409 once the version is past draft.
 async fn unlink(
     State(s): State<AppState>,
     headers: HeaderMap,

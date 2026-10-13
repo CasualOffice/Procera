@@ -57,6 +57,8 @@ struct RangeQuery {
 /// Members in scope: active, and in the department subtree when filtered (`$1` = department).
 const IN_SCOPE: &str = "m.status = 'active' AND ($1::uuid IS NULL OR EXISTS (SELECT 1 FROM departments d WHERE d.id = m.department_id AND $1 = ANY(d.path)))";
 
+/// `GET /admin/overview`: the admin dashboard's aggregates for a range (`from`/`to` or `days`, default
+/// 7, at most 366) and optional `department`. Needs `monitoring:view_dashboards`.
 async fn overview(
     State(s): State<AppState>,
     me: WsMember,
@@ -274,6 +276,8 @@ struct PeopleQuery {
 type PersonRow =
     (Uuid, String, String, Option<String>, Vec<String>, bool, Option<OffsetDateTime>, OffsetDateTime, i64);
 
+/// `GET /admin/people`: the people and access monitor; `filter` is all, no_mfa, dormant, privileged or
+/// expiring, with optional `department`. Needs `monitoring:view_dashboards` and `member:view`.
 async fn people(
     State(s): State<AppState>,
     me: WsMember,

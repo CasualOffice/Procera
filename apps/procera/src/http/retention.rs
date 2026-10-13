@@ -22,6 +22,8 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(500, "internal", "Internal error")
 }
 
+/// `GET /admin/retention`: each retention class with its period, setting key and mode, the drafts due
+/// for removal in the next 30 days, and the last run. Read-only; needs `workspace:settings.view`.
 async fn overview(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
     let r = s.retention.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
     let m = members(&s)?;

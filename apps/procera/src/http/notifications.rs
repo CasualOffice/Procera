@@ -61,6 +61,8 @@ fn default_limit() -> i64 {
     50
 }
 
+/// `GET /notifications`: your in-app notifications, newest first, with the unread count.
+/// Query: `unread=true` for unread only, `limit` (default 50).
 async fn inbox(
     State(s): State<AppState>,
     me: WsMember,
@@ -72,6 +74,7 @@ async fn inbox(
     Ok(Json(json!({ "items": items, "unread_count": unread })).into_response())
 }
 
+/// `POST /notifications/{id}/read`: marks one of your notifications read (204).
 async fn read_one(
     State(s): State<AppState>,
     me: WsMember,
@@ -83,6 +86,7 @@ async fn read_one(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `POST /notifications/read-all`: marks all your notifications read; returns how many were marked.
 async fn read_all(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let mut tx = me.tx(members(&s)?).await?;
     let n = notify(&s)?.mark_read(&mut tx, me.actor.membership, None).await?;
@@ -90,6 +94,8 @@ async fn read_all(State(s): State<AppState>, me: WsMember) -> Result<Response, A
     Ok(Json(json!({ "marked": n })).into_response())
 }
 
+/// `GET /me/notification-preferences`: your delivery preferences (digests, quiet hours), with your
+/// overrides applied over the workspace defaults.
 async fn get_preferences(State(s): State<AppState>, me: WsMember) -> Result<Json<Preferences>, ApiError> {
     let mut tx = me.tx(members(&s)?).await?;
     let p = notify(&s)?.preferences(&mut tx, me.actor.membership).await?;

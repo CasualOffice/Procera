@@ -57,6 +57,8 @@ struct SearchQuery {
     limit: Option<i64>,
 }
 
+/// `GET /search`: one ranked list across the types you may view. Query: `q`, `types` (comma list) and
+/// `limit` (default 20). Types you may not view, and documents hidden from you, are left out silently.
 async fn search(
     State(s): State<AppState>,
     me: WsMember,

@@ -66,6 +66,7 @@ macro_rules! write {
     }};
 }
 
+/// `GET /departments`: every department in the workspace (`directory:view`).
 async fn list_departments(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let items = read!(s, me, |m, tx| m.list_departments(&mut tx).await?);
     Ok(Json(json!({ "items": items })).into_response())
@@ -79,6 +80,7 @@ struct NewDepartment {
     parent_id: Option<Uuid>,
 }
 
+/// `POST /departments`: a new department (`name`, optional `parent_id`); `directory:manage`; 201.
 async fn create_department(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -91,6 +93,8 @@ async fn create_department(
     Ok((StatusCode::CREATED, Json(d)).into_response())
 }
 
+/// `PATCH /departments/{id}`: renames a department, moves it (`parent_id`, `null` for the root) or
+/// sets its head (`head_membership_id`); `directory:manage`; 204.
 async fn update_department(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -102,6 +106,8 @@ async fn update_department(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `DELETE /departments/{id}`: deletes an empty department (`directory:manage`); 204. A department that
+/// still has sub-departments, members or positions is refused with 409.
 async fn delete_department(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -112,6 +118,7 @@ async fn delete_department(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `GET /groups`: every group in the workspace (`directory:view`).
 async fn list_groups(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let items = read!(s, me, |m, tx| m.list_groups(&mut tx).await?);
     Ok(Json(json!({ "items": items })).into_response())
@@ -125,6 +132,7 @@ struct NewGroup {
     description: Option<String>,
 }
 
+/// `POST /groups`: a new group (`name`, optional `description`); `directory:manage`; 201.
 async fn create_group(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -137,6 +145,7 @@ async fn create_group(
     Ok((StatusCode::CREATED, Json(g)).into_response())
 }
 
+/// `DELETE /groups/{id}`: deletes a group (`directory:manage`); 204.
 async fn delete_group(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -147,6 +156,7 @@ async fn delete_group(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `GET /groups/{id}/members`: the membership ids in a group (`directory:view`).
 async fn group_members(
     State(s): State<AppState>,
     me: WsMember,
@@ -162,6 +172,7 @@ struct GroupMember {
     membership_id: Uuid,
 }
 
+/// `POST /groups/{id}/members`: adds a member (`membership_id`) to a group (`directory:manage`); 204.
 async fn add_group_member(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -175,6 +186,7 @@ async fn add_group_member(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `DELETE /groups/{id}/members/{membership_id}`: removes a member from a group (`directory:manage`); 204.
 async fn remove_group_member(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -203,6 +215,7 @@ async fn list_locations(State(s): State<AppState>, me: WsMember) -> Result<Respo
     Ok(Json(json!({ "items": items })).into_response())
 }
 
+/// `GET /positions`: every position in the workspace (`directory:view`).
 async fn list_positions(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let items = read!(s, me, |m, tx| m.list_positions(&mut tx).await?);
     Ok(Json(json!({ "items": items })).into_response())
@@ -249,6 +262,7 @@ async fn create_position(
     Ok((StatusCode::CREATED, Json(p)).into_response())
 }
 
+/// `DELETE /positions/{id}`: deletes a position (`directory:manage`); 204.
 async fn delete_position(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -259,6 +273,8 @@ async fn delete_position(
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
+/// `PATCH /members/{id}`: sets a member's directory fields (`title`, `department_id`,
+/// `manager_membership_id`, `location`; `null` clears one); `directory:manage`. Returns `{changed}`.
 async fn update_member(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -272,6 +288,8 @@ async fn update_member(
     Ok(Json(json!({ "changed": changed })).into_response())
 }
 
+/// `GET /members/{id}/directory`: a member's directory fields, groups and resolved manager
+/// (explicit, department head or none); `directory:view`.
 async fn member_directory(
     State(s): State<AppState>,
     me: WsMember,

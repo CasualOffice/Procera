@@ -110,6 +110,9 @@ struct EventsQuery {
     cursor: Option<String>,
 }
 
+/// `GET /audit/events`: audit events filtered by time, `actor` or `member`, action, category, object and
+/// result, in keyset pages (`page[size]`, `page[cursor]`). `audit:view` sees the workspace chain;
+/// `audit:view_own` sees only the caller's own events.
 async fn events(
     State(s): State<AppState>,
     me: WsMember,
@@ -196,6 +199,7 @@ async fn verify_chain(State(s): State<AppState>, me: WsMember) -> Result<Respons
         .into_response())
 }
 
+/// `GET /audit/saved-queries`: the caller's saved audit queries. Needs `audit:view` or `audit:view_own`.
 async fn list_saved(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -213,6 +217,8 @@ struct SaveReq {
     filters: Filter,
 }
 
+/// `POST /audit/saved-queries`: saves a named set of audit `filters` for the caller; 201. Needs `audit:view`
+/// or `audit:view_own`.
 async fn save(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -229,6 +235,8 @@ async fn save(
     Ok((StatusCode::CREATED, Json(q)).into_response())
 }
 
+/// `DELETE /audit/saved-queries/{id}`: deletes one of the caller's saved audit queries; 204 (404 if not theirs).
+/// Needs `audit:view` or `audit:view_own`.
 async fn delete_saved(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -364,6 +372,8 @@ async fn list_exports(State(s): State<AppState>, me: WsMember) -> Result<Json<Va
     Ok(Json(json!({ "items": rows.iter().map(job_json).collect::<Vec<_>>() })))
 }
 
+/// `GET /audit/exports/{id}`: the state of one of the caller's background audit exports (rows, file,
+/// error). Needs `audit:export`; 404 for anyone else's.
 async fn get_export(
     State(s): State<AppState>,
     me: WsMember,

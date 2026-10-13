@@ -115,6 +115,8 @@ struct LoginReq {
     password: String,
 }
 
+/// `POST /auth/login`: signs in with `email` and `password`. Returns an access token and sets the refresh
+/// cookie, or answers `mfa_required` (with `mfa_token`) or `password_change_required`. 429 when rate-limited.
 async fn login(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -157,6 +159,8 @@ struct MfaReq {
     credential: Option<CredentialJson>,
 }
 
+/// `POST /auth/mfa`: completes sign-in with the `mfa_token` and exactly one of `code` (TOTP or recovery
+/// code) or `credential` (passkey assertion); 422 otherwise. Returns an access token and the refresh cookie.
 async fn mfa(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -193,6 +197,8 @@ fn no_store(mut res: Response) -> Response {
     res
 }
 
+/// `POST /auth/refresh`: a new access token from the refresh cookie (rotating it). Requires the
+/// `X-Requested-With: procera` header (403 without it); 401 without a valid cookie.
 async fn refresh(State(s): State<AppState>, headers: HeaderMap) -> Result<Response, ApiError> {
     require_csrf_header(&headers)?;
     let token = read_cookie(&s, &headers).ok_or_else(ApiError::unauthenticated)?;
@@ -200,6 +206,8 @@ async fn refresh(State(s): State<AppState>, headers: HeaderMap) -> Result<Respon
     Ok(token_response(&s, tokens))
 }
 
+/// `POST /auth/logout`: ends the session behind the refresh cookie and clears it; 204. Requires the
+/// `X-Requested-With: procera` header.
 async fn logout(State(s): State<AppState>, headers: HeaderMap) -> Result<Response, ApiError> {
     require_csrf_header(&headers)?;
     if let Some(token) = read_cookie(&s, &headers) {
@@ -274,11 +282,15 @@ impl FromRequestParts<AppState> for AuthUser {
     }
 }
 
+/// `GET /me`: the signed-in user's account and the current token's facts (methods used, auth time, plane,
+/// workspace, expiry).
 async fn me(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Response, ApiError> {
     let user = identity(&s)?.me(c.sub).await?.ok_or_else(ApiError::unauthenticated)?;
     Ok(Json(json!({"user": user, "token": {"amr": c.amr, "auth_time": c.auth_time, "plane": c.plane, "workspace": c.ws, "expires_at": c.exp}})).into_response())
 }
 
+/// `POST /me/sign-out-everywhere`: revokes every session of the caller's account and invalidates its
+/// outstanding access tokens, then clears the refresh cookie; 204.
 async fn sign_out_everywhere(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -291,6 +303,8 @@ async fn sign_out_everywhere(
     Ok(res)
 }
 
+/// `POST /me/mfa/totp`: starts authenticator-app enrolment and returns the secret to scan; confirm it with
+/// `POST /me/mfa/totp/confirm`.
 async fn totp_begin(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -308,6 +322,8 @@ struct CodeReq {
     code: String,
 }
 
+/// `POST /me/mfa/totp/confirm`: confirms TOTP enrolment with a `code`; returns the recovery codes (shown
+/// once) and an upgraded access token for this session.
 async fn totp_confirm(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -338,10 +354,12 @@ pub fn require_recent_auth(s: &AppState, c: &Claims) -> Result<(), ApiError> {
     }
 }
 
+/// `GET /me/mfa/webauthn`: the caller's registered passkeys.
 async fn list_passkeys(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Response, ApiError> {
     Ok(Json(json!({"items": identity(&s)?.passkeys(c.sub).await?})).into_response())
 }
 
+/// `POST /me/mfa/webauthn/options`: a WebAuthn registration challenge for adding a passkey.
 async fn passkey_registration_options(
     State(s): State<AppState>,
     AuthUser(c): AuthUser,
@@ -356,6 +374,8 @@ struct RegisterPasskeyReq {
     credential: CredentialJson,
 }
 
+/// `POST /me/mfa/webauthn`: registers a passkey (`name`, `credential`) answering the challenge from
+/// `/me/mfa/webauthn/options`; 201. Recovery codes are returned once when it is the first second factor.
 async fn register_passkey(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -370,6 +390,8 @@ async fn register_passkey(
     Ok(res)
 }
 
+/// `DELETE /me/mfa/webauthn/{id}`: removes one of the caller's passkeys; 204. Needs a sign-in within the
+/// last 5 minutes (401 `step_up_required`).
 async fn remove_passkey(
     State(s): State<AppState>,
     headers: HeaderMap,

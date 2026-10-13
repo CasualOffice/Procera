@@ -212,6 +212,8 @@ struct ListQuery {
     collection: Option<Uuid>,
 }
 
+/// `GET /artifacts`: the SOPs and policies the caller may view, filtered by `kind`, `state` and
+/// `collection` (sub-collections included). Drafts and restricted ones show only to authors of the kind.
 async fn list(
     State(s): State<AppState>,
     me: WsMember,
@@ -263,6 +265,8 @@ fn empty_doc() -> Value {
     json!({"blocks": []})
 }
 
+/// `POST /artifacts`: a new SOP or policy (`kind`, `key`, `title`, optional `criticality`, `content`)
+/// with its first draft (`<kind>:create`). 201 with the artifact and version; 409 `key_taken`.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -279,6 +283,8 @@ async fn create(
     Ok((StatusCode::CREATED, Json(json!({ "artifact": a, "version": v }))).into_response())
 }
 
+/// `GET /artifacts/{id}`: one document, the versions the caller may see and `my_actions` (what the
+/// caller may do with it, scoped grants included). Returns an `ETag` of its revision.
 async fn get_artifact(
     State(s): State<AppState>,
     me: WsMember,
@@ -320,6 +326,8 @@ async fn get_artifact(
     ))
 }
 
+/// `POST /artifacts/{id}/versions`: starts a new draft from the latest version's content
+/// (`<kind>:edit_draft`). 201; 409 when a draft or review is already open.
 async fn new_version(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -337,6 +345,8 @@ async fn new_version(
     Ok((StatusCode::CREATED, Json(v)).into_response())
 }
 
+/// `GET /versions/{id}`: one version with its content and review state (`<kind>:view`; drafts
+/// only for authors of the kind). Returns an `ETag` of its revision.
 async fn get_version(
     State(s): State<AppState>,
     me: WsMember,
@@ -385,6 +395,8 @@ struct EditReq {
     content: Value,
 }
 
+/// `PATCH /versions/{id}`: replaces a draft's `content` (`<kind>:edit_draft`). Send `If-Match:
+/// "<revision>"` to guard against overwrites (412 when stale); 409 when the version is not a draft.
 async fn edit(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -400,6 +412,8 @@ async fn edit(
     Ok(etag(Json(v).into_response(), rev))
 }
 
+/// `POST /versions/{id}/submit`: sends a draft for review (`<kind>:edit_draft`); when the workspace
+/// requires no review for it, it is approved at once.
 async fn submit(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -414,6 +428,7 @@ async fn submit(
     Ok(Json(v).into_response())
 }
 
+/// `POST /versions/{id}/withdraw`: takes a version out of review back to draft (`<kind>:edit_draft`).
 async fn withdraw(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -435,6 +450,8 @@ struct ReviewReq {
     comment: Option<String>,
 }
 
+/// `POST /versions/{id}/reviews`: records a `decision` (`approve`, `reject`, `changes_requested`; the
+/// last two need a `comment`). Authors cannot review their own (403); controlled approvals need step-up.
 async fn review(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -468,6 +485,8 @@ struct PublishReq {
     change: Option<String>,
 }
 
+/// `POST /versions/{id}/publish`: publishes an approved version now or at `effective_at`, as a `major`
+/// or `minor` `change` (`<kind>:publish`; controlled needs step-up). `reack` says who must re-acknowledge.
 async fn publish(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -562,6 +581,8 @@ struct RetireReq {
     reason: String,
 }
 
+/// `POST /versions/{id}/retire`: retires a published or deprecated version with a `reason`; it is
+/// read-only afterwards (`<kind>:publish`).
 async fn retire(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -620,6 +641,8 @@ struct CadenceReq {
     days: Option<i32>,
 }
 
+/// `PUT /artifacts/{id}/review-cadence`: sets the document's review cadence in `days`, or `null` for
+/// the workspace default (`<kind>:publish`).
 async fn set_cadence(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -640,6 +663,8 @@ struct RecertifyReq {
     comment: Option<String>,
 }
 
+/// `POST /artifacts/{id}/recertify`: the owner confirms the published content is still correct, with an
+/// optional `comment`; a new review period starts now (`<kind>:publish`).
 async fn recertify(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -672,6 +697,7 @@ async fn verify(
     Ok(Json(a))
 }
 
+/// `DELETE /artifacts/{id}/verification`: removes the document's verification badge (`<kind>:approve`).
 async fn unverify(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -690,6 +716,8 @@ struct CrListQuery {
     state: Option<String>,
 }
 
+/// `GET /artifacts/{id}/change-requests`: change requests proposed for a document, optionally filtered
+/// by `state` (`<kind>:view`).
 async fn list_change_requests(
     State(s): State<AppState>,
     me: WsMember,
@@ -711,6 +739,8 @@ struct OpenCrReq {
     body: String,
 }
 
+/// `POST /artifacts/{id}/change-requests`: proposes a change to a document with a `title` and optional
+/// `body`; any reader may (`<kind>:view`). 201.
 async fn open_change_request(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -738,6 +768,7 @@ async fn change_request_artifact(
     Ok(cr)
 }
 
+/// `GET /change-requests/{id}`: one change request (`<kind>:view` on its document).
 async fn get_change_request(
     State(s): State<AppState>,
     me: WsMember,
@@ -757,6 +788,8 @@ struct ResolveCrReq {
     version_id: Option<Uuid>,
 }
 
+/// `POST /change-requests/{id}/resolve`: `decision` `accepted`, `declined` (needs a `resolution`) or
+/// `implemented` (needs a `version_id` of the same document); `<kind>:publish`. 409 from a wrong state.
 async fn resolve_change_request(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -792,6 +825,8 @@ struct ApplicabilityReq {
     restricted: bool,
 }
 
+/// `PUT /artifacts/{id}/applicability`: sets a document's `category`, who it applies to (`applicability`
+/// audience, `null` = everyone) and the `restricted` flag (`<kind>:publish`). 422 for an empty audience.
 async fn set_applicability(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -857,6 +892,8 @@ async fn manages_collections(s: &AppState, me: &WsMember, tx: &mut WsTx<'_>) -> 
         .allowed)
 }
 
+/// `GET /collections`: the collections the caller may see, or all of them with `collection:manage`
+/// (`collection:view`). `can_manage` says which.
 async fn list_collections(State(s): State<AppState>, me: WsMember) -> Result<Json<Value>, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -876,6 +913,8 @@ struct CollectionReq {
     parent_id: Option<Uuid>,
 }
 
+/// `POST /collections`: a new collection with a `name`, optionally under `parent_id`
+/// (`collection:manage`). 201.
 async fn create_collection(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -904,6 +943,8 @@ fn present<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<Option<Uuid>
     Option::<Uuid>::deserialize(d).map(Some)
 }
 
+/// `PATCH /collections/{id}`: renames a collection and/or moves it (and its subtree) under `parent_id`
+/// (`null` = top level); `collection:manage`. A collection cannot move under itself.
 async fn update_collection(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -921,6 +962,8 @@ async fn update_collection(
     Ok(Json(c))
 }
 
+/// `DELETE /collections/{id}`: deletes an empty collection (`collection:manage`). 204; 409 while it
+/// still holds documents or sub-collections.
 async fn delete_collection(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -942,6 +985,8 @@ struct VisibilityReq {
     visibility: Option<procera_members::audience::Audience>,
 }
 
+/// `PUT /collections/{id}/visibility`: sets who may see a collection (`visibility` audience, `null` =
+/// everyone); `collection:manage`. 422 for an empty audience.
 async fn set_collection_visibility(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -992,6 +1037,8 @@ struct OwnerReq {
     membership_id: Uuid,
 }
 
+/// `PUT /artifacts/{id}/owner`: changes a document's accountable owner to an active member
+/// (`membership_id`); `<kind>:publish`.
 async fn set_owner(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -1006,6 +1053,7 @@ async fn set_owner(
     Ok(Json(a))
 }
 
+/// `GET /artifacts/{id}/raci`: a document's RACI assignments (`<kind>:view`).
 async fn get_raci(
     State(s): State<AppState>,
     me: WsMember,
@@ -1018,6 +1066,8 @@ async fn get_raci(
     Ok(Json(r))
 }
 
+/// `PUT /artifacts/{id}/raci`: replaces a document's RACI, with at most one accountable assignee
+/// (`<kind>:publish`).
 async fn set_raci(
     State(s): State<AppState>,
     headers: HeaderMap,

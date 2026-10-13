@@ -47,11 +47,14 @@ fn db(s: &AppState) -> Result<&procera_db::Db, ApiError> {
     s.db.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
+/// `GET /quota-defaults`: the quota bundle each configuration profile starts with. Any system role.
 async fn quota_defaults(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceRead)?;
     Ok(Json(json!({"items": platform(&s)?.quota_defaults().await?})).into_response())
 }
 
+/// `PUT /quota-defaults/{profile}`: replaces one profile's default quotas for new workspaces.
+/// Needs `system.owner` or `system.admin` and a recent sign-in; `If-Match` honoured (412).
 async fn set_quota_defaults(
     State(s): State<AppState>,
     headers: HeaderMap,

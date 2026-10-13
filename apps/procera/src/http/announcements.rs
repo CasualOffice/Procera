@@ -258,6 +258,9 @@ struct ListQuery {
     state: Option<String>,
 }
 
+/// `GET /announcements`: announcements the caller composes or decides on, optionally filtered by `?state=`;
+/// managers see all. Each item says whether publishing it `needs_approval`. Needs `announcement:create` or
+/// `announcement:publish`.
 async fn list(
     State(s): State<AppState>,
     me: WsMember,
@@ -283,6 +286,8 @@ async fn list(
     Ok(Json(json!({ "items": out })).into_response())
 }
 
+/// `POST /announcements`: a new draft announcement (title, content, audience, priority, ack and timing
+/// fields). Needs `announcement:create`; 201 with an `ETag`. 409 when announcements are turned off.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -310,6 +315,8 @@ struct FeedQuery {
     unread: bool,
 }
 
+/// `GET /announcements/feed`: the published, unexpired announcements sent to the caller, with read and
+/// acknowledgement receipts; `?unread=true` keeps only unread ones. Needs `announcement:view`.
 async fn feed(
     State(s): State<AppState>,
     me: WsMember,
@@ -341,6 +348,8 @@ async fn visible(
     if ok { Ok((a, p)) } else { Err(ApiError::not_found()) }
 }
 
+/// `GET /announcements/{id}`: one announcement the caller may see (author, publisher once submitted, or
+/// recipient), with an `ETag`. Anyone else gets 404.
 async fn get_one(
     State(s): State<AppState>,
     me: WsMember,
@@ -355,6 +364,8 @@ async fn get_one(
     Ok(etag(Json(a).into_response(), rev))
 }
 
+/// `PATCH /announcements/{id}`: replaces a draft's content; author with `announcement:create`, or a manager.
+/// Optional `If-Match: "<revision>"` (412 if stale); 409 unless the announcement is a draft.
 async fn edit(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -376,6 +387,8 @@ async fn edit(
     Ok(etag(Json(a).into_response(), rev))
 }
 
+/// `POST /announcements/{id}/submit`: sends the author's draft for approval; approvers are notified when
+/// the workspace's approval rule applies to its audience. 409 unless it is a draft.
 async fn submit(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -396,6 +409,8 @@ async fn submit(
     Ok(Json(a).into_response())
 }
 
+/// `POST /announcements/{id}/approve`: approves a pending announcement and publishes it now, or schedules
+/// it for `publish_at`. Needs `announcement:publish`; 403 `sod_violation` if the approver is the author.
 async fn approve(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -423,6 +438,8 @@ struct RejectReq {
     comment: String,
 }
 
+/// `POST /announcements/{id}/reject`: returns a pending announcement to draft with a required `comment`
+/// (422 if empty). Needs `announcement:publish`; 409 unless it is pending approval.
 async fn reject(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -442,6 +459,8 @@ async fn reject(
     Ok(Json(a).into_response())
 }
 
+/// `POST /announcements/{id}/publish`: publishes a draft now, or schedules it for its `publish_at`, when no
+/// approval applies (409 otherwise). Author holding `announcement:publish`, or a manager; 422 if expired.
 async fn publish(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -471,6 +490,8 @@ struct ArchiveReq {
     reason: String,
 }
 
+/// `POST /announcements/{id}/archive`: withdraws a scheduled or published announcement with a `reason`
+/// and closes its acknowledgement campaign. Needs `announcement:publish` or authorship; 409 otherwise.
 async fn archive(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -492,6 +513,8 @@ async fn archive(
     Ok(Json(a).into_response())
 }
 
+/// `POST /announcements/{id}/reads`: records that the caller read it (first read only; repeats change
+/// nothing) and returns the receipt. Needs `announcement:view`.
 async fn read(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -532,6 +555,8 @@ async fn acknowledge(
     Ok(Json(r).into_response())
 }
 
+/// `GET /announcements/{id}/analytics`: reach, read and acknowledgement counts, overall and by department.
+/// Author with `announcement:create`, or `announcement:manage`.
 async fn analytics(
     State(s): State<AppState>,
     me: WsMember,

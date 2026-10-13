@@ -206,6 +206,7 @@ fn client(headers: &HeaderMap) -> (Option<String>, Option<String>) {
     (c.ip, c.user_agent)
 }
 
+/// `GET /settings`: the effective value of every workspace setting (`workspace:settings.view`).
 async fn list(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -269,6 +270,8 @@ async fn explain_department(
     Ok(with_cache_header(with_etag(Json(&e).into_response(), &tag), outcome))
 }
 
+/// `GET /settings/{key}`: one setting's effective value and the layers behind it, with its revision
+/// as the ETag (`workspace:settings.view`); 404 for an unknown key.
 async fn effective_by_path(
     s: State<AppState>,
     me: WsMember,
@@ -290,6 +293,7 @@ async fn explain(State(s): State<AppState>, me: WsMember, key: String) -> Result
     Ok(res)
 }
 
+/// `GET /settings/{key}/history`: the last 100 changes to one setting, newest first (`workspace:settings.view`).
 async fn history(
     State(s): State<AppState>,
     me: WsMember,
@@ -311,6 +315,8 @@ struct UpdateReq {
     reason: Option<String>,
 }
 
+/// `PUT /settings/{key}`: sets a workspace setting (`value`, optional `reason`) under the key's own
+/// permission (some also need step-up); optional `If-Match: "<revision>"` (412 if stale), 422 if invalid.
 async fn update(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -435,6 +441,8 @@ async fn override_tx(
     Ok(tx)
 }
 
+/// `PUT /settings/departments/{id}/{key}`: sets a department override (`value`, optional `reason`) under
+/// the key's permission on that department; optional `If-Match` (412 if stale), 422 if not scopable.
 async fn set_override(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -462,6 +470,8 @@ async fn set_override(
     Ok(with_etag(Json(&e).into_response(), &tag))
 }
 
+/// `DELETE /settings/departments/{id}/{key}`: removes a department's override so the workspace value
+/// applies again; optional `If-Match` (412 if stale), 404 if there is no override.
 async fn clear_override(
     State(s): State<AppState>,
     headers: HeaderMap,

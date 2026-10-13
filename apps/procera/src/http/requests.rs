@@ -166,6 +166,9 @@ pub(crate) fn bad_body(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(400, "bad_request", "The request body is not valid").detail(e.to_string())
 }
 
+/// `POST /requests`: starts a request of `type` with `input` answers (201, with `Location`). Requires an
+/// `Idempotency-Key` (a repeat replays the first response; 409 if reused for another body).
+/// Needs `request:start`.
 async fn start(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -228,6 +231,8 @@ struct ListQuery {
     status: Option<String>,
 }
 
+/// `GET /requests`: requests by `scope`: `mine` (default, `request:view_own`) or `all`
+/// (`request:view_all`), optionally filtered by `status`.
 async fn list(
     State(s): State<AppState>,
     me: WsMember,
@@ -309,6 +314,8 @@ async fn may_cancel(
         .allowed)
 }
 
+/// `GET /requests/{id}`: one request in full, plus `can_cancel` (whether you may cancel it).
+/// 404 unless you may see it (view-all, involved, or in your team).
 async fn detail(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -328,6 +335,8 @@ struct CancelReq {
     reason: String,
 }
 
+/// `POST /requests/{id}/cancel`: cancels an open request with a `reason`. Only the requester or a
+/// holder of `request:cancel`; 404 if you can't see it.
 async fn cancel(
     State(s): State<AppState>,
     headers: HeaderMap,

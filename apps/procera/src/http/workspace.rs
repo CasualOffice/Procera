@@ -245,6 +245,7 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(500, "internal", "Internal error")
 }
 
+/// `GET /me/workspaces`: the workspaces I belong to, and which one my current token is for (`active`).
 async fn my_workspaces(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Response, ApiError> {
     Ok(Json(json!({"items": members(&s)?.user_workspaces(c.sub).await?, "active": c.ws})).into_response())
 }
@@ -337,6 +338,8 @@ async fn preview(State(s): State<AppState>, Query(q): Query<PreviewQuery>) -> Re
     Ok(Json(members(&s)?.invitation_preview(&q.token).await?).into_response())
 }
 
+/// `POST /invitations/accept`: accepts an invitation (body `{token}`) for the signed-in user and
+/// returns the new `workspace_id` and `membership_id`.
 async fn accept(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -355,6 +358,8 @@ struct RegisterReq {
     password: String,
 }
 
+/// `POST /invitations/register`: creates an account from an invitation (`token`, `display_name`,
+/// `password`) and joins the workspace; 201. Sign in afterwards to get a workspace token.
 async fn register(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -365,12 +370,15 @@ async fn register(
     Ok((StatusCode::CREATED, Json(json!({"user": user, "workspace_id": ws, "membership_id": membership, "next": "Sign in, then POST /api/v1/session/workspace"}))).into_response())
 }
 
+/// `GET /permission-catalog`: every permission and the built-in role templates with their permissions.
 async fn permission_catalog(_m: WsMember) -> Json<serde_json::Value> {
     Json(
         json!({"permissions": catalogue::PERMISSIONS, "templates": catalogue::TEMPLATES.iter().map(|t| json!({"key": t.key, "name": t.name, "description": t.description, "permissions": t.permissions()})).collect::<Vec<_>>()}),
     )
 }
 
+/// `GET /me/permissions`: my effective permissions in this workspace, and whether I manage a team
+/// (`manages`: I have direct reports or hold `work:view_team` on a department).
 async fn my_permissions(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -389,6 +397,7 @@ async fn my_permissions(State(s): State<AppState>, me: WsMember) -> Result<Respo
     Ok(Json(json!({"workspace_id": me.ctx.workspace_id, "membership_id": me.actor.membership, "permissions": perms, "manages": manages})).into_response())
 }
 
+/// `GET /members`: every member of the workspace (`member:view`).
 async fn list_members(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -405,6 +414,8 @@ struct InviteReq {
     roles: Vec<String>,
 }
 
+/// `POST /members/invitations`: invites an email address with a set of `roles` (`member:invite`); 201.
+/// The invitation link is sent by email only and is never returned here.
 async fn invite(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -420,6 +431,7 @@ async fn invite(
     Ok((StatusCode::CREATED, Json(inv)).into_response())
 }
 
+/// `GET /members/invitations`: the workspace's invitations (`member:invite`). Links are never included.
 async fn list_invitations(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -429,6 +441,8 @@ async fn list_invitations(State(s): State<AppState>, me: WsMember) -> Result<Res
     Ok(Json(json!({"items": items})).into_response())
 }
 
+/// `DELETE /members/invitations/{id}`: revokes a pending invitation so its link stops working
+/// (`member:invite`); 204.
 async fn revoke_invitation(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -467,6 +481,8 @@ pub(super) fn invitation_link(s: &AppState, token: &str) -> String {
     format!("{}/invite?token={token}", s.public_url)
 }
 
+/// `POST /members/{id}/deactivate`: deactivates a member, ending their access to the workspace
+/// (`member:deactivate`); 204.
 async fn deactivate(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -505,6 +521,7 @@ async fn reactivate(
     Ok(Json(json!({"roles": roles})).into_response())
 }
 
+/// `GET /roles`: the workspace's roles with their permissions (`role:view`).
 async fn list_roles(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
@@ -524,6 +541,8 @@ struct RoleReq {
     cloned_from: Option<String>,
 }
 
+/// `POST /roles`: a custom role (`key`, `name`, `permissions`, optional `cloned_from` template);
+/// `role:manage` plus a recent step-up (401 `step_up_required` otherwise); 201.
 async fn create_role(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -565,6 +584,8 @@ struct RolePatch {
     permissions: Vec<String>,
 }
 
+/// `PATCH /roles/{id}`: replaces a role's `permissions` (`role:manage` plus a recent step-up); 204.
+/// The audit entry records what was added, removed and how many members it affects.
 async fn update_role(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -603,6 +624,7 @@ struct GrantQuery {
     membership_id: Option<Uuid>,
 }
 
+/// `GET /role-grants`: role grants in the workspace, optionally for one `?membership_id=` (`role:view`).
 async fn list_grants(
     State(s): State<AppState>,
     me: WsMember,
@@ -639,6 +661,8 @@ fn workspace_scope() -> String {
     "workspace".into()
 }
 
+/// `POST /role-grants`: grants `role_key` to exactly one of `membership_id` or `group_id` (else 422), with
+/// an optional scope, `expires_at` and `reason`; `member:manage_roles` plus a recent step-up; 201 `{id}`.
 async fn create_grant(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -674,6 +698,7 @@ async fn create_grant(
     Ok((StatusCode::CREATED, Json(json!({"id": id}))).into_response())
 }
 
+/// `DELETE /role-grants/{id}`: revokes a role grant (`member:manage_roles` plus a recent step-up); 204.
 async fn revoke_grant(
     State(s): State<AppState>,
     headers: HeaderMap,

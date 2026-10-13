@@ -154,6 +154,8 @@ struct BootstrapReq {
     password: String,
 }
 
+/// `POST /bootstrap`: one-time creation of the first system owner from the bootstrap `token`, with
+/// `email`, `display_name` and `password` (201). 401 for a bad or used token, 409 once bootstrapped.
 async fn bootstrap(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -165,6 +167,7 @@ async fn bootstrap(
     Ok((StatusCode::CREATED, Json(json!({"user": user, "roles": ["system.owner"], "next": "Sign in, then enrol MFA at POST /api/v1/me/mfa/totp before using the system API."}))).into_response())
 }
 
+/// `GET /me`: your user id and system roles. Like every system route, needs a system role and MFA.
 async fn me(u: SystemUser) -> Json<serde_json::Value> {
     Json(json!({"user_id": u.user_id, "roles": u.roles}))
 }
@@ -179,6 +182,8 @@ async fn list(
     Ok(Json(json!({"items": platform(&s)?.console_workspaces(&f).await?})).into_response())
 }
 
+/// `POST /workspaces`: creates a workspace (201, with `Location` and `ETag`); 409 if the slug is taken.
+/// Needs `system.owner` or `system.admin`.
 async fn create(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -194,6 +199,8 @@ async fn create(
     Ok(res)
 }
 
+/// `GET /workspaces/{id}`: one workspace with its quotas and usage counts, as the console lists it,
+/// with an `ETag` of its revision. Any system role.
 async fn get_one(
     State(s): State<AppState>,
     u: SystemUser,
@@ -210,6 +217,8 @@ struct RenameReq {
     name: String,
 }
 
+/// `PATCH /workspaces/{id}`: renames a workspace (`name`). Honours `If-Match` (412 when stale).
+/// Needs `system.owner` or `system.admin`.
 async fn rename(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -229,6 +238,8 @@ struct SuspendReq {
     reason: String,
 }
 
+/// `POST /workspaces/{id}/suspend`: suspends a workspace, `mode` `read_only` or `locked`, with a
+/// `reason`. Needs `system.owner`/`system.admin` and a recent sign-in; `If-Match` honoured (412).
 async fn suspend(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -252,6 +263,8 @@ async fn suspend(
     console_response(&s, &ws).await
 }
 
+/// `POST /workspaces/{id}/restore`: returns a suspended or deletion-scheduled workspace to active
+/// (409 otherwise). Needs `system.owner`/`system.admin` and a recent sign-in; `If-Match` honoured (412).
 async fn restore(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -271,6 +284,8 @@ struct DeletionReq {
     reason: String,
 }
 
+/// `POST /workspaces/{id}/schedule-deletion`: schedules deletion after `grace_days`, with a `reason`.
+/// Needs `system.owner`/`system.admin` and a recent sign-in; `If-Match` honoured (412).
 async fn schedule_deletion(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -286,6 +301,8 @@ async fn schedule_deletion(
     console_response(&s, &ws).await
 }
 
+/// `PUT /workspaces/{id}/quotas`: replaces a workspace's quotas; returns the workspace with usage.
+/// Needs `system.owner` or `system.admin` and a recent sign-in.
 async fn quotas(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -321,6 +338,7 @@ async fn owner_invitation_link(
     Ok(res)
 }
 
+/// `GET /settings`: the platform floors every workspace's settings are held to. Any system role.
 async fn platform_settings(State(s): State<AppState>, u: SystemUser) -> Result<Response, ApiError> {
     u.require(SystemAction::WorkspaceRead)?;
     let db = s.db.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;

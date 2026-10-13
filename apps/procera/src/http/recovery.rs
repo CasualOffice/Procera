@@ -142,6 +142,8 @@ struct ResetReq {
     password: String,
 }
 
+/// `POST /auth/password/reset`: sets a new password from a reset link (`token`, `password`); 204, and the
+/// account owner is emailed. An invalid, expired or used link is refused with 400. Rate-limited per IP.
 async fn reset(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -336,6 +338,8 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(500, "internal", "Internal error")
 }
 
+/// `POST /members/{id}/security/reset-link`: emails the member a password reset link. Needs
+/// `member:security.manage` on the member, a recent step-up and a `reason`; 204, 409 if deactivated.
 async fn admin_reset_link(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -346,6 +350,8 @@ async fn admin_reset_link(
     admin(s, headers, me, id, AdminAction::ResetLink, r.reason).await
 }
 
+/// `POST /members/{id}/security/require-password-change`: makes the member choose a new password at next
+/// sign-in (`member:security.manage`, step-up, `reason`); 204. 409 if deactivated or used in other workspaces.
 async fn admin_require_change(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -356,6 +362,8 @@ async fn admin_require_change(
     admin(s, headers, me, id, AdminAction::RequirePasswordChange, r.reason).await
 }
 
+/// `POST /members/{id}/security/sign-out-everywhere`: ends all of the member's sessions
+/// (`member:security.manage`, step-up, `reason`); 204. 409 if deactivated or used in other workspaces.
 async fn admin_sign_out(
     State(s): State<AppState>,
     headers: HeaderMap,
@@ -366,6 +374,8 @@ async fn admin_sign_out(
     admin(s, headers, me, id, AdminAction::SignOutEverywhere, r.reason).await
 }
 
+/// `POST /members/{id}/security/reset-mfa`: removes the member's two-step verification
+/// (`member:security.manage`, step-up, `reason`); 204. 409 if deactivated or used in other workspaces.
 async fn admin_reset_mfa(
     State(s): State<AppState>,
     headers: HeaderMap,

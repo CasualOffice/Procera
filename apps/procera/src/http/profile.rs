@@ -32,6 +32,8 @@ fn invalid(m: &str) -> ApiError {
 /// Languages the interface offers today (more arrive with localisation, CFG-008).
 const LOCALES: &[&str] = &["en"];
 
+/// `GET /me/profile`: your email, display name, time zone and language, plus the languages offered.
+/// Shared by every workspace you belong to.
 async fn get_profile(State(s): State<AppState>, AuthUser(c): AuthUser) -> Result<Json<Value>, ApiError> {
     let db = s.db.as_ref().ok_or_else(|| ApiError::unavailable("database"))?;
     let mut tx = db.begin_system().await.map_err(internal)?;
@@ -57,6 +59,8 @@ struct ProfileReq {
     locale: Option<String>,
 }
 
+/// `PATCH /me/profile`: changes any of `display_name`, `timezone` (IANA name) and `locale`; omitted
+/// fields are kept. 422 for an invalid value. Audited; returns the updated profile.
 async fn update_profile(
     State(s): State<AppState>,
     headers: HeaderMap,
