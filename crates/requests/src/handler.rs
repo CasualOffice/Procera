@@ -49,7 +49,7 @@ impl EffectHandler for Effects {
         cx: EffectContext<'a>,
     ) -> BoxFuture<'a, Result<(), String>> {
         Box::pin(async move {
-            let Some(rt) = self.catalogue.get(&cx.program.process_key).cloned() else { return Ok(()) };
+            let Some(rt) = self.catalogue.resolve(tx, &cx.program.process_key).await? else { return Ok(()) };
             self.run(tx, &rt, cx).await.map_err(|e| format!("requests: {e}"))
         })
     }
@@ -92,10 +92,18 @@ pub(crate) fn end_node<'a>(rt: &RequestType, st: &'a procera_runtime::InstanceSt
 pub(crate) fn status(rt: &RequestType, st: &procera_runtime::InstanceState) -> &'static str {
     match st.status {
         InstanceStatus::Completed => {
-            end_node(rt, st).and_then(|n| rt.end_status.get(n)).copied().unwrap_or("approved")
+            // The request statuses are a closed set; an end node names one of them.
+            match end_node(rt, st).and_then(|n| rt.end_status.get(n)).map(String::as_str) {
+                Some("rejected") => "rejected",
+                Some("completed") => "completed",
+                Some("cancelled") => "cancelled",
+                _ => "approved",
+            }
         }
         InstanceStatus::Terminated => "cancelled",
-        _ if rt.revise_node.is_some_and(|r| st.tokens.values().any(|t| t.node == r)) => "changes_requested",
+        _ if rt.revise_node.as_deref().is_some_and(|r| st.tokens.values().any(|t| t.node == r)) => {
+            "changes_requested"
+        }
         _ => "in_progress",
     }
 }
@@ -333,14 +341,14 @@ impl Effects {
             "INSERT INTO request_sequences (workspace_id, prefix, year, last) VALUES ($1, $2, $3, 1)
              ON CONFLICT (workspace_id, prefix, year) DO UPDATE SET last = request_sequences.last + 1 RETURNING last",
         )
-        .bind(tx.ctx.workspace_id).bind(rt.prefix).bind(year)
+        .bind(tx.ctx.workspace_id).bind(&rt.prefix).bind(year)
         .fetch_one(tx.conn()).await.map_err(db)?;
         let display_id = format!("{}-{year}-{n:06}", rt.prefix);
         sqlx::query(
             "INSERT INTO requests (workspace_id, instance_id, display_id, process_key, title, initiator_membership_id, status, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, 'in_progress', $7, $7)",
         )
-        .bind(tx.ctx.workspace_id).bind(st.instance_id).bind(display_id).bind(rt.key).bind(rt.title(&st.variables)).bind(initiator).bind(at)
+        .bind(tx.ctx.workspace_id).bind(st.instance_id).bind(display_id).bind(&rt.key).bind(rt.title(&st.variables)).bind(initiator).bind(at)
         .execute(tx.conn()).await.map_err(db)?;
         Ok(())
     }

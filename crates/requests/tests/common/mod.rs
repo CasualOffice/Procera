@@ -177,11 +177,11 @@ impl World {
         Ok(s.id)
     }
 
-    pub async fn offered(&self, who: Who) -> Vec<&'static str> {
+    pub async fn offered(&self, who: Who) -> Vec<String> {
         let mut tx = self.tx().await;
         let (_, types) = self.req.offered(&mut tx, who.membership).await.unwrap();
         tx.rollback().await.unwrap();
-        types.iter().map(|t| t.key).collect()
+        types.iter().map(|t| t.key.clone()).collect()
     }
 
     pub async fn open(&self, who: Who) -> Vec<procera_requests::WorkView> {

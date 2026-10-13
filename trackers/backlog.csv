@@ -55,7 +55,7 @@ BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Back
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started,—
 BPMS-088,RT,"Incidents, retry/skip/cancel, instance admin ops",P0,R2,Backend,FR-E13,One open incident per failure,M,BPMS-082,Done,Automated tests
 BPMS-089,QA,Conformance suite + model-based tests + deterministic simulation harness,P0,R2,SDET/Runtime,15 §4–6,Nightly chaos green,L,BPMS-082,Not started,—
-BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,Not started,—
+BPMS-100,DES,Step builder + React Flow canvas + properties + validate/test-run/review/publish,P0,R2,FE,"FR-E01/E11, ADR-0018",T10 keyboard-only,XL,BPMS-080,In progress,Automated tests
 BPMS-101,FORM,"Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission)",P0,R2,FE,"FR-E03, FX-F01–F04",Server = client validation,XL,BPMS-081,In progress,Automated tests
 BPMS-103,REQ,"Request portal/catalogue, start form, request detail, comments/@mentions/watchers",P0,R2,Fullstack,"FR-R01/R02, FX-R01/R02",J0/J3 pass,L,BPMS-082,Done,Automated tests
 BPMS-105,WORK,"My Work 3-pane inbox (tasks, acks, signatures), bulk with preview",P0,R2,FE,"FR-R03, FR-AK02",Decision ≤3 interactions,L,"BPMS-085,046",Done,Automated tests

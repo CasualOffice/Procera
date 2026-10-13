@@ -22,6 +22,7 @@ pub mod library;
 pub mod notifications;
 pub mod overview;
 pub mod probe;
+pub mod processes;
 pub mod profile;
 pub mod recovery;
 pub mod requests;
@@ -362,6 +363,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", directory::router())
         .nest("/api/v1", notifications::router())
         .nest("/api/v1", library::router())
+        .nest("/api/v1", processes::router())
         .nest("/api/v1", campaigns::router())
         .nest("/api/v1", templates::router())
         .nest("/api/v1", announcements::router())

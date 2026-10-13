@@ -66,7 +66,7 @@ async fn team(w: &mut World) -> Team {
 async fn three_tasks_run_at_once_the_join_waits_then_the_new_member_acknowledges() {
     let Some(mut w) = world().await else { return };
     let t = team(&mut w).await;
-    assert!(w.offered(t.hr).await.contains(&"hr.onboarding"), "offered by default");
+    assert!(w.offered(t.hr).await.iter().any(|k| k == "hr.onboarding"), "offered by default");
 
     let id = w.start(t.hr, "hr.onboarding", input(t.nia)).await.unwrap();
     let d = w.detail(id).await;

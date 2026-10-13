@@ -7,11 +7,11 @@
 
 ```text
 Overall   ██████████████░░░░░░░░░░░░░░░░  58/122 epics done  (48%)
-Partial   ███████████████░░░░░░░░░░░░░░░  48% counting in-progress epics as half done
-Tests     251 automated E2E scenarios · 434 Rust tests (incl. property tests)
-Status    done 58 · in review 0 · in progress 2 · blocked 0 · not started 62 · deferred 0
+Partial   ███████████████░░░░░░░░░░░░░░░  49% counting in-progress epics as half done
+Tests     254 automated E2E scenarios · 434 Rust tests (incl. property tests)
+Status    done 58 · in review 0 · in progress 3 · blocked 0 · not started 61 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 46 · code merged 14  (separate from status; none user-validated yet)
+Evidence  automated tests 47 · code merged 14  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -34,6 +34,7 @@ Evidence  automated tests 46 · code merged 14  (separate from status; none user
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
 | BPMS-084 | Release bundles + publish integration | **In progress** | Code merged | Release bundles (migration 0048, crates/processes): processes are library artifacts whose content is their IR; publishing one runs a hook in the publish transaction that compiles it against a workspace snapshot (references must be published, named groups/roles/positions/people must exist) and either refuses the publish with the diagnostics or writes an immutable release bundle (pinned versions manifest + SHA-256 + program checksum). DbPrograms serves published programs to the engine by key/version/checksum behind the built-ins. Integration test: refused while the SOP is a draft, bundle pins it once published, bundles immutable, engine starts the published program and refuses an unknown build. Next (0.3): starting published processes from the designer, filling process_instances.bundle_id, dependents to update. |
+| BPMS-100 | Step builder + React Flow canvas + properties + validate/test-run/review/publish | **In progress** | Automated tests | Guided Studio backend (0.3 slice 1): processes API over the library lifecycle — list, templates (blank + the built-ins, their forms/SOP references dropped, labels moved into studio), create, draft save with If-Match (opens a new draft from the published version), validate against the workspace with plain problems tied to steps, publish (submit + publish per review policy, 422 problems when it does not compile). Version content is {ir, studio}; published processes become request types (studio name, prefix, labels; the on/off list is for built-ins) and start on their pinned build. E2E-R3-01..03 + AUD-01. Designer UI in progress. |
 | BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Automated tests | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. File fields (`file`, multiple): ids checked for workspace, uploader, clean scan and allowed type (images, PDF, Word, Excel, CSV), stored as file refs (E2E-R2-41). Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
 
 ## Done
@@ -178,7 +179,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [ ] **BPMS-087** (P0, M) Rule tables (UNIQUE/FIRST/COLLECT)
 - [x] **BPMS-088** (P0, M) Incidents, retry/skip/cancel, instance admin ops
 - [ ] **BPMS-089** (P0, L) Conformance suite + model-based tests + deterministic simulation harness
-- [ ] **BPMS-100** (P0, XL) Step builder + React Flow canvas + properties + validate/test-run/review/publish
+- [ ] **BPMS-100** (P0, XL) Step builder + React Flow canvas + properties + validate/test-run/review/publish **[In progress]**
 - [ ] **BPMS-101** (P0, XL) Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) **[In progress]**
 - [x] **BPMS-103** (P0, L) Request portal/catalogue, start form, request detail, comments/@mentions/watchers
 - [x] **BPMS-105** (P0, L) My Work 3-pane inbox (tasks, acks, signatures), bulk with preview
@@ -296,7 +297,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 309 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 312 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 15 / 16 / 45 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

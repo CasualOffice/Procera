@@ -206,10 +206,12 @@ impl Effects {
         let Some((work_key, n)) = t.key.rsplit_once(ESC) else { return Ok(None) };
         let Ok(n) = n.parse::<usize>() else { return Ok(None) };
         let cat = self.catalogue.clone();
-        let Some(it) = item(tx, |k| cat.get(k).map(|r| r.name.to_owned()), Err(work_key)).await? else {
+        let published = cat.published_in(tx).await?;
+        let name = |k: &str| cat.get(k).or_else(|| published.get(k)).map(|r| r.name.clone());
+        let Some(it) = item(tx, name, Err(work_key)).await? else {
             return Ok(None);
         };
-        let Some(rt) = self.catalogue.get(&it.process_key).cloned() else { return Ok(None) };
+        let Some(rt) = self.catalogue.resolve(tx, &it.process_key).await? else { return Ok(None) };
         let esc = rt
             .exe
             .program

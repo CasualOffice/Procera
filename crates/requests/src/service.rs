@@ -153,12 +153,25 @@ impl Requests {
         }
     }
 
-    pub(crate) fn type_of(&self, key: &str) -> R<std::sync::Arc<RequestType>> {
-        self.catalogue.get(key).cloned().ok_or_else(|| RequestError::UnknownType(key.to_owned()))
+    /// A built-in, or a process published in this workspace (BPMS-100).
+    pub(crate) async fn type_of(&self, tx: &mut WsTx<'_>, key: &str) -> R<std::sync::Arc<RequestType>> {
+        self.catalogue
+            .resolve(tx, key)
+            .await
+            .map_err(RequestError::Internal)?
+            .ok_or_else(|| RequestError::UnknownType(key.to_owned()))
     }
 
-    fn summary(&self, r: SummaryRow) -> RequestSummary {
-        let type_name = self.catalogue.get(&r.2).map_or_else(|| r.2.clone(), |t| t.name.to_owned());
+    fn summary(
+        &self,
+        r: SummaryRow,
+        published: &BTreeMap<String, std::sync::Arc<RequestType>>,
+    ) -> RequestSummary {
+        let type_name = self
+            .catalogue
+            .get(&r.2)
+            .or_else(|| published.get(&r.2))
+            .map_or_else(|| r.2.clone(), |t| t.name.clone());
         RequestSummary {
             id: r.0,
             display_id: r.1,
@@ -249,7 +262,7 @@ impl Requests {
         key: &str,
         input: &Map<String, Value>,
     ) -> R<Started> {
-        let rt = self.type_of(key)?;
+        let rt = self.type_of(tx, key).await?;
         let offer = self.offer(tx).await?;
         if !offer.enabled(key) {
             return Err(RequestError::Forbidden(format!("{} is not offered in this workspace", rt.name)));
@@ -350,7 +363,8 @@ impl Requests {
         .bind(LIST_LIMIT)
         .fetch_all(tx.conn())
         .await?;
-        Ok(rows.into_iter().map(|r| self.summary(r)).collect())
+        let published = self.catalogue.published_in(tx).await.map_err(RequestError::Internal)?;
+        Ok(rows.into_iter().map(|r| self.summary(r, &published)).collect())
     }
 
     /// Whether `m` started the request, is offered one of its steps or decided one, or currently
@@ -411,8 +425,9 @@ impl Requests {
             .await?;
         let row = row.ok_or(RequestError::NotFound)?;
         let ended_at = row.11;
-        let summary = self.summary(row);
-        let rt = self.type_of(&summary.ty)?;
+        let published = self.catalogue.published_in(tx).await.map_err(RequestError::Internal)?;
+        let summary = self.summary(row, &published);
+        let rt = self.type_of(tx, &summary.ty).await?;
         let state: Value = sqlx::query_scalar("SELECT state FROM process_instances WHERE id = $1")
             .bind(id)
             .fetch_one(tx.conn())
@@ -684,7 +699,7 @@ impl Requests {
                 Some(x) => Some(self.away_note(tx, x, today).await?),
                 None => None,
             };
-            let rt = self.type_of(&r.process_key)?;
+            let rt = self.type_of(tx, &r.process_key).await?;
             let vars: BTreeMap<String, Value> =
                 serde_json::from_value(r.variables.clone()).unwrap_or_default();
             let form = Self::priced(&rt.task_forms.get(&r.node_id).cloned().unwrap_or_default(), &vars);
@@ -871,7 +886,7 @@ impl Requests {
         if !errors.is_empty() {
             return Err(RequestError::Invalid(errors));
         }
-        let rt = self.type_of(&process_key)?;
+        let rt = self.type_of(tx, &process_key).await?;
         let state: Value =
             sqlx::query_scalar("SELECT state->'variables' FROM process_instances WHERE id = $1")
                 .bind(instance)
@@ -1026,10 +1041,15 @@ impl Requests {
             .execute(tx.conn())
             .await?;
         let cat = self.catalogue.clone();
-        let it = crate::escalate::item(tx, |k| cat.get(k).map(|r| r.name.to_owned()), Ok(work_id))
-            .await
-            .map_err(RequestError::Internal)?
-            .ok_or(RequestError::NotFound)?;
+        let published = cat.published_in(tx).await.map_err(RequestError::Internal)?;
+        let it = crate::escalate::item(
+            tx,
+            |k| cat.get(k).or_else(|| published.get(k)).map(|r| r.name.clone()),
+            Ok(work_id),
+        )
+        .await
+        .map_err(RequestError::Internal)?
+        .ok_or(RequestError::NotFound)?;
         if !it.open {
             return Err(RequestError::AlreadyDecided);
         }

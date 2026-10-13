@@ -38,9 +38,9 @@ async fn a_type_audience_limits_who_may_start_it() {
         json!({"fin.purchase-requisition": {"groups": [finance], "roles": ["buyer"]}, "hr.leave-request": {"all": true}}),
     )
     .await;
-    assert!(w.offered(fin).await.contains(&"fin.purchase-requisition"), "in the group");
-    assert!(w.offered(ivan).await.contains(&"fin.purchase-requisition"), "holds the role");
-    assert!(!w.offered(ann).await.contains(&"fin.purchase-requisition"));
+    assert!(w.offered(fin).await.iter().any(|k| k == "fin.purchase-requisition"), "in the group");
+    assert!(w.offered(ivan).await.iter().any(|k| k == "fin.purchase-requisition"), "holds the role");
+    assert!(!w.offered(ann).await.iter().any(|k| k == "fin.purchase-requisition"));
     assert_eq!(w.offered(ann).await.len(), 4, "the other types stay open to everyone");
     match w.start(ann, "fin.purchase-requisition", purchase("100.00", "EUR")).await {
         Err(RequestError::Forbidden(m)) => assert!(m.contains("limited"), "{m}"),

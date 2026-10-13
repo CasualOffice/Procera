@@ -69,7 +69,8 @@ impl Requests {
 
     /// Whether `member` may start `key` under `offer`: the type is enabled and they are in its audience.
     pub async fn may_start(&self, tx: &mut WsTx<'_>, offer: &Offer, key: &str, member: Uuid) -> R<bool> {
-        if !offer.enabled(key) {
+        // The on/off list is for the built-ins; publishing a process is the owner offering it.
+        if self.catalogue.get(key).is_some() && !offer.enabled(key) {
             return Ok(false);
         }
         Ok(match offer.audience(key)? {
@@ -82,8 +83,9 @@ impl Requests {
     pub async fn offered(&self, tx: &mut WsTx<'_>, member: Uuid) -> R<(Offer, Vec<Arc<RequestType>>)> {
         let offer = self.offer(tx).await?;
         let mut out = Vec::new();
-        for t in self.catalogue.list() {
-            if self.may_start(tx, &offer, t.key, member).await? {
+        let published = self.catalogue.published_in(tx).await.map_err(RequestError::Internal)?;
+        for t in self.catalogue.list().iter().chain(published.values()) {
+            if self.may_start(tx, &offer, &t.key, member).await? {
                 out.push(t.clone());
             }
         }

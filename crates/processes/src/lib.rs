@@ -22,6 +22,12 @@ use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+/// A process version's content is `{"ir": …, "studio": …}` (BPMS-100) or, for older drafts, a bare
+/// IR document. Only the IR is compiled and checksummed.
+pub fn ir_of(content: &Value) -> &Value {
+    content.get("ir").filter(|v| v.is_object()).unwrap_or(content)
+}
+
 /// What a reference resolved to in the snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Pinned {
@@ -55,6 +61,12 @@ impl Snapshot {
                 s.refs.insert(reference.to_owned(), (Resolution::NotFound, None));
                 continue;
             };
+            // The workspace's default working calendar is the runtime's own (seeded per workspace),
+            // not a library artifact: business-day deadlines can always use it.
+            if kind == "calendar" && key == "default" {
+                s.refs.insert(reference.to_owned(), (Resolution::Published, None));
+                continue;
+            }
             let row: Option<(Uuid, Uuid, String)> = sqlx::query_as(
                 "SELECT a.id, v.id, v.lifecycle FROM artifacts a JOIN artifact_versions v ON v.workspace_id = a.workspace_id AND v.artifact_id = a.id
                   WHERE a.kind = $1 AND a.key = $2 AND v.version_no = $3",
@@ -119,6 +131,79 @@ impl Environment for Snapshot {
     }
 }
 
+/// One problem with a draft, for the designer (BPMS-100): which step it is on and what to do.
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Eq)]
+pub struct Problem {
+    /// `error` blocks publishing; `warning` does not.
+    pub severity: &'static str,
+    pub code: String,
+    pub pointer: String,
+    pub node: Option<String>,
+    pub message: String,
+}
+
+/// Checks a draft the way publishing will: against this workspace's published artifacts and its
+/// groups, roles, positions and people. An empty list means it can be published.
+pub async fn validate(tx: &mut WsTx<'_>, content: &Value) -> Result<Vec<Problem>, String> {
+    let ir = ir_of(content);
+    let doc: IrDocument = match serde_json::from_value(ir.clone()) {
+        Ok(d) => d,
+        Err(e) => {
+            return Ok(vec![Problem {
+                severity: "error",
+                code: "IR-E100".into(),
+                pointer: String::new(),
+                node: None,
+                message: format!("The process isn't a complete definition yet: {e}"),
+            }]);
+        }
+    };
+    let snapshot = Snapshot::load(tx, &doc).await.map_err(|e| e.to_string())?;
+    let out = compile(ir, &CompileContext { environment: Some(&snapshot), previous: None });
+    Ok(out
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity != procera_ir::Severity::Info)
+        .map(|d| Problem {
+            severity: if d.severity == procera_ir::Severity::Error { "error" } else { "warning" },
+            code: d.code.as_str().to_owned(),
+            pointer: d.pointer.clone(),
+            node: d.node.clone().or_else(|| node_at(&doc, &d.pointer)),
+            message: plain(&d.message),
+        })
+        .collect())
+}
+
+/// The node a pointer like `/nodes/3/assignment/…` is inside.
+fn node_at(doc: &IrDocument, pointer: &str) -> Option<String> {
+    let i: usize = pointer.strip_prefix("/nodes/")?.split('/').next()?.parse().ok()?;
+    doc.nodes.get(i).map(|n| n.id.clone())
+}
+
+/// Compiler wording, made friendlier where it names a person, group or reference.
+fn plain(m: &str) -> String {
+    for (kind, what) in [("group", "group"), ("role", "role"), ("position", "position"), ("user", "person")] {
+        if let Some(rest) = m.strip_prefix(&format!("{kind} '"))
+            && let Some(name) = rest.strip_suffix("' does not exist")
+        {
+            return format!("There's no {what} called “{name}” in this workspace.");
+        }
+    }
+    if let Some(rest) = m.strip_prefix('\'')
+        && let Some((reference, why)) = rest.split_once("' ")
+    {
+        return format!("“{reference}” {why}.");
+    }
+    let mut s = m.to_owned();
+    if let Some(f) = s.get(..1) {
+        s.replace_range(..1, &f.to_uppercase());
+    }
+    if !s.ends_with('.') {
+        s.push('.');
+    }
+    s
+}
+
 /// Compiles a published process and writes its release bundle (the library's publish hook).
 #[derive(Debug)]
 pub struct PublishProcesses {
@@ -137,7 +222,8 @@ impl PublishProcesses {
             .fetch_one(tx.conn())
             .await
             .map_err(|e| e.to_string())?;
-        let doc: IrDocument = serde_json::from_value(content.clone())
+        let ir = ir_of(&content);
+        let doc: IrDocument = serde_json::from_value(ir.clone())
             .map_err(|e| format!("this process is not a valid definition: {e}"))?;
         if doc.process.key != v.key {
             return Err(format!(
@@ -152,7 +238,7 @@ impl PublishProcesses {
             ));
         }
         let snapshot = Snapshot::load(tx, &doc).await.map_err(|e| e.to_string())?;
-        let out = compile(&content, &CompileContext { environment: Some(&snapshot), previous: None });
+        let out = compile(ir, &CompileContext { environment: Some(&snapshot), previous: None });
         let Some(compiled) = out.compiled else {
             let errors: Vec<String> = out
                 .diagnostics
@@ -234,9 +320,16 @@ impl DbPrograms {
         if let Some(hit) = self.cache.lock().map_err(|e| e.to_string())?.get(&checksum) {
             return Ok(hit.clone());
         }
-        let out = compile(&content, &CompileContext::default());
-        let compiled =
-            out.compiled.ok_or_else(|| format!("{}@{} no longer compiles", p.process_key, p.version))?;
+        let out = compile(ir_of(&content), &CompileContext::default());
+        let compiled = out.compiled.ok_or_else(|| {
+            let why: Vec<String> = out
+                .diagnostics
+                .iter()
+                .take(3)
+                .map(|d| format!("{} {}: {}", d.code.as_str(), d.pointer, d.message))
+                .collect();
+            format!("{}@{} no longer compiles: {}", p.process_key, p.version, why.join("; "))
+        })?;
         let program = Program::from_compiled(&compiled).map_err(|e| e.to_string())?;
         if program.checksum() != Some(checksum.as_str()) {
             return Err(format!(

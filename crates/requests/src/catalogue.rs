@@ -68,14 +68,14 @@ pub type Check = fn(&BTreeMap<String, Value>) -> Vec<FieldError>;
 /// A request type ready to start.
 #[derive(Debug)]
 pub struct RequestType {
-    pub key: &'static str,
+    pub key: String,
     /// Display-id prefix (`LR` → `LR-2026-000123`).
-    pub prefix: &'static str,
-    pub name: &'static str,
+    pub prefix: String,
+    pub name: String,
     /// `{currency}` stands for the workspace currency; see [`RequestType::description`].
-    description: &'static str,
-    pub category: &'static str,
-    pub icon: &'static str,
+    description: String,
+    pub category: String,
+    pub icon: String,
     /// The program as authored (its IR currency); see [`RequestType::program_for`].
     pub program: ProgramRef,
     pub exe: Arc<Executable>,
@@ -87,20 +87,54 @@ pub struct RequestType {
     /// Editable fields of human steps, by node id.
     pub task_forms: BTreeMap<String, Form>,
     /// The step where the requester revises a sent-back request.
-    pub revise_node: Option<&'static str>,
+    pub revise_node: Option<String>,
     /// Request status by end node.
-    pub end_status: BTreeMap<String, &'static str>,
+    pub end_status: BTreeMap<String, String>,
     pub check: Option<Check>,
     /// What the person confirms on each acknowledgement step, by node id.
-    pub statements: BTreeMap<String, &'static str>,
+    pub statements: BTreeMap<String, String>,
     /// Human steps inside a parallel block, by node id → the split that opens the block.
     pub parallel: BTreeMap<String, String>,
-    title: fn(&BTreeMap<String, Value>) -> String,
+    title: Title,
+    /// Published from the library (BPMS-100) rather than built in.
+    pub published: bool,
+}
+
+/// How a request's title is made from its answers.
+#[derive(Clone, Copy)]
+pub enum Title {
+    /// A built-in's own rule.
+    Builtin(fn(&BTreeMap<String, Value>) -> String),
+    /// The type name and the first short text answer (published processes).
+    Generic,
+}
+
+impl std::fmt::Debug for Title {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Builtin(_) => "Builtin",
+            Self::Generic => "Generic",
+        })
+    }
 }
 
 impl RequestType {
     pub fn title(&self, input: &BTreeMap<String, Value>) -> String {
-        let t = (self.title)(input);
+        let t = match self.title {
+            Title::Builtin(f) => f(input),
+            Title::Generic => self
+                .start_form
+                .fields
+                .iter()
+                .find_map(|f| {
+                    input
+                        .get(&f.name)
+                        .and_then(Value::as_str)
+                        .filter(|s| !s.trim().is_empty() && s.len() <= 120)
+                        .map(|s| format!("{}: {s}", self.name))
+                })
+                .unwrap_or_default(),
+        };
         let t: String = t.chars().take(300).collect();
         if t.trim().is_empty() { self.name.to_owned() } else { t }
     }
@@ -374,6 +408,110 @@ fn field(program: &Program, name: &str, label: &str) -> Result<Field, String> {
     })
 }
 
+/// A request type for a process published from the library (BPMS-100): the start form is every
+/// declared variable in order, labelled from `studio.fields`; the `revise` step (if any) edits it;
+/// end steps named like `*reject*` end Rejected, others Approved; the request facts come from
+/// `studio.request`.
+fn published_type(key: &str, version: i32, checksum: &str, content: &Value) -> Result<RequestType, String> {
+    let ir = procera_processes::ir_of(content);
+    let compiled = compile(ir, &CompileContext::default())
+        .compiled
+        .ok_or_else(|| format!("{key}@{version} does not compile"))?;
+    let program = Program::from_compiled(&compiled).map_err(|e| e.to_string())?;
+    if program.checksum() != Some(checksum) {
+        return Err(format!("{key}@{version} does not match its release bundle"));
+    }
+    let studio = &content["studio"];
+    let text = |v: &Value, d: &str| v.as_str().filter(|s| !s.trim().is_empty()).unwrap_or(d).to_owned();
+    let label_of = |name: &str| text(&studio["fields"][name]["label"], &human(name));
+    let start_form = Form {
+        fields: program
+            .ir()
+            .variables
+            .iter()
+            .map(|v| field(&program, &v.name, &label_of(&v.name)))
+            .collect::<Result<_, _>>()?,
+    };
+    let revise_node = program.node("revise").map(|_| "revise".to_owned());
+    let mut task_forms = BTreeMap::new();
+    if revise_node.is_some() {
+        task_forms.insert("revise".to_owned(), start_form.clone());
+    }
+    let ir_doc = program.ir();
+    let end_status = ir_doc
+        .nodes
+        .iter()
+        .filter(|n| n.kind == procera_ir::model::NodeKind::End)
+        .map(|n| (n.id.clone(), if n.id.contains("reject") { "rejected" } else { "approved" }.to_owned()))
+        .collect();
+    let statements = ir_doc
+        .nodes
+        .iter()
+        .filter(|n| n.kind == procera_ir::model::NodeKind::HumanAcknowledge)
+        .map(|n| {
+            (
+                n.id.clone(),
+                text(&studio["steps"][&n.id]["statement"], &n.name.as_ref().map(en).unwrap_or_default()),
+            )
+        })
+        .collect();
+    let request = &studio["request"];
+    let category = text(&request["category"], "other");
+    let icon = match category.as_str() {
+        "hr" => "users",
+        "finance" => "wallet",
+        "it" => "key",
+        "operations" => "clipboard",
+        _ => "send",
+    }
+    .to_owned();
+    let prefix = text(&request["prefix"], "RQ")
+        .to_uppercase()
+        .chars()
+        .filter(char::is_ascii_alphabetic)
+        .take(4)
+        .collect::<String>();
+    let parallel = parallel_steps(program.ir());
+    let money = money_currency(ir);
+    let pinned = ProgramRef {
+        process_key: key.to_owned(),
+        version: u32::try_from(version).unwrap_or(0),
+        checksum: Some(checksum.to_owned()),
+    };
+    Ok(RequestType {
+        key: key.to_owned(),
+        prefix: if prefix.len() >= 2 { prefix } else { "RQ".to_owned() },
+        name: text(&request["name"], &en(&ir_doc.process.name)),
+        description: text(&request["description"], ""),
+        category,
+        icon,
+        program: pinned,
+        exe: Arc::new(Executable::new(program)),
+        money,
+        variants: BTreeMap::new(),
+        start_form,
+        task_forms,
+        revise_node,
+        end_status,
+        check: None,
+        statements,
+        parallel,
+        title: Title::Generic,
+        published: true,
+    })
+}
+
+/// The English text of a localised name, or any text it has.
+fn en(m: &BTreeMap<String, String>) -> String {
+    m.get("en").or_else(|| m.values().next()).cloned().unwrap_or_default()
+}
+
+fn human(name: &str) -> String {
+    let s = name.replace(['_', '-', '.'], " ");
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().collect::<String>() + c.as_str()).unwrap_or_default()
+}
+
 /// Every compiled program, by key and version; several builds of one key and version (currency
 /// variants) are told apart by checksum. A reference without a checksum gets the authored build.
 #[derive(Debug, Default)]
@@ -492,6 +630,9 @@ fn build(key: &str, doc: &Value) -> Result<Program, String> {
 pub struct Catalogue {
     types: Vec<Arc<RequestType>>,
     programs: Arc<Programs>,
+    /// Processes published from the library (BPMS-100), per workspace: a stamp of its bundles and
+    /// the request types built from each key's newest bundle.
+    published: std::sync::Mutex<BTreeMap<uuid::Uuid, (String, BTreeMap<String, Arc<RequestType>>)>>,
 }
 
 impl Catalogue {
@@ -582,27 +723,81 @@ impl Catalogue {
             }
             let parallel = parallel_steps(exe.program.ir());
             types.push(Arc::new(RequestType {
-                key: d.key,
-                prefix: d.prefix,
-                name: d.name,
-                description: d.description,
-                category: d.category,
-                icon: d.icon,
+                key: d.key.to_owned(),
+                prefix: d.prefix.to_owned(),
+                name: d.name.to_owned(),
+                description: d.description.to_owned(),
+                category: d.category.to_owned(),
+                icon: d.icon.to_owned(),
                 program: pinned,
                 exe,
                 money,
                 variants,
                 start_form,
                 task_forms,
-                revise_node: d.revise,
-                end_status: d.end_status.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
+                revise_node: d.revise.map(str::to_owned),
+                end_status: d.end_status.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
                 check: d.check,
-                statements: d.statements.iter().map(|(k, v)| ((*k).to_owned(), *v)).collect(),
+                statements: d.statements.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect(),
                 parallel,
-                title: d.title,
+                title: Title::Builtin(d.title),
+                published: false,
             }));
         }
-        Ok(Self { types, programs: Arc::new(programs) })
+        Ok(Self { types, programs: Arc::new(programs), published: std::sync::Mutex::new(BTreeMap::new()) })
+    }
+
+    /// The request type for `key` in this workspace: a built-in, or a process published from the
+    /// library (refreshed when the workspace's release bundles change).
+    pub async fn resolve(
+        &self,
+        tx: &mut procera_db::WsTx<'_>,
+        key: &str,
+    ) -> Result<Option<Arc<RequestType>>, String> {
+        if let Some(t) = self.get(key) {
+            return Ok(Some(t.clone()));
+        }
+        Ok(self.published_in(tx).await?.get(key).cloned())
+    }
+
+    /// The processes published in this workspace, as request types.
+    pub async fn published_in(
+        &self,
+        tx: &mut procera_db::WsTx<'_>,
+    ) -> Result<BTreeMap<String, Arc<RequestType>>, String> {
+        let ws = tx.ctx.workspace_id;
+        let stamp: String = sqlx::query_scalar(
+            "SELECT count(*)::text || ':' || coalesce(max(created_at)::text, '') FROM release_bundles",
+        )
+        .fetch_one(tx.conn())
+        .await
+        .map_err(|e| e.to_string())?;
+        if let Some((s, types)) = self.published.lock().map_err(|e| e.to_string())?.get(&ws)
+            && *s == stamp
+        {
+            return Ok(types.clone());
+        }
+        let rows: Vec<(String, i32, String, Value)> = sqlx::query_as(
+            "SELECT DISTINCT ON (b.process_key) b.process_key, b.version_no, b.program_checksum, v.content
+               FROM release_bundles b JOIN artifact_versions v ON v.workspace_id = b.workspace_id AND v.id = b.process_version_id
+              ORDER BY b.process_key, b.version_no DESC",
+        )
+        .fetch_all(tx.conn())
+        .await
+        .map_err(|e| e.to_string())?;
+        let mut types = BTreeMap::new();
+        for (key, version, checksum, content) in rows {
+            match published_type(&key, version, &checksum, &content) {
+                Ok(t) => {
+                    types.insert(key, Arc::new(t));
+                }
+                Err(e) => {
+                    tracing::error!(process = %key, error = %e, "a published process could not be offered")
+                }
+            }
+        }
+        self.published.lock().map_err(|e| e.to_string())?.insert(ws, (stamp, types.clone()));
+        Ok(types)
     }
 
     pub fn list(&self) -> &[Arc<RequestType>] {
@@ -647,8 +842,13 @@ mod tests {
         assert_eq!(pr.program_for("EUR"), Some(&pr.program));
         assert!(pr.program_for("XXX").is_none());
         assert_eq!(leave.program_for("USD"), Some(&leave.program));
-        let keys: Vec<&str> =
-            c.list().iter().map(|t| t.key).collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let keys: Vec<&str> = c
+            .list()
+            .iter()
+            .map(|t| t.key.as_str())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect();
         assert_eq!(
             keys,
             procera_settings::catalogue::REQUEST_TYPES,

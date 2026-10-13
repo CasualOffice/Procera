@@ -136,8 +136,8 @@ async fn types(
             "form": procera_requests::RequestType::priced(&t.start_form, &offer.currency),
         });
         if all {
-            item["enabled"] = json!(offer.enabled(t.key));
-            item["audience"] = serde_json::to_value(offer.audience(t.key)?).map_err(internal)?;
+            item["enabled"] = json!(offer.enabled(&t.key));
+            item["audience"] = serde_json::to_value(offer.audience(&t.key)?).map_err(internal)?;
         }
         items.push(item);
     }

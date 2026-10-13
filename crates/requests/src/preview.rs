@@ -431,7 +431,7 @@ impl Requests {
         key: &str,
         input: &Map<String, Value>,
     ) -> R<Preview> {
-        let rt = self.type_of(key)?;
+        let rt = self.type_of(tx, key).await?;
         let offer = self.offer(tx).await?;
         if !self.may_start(tx, &offer, key, member).await? {
             return Err(RequestError::Forbidden(format!("{} is not offered to you", rt.name)));

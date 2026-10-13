@@ -50,7 +50,7 @@ pub fn router() -> Router<AppState> {
         .route("/versions/{id}/retire", post(retire))
 }
 
-fn library(s: &AppState) -> Result<&Library, ApiError> {
+pub(crate) fn library(s: &AppState) -> Result<&Library, ApiError> {
     s.library.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
@@ -83,7 +83,7 @@ fn internal(e: impl std::fmt::Display) -> ApiError {
     ApiError::new(500, "internal", "Internal error")
 }
 
-fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
+pub(crate) fn actor(me: &WsMember, headers: &HeaderMap) -> Actor {
     let c = super::auth::client_info(headers);
     Actor {
         membership: me.actor.membership,
@@ -107,7 +107,7 @@ fn if_match(headers: &HeaderMap) -> Option<i64> {
         .and_then(|v| v.trim().trim_matches('"').parse().ok())
 }
 
-async fn review_policy(s: &AppState, tx: &mut WsTx<'_>) -> Result<ReviewPolicy, ApiError> {
+pub(crate) async fn review_policy(s: &AppState, tx: &mut WsTx<'_>) -> Result<ReviewPolicy, ApiError> {
     let st = settings(s)?;
     let required_for = st
         .effective(tx, "governance.review.required_for")

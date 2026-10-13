@@ -219,6 +219,12 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   const third = await (await adam.post('/api/v1/requests', { headers: { ...rh, 'idempotency-key': `aud-${ua}-3` }, data: leave })).json();
   const [held] = ((await (await own.get('/api/v1/work?state=open', { headers: oh })).json()).items as { id: string; request: { id: string } }[]).filter((w) => w.request.id === third.id);
   await step('POST', '/api/v1/work/{id}/delegate', () => own.post(`/api/v1/work/${held.id}/delegate`, { headers: oh, data: { membership_id: rj.membership_id, note: 'audit drill' } }));
+  // Processes (BPMS-100): create from a template, save the draft, publish.
+  const proc = await (await step('POST', '/api/v1/processes', () => own.post('/api/v1/processes', { headers: oh, data: { key: 'aud.process', title: 'Audit process', template: 'hr.leave-request' } }))).json();
+  const pd = await (await own.get(`/api/v1/processes/${proc.id}`, { headers: oh })).json();
+  await step('PUT', '/api/v1/processes/{id}/draft', () => own.put(`/api/v1/processes/${proc.id}/draft`, { headers: { ...oh, 'if-match': `"${pd.draft.revision}"` }, data: { content: pd.draft.content } }));
+  await step('POST', '/api/v1/processes/validate', () => own.post('/api/v1/processes/validate', { headers: oh, data: { content: pd.draft.content } }));
+  await step('POST', '/api/v1/processes/{id}/publish', () => own.post(`/api/v1/processes/${proc.id}/publish`, { headers: oh }));
   const [pw1, pw2, pw3] = ['Audit drill one 2026!', 'Audit drill two 2026!', 'Audit drill three 2026!'];
   await step('POST', '/api/v1/me/password', () => rita.post('/api/v1/me/password', { headers: bearer(ritaPw.access_token), data: { current_password: PW, new_password: pw1 } }));
   await step('POST', '/api/v1/auth/password/forgot', () => rita.post('/api/v1/auth/password/forgot', { data: { email: ritaEmail } }));
