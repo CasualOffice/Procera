@@ -106,6 +106,14 @@ export async function downloadPost(path: string, body: unknown, filename: string
   URL.revokeObjectURL(url);
 }
 
+/** An authenticated binary response as bytes (e.g. a PDF for pdf.js). */
+export async function bytes(path: string, retried = false): Promise<ArrayBuffer> {
+  const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
+  if (res.status === 401 && !retried && (await refresh())) return bytes(path, true);
+  if (!res.ok) await parse(res);
+  return res.arrayBuffer();
+}
+
 /** An authenticated binary response as an object URL (e.g. the workspace logo); the caller revokes it. */
 export async function blobUrl(path: string, retried = false): Promise<string> {
   const res = await fetch(path, { headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {}, credentials: 'same-origin' });
