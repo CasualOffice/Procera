@@ -341,7 +341,7 @@ mod tests {
         for p in PACKS {
             for d in p.documents {
                 let c = (d.content)();
-                crate::check_content(&c).unwrap_or_else(|e| panic!("{}/{}: {e}", p.key, d.key));
+                crate::check_content(d.kind, &c).unwrap_or_else(|e| panic!("{}/{}: {e}", p.key, d.key));
                 assert!(crate::blocks::image_ids(&c).is_empty(), "{}/{}: no images", p.key, d.key);
                 let first = &c["blocks"][0];
                 assert_eq!(

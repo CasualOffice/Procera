@@ -55,7 +55,7 @@ async fn lifecycle_sod_immutability_supersede_and_schedule() -> anyhow::Result<(
         Err(LibraryError::KeyTaken)
     ));
     assert!(matches!(
-        lib.create(&mut tx, &author, "process", "p", "P", "standard", &body).await,
+        lib.create(&mut tx, &author, "form", "f", "F", "standard", &body).await,
         Err(LibraryError::Invalid(_))
     ));
     let edited = lib

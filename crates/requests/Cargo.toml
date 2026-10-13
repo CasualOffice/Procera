@@ -17,6 +17,7 @@ procera-ir.workspace = true
 procera-kernel.workspace = true
 procera-members.workspace = true
 procera-notify.workspace = true
+procera-processes.workspace = true
 procera-runtime.workspace = true
 procera-settings.workspace = true
 rust_decimal.workspace = true

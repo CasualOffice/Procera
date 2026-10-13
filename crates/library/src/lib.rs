@@ -101,6 +101,15 @@ pub fn permission(kind: &str, action: &str) -> Result<&'static str, LibraryError
         ("policy", "recertify" | "resolve_change") => "policy:publish",
         ("sop", "verify") => "sop:approve",
         ("policy", "verify") => "policy:approve",
+        // BPMS-084: processes share the lifecycle; the designer (0.3) is their authoring UI.
+        ("process", "view") => "process:view",
+        ("process", "create") => "process:create",
+        ("process", "edit_draft") => "process:edit_draft",
+        ("process", "submit") => "process:submit_review",
+        ("process", "review") => "process:review",
+        ("process", "approve") => "process:approve",
+        ("process", "publish") => "process:publish",
+        ("process", "retire") => "process:retire",
         _ => return Err(LibraryError::Invalid(format!("kind must be one of {}", AUTHORABLE.join(", ")))),
     })
 }
@@ -236,14 +245,18 @@ fn bytes_to_hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
-fn check_content(content: &Value) -> Result<(), LibraryError> {
+fn check_content(kind: &str, content: &Value) -> Result<(), LibraryError> {
     if !content.is_object() {
         return Err(LibraryError::Invalid("content must be a JSON object".into()));
     }
     if serde_json::to_vec(content).map(|v| v.len()).unwrap_or(usize::MAX) > 1_048_576 {
         return Err(LibraryError::Invalid("content is larger than 1 MB".into()));
     }
-    // The block model (ADR-0013): known block types and safe links only.
+    // A process is its IR document, compiled when it is published (BPMS-084); documents use the
+    // block model (ADR-0013): known block types and safe links only.
+    if kind == "process" {
+        return Ok(());
+    }
     blocks::validate(content)
 }
 
@@ -358,6 +371,28 @@ pub struct Library {
     clock: Arc<dyn Clock>,
     ids: Arc<dyn IdGen>,
     settings: procera_settings::Settings,
+    publish_hook: Option<Arc<dyn PublishHook>>,
+}
+
+/// A version being published, as the publish hook sees it.
+#[derive(Debug, Clone)]
+pub struct Publishing {
+    pub artifact_id: Uuid,
+    pub version_id: Uuid,
+    pub kind: String,
+    pub key: String,
+    pub version_no: i32,
+}
+
+/// Runs inside the publish transaction, after the version is marked published (BPMS-084): a
+/// process is compiled and its release bundle written. An `Err` refuses the publish and rolls it
+/// back; its text is shown to the publisher. The port keeps the library free of the IR and engine.
+pub trait PublishHook: Send + Sync + std::fmt::Debug {
+    fn published<'a, 'b: 'a>(
+        &'a self,
+        tx: &'a mut WsTx<'b>,
+        version: &'a Publishing,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), String>> + Send + 'a>>;
 }
 
 impl std::fmt::Debug for Library {
@@ -369,7 +404,14 @@ impl std::fmt::Debug for Library {
 impl Library {
     pub fn new(db: Db, clock: Arc<dyn Clock>, ids: Arc<dyn IdGen>) -> Self {
         let settings = procera_settings::Settings::new(clock.clone(), ids.clone());
-        Self { db, clock, ids, settings }
+        Self { db, clock, ids, settings, publish_hook: None }
+    }
+
+    /// Compiles processes and writes their release bundles when they are published.
+    #[must_use]
+    pub fn with_publish_hook(mut self, hook: Arc<dyn PublishHook>) -> Self {
+        self.publish_hook = Some(hook);
+        self
     }
 
     async fn audit(
@@ -546,7 +588,7 @@ impl Library {
                 "key must be 2-64 characters of a-z, 0-9, '.', '_', '-'".into(),
             ));
         }
-        check_content(content)?;
+        check_content(kind, content)?;
         if !blocks::image_ids(content).is_empty() {
             return Err(LibraryError::Invalid(
                 "attach images to the draft first, then add them to the content".into(),
@@ -661,7 +703,14 @@ impl Library {
         content: &Value,
         expected_revision: Option<i64>,
     ) -> Result<Version, LibraryError> {
-        check_content(content)?;
+        let kind: String = sqlx::query_scalar(
+            "SELECT a.kind FROM artifact_versions v JOIN artifacts a ON a.workspace_id = v.workspace_id AND a.id = v.artifact_id WHERE v.id = $1",
+        )
+        .bind(id)
+        .fetch_optional(tx.conn())
+        .await?
+        .ok_or(LibraryError::NotFound)?;
+        check_content(&kind, content)?;
         let (r, _) = self.load_version(tx, id, true).await?;
         if r.3 != "draft" {
             return Err(LibraryError::Conflict(format!(
@@ -850,6 +899,16 @@ impl Library {
         sqlx::query("UPDATE artifact_versions SET lifecycle = 'published', published_at = $2, published_by = $3, revision = revision + 1 WHERE id = $1")
             .bind(id).bind(now).bind(actor.map(|a| a.membership)).execute(tx.conn()).await?;
         Self::refresh_state(tx, artifact_id).await?;
+        if let Some(hook) = &self.publish_hook {
+            let (kind, key, version_no): (String, String, i32) = sqlx::query_as(
+                "SELECT a.kind, a.key, v.version_no FROM artifacts a JOIN artifact_versions v ON v.workspace_id = a.workspace_id AND v.artifact_id = a.id WHERE v.id = $1",
+            )
+            .bind(id)
+            .fetch_one(tx.conn())
+            .await?;
+            let p = Publishing { artifact_id, version_id: id, kind, key, version_no };
+            hook.published(tx, &p).await.map_err(LibraryError::Invalid)?;
+        }
         let next_review = self.schedule_review(tx, artifact_id, now).await?;
         let (no, hash, semver, reack): (i32, Option<Vec<u8>>, Option<String>, bool) = sqlx::query_as(
             "SELECT version_no, content_hash, semver, reack_required FROM artifact_versions WHERE id = $1",

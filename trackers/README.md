@@ -7,11 +7,11 @@
 
 ```text
 Overall   ██████████████░░░░░░░░░░░░░░░░  58/122 epics done  (48%)
-Partial   ██████████████░░░░░░░░░░░░░░░░  48% counting in-progress epics as half done
-Tests     251 automated E2E scenarios · 433 Rust tests (incl. property tests)
-Status    done 58 · in review 0 · in progress 1 · blocked 0 · not started 63 · deferred 0
+Partial   ███████████████░░░░░░░░░░░░░░░  48% counting in-progress epics as half done
+Tests     251 automated E2E scenarios · 434 Rust tests (incl. property tests)
+Status    done 58 · in review 0 · in progress 2 · blocked 0 · not started 62 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 46 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 46 · code merged 14  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -33,6 +33,7 @@ Evidence  automated tests 46 · code merged 13  (separate from status; none user
 
 | ID | Item | Status | Evidence | Note |
 |---|---|---|---|---|
+| BPMS-084 | Release bundles + publish integration | **In progress** | Code merged | Release bundles (migration 0048, crates/processes): processes are library artifacts whose content is their IR; publishing one runs a hook in the publish transaction that compiles it against a workspace snapshot (references must be published, named groups/roles/positions/people must exist) and either refuses the publish with the diagnostics or writes an immutable release bundle (pinned versions manifest + SHA-256 + program checksum). DbPrograms serves published programs to the engine by key/version/checksum behind the built-ins. Integration test: refused while the SOP is a draft, bundle pins it once published, bundles immutable, engine starts the published program and refuses an unknown build. Next (0.3): starting published processes from the designer, filling process_instances.bundle_id, dependents to update. |
 | BPMS-101 | Form builder + renderer (calc, prefill, repeating, lookups, PDF of submission) | **In progress** | Automated tests | Server-side forms subset (0.2): start and step forms derived from IR variables (string, text, enum, money, date, number, boolean, principal), required/type/unknown-field checks with 422 errors[], principals shaped from the directory; E2E-R2-03/-19. File fields (`file`, multiple): ids checked for workspace, uploader, clean scan and allowed type (images, PDF, Word, Excel, CSV), stored as file refs (E2E-R2-41). Remaining: form artifacts, builder, renderer, calc, conditional, repeating, prefill, PDF. |
 
 ## Done
@@ -171,7 +172,7 @@ _Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old
 - [x] **BPMS-081** (P0, M) Expression engine integration (typed, budgeted, WASM build)
 - [x] **BPMS-082** (P0, L) Interpreter: advance loop, tokens, splits/joins, end/terminate
 - [x] **BPMS-083** (P0, L) Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks
-- [ ] **BPMS-084** (P0, M) Release bundles + publish integration
+- [ ] **BPMS-084** (P0, M) Release bundles + publish integration **[In progress]**
 - [x] **BPMS-085** (P0, L) Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group
 - [x] **BPMS-086** (P0, M) Delegation, OOO substitution, SoD re-check, send-back
 - [ ] **BPMS-087** (P0, M) Rule tables (UNIQUE/FIRST/COLLECT)

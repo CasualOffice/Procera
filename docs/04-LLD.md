@@ -245,6 +245,9 @@ CREATE TABLE release_bundles (workspace_id uuid NOT NULL, id uuid NOT NULL, proc
   manifest_hash bytea NOT NULL, PRIMARY KEY (workspace_id, id), UNIQUE (workspace_id, process_version_id));
 ```
 
+**As built (BPMS-084, migration 0048, `crates/processes`).** A process is a library artifact of kind `process` whose version content is its IR document (no block validation; same lifecycle, `process:*` permissions; not listed on the Library page — the designer, 0.3, is its UI). The library calls a publish hook inside the publish transaction: `PublishProcesses` loads a snapshot (every `kind:key@version` reference resolved against `artifacts`/`artifact_versions`, plus group names, role keys, position titles and active members), compiles with it as the environment, and refuses the publish with the error diagnostics (e.g. `IR-E023 'sop:onboarding@1' is not published`) or writes `release_bundles` (`manifest` = each reference → `{artifact_id, version_id}`, `manifest_hash` = SHA-256 of it, `program_checksum`, immutable by trigger). The definition's `process.key` and `process.version` must match the artifact key and version number. `DbPrograms` serves published programs to the engine by key, version and checksum (compiled once per checksum, refused if the checksum no longer matches the bundle), behind the built-ins in a `Chain`. `process_instances.bundle_id` exists (expand step) but is not yet filled: built-ins stay pinned by checksum and published processes start through the designer in 0.3. Connectors are never usable until BPMS-120.
+
+
 **Artifact lifecycle transitions** (guard → effect):
 
 | From → To | Who (permission) | Guards | Effects |

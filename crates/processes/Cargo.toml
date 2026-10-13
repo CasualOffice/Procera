@@ -1,0 +1,31 @@
+[package]
+name = "procera-processes"
+description = "Published processes (BPMS-084, ADR-0012): compile a process on publish against a workspace snapshot, write its release bundle, and load published programs for the engine."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-db.workspace = true
+procera-engine.workspace = true
+procera-ir.workspace = true
+procera-kernel.workspace = true
+procera-library.workspace = true
+procera-runtime.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+time = { workspace = true }
+tracing.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+procera-db = { workspace = true, features = ["test-support"] }
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+tokio = { workspace = true }
+
+[lints]
+workspace = true

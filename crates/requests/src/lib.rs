@@ -162,7 +162,12 @@ impl Requests {
             clock: clock.clone(),
             public_url: public_url.trim_end_matches('/').to_owned(),
         };
-        let engine = Engine::new(db.clone(), clock.clone(), ids.clone(), catalogue.programs())
+        // The built-in programs first, then processes published from the library (BPMS-084).
+        let programs: Arc<dyn procera_engine::ProgramSource> = Arc::new(procera_processes::Chain(vec![
+            catalogue.programs(),
+            Arc::new(procera_processes::DbPrograms::new(db.clone())),
+        ]));
+        let engine = Engine::new(db.clone(), clock.clone(), ids.clone(), programs)
             .with_effects(Arc::new(effects.clone()));
         Ok(Self { db, engine, catalogue, members, clock, ids, effects })
     }

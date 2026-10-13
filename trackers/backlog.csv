@@ -49,7 +49,7 @@ BPMS-080,RT,"IR v1 model + compiler (§11 checks, diagnostics, semantic diff)",P
 BPMS-081,RT,"Expression engine integration (typed, budgeted, WASM build)",P0,R2,Runtime,ADR-0010,Budget exhaustion = incident,M,BPMS-009,Done,Code merged
 BPMS-082,RT,"Interpreter: advance loop, tokens, splits/joins, end/terminate",P0,R2,Runtime,04 §4,Conformance green,L,BPMS-080,Done,Automated tests
 BPMS-083,RT,Jobs + timers + scheduler with leases/fencing; calendars; SLA clocks,P0,R2,Runtime,"04 §4.4, FR-E12",T06; lateness SLO,L,BPMS-082,Done,Automated tests
-BPMS-084,RT,Release bundles + publish integration,P0,R2,Runtime,ADR-0012,T03 passes,M,"BPMS-040,080",Not started,—
+BPMS-084,RT,Release bundles + publish integration,P0,R2,Runtime,ADR-0012,T03 passes,M,"BPMS-040,080",In progress,Code merged
 BPMS-085,WORK,"Work items, assignment strategies, manager chain, DoA matrix, quorum, per-group",P0,R2,Backend,"FR-E04/E05, FX-D01/D02, FX-E01",T01 passes,L,"BPMS-082,023",Done,Automated tests
 BPMS-086,WORK,"Delegation, OOO substitution, SoD re-check, send-back",P0,R2,Backend,"12 §9/§10, FX-E05",T05 passes,M,BPMS-085,Done,Automated tests
 BPMS-087,RT,Rule tables (UNIQUE/FIRST/COLLECT),P0,R2,Runtime,FR-E10,Deterministic,M,BPMS-081,Not started,—

@@ -212,11 +212,16 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             );
+            // Publishing a process compiles it and writes its release bundle (BPMS-084).
             let library = procera_library::Library::new(
                 db.clone(),
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
-            );
+            )
+            .with_publish_hook(Arc::new(procera_processes::PublishProcesses::new(
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            )));
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
