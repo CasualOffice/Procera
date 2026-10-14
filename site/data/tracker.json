@@ -1,17 +1,17 @@
 {
  "source": "scripts/build_tracker.py",
- "last_updated": "2026-10-14",
+ "last_updated": "2026-10-15",
  "current_release": "P0",
  "totals": {
   "Done": 61,
   "In review": 0,
-  "In progress": 5,
+  "In progress": 8,
   "Blocked": 0,
-  "Not started": 69,
+  "Not started": 66,
   "Deferred": 0,
   "all": 135
  },
- "e2e_scenarios": 280,
+ "e2e_scenarios": 286,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -292,7 +292,13 @@
   "E2E-R4-UI-08",
   "E2E-R4-WH-01",
   "E2E-R4-WH-02",
-  "E2E-R4-WH-03"
+  "E2E-R4-WH-03",
+  "E2E-R5-HR-01",
+  "E2E-R5-HR-02",
+  "E2E-R5-HR-03",
+  "E2E-R5-UI-01",
+  "E2E-R5-UI-02",
+  "E2E-R5-UI-03"
  ],
  "releases": [
   {
@@ -474,8 +480,8 @@
    "scope": "docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)",
    "total": 8,
    "done": 0,
-   "in_progress": 0,
-   "not_started": 8,
+   "in_progress": 3,
+   "not_started": 5,
    "epics": [
     "BPMS-222",
     "BPMS-223",
@@ -1364,7 +1370,7 @@
    "title": "0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them",
    "priority": "P1",
    "release": "HR",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-223",
@@ -1372,7 +1378,7 @@
    "title": "0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments",
    "priority": "P1",
    "release": "HR",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-224",
@@ -1380,7 +1386,7 @@
    "title": "0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page",
    "priority": "P1",
    "release": "HR",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-225",

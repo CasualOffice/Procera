@@ -8,10 +8,10 @@
 ```text
 Overall   ██████████████░░░░░░░░░░░░░░░░  61/135 epics done  (45%)
 Partial   ██████████████░░░░░░░░░░░░░░░░  48% counting in-progress epics as half done
-Tests     284 automated E2E scenarios · 470 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 7 · blocked 0 · not started 67 · deferred 0
+Tests     286 automated E2E scenarios · 470 Rust tests (incl. property tests)
+Status    done 61 · in review 0 · in progress 8 · blocked 0 · not started 66 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 55 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 56 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -41,6 +41,7 @@ Evidence  automated tests 55 · code merged 13  (separate from status; none user
 | BPMS-145 | Email-actionable approvals, reply-by-email, web push | **In progress** | Automated tests | Email-actionable approvals (0.4, migration 0053): plain approval steps email each candidate Approve/Reject links (single use, SHA-256 stored, due date or 7 days, every link of the step spent on use, workspace switch notify.email_actions.enabled); a signed-out confirm page shows the request, its open answers and who decides, never decides on GET, and decides once through the normal path (audit work.decided_by_email). E2E-R4-EA-01..02, E2E-R4-UI-07, AUD-01. Remaining: reply-by-email, web push. |
 | BPMS-222 | 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them | **In progress** | Automated tests | Slice 1 (0.5, migration 0055, crate procera-hr): holiday calendars with optional holidays, CSV/iCal import, copy a year; work locations (IANA zone checked by Postgres, work week, day hours, calendar), archived only when empty; member HR records (employee no., type, location, start, probation); free-text profile locations become work locations (trigger); /me/holidays; leave day counting kernel (half days, sandwich rule, roster overrides; property tests); Admin › Holidays and locations. E2E-R5-HR-01, E2E-R5-UI-01, AUD-01. Remaining: engine business calendars from locations, Home holiday card, profile location picker. |
 | BPMS-223 | 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments | **In progress** | Automated tests | Slice 2 (0.5, migration 0056): leave types (paid, limited, private, half days, notice, max in a row, note after N days, negative limit, sandwich rule, optional-holidays-only), policies by audience and priority with per-type rules (yearly days, up front or monthly, pro-rate, probation, carry-over cap and expiry), per-member assignment; an append-only ledger in half-days with idempotent top-up grants, year-end carry-over/lapse and carried-day expiry; audited adjustments (step-up); my balances with how each is calculated; HR balances grid; one-click common types + Standard policy; new time_off:* permissions and an HR Administrator role (backfilled). Real-Postgres ledger test; E2E-R5-HR-02, E2E-R5-UI-02, AUD-01, isolation. Remaining: a nightly accrual pass and reminders before carried days expire. |
+| BPMS-224 | 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page | **In progress** | Automated tests | Slice 3 (0.5, migration 0057): request hooks in the requests service (check before start, follow status changes, same transaction); hr.leave-request takes text leave types (served as the workspace's types, or the original four) and half days; checks for type, policy, whole days, ranges, notice, days in a row, a note, overlaps, leave-year range and balance (field errors); a hold on start, re-hold on resubmission, taken on approval, released on rejection or cancellation; POST /time-off/quote; Request time off dialog with a live count and problems; My requests. E2E-R5-HR-03, E2E-R5-UI-03, AUD-01. Remaining: cancelling approved leave, HR step for long leave, team calendar (BPMS-225). |
 
 ## Done
 
@@ -257,7 +258,7 @@ _docs/25: locations + holidays, leave policies + ledger, leave requests, team ca
 
 - [ ] **BPMS-222** (P1, M) 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them **[In progress]**
 - [ ] **BPMS-223** (P1, L) 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments **[In progress]**
-- [ ] **BPMS-224** (P1, L) 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page
+- [ ] **BPMS-224** (P1, L) 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page **[In progress]**
 - [ ] **BPMS-225** (P1, M) 0.5 HR: team calendar (who's out, privacy) and org chart
 - [ ] **BPMS-226** (P1, M) 0.5 HR: shift patterns and weekly rosters (draft, publish, notify), my schedule
 - [ ] **BPMS-227** (P1, L) 0.5 HR: attendance (clock in/out, punch import CSV/API), derived daily status
@@ -326,7 +327,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 342 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 344 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 19 / 16 / 50 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

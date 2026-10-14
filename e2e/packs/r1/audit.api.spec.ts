@@ -291,6 +291,7 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PATCH', '/api/v1/leave-policies/{id}', () => own.patch(`/api/v1/leave-policies/${lpol.id}`, { headers: oh, data: { name: 'Audit policy', audience: { all: true, departments: [], groups: [], roles: [] }, rules: [{ leave_type_id: ltype.id, yearly_days: 3 }] } }));
   await step('PUT', '/api/v1/members/{id}/leave-policy', () => own.put(`/api/v1/members/${myMembership}/leave-policy`, { headers: oh, data: { policy_id: ltypes.policy.id } }));
   await step('POST', '/api/v1/members/{id}/time-off/adjustments', () => own.post(`/api/v1/members/${myMembership}/time-off/adjustments`, { headers: oh, data: { leave_type_id: ltypes.types[0].id, days: 1, reason: 'Audit drill' } }));
+  await step('POST', '/api/v1/time-off/quote', () => own.post('/api/v1/time-off/quote', { headers: oh, data: { leave_type: 'annual', start_date: '2030-03-04', end_date: '2030-03-05' } }));
   await step('DELETE', '/api/v1/holiday-calendars/{id}', () => own.delete(`/api/v1/holiday-calendars/${hcal.id}`, { headers: oh }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();

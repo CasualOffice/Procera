@@ -159,6 +159,13 @@ service tasks:
 Approvals default to the manager (P2D business, as today), with an optional HR step for types over N
 days. Companies change the process in the designer like any other.
 
+*As built (BPMS-224):* rather than IR service tasks (the engine has no Rust service-task registry yet),
+the requests service exposes **request hooks** (`procera_requests::hooks`): a check before a request
+starts (its field errors join the form's) and a call on every status change, both inside the request's
+transaction. HR implements them for `hr.leave-request`, whose `leave_type` is now text (served as the
+workspace's leave types) with `start_half`/`end_half`. Cancelling *approved* leave (`hr.leave-cancel`)
+is the next step; until then HR corrects with an adjustment.
+
 ## 8. Screens
 
 - **Time off** (everyone): balances by type with "how it's calculated" (the ledger), upcoming and past

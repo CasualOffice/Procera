@@ -2119,6 +2119,257 @@
    ]
   },
   {
+   "key": "hr",
+   "name": "Hr",
+   "intro": "HR time and attendance, slice 1: work locations, holiday calendars and holidays (read `directory:view`, change `calendar:manage`), a member's HR record (change `directory:manage`) and a person's own holidays.",
+   "routes": [
+    {
+     "method": "GET",
+     "path": "/api/v1/work-locations",
+     "handler": "locations",
+     "summary": "Locations with their time zone, work week, holiday calendar and active member count (`directory:view`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/work-locations",
+     "handler": "create_location",
+     "summary": "A new location (`calendar:manage`). 201. Audited `work_location.created`.",
+     "audited": [
+      "work_location.created"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/work-locations/{id}",
+     "handler": "location",
+     "summary": "One location, with an `ETag` of its revision (`directory:view`)."
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/work-locations/{id}",
+     "handler": "update_location",
+     "summary": "`PATCH /work-locations/{id}` (the full location, as for create, plus `archived`): changes it (`calendar:manage`; honours `If-Match`); a rename renames it on members' profiles; a location people work at can't be archived (409). Audited `work_location.updated`.",
+     "audited": [
+      "work_location.updated"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/holiday-calendars",
+     "handler": "calendars",
+     "summary": "Calendars with the locations using them and the years they have holidays in (`directory:view`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/holiday-calendars",
+     "handler": "create_calendar",
+     "summary": "A new calendar, empty or a copy of another's holidays (`calendar:manage`). 201. Audited `holiday_calendar.created`.",
+     "audited": [
+      "holiday_calendar.created"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/holiday-calendars/{id}",
+     "handler": "calendar",
+     "summary": "One calendar, with an `ETag` of its revision (`directory:view`)."
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/holiday-calendars/{id}",
+     "handler": "rename_calendar",
+     "summary": "Renames a calendar (`calendar:manage`; honours `If-Match`). Audited `holiday_calendar.updated`.",
+     "audited": [
+      "holiday_calendar.updated"
+     ]
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/holiday-calendars/{id}",
+     "handler": "delete_calendar",
+     "summary": "Deletes a calendar and its holidays when no location uses it (409 otherwise; `calendar:manage`). 204. Audited `holiday_calendar.deleted`.",
+     "audited": [
+      "holiday_calendar.deleted"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/holiday-calendars/{id}/holidays",
+     "handler": "holidays",
+     "summary": "The year's holidays `[{date, name, optional}]` (`directory:view`)."
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/holiday-calendars/{id}/holidays/{date}",
+     "handler": "put_holiday",
+     "summary": "Adds the holiday on that date or renames it (`calendar:manage`). 201 when new, 200 when changed. Audited `holiday.set`.",
+     "audited": [
+      "holiday.set"
+     ]
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/holiday-calendars/{id}/holidays/{date}",
+     "handler": "delete_holiday",
+     "summary": "Removes it (`calendar:manage`). 204. Audited `holiday.removed`.",
+     "audited": [
+      "holiday.removed"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/holiday-calendars/{id}/import",
+     "handler": "import",
+     "summary": "Imports CSV (`date,name[,optional]`) or iCal text, at most 400 holidays and 1 MB (`calendar:manage`) → `{added, updated, skipped: [{line, text, reason}]}`. Audited `holiday_calendar.imported`.",
+     "audited": [
+      "holiday_calendar.imported"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/holiday-calendars/{id}/copy-year",
+     "handler": "copy_year",
+     "summary": "Copies a year's holidays to the same month and day of another year, skipping dates already taken (`calendar:manage`) → as import. Audited `holiday_calendar.year_copied`.",
+     "audited": [
+      "holiday_calendar.year_copied"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/members/{id}/hr",
+     "handler": "member_hr",
+     "summary": "`{employee_no, employment_type, work_location_id, start_date, probation_end}` (`directory:view`)."
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/members/{id}/hr",
+     "handler": "set_member_hr",
+     "summary": "`PUT /members/{id}/hr` (the whole record): sets it (`directory:manage`); the work location also becomes the profile's location; 409 for a duplicate employee number. Audited `member.hr_updated`.",
+     "audited": [
+      "member.hr_updated"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/me/holidays",
+     "handler": "my_holidays",
+     "summary": "The caller's work location (or `null`) and its holidays in the range (default: today and the next 366 days; at most 2 years)."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leave-types",
+     "handler": "leave_types",
+     "summary": "The workspace's leave types (`directory:view`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/leave-types",
+     "handler": "create_leave_type",
+     "summary": "`POST /leave-types {key?, name, colour?, paid?, limited?, sensitive?, half_days?, needs_attachment_after_days?, min_notice_days?, max_consecutive_days?, negative_limit_days?, counts_non_working_days?, optional_holidays_only?}` → 201 (`time_off:manage_policies`). Audited `leave_type.created`.",
+     "audited": [
+      "leave_type.created"
+     ]
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/leave-types/defaults",
+     "handler": "leave_defaults",
+     "summary": "For a workspace without leave types, the common ones (annual, sick, casual, optional holiday, unpaid) and a \"Standard\" policy for everyone → 201 `{types, policy}` (409 when types exist; `time_off:manage_policies`). Audited `leave_type.defaults_created`.",
+     "audited": [
+      "leave_type.defaults_created"
+     ]
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/leave-types/{id}",
+     "handler": "update_leave_type",
+     "summary": "`PATCH /leave-types/{id}` (the whole type, plus `archived`; the key never changes): honours `If-Match` (`time_off:manage_policies`). Audited `leave_type.updated`.",
+     "audited": [
+      "leave_type.updated"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leave-policies",
+     "handler": "policies",
+     "summary": "Policies with their rules and how many people each applies to (`time_off:manage_policies` or `time_off:view_all`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/leave-policies",
+     "handler": "create_policy",
+     "summary": "`POST /leave-policies {name, audience, priority?, year_start_month?, rules: [{leave_type_id, yearly_days, accrual upfront|monthly, prorate?, probation_waits?, carry_over_max_days?, carry_over_expiry_months?}]}` → 201 (`time_off:manage_policies`). Audited `leave_policy.created`.",
+     "audited": [
+      "leave_policy.created"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leave-policies/{id}",
+     "handler": "policy",
+     "summary": "One policy with an `ETag` (as the list)."
+    },
+    {
+     "method": "PATCH",
+     "path": "/api/v1/leave-policies/{id}",
+     "handler": "update_policy",
+     "summary": "`PATCH /leave-policies/{id}` (the whole policy, plus `archived`): honours `If-Match`; new rules apply from the next grant or accrual (`time_off:manage_policies`). Audited `leave_policy.updated`.",
+     "audited": [
+      "leave_policy.updated"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/leave-policies/{id}/members",
+     "handler": "policy_members",
+     "summary": "Who it applies to now `{count, items: [{id, name}]}` (25 at most; as the list)."
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/members/{id}/leave-policy",
+     "handler": "assign_policy",
+     "summary": "Gives one person a policy regardless of audiences, or goes back to audiences (`time_off:manage_policies`) → `{policy: {id, name, via}}`. Audited `leave_policy.assigned`.",
+     "audited": [
+      "leave_policy.assigned"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/me/time-off",
+     "handler": "my_time_off",
+     "summary": "My policy and balances for the leave year containing `on` (default today): per type `{leave_type, year_start, year_end, yearly_days, accrual, granted, carried, taken, pending, adjusted, expired, available, entries}`, and my leave `requests`. Procera writes due grants first."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/members/{id}/time-off",
+     "handler": "member_time_off",
+     "summary": "Someone's policy and balances, as `/me/time-off` (themselves, or `time_off:view_all`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/members/{id}/time-off/adjustments",
+     "handler": "adjust",
+     "summary": "A correction in the current leave year (`time_off:adjust_balances`, step-up) → 201 entry. Audited `time_off.adjusted`.",
+     "audited": [
+      "time_off.adjusted"
+     ]
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/time-off/balances",
+     "handler": "all_balances",
+     "summary": "Everyone's current-year balances by type `{types, items: [{id, name, email, policy, balances: {type_id: {available, taken, pending}}}]}` (`time_off:view_all`)."
+    },
+    {
+     "method": "POST",
+     "path": "/api/v1/time-off/quote",
+     "handler": "quote",
+     "summary": "How many days a leave request would take for me, date by date, my balance before and after, and any problems (`[{field, code, message}]`) the request would be refused for. Changes nothing.",
+     "exempt": "a read: counts the days of a leave request and checks it"
+    }
+   ]
+  },
+  {
    "key": "signing",
    "name": "Signing",
    "intro": "Employee e-signing: envelopes from a PDF, recipients, fields, send and void for senders (`document:send_for_signature`; everyone's with `document:view_all`, voiding anyone's with `document:void`), and the signing ceremony for recipients: open it, sign (consent, a typed or drawn signature, their fields) or decline. `strong` envelopes need a recent sign-in to sign. API tokens never reach `/signing/*`. The document is served from here.",
