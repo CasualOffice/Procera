@@ -32,7 +32,14 @@ test.describe('R1 isolation sweep @r1 @security', () => {
 
     const hcal = await (await a.owner.c.post('/api/v1/holiday-calendars', { headers: h, data: { name: 'A holidays' } })).json();
     const wloc = await (await a.owner.c.post('/api/v1/work-locations', { headers: h, data: { name: 'A office', timezone: 'UTC' } })).json();
+    const ltype = await (await a.owner.c.post('/api/v1/leave-types', { headers: h, data: { name: 'A leave' } })).json();
+    const lpol = await (await a.owner.c.post('/api/v1/leave-policies', { headers: h, data: { name: 'A policy', audience: { all: true, departments: [], groups: [], roles: [] } } })).json();
     const probes: [string, string, unknown?][] = [
+      ['PATCH', `/api/v1/leave-types/${ltype.id}`, { name: 'taken' }],
+      ['GET', `/api/v1/leave-policies/${lpol.id}`],
+      ['GET', `/api/v1/leave-policies/${lpol.id}/members`],
+      ['GET', `/api/v1/members/${owner}/time-off`],
+      ['POST', `/api/v1/members/${owner}/time-off/adjustments`, { leave_type_id: ltype.id, days: 1, reason: 'x' }],
       ['GET', `/api/v1/work-locations/${wloc.id}`],
       ['PATCH', `/api/v1/work-locations/${wloc.id}`, { name: 'taken', timezone: 'UTC' }],
       ['GET', `/api/v1/holiday-calendars/${hcal.id}`],

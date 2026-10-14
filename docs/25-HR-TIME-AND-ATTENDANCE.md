@@ -53,7 +53,7 @@ leave_policies      id, name, audience jsonb, priority, year_start_month, revisi
 leave_policy_rules  policy_id, leave_type_id, yearly_days, accrual (upfront|monthly), prorate bool,
                     probation_waits bool, carry_over_max_days, carry_over_expiry_months
 leave_ledger        id, membership_id, leave_type_id, leave_year date, kind (grant|accrual|hold|release|
-                    taken|cancelled|adjustment|carry_over|expiry), days numeric(6,2), request_id?,
+                    taken|cancelled|adjustment|carry_over|expiry), halves int (as built: whole half-days), request_id?,
                     reason?, created_by?, created_at                  -- append-only (trigger)
 leave_requests      request_id PK, membership_id, leave_type_id, start_date, end_date, start_half
                     (full|second_half), end_half (full|first_half), days numeric(6,2), state

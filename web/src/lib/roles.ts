@@ -13,7 +13,7 @@ const AREA: Record<string, string> = {
   sop: 'SOPs', policy: 'Policies', announcement: 'Announcements', campaign: 'Campaigns', document: 'Documents and signing',
   form: 'Forms', rule: 'Rules', calendar: 'Calendars', template: 'Templates', request: 'Requests', work: 'Work', case: 'Cases',
   control: 'Controls', attestation: 'Attestations', report: 'Reports', connector: 'Connectors', file: 'Files', audit: 'Audit',
-  monitoring: 'Monitoring', api_token: 'API tokens', ai: 'Assistant',
+  monitoring: 'Monitoring', api_token: 'API tokens', ai: 'Assistant', time_off: 'Time off',
 };
 const ACTION: Record<string, string> = {
   'settings.view': 'View settings', 'settings.manage': 'Change settings', 'branding.manage': 'Change branding', 'billing.view': 'View billing',
@@ -23,7 +23,7 @@ const ACTION: Record<string, string> = {
   view_restricted: 'View restricted fields', view_assigned: 'View assigned', view_team: 'View team', add_evidence: 'Add evidence',
   view_evidence: 'View evidence', manage_campaign: 'Manage campaigns', manage_dashboards: 'Manage dashboards', view_dashboards: 'View dashboards',
   manage_alerts: 'Manage alerts', manage_secrets: 'Manage secrets', manage_retention: 'Manage retention', manage_quarantine: 'Manage quarantine',
-  use_assistant: 'Use the assistant', manage_settings: 'Manage settings', investigate: 'Investigate',
+  use_assistant: 'Use the assistant', manage_policies: 'Manage policies', adjust_balances: 'Adjust balances', manage_settings: 'Manage settings', investigate: 'Investigate',
 };
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

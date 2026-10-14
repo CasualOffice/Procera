@@ -283,6 +283,14 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('PATCH', '/api/v1/work-locations/{id}', () => own.patch(`/api/v1/work-locations/${wloc.id}`, { headers: oh, data: { name: 'Audit office', timezone: 'Europe/London', work_week: [1, 2, 3, 4], holiday_calendar_id: null } }));
   const myMembership = (await (await own.get('/api/v1/me/permissions', { headers: oh })).json()).membership_id as string;
   await step('PUT', '/api/v1/members/{id}/hr', () => own.put(`/api/v1/members/${myMembership}/hr`, { headers: oh, data: { employee_no: 'AUD-1', work_location_id: wloc.id } }));
+  // Leave types, policies and balances (BPMS-223).
+  const ltypes = await (await step('POST', '/api/v1/leave-types/defaults', () => own.post('/api/v1/leave-types/defaults', { headers: oh }))).json();
+  const ltype = await (await step('POST', '/api/v1/leave-types', () => own.post('/api/v1/leave-types', { headers: oh, data: { name: 'Audit leave' } }))).json();
+  await step('PATCH', '/api/v1/leave-types/{id}', () => own.patch(`/api/v1/leave-types/${ltype.id}`, { headers: oh, data: { name: 'Audit leave 2', sensitive: true } }));
+  const lpol = await (await step('POST', '/api/v1/leave-policies', () => own.post('/api/v1/leave-policies', { headers: oh, data: { name: 'Audit policy', audience: { all: true, departments: [], groups: [], roles: [] }, rules: [{ leave_type_id: ltype.id, yearly_days: 2 }] } }))).json();
+  await step('PATCH', '/api/v1/leave-policies/{id}', () => own.patch(`/api/v1/leave-policies/${lpol.id}`, { headers: oh, data: { name: 'Audit policy', audience: { all: true, departments: [], groups: [], roles: [] }, rules: [{ leave_type_id: ltype.id, yearly_days: 3 }] } }));
+  await step('PUT', '/api/v1/members/{id}/leave-policy', () => own.put(`/api/v1/members/${myMembership}/leave-policy`, { headers: oh, data: { policy_id: ltypes.policy.id } }));
+  await step('POST', '/api/v1/members/{id}/time-off/adjustments', () => own.post(`/api/v1/members/${myMembership}/time-off/adjustments`, { headers: oh, data: { leave_type_id: ltypes.types[0].id, days: 1, reason: 'Audit drill' } }));
   await step('DELETE', '/api/v1/holiday-calendars/{id}', () => own.delete(`/api/v1/holiday-calendars/${hcal.id}`, { headers: oh }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();

@@ -129,6 +129,7 @@ Permissions are `resource:action` strings, and the set is fixed per product vers
 | `monitoring` | `view_dashboards`, `manage_dashboards`, `manage_alerts` |
 | `api_token` | `manage` |
 | `ai` | `use_assistant`, `manage_settings` |
+| `time_off` | `request` (own time off; members), `view_all` (everyone's balances and leave), `manage_policies` (leave types and policies), `adjust_balances` (corrections with a reason, step-up) — docs/25 §6 |
 
 **Scopes** are where a role grant applies: `workspace`, `department:<id>` (and subtree), `collection:<id>` (and subtree), or `process:<id>`. A user's effective permissions are the union of their grants, intersected with the scope of the target resource.
 
@@ -147,6 +148,7 @@ Permissions are `resource:action` strings, and the set is fixed per product vers
 | **Investigator** | per case | Edit case, add/view evidence | Usually granted per case |
 | **Team Manager** | department | View team requests and work, reassign within team, team analytics | Derived from directory where possible. *As built (0.2, owner decision 2026-10-13):* granted **only** over a department (a workspace-wide grant is refused, 422); their team is their reporting line plus that department and its sub-departments; no workspace-wide oversight. Existing workspace grants were moved to the grantee's department (migration 0046) |
 | **Analyst / Report Viewer** | collection | Dashboards and reports, exports (redacted) | |
+| **HR Administrator** | workspace | Time off (policies, balances, adjustments), holidays and locations (`calendar:manage`), directory and HR records | Added 0.5 (docs/25); manager visibility of reports comes from the reporting line, not this role |
 | **Member** (default for everyone) | workspace | Browse visible library, start permitted processes, own requests, assigned work, acknowledge SOPs | |
 | **Guest** (external) | per item | Act on one specific work item or form | Magic link, expiring (P1) |
 

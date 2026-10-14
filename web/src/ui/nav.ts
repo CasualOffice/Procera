@@ -1,9 +1,9 @@
-import { Activity, Archive, Bell, BookOpen, CalendarDays, ClipboardCheck, FileCheck, FilePlus2, Files, FileSignature, FileText, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, ListChecks, Megaphone, Network, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, type LucideIcon, UserCog, UserPlus, Users, UsersRound, Webhook, Workflow } from 'lucide-react';
+import { Activity, Archive, Bell, BookOpen, CalendarDays, ClipboardCheck, FileCheck, FilePlus2, Files, FileSignature, FileText, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, ListChecks, type LucideIcon, Megaphone, Network, Palmtree, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, UserCog, UserPlus, Users, UsersRound, Webhook, Workflow } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns' | 'documents'
-  | 'admin' | 'webhooks' | 'sso' | 'holidays' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'time-off' | 'admin' | 'webhooks' | 'sso' | 'holidays' | 'time-off-admin' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -21,6 +21,7 @@ export function workNav(can: (p: string) => boolean): NavItem[] {
     any('request:start', 'request:view_own', 'request:view_all') && { key: 'requests', label: 'Requests', to: '/requests', icon: Send, keywords: 'leave expense purchase ask approval start new request' },
     can('work:view_assigned') && { key: 'work', label: 'My work', to: '/work', icon: Inbox, keywords: 'approvals tasks inbox decide approve assigned to me' },
     (can('directory:has_team') || (can('work:view_team') && !(can('request:view_all') && can('work:reassign')))) && { key: 'team', label: 'Team', to: '/team', icon: UsersRound, keywords: 'my team reports workload overdue away cover reassign manager' },
+    can('time_off:request') && { key: 'time-off', label: 'Time off', to: '/time-off', icon: Palmtree, keywords: 'leave balance holiday vacation sick casual days off pto annual' },
     can('announcement:view') && { key: 'announcements', label: 'Announcements', to: '/announcements', icon: Megaphone, keywords: 'news feed posts' },
     any('policy:create', 'sop:create') && { key: 'my-documents', label: 'My documents', to: '/library?view=mine', icon: FileText, keywords: 'drafts owned in review mine' },
     any('document:send_for_signature', 'document:view_all') && { key: 'documents', label: 'Signing', to: '/documents', icon: FileSignature, keywords: 'sign signature e-sign envelope pdf send for signature contract offer letter' },
@@ -38,6 +39,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
     ]) },
     { label: 'People', items: pick([
       any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite' },
+      any('time_off:manage_policies', 'time_off:view_all') && { key: 'time-off-admin', label: 'Time off', to: '/admin/time-off', icon: Palmtree, keywords: 'leave policy policies balances adjust allowance accrual carry over leave types' },
       (can('calendar:manage') || can('directory:manage')) && { key: 'holidays', label: 'Holidays and locations', to: '/admin/holidays', icon: CalendarDays, keywords: 'holiday holidays calendar public bank location office site time zone work week working days' },
       can('directory:manage') && { key: 'departments', label: 'Departments', to: '/admin/departments', icon: Network, keywords: 'org chart teams hierarchy head structure' },
       can('directory:manage') && { key: 'groups', label: 'Groups', to: '/admin/groups', icon: UsersRound, keywords: 'sets teams fire wardens auditors audience' },
