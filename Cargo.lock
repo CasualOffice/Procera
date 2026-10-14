@@ -3179,14 +3179,17 @@ dependencies = [
 name = "procera-hr"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "procera-db",
  "procera-kernel",
+ "procera-members",
  "proptest",
  "serde",
  "serde_json",
  "sqlx",
  "thiserror",
  "time",
+ "tokio",
  "uuid",
 ]
 

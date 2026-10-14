@@ -60,6 +60,10 @@ pub const PERMISSIONS: &[&str] = &[
     "rule:manage",
     "calendar:view",
     "calendar:manage",
+    "time_off:request",
+    "time_off:view_all",
+    "time_off:manage_policies",
+    "time_off:adjust_balances",
     "template:browse",
     "template:install",
     "template:publish_workspace_template",
@@ -171,6 +175,7 @@ const MEMBER: &[&str] = &[
     "file:view_own",
     "file:download",
     "audit:view_own",
+    "time_off:request",
 ];
 
 pub const TEMPLATES: &[Template] = &[
@@ -337,6 +342,22 @@ pub const TEMPLATES: &[Template] = &[
             "report:export",
             "process:view_analytics",
             "monitoring:view_dashboards",
+        ]),
+    },
+    Template {
+        key: "hr.admin",
+        name: "HR Administrator",
+        description: "Time off, holidays, locations and people records: policies, balances and adjustments.",
+        permissions: Perms::List(&[
+            "member:view",
+            "directory:view",
+            "directory:manage",
+            "calendar:view",
+            "calendar:manage",
+            "time_off:request",
+            "time_off:view_all",
+            "time_off:manage_policies",
+            "time_off:adjust_balances",
         ]),
     },
     Template {

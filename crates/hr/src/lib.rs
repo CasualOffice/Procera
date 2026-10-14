@@ -9,6 +9,7 @@
 pub mod dates;
 pub mod days;
 pub mod import;
+pub mod leave;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

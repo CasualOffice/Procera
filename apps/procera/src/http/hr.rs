@@ -5,9 +5,10 @@
 use axum::extract::{Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post, put};
+use axum::routing::{get, patch, post, put};
 use axum::{Json, Router};
 use procera_access::Resource;
+use procera_hr::leave::{LeaveTypeInput, PolicyInput};
 use procera_hr::{Holiday, HrError, LocationInput, MemberHr};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -32,6 +33,17 @@ pub fn router() -> Router<AppState> {
         .route("/holiday-calendars/{id}/copy-year", post(copy_year))
         .route("/members/{id}/hr", get(member_hr).put(set_member_hr))
         .route("/me/holidays", get(my_holidays))
+        .route("/leave-types", get(leave_types).post(create_leave_type))
+        .route("/leave-types/defaults", post(leave_defaults))
+        .route("/leave-types/{id}", patch(update_leave_type))
+        .route("/leave-policies", get(policies).post(create_policy))
+        .route("/leave-policies/{id}", get(policy).patch(update_policy))
+        .route("/leave-policies/{id}/members", get(policy_members))
+        .route("/members/{id}/leave-policy", put(assign_policy))
+        .route("/me/time-off", get(my_time_off))
+        .route("/members/{id}/time-off", get(member_time_off))
+        .route("/members/{id}/time-off/adjustments", post(adjust))
+        .route("/time-off/balances", get(all_balances))
 }
 
 fn internal(e: impl std::fmt::Display) -> ApiError {
@@ -542,4 +554,329 @@ async fn my_holidays(
     let (loc, items) = hr(&s)?.holidays_for(&mut tx, me.actor.membership, from, to).await?;
     tx.rollback().await.map_err(internal)?;
     Ok(Json(json!({ "location": loc, "items": items })).into_response())
+}
+
+// ------------------------------------------------------------------ leave types and policies
+
+async fn allowed(
+    s: &AppState,
+    me: &WsMember,
+    tx: &mut procera_db::WsTx<'_>,
+    perm: &str,
+) -> Result<bool, ApiError> {
+    Ok(members(s)?.access().check(tx, me.actor.membership, perm, &Resource::Workspace).await?.allowed)
+}
+
+fn today(s: &AppState) -> Date {
+    s.clock.now().date()
+}
+
+/// `GET /leave-types?archived=`: the workspace's leave types (`directory:view`).
+async fn leave_types(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<ListQuery>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "directory:view", Resource::Workspace).await?;
+    let items = hr(&s)?.leave_types(&mut tx, q.archived).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+/// `POST /leave-types {key?, name, colour?, paid?, limited?, sensitive?, half_days?,
+/// needs_attachment_after_days?, min_notice_days?, max_consecutive_days?, negative_limit_days?,
+/// counts_non_working_days?, optional_holidays_only?}` → 201 (`time_off:manage_policies`). Audited
+/// `leave_type.created`.
+async fn create_leave_type(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Json(r): Json<LeaveTypeInput>,
+) -> Result<Response, ApiError> {
+    let t = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let t = hr(&s)?.create_leave_type(&mut tx, &r).await?;
+        audit(&s, &me, &mut tx, &headers, "leave_type.created", "leave_type", t.id, json!(t)).await?;
+        t
+    });
+    Ok((StatusCode::CREATED, Json(t)).into_response())
+}
+
+/// `PATCH /leave-types/{id}` (the whole type, plus `archived`; the key never changes): honours
+/// `If-Match` (`time_off:manage_policies`). Audited `leave_type.updated`.
+async fn update_leave_type(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<LeaveTypeInput>,
+) -> Result<Response, ApiError> {
+    let t = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let t = hr(&s)?.update_leave_type(&mut tx, id, if_match(&headers), &r).await?;
+        audit(&s, &me, &mut tx, &headers, "leave_type.updated", "leave_type", id, json!(t)).await?;
+        t
+    });
+    let rev = t.revision;
+    Ok(with_etag(json!(t), rev))
+}
+
+/// `POST /leave-types/defaults`: for a workspace without leave types, the common ones (annual, sick,
+/// casual, optional holiday, unpaid) and a "Standard" policy for everyone → 201 `{types, policy}`
+/// (409 when types exist; `time_off:manage_policies`). Audited `leave_type.defaults_created`.
+async fn leave_defaults(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+) -> Result<Response, ApiError> {
+    let (types, policy) = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let (types, policy) = hr(&s)?.set_up_defaults(&mut tx).await?;
+        audit(
+            &s,
+            &me,
+            &mut tx,
+            &headers,
+            "leave_type.defaults_created",
+            "leave_policy",
+            policy.id,
+            json!({ "types": types.iter().map(|t| &t.key).collect::<Vec<_>>(), "policy": policy.name }),
+        )
+        .await?;
+        (types, policy)
+    });
+    Ok((StatusCode::CREATED, Json(json!({ "types": types, "policy": policy }))).into_response())
+}
+
+async fn policy_reader(s: &AppState, me: &WsMember, tx: &mut procera_db::WsTx<'_>) -> Result<(), ApiError> {
+    if allowed(s, me, tx, "time_off:manage_policies").await?
+        || allowed(s, me, tx, "time_off:view_all").await?
+    {
+        Ok(())
+    } else {
+        Err(ApiError::new(403, "forbidden", "You do not have permission for this action")
+            .detail("time_off:view_all"))
+    }
+}
+
+/// `GET /leave-policies?archived=`: policies with their rules and how many people each applies to
+/// (`time_off:manage_policies` or `time_off:view_all`).
+async fn policies(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<ListQuery>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    policy_reader(&s, &me, &mut tx).await?;
+    let items = hr(&s)?.policies(&mut tx, q.archived).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
+}
+
+/// `GET /leave-policies/{id}`: one policy with an `ETag` (as the list).
+async fn policy(State(s): State<AppState>, me: WsMember, Path(id): Path<Uuid>) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    policy_reader(&s, &me, &mut tx).await?;
+    let p = hr(&s)?.policy(&mut tx, id).await?;
+    tx.rollback().await.map_err(internal)?;
+    let rev = p.revision;
+    Ok(with_etag(json!(p), rev))
+}
+
+/// `POST /leave-policies {name, audience, priority?, year_start_month?, rules: [{leave_type_id,
+/// yearly_days, accrual upfront|monthly, prorate?, probation_waits?, carry_over_max_days?,
+/// carry_over_expiry_months?}]}` → 201 (`time_off:manage_policies`). Audited `leave_policy.created`.
+async fn create_policy(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Json(r): Json<PolicyInput>,
+) -> Result<Response, ApiError> {
+    let p = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let p = hr(&s)?.create_policy(&mut tx, &r).await?;
+        audit(
+            &s,
+            &me,
+            &mut tx,
+            &headers,
+            "leave_policy.created",
+            "leave_policy",
+            p.id,
+            json!({ "name": p.name, "audience": p.audience, "rules": p.rules }),
+        )
+        .await?;
+        p
+    });
+    Ok((StatusCode::CREATED, Json(p)).into_response())
+}
+
+/// `PATCH /leave-policies/{id}` (the whole policy, plus `archived`): honours `If-Match`; new rules
+/// apply from the next grant or accrual (`time_off:manage_policies`). Audited `leave_policy.updated`.
+async fn update_policy(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<PolicyInput>,
+) -> Result<Response, ApiError> {
+    let p = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let p = hr(&s)?.update_policy(&mut tx, id, if_match(&headers), &r).await?;
+        audit(
+            &s,
+            &me,
+            &mut tx,
+            &headers,
+            "leave_policy.updated",
+            "leave_policy",
+            id,
+            json!({ "name": p.name, "audience": p.audience, "rules": p.rules, "archived": p.archived }),
+        )
+        .await?;
+        p
+    });
+    let rev = p.revision;
+    Ok(with_etag(json!(p), rev))
+}
+
+/// `GET /leave-policies/{id}/members`: who it applies to now `{count, items: [{id, name}]}` (25 at
+/// most; as the list).
+async fn policy_members(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    policy_reader(&s, &me, &mut tx).await?;
+    let (count, items) = hr(&s)?.policy_members(&mut tx, id).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "count": count, "items": items.into_iter().map(|(id, name)| json!({ "id": id, "name": name })).collect::<Vec<_>>() })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AssignReq {
+    policy_id: Option<Uuid>,
+}
+
+/// `PUT /members/{id}/leave-policy {policy_id | null}`: gives one person a policy regardless of
+/// audiences, or goes back to audiences (`time_off:manage_policies`) → `{policy: {id, name, via}}`.
+/// Audited `leave_policy.assigned`.
+async fn assign_policy(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<AssignReq>,
+) -> Result<Response, ApiError> {
+    let p = audited!(s, me, headers, "time_off:manage_policies", |tx, m| {
+        let p = hr(&s)?.assign_policy(&mut tx, id, r.policy_id).await?;
+        audit(
+            &s,
+            &me,
+            &mut tx,
+            &headers,
+            "leave_policy.assigned",
+            "membership",
+            id,
+            json!({ "policy_id": r.policy_id }),
+        )
+        .await?;
+        p
+    });
+    Ok(Json(json!({ "policy": p })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct OnQuery {
+    #[serde(default)]
+    on: Option<String>,
+}
+
+/// `GET /me/time-off?on=`: my policy and balances for the leave year containing `on` (default
+/// today): per type `{leave_type, year_start, year_end, yearly_days, accrual, granted, carried,
+/// taken, pending, adjusted, expired, available, entries}`. Procera writes due grants first.
+async fn my_time_off(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<OnQuery>,
+) -> Result<Response, ApiError> {
+    let on = q.on.as_deref().map(date).transpose()?;
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    let (policy, items) = hr(&s)?.balances(&mut tx, me.actor.membership, today(&s), on).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "policy": policy, "items": items })).into_response())
+}
+
+/// `GET /members/{id}/time-off?on=`: someone's policy and balances, as `/me/time-off` (themselves,
+/// or `time_off:view_all`).
+async fn member_time_off(
+    State(s): State<AppState>,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Query(q): Query<OnQuery>,
+) -> Result<Response, ApiError> {
+    let on = q.on.as_deref().map(date).transpose()?;
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    if id != me.actor.membership {
+        me.require(m, &mut tx, "time_off:view_all", Resource::Workspace).await?;
+    }
+    let (policy, items) = hr(&s)?.balances(&mut tx, id, today(&s), on).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "policy": policy, "items": items })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct AdjustReq {
+    leave_type_id: Uuid,
+    days: f64,
+    reason: String,
+}
+
+/// `POST /members/{id}/time-off/adjustments {leave_type_id, days (±, whole or half), reason}`: a
+/// correction in the current leave year (`time_off:adjust_balances`, step-up) → 201 entry. Audited
+/// `time_off.adjusted`.
+async fn adjust(
+    State(s): State<AppState>,
+    headers: HeaderMap,
+    me: WsMember,
+    Path(id): Path<Uuid>,
+    Json(r): Json<AdjustReq>,
+) -> Result<Response, ApiError> {
+    let e = audited!(s, me, headers, "time_off:adjust_balances", |tx, m| {
+        me.require_step_up(&s, &mut tx).await?;
+        let e = hr(&s)?
+            .adjust(&mut tx, id, r.leave_type_id, r.days, &r.reason, me.actor.membership, today(&s))
+            .await?;
+        audit(
+            &s,
+            &me,
+            &mut tx,
+            &headers,
+            "time_off.adjusted",
+            "membership",
+            id,
+            json!({ "leave_type_id": r.leave_type_id, "days": e.days, "reason": e.reason }),
+        )
+        .await?;
+        e
+    });
+    Ok((StatusCode::CREATED, Json(e)).into_response())
+}
+
+/// `GET /time-off/balances`: everyone's current-year balances by type `{types, items: [{id, name,
+/// email, policy, balances: {type_id: {available, taken, pending}}}]}` (`time_off:view_all`).
+async fn all_balances(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "time_off:view_all", Resource::Workspace).await?;
+    let h = hr(&s)?;
+    let types = h.leave_types(&mut tx, false).await?;
+    let items = h.all_balances(&mut tx, today(&s)).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(json!({ "types": types, "items": items })).into_response())
 }

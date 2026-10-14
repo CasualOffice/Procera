@@ -228,6 +228,15 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/holiday-calendars/{id}/import", &[&["holiday_calendar.imported"]]),
     emits("POST", "/api/v1/holiday-calendars/{id}/copy-year", &[&["holiday_calendar.year_copied"]]),
     emits("PUT", "/api/v1/members/{id}/hr", &[&["member.hr_updated"]]),
+    // HR: leave types, policies and balances (BPMS-223). Reading a balance writes due grants and
+    // accruals: system ledger entries, not audited actions.
+    emits("POST", "/api/v1/leave-types", &[&["leave_type.created"]]),
+    emits("PATCH", "/api/v1/leave-types/{id}", &[&["leave_type.updated"]]),
+    emits("POST", "/api/v1/leave-types/defaults", &[&["leave_type.defaults_created"]]),
+    emits("POST", "/api/v1/leave-policies", &[&["leave_policy.created"]]),
+    emits("PATCH", "/api/v1/leave-policies/{id}", &[&["leave_policy.updated"]]),
+    emits("PUT", "/api/v1/members/{id}/leave-policy", &[&["leave_policy.assigned"]]),
+    emits("POST", "/api/v1/members/{id}/time-off/adjustments", &[&["time_off.adjusted"]]),
     // Email-actionable approvals (BPMS-145): the decision's own records plus the email marker.
     emits(
         "POST",

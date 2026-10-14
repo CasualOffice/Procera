@@ -11,6 +11,7 @@ publish.workspace = true
 [dependencies]
 procera-db.workspace = true
 procera-kernel.workspace = true
+procera-members.workspace = true
 serde = { workspace = true }
 serde_json.workspace = true
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
@@ -19,7 +20,11 @@ time = { workspace = true }
 uuid.workspace = true
 
 [dev-dependencies]
+anyhow.workspace = true
 proptest.workspace = true
+procera-db = { workspace = true, features = ["test-support"] }
+procera-kernel = { workspace = true, features = ["test-clock"] }
+tokio.workspace = true
 
 [lints]
 workspace = true
