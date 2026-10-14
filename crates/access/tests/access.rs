@@ -41,7 +41,7 @@ async fn grants_scopes_escalation_invariants_and_cache() -> anyhow::Result<()> {
     let ws = WsCtx { workspace_id: Uuid::now_v7() };
     let mut tx = t.db.begin_ws(ws).await?;
     a.seed_workspace(&mut tx).await?;
-    assert_eq!(a.list_roles(&mut tx).await?.iter().filter(|r| r.is_builtin).count(), 12);
+    assert_eq!(a.list_roles(&mut tx).await?.iter().filter(|r| r.is_builtin).count(), 13, "12 templates plus HR Administrator (BPMS-223)");
 
     let admin = member(&mut tx, &t.admin_url, "active").await?;
     let plain = member(&mut tx, &t.admin_url, "active").await?;
