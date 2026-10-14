@@ -2267,6 +2267,56 @@
      "summary": "Declines with a `reason`; the envelope ends for everyone and the sender is told."
     }
    ]
+  },
+  {
+   "key": "sso",
+   "name": "Sso",
+   "intro": "Single sign-on: finding the workspaces whose provider vouches for an email, starting a sign-in (redirect to the provider) and finishing it (the provider redirects back; a session opens in that workspace and the browser returns to the app), and the workspace's provider settings for admins (`workspace:settings.manage`, step-up to change).",
+   "routes": [
+    {
+     "method": "POST",
+     "path": "/api/v1/auth/sso/discover",
+     "handler": "discover",
+     "summary": "The workspaces whose identity provider vouches for this email's domain (`{items: [{id, slug, name}]}`); empty when none do. No session needed.",
+     "exempt": "a read: which workspaces' providers vouch for an email domain"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/auth/sso/start",
+     "handler": "start",
+     "summary": "Redirects (303) to the workspace's identity provider with a one-time state, a nonce and a PKCE challenge. 404 when the workspace has no provider."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/auth/sso/callback",
+     "handler": "callback",
+     "summary": "The provider's redirect. Verifies the sign-in, opens a session in the workspace (refresh cookie) and redirects (303) into the app; any problem redirects to the sign-in page with `sso_error` (refusals are logged). Audited `login.sso_succeeded`."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/sso",
+     "handler": "config",
+     "summary": "The workspace's provider settings (never the secret: `has_secret`), or `null` (`workspace:settings.view`)."
+    },
+    {
+     "method": "PUT",
+     "path": "/api/v1/sso",
+     "handler": "save",
+     "summary": "Sets the provider (`issuer`, `client_id`, `client_secret` (absent keeps it, empty clears it), `domains`, `enabled`, `required`); the issuer's discovery document must answer first (`workspace:settings.manage`, step-up; honours `If-Match`).",
+     "audited": [
+      "sso.configured"
+     ]
+    },
+    {
+     "method": "DELETE",
+     "path": "/api/v1/sso",
+     "handler": "remove",
+     "summary": "Removes the provider; everyone signs in with passwords again (`workspace:settings.manage`, step-up). 204.",
+     "audited": [
+      "sso.removed"
+     ]
+    }
+   ]
   }
  ]
 }

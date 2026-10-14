@@ -273,6 +273,25 @@ These are covered in [13-INTEGRATIONS](13-INTEGRATIONS.md) (INT-001…030).
 
 The rule: **pluggable providers, never hard-wired vendors.**
 
+## 14a. HR: time off, holidays, shifts and attendance
+
+Added through §17 on 2026-10-14 (owner decision: a full time-and-attendance area, because Procera already
+runs onboarding). Design: [25-HR-TIME-AND-ATTENDANCE](25-HR-TIME-AND-ATTENDANCE.md). Release 0.5.
+
+| Feature | Pri | M | Ref |
+|---|---|---|---|
+| HR-01 Work locations (IANA time zone, work week), holiday calendars by year, optional holidays, iCal/CSV import | P1 | 0.5 | docs/25 §2.1, BPMS-222 |
+| HR-02 Leave types and policies (allowance, up-front or monthly accrual, pro-rating, carry-over and expiry), assignment by audience | P1 | 0.5 | docs/25 §2.2, BPMS-223 |
+| HR-03 Balances from an append-only ledger; audited admin adjustments with a reason; yearly rollover | P1 | 0.5 | docs/25 §3, BPMS-223 |
+| HR-04 Leave requests on the process engine: day counting (work week, holidays, half days, sandwich rule), balance hold, cancel after approval | P1 | 0.5 | docs/25 §4, §7, BPMS-224 |
+| HR-05 Team calendar (who's out, by team, department, location) and org chart; colleagues see "Out", not the type | P1 | 0.5 | docs/25 §6, BPMS-225 |
+| HR-06 Shift patterns and weekly rosters (draft, publish, notify) | P1 | 0.5 | docs/25 §2.5, BPMS-226 |
+| HR-07 Attendance: clock in/out, punch import (CSV, API), derived daily status with grace rules | P1 | 0.5 | docs/25 §5, BPMS-227 |
+| HR-08 Regularization requests (manager approval, original punches kept) | P1 | 0.5 | docs/25 §7, BPMS-228 |
+| HR-09 Attendance register and reports, month close, payroll-ready export | P1 | 0.5 | docs/25 §2.8, BPMS-229 |
+| Payroll calculation (future) | P2 | POST | docs/25 §11, BPMS-230 |
+| Releasing documents to people: payslips, letters (future) | P2 | POST | docs/25 §11, BPMS-231 |
+
 ## 15. Experience qualities (cross-cutting)
 
 - WCAG 2.2 AA and the normative design tokens (05 §7).

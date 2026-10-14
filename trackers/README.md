@@ -6,10 +6,10 @@
 ## At a glance
 
 ```text
-Overall   ███████████████░░░░░░░░░░░░░░░  61/125 epics done  (49%)
-Partial   ███████████████░░░░░░░░░░░░░░░  51% counting in-progress epics as half done
+Overall   ██████████████░░░░░░░░░░░░░░░░  61/135 epics done  (45%)
+Partial   ██████████████░░░░░░░░░░░░░░░░  47% counting in-progress epics as half done
 Tests     280 automated E2E scenarios · 454 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 5 · blocked 0 · not started 59 · deferred 0
+Status    done 61 · in review 0 · in progress 5 · blocked 0 · not started 69 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
 Evidence  automated tests 53 · code merged 13  (separate from status; none user-validated yet)
 ```
@@ -25,9 +25,10 @@ Evidence  automated tests 53 · code merged 13  (separate from status; none user
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `██████████░░` | 18/22 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `█░░░░░░░░░░░` | 2/18 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/14 |
+| **HR** | HR time & attendance (0.5) | 2027-07-05 → 2027-08-27 | G-HR | `░░░░░░░░░░░░` | 0/8 |
 | **R5** | Cases & Compliance | 2027-07-05 → 2027-08-27 | G-R5 | `░░░░░░░░░░░░` | 0/11 |
 | **GA** | 1.0 hardening + release | 2027-08-30 → 2027-10-15 | G4/G5 | `░░░░░░░░░░░░` | 0/8 |
-| **POST** | Post-GA expansion | 2027-10-18 → 2028-03-31 | Demand | `░░░░░░░░░░░░` | 0/6 |
+| **POST** | Post-GA expansion | 2027-10-18 → 2028-03-31 | Demand | `░░░░░░░░░░░░` | 0/8 |
 
 ## Active right now
 
@@ -248,6 +249,22 @@ _SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (
 </details>
 
 <details>
+<summary><b>HR — HR time & attendance (0.5)</b> · 2027-07-05 → 2027-08-27 · gate G-HR · 0/8 done</summary>
+
+_docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)_
+
+- [ ] **BPMS-222** (P1, M) 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them
+- [ ] **BPMS-223** (P1, L) 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments
+- [ ] **BPMS-224** (P1, L) 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page
+- [ ] **BPMS-225** (P1, M) 0.5 HR: team calendar (who's out, privacy) and org chart
+- [ ] **BPMS-226** (P1, M) 0.5 HR: shift patterns and weekly rosters (draft, publish, notify), my schedule
+- [ ] **BPMS-227** (P1, L) 0.5 HR: attendance (clock in/out, punch import CSV/API), derived daily status
+- [ ] **BPMS-228** (P1, M) 0.5 HR: regularization requests on the engine (originals kept)
+- [ ] **BPMS-229** (P1, M) 0.5 HR: attendance register and reports, month close, payroll-ready export
+
+</details>
+
+<details>
 <summary><b>R5 — Cases & Compliance</b> · 2027-07-05 → 2027-08-27 · gate G-R5 · 0/11 done</summary>
 
 _Cases, investigations, legal hold, Part 11, reports, AI optional (old M9)_
@@ -283,7 +300,7 @@ _Load/HA/DR, pentest, a11y/VPAT, i18n, docs, full E2E regression (old M10–M11)
 </details>
 
 <details>
-<summary><b>POST — Post-GA expansion</b> · 2027-10-18 → 2028-03-31 · gate Demand · 0/6 done</summary>
+<summary><b>POST — Post-GA expansion</b> · 2027-10-18 → 2028-03-31 · gate Demand · 0/8 done</summary>
 
 _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 
@@ -293,6 +310,8 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 - [ ] **BPMS-203** (P2, XL) BPMN view (diagram-js), DMN import/export, migration tool, simulation
 - [ ] **BPMS-204** (P2, M) Event-log export OCEL 2.0 / XES
 - [ ] **BPMS-205** (P2, L) Governed AI agent steps
+- [ ] **BPMS-230** (P2, XL) Future: payroll calculation (components, pay groups, monthly run from closed attendance, country rules as plug-ins, bank file)
+- [ ] **BPMS-231** (P2, L) Future: releasing documents to people (payslips, letters) generated per person, encrypted, batch release, My documents, ack or e-sign
 
 </details>
 
@@ -308,4 +327,4 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | E2E scenarios (E2E) | 338 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
-| Open questions / unknowns / assumptions | 16 / 16 / 49 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
+| Open questions / unknowns / assumptions | 19 / 16 / 50 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

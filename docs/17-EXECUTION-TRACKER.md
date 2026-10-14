@@ -13,6 +13,7 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | R2 | Requests & Approvals | 2027-01-18 | 2027-03-12 | G-R2 | Runtime core, forms, designer, portal, inbox, delegation, SLA, 6 templates (old M5–M6 part) |
 | R3 | Operate & Sign | 2027-03-15 | 2027-05-07 | G-R3 | Admin console, DoA, master data, recall/edit, e-sign v1, 13 templates, PWA, BPMN import (old M4 rest, M6 rest, M7) |
 | R4 | Enterprise Connect | 2027-05-10 | 2027-07-02 | G-R4 | SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8) |
+| HR | HR time & attendance (0.5) | 2027-07-05 | 2027-08-27 | G-HR | docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14) |
 | R5 | Cases & Compliance | 2027-07-05 | 2027-08-27 | G-R5 | Cases, investigations, legal hold, Part 11, reports, AI optional (old M9) |
 | GA | 1.0 hardening + release | 2027-08-30 | 2027-10-15 | G4/G5 | Load/HA/DR, pentest, a11y/VPAT, i18n, docs, full E2E regression (old M10–M11) |
 | POST | Post-GA expansion | 2027-10-18 | 2028-03-31 | Demand | Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+) |
@@ -121,6 +122,14 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-151 | COMMS | Emergency alerts, content validation period, moderation, quiz | P1 | R4 | Fullstack | FX-C02–C04 | — | M | BPMS-047 | Not started | — |
 | BPMS-152 | E2E | E2E-R4 pack incl. Keycloak, SCIM, webhook receiver | P1 | R4 | SDET + feature owners | 23 §5 | Green | L | BPMS-112 | Not started | — |
 | BPMS-206 | ENG | KMS / OpenBao root key adapters and yearly automatic root rotation | P1 | R4 | Platform/Sec | 04 §8, 06 §4 | Root sealed by an external KMS; rotation scheduled | M | BPMS-030 | Not started | — |
+| BPMS-222 | HR | 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them | P1 | HR | Fullstack | docs/25 §2.1, HR-01 | Day counts follow location + holidays (E2E-R5-HR-01) | M | BPMS-083 | Not started | — |
+| BPMS-223 | HR | 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments | P1 | HR | Fullstack | docs/25 §2.2, §3, HR-02/03 | Every balance explained by its ledger (E2E-R5-HR-02) | L | BPMS-222 | Not started | — |
+| BPMS-224 | HR | 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page | P1 | HR | Fullstack | docs/25 §4, §7, HR-04 | Hold → taken → release round-trips (E2E-R5-HR-03) | L | BPMS-223 | Not started | — |
+| BPMS-225 | HR | 0.5 HR: team calendar (who's out, privacy) and org chart | P1 | HR | FE | docs/25 §6, §8, HR-05 | Colleague sees Out, manager sees type (E2E-R5-HR-04) | M | BPMS-224 | Not started | — |
+| BPMS-226 | HR | 0.5 HR: shift patterns and weekly rosters (draft, publish, notify), my schedule | P1 | HR | Fullstack | docs/25 §2.5, HR-06 | Published roster notifies; rostered weekend is a working day (E2E-R5-HR-05) | M | BPMS-222 | Not started | — |
+| BPMS-227 | HR | 0.5 HR: attendance (clock in/out, punch import CSV/API), derived daily status | P1 | HR | Fullstack | docs/25 §5, HR-07 | Status table-tested; late and missing punch (E2E-R5-HR-06) | L | BPMS-226 | Not started | — |
+| BPMS-228 | HR | 0.5 HR: regularization requests on the engine (originals kept) | P1 | HR | Fullstack | docs/25 §7, HR-08 | Approved fix recomputes the day (E2E-R5-HR-07) | M | BPMS-227 | Not started | — |
+| BPMS-229 | HR | 0.5 HR: attendance register and reports, month close, payroll-ready export | P1 | HR | Fullstack | docs/25 §2.8, HR-09 | Export equals the grid; closed month frozen (E2E-R5-HR-08) | M | BPMS-228 | Not started | — |
 | BPMS-160 | CASE | Case types, queues, macros, SLAs, link/merge, restricted cases | P1 | R5 | Fullstack | FR-C01, FX-K01–K06 | J4 passes | XL | BPMS-082 | Not started | — |
 | BPMS-161 | AUD | Investigations: pins, legal hold, signed export, conflict-of-interest | P1 | R5 | Fullstack | FR-T05/T06, FX-K08, FX-L01 | J10 passes | L | BPMS-064,160 | Not started | — |
 | BPMS-162 | AUD | Checkpoints, RFC 3161, WORM export, procera-verify CLI | P1 | R5 | Platform | AUD-02–05 | Verifier detects tamper | M | BPMS-026 | Not started | — |
@@ -146,8 +155,10 @@ Release = phased release in 07 v0.3 (domain backlogs below still cite old M-code
 | BPMS-203 | EXEC | BPMN view (diagram-js), DMN import/export, migration tool, simulation | P2 | POST | Runtime/FE | ADR-0018, FR-E07/E10, FR-I04 | — | XL |  | Not started | — |
 | BPMS-204 | INS | Event-log export OCEL 2.0 / XES | P2 | POST | Data | FR-I03 | Schema-valid | M |  | Not started | — |
 | BPMS-205 | AI | Governed AI agent steps | P2 | POST | Fullstack | 16 | Human gate | L |  | Not started | — |
+| BPMS-230 | HR | Future: payroll calculation (components, pay groups, monthly run from closed attendance, country rules as plug-ins, bank file) | P2 | POST | Fullstack | docs/25 §11 | Own design doc + ADR first | XL | BPMS-229 | Not started | — |
+| BPMS-231 | HR | Future: releasing documents to people (payslips, letters) generated per person, encrypted, batch release, My documents, ack or e-sign | P2 | POST | Fullstack | docs/25 §11 | Own design doc first | L | BPMS-107 | Not started | — |
 
-**Progress:** Done: 61 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 59 · Deferred: 0 (of 125)
+**Progress:** Done: 61 · In review: 0 · In progress: 5 · Blocked: 0 · Not started: 69 · Deferred: 0 (of 135)
 
 ### Active and recently completed
 

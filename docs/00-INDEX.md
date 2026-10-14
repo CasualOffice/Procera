@@ -44,6 +44,7 @@ v0.1 blueprint (archived verbatim in [`archive/v0.1/`](archive/v0.1/)).
 | 22 | [Unknowns, assumptions & open questions](22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) | Every open item with owner and decide-by |
 | 23 | [E2E test plan](23-E2E-TEST-PLAN.md) | Harness, test-only controls, 74 scenarios across R1–R5 + GA, CI and flake policy |
 | 24 | [Engineering rules](24-ENGINEERING-RULES.md) | **Binding** rules: design-first, tracker updates, architecture/code, tests, security, UX, git/PR, docs, releases, AI agents |
+| 25 | [HR: time off and attendance](25-HR-TIME-AND-ATTENDANCE.md) | 0.5 design: locations and holidays, leave policies and a balance ledger, leave requests on the engine, team calendar and org chart, shifts and rosters, attendance, regularization, month close; payroll and payslips as the future pipeline |
 | adr/ | [Architecture decision records](adr/README.md) | ADR-0001…0019 |
 | guides/ | [Install with Docker Compose](guides/install-docker-compose.md) · [First-time setup](guides/first-time-setup.md) · [Configuration](guides/configuration.md) | Running Procera yourself: Compose stack, backups and upgrades; from the setup token to a first published policy; every server option, in-app settings and security notes |
 | — | [`../assets/brand/`](../assets/brand/README.md) | Brand copy, palette with contrast, logo files and usage rules |

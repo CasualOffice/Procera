@@ -5,13 +5,13 @@
  "totals": {
   "Done": 61,
   "In review": 0,
-  "In progress": 4,
+  "In progress": 5,
   "Blocked": 0,
-  "Not started": 60,
+  "Not started": 69,
   "Deferred": 0,
-  "all": 125
+  "all": 135
  },
- "e2e_scenarios": 277,
+ "e2e_scenarios": 280,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -278,6 +278,8 @@
   "E2E-R4-SIGN-01",
   "E2E-R4-SIGN-02",
   "E2E-R4-SIGN-03",
+  "E2E-R4-SSO-01",
+  "E2E-R4-SSO-02",
   "E2E-R4-TOK-01",
   "E2E-R4-TOK-02",
   "E2E-R4-UI-01",
@@ -287,6 +289,7 @@
   "E2E-R4-UI-05",
   "E2E-R4-UI-06",
   "E2E-R4-UI-07",
+  "E2E-R4-UI-08",
   "E2E-R4-WH-01",
   "E2E-R4-WH-02",
   "E2E-R4-WH-03"
@@ -443,8 +446,8 @@
    "scope": "SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (old M8)",
    "total": 14,
    "done": 0,
-   "in_progress": 3,
-   "not_started": 11,
+   "in_progress": 4,
+   "not_started": 10,
    "epics": [
     "BPMS-140",
     "BPMS-141",
@@ -460,6 +463,28 @@
     "BPMS-151",
     "BPMS-152",
     "BPMS-206"
+   ]
+  },
+  {
+   "code": "HR",
+   "name": "HR time & attendance (0.5)",
+   "start": "2027-07-05",
+   "end": "2027-08-27",
+   "gate": "G-HR",
+   "scope": "docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)",
+   "total": 8,
+   "done": 0,
+   "in_progress": 0,
+   "not_started": 8,
+   "epics": [
+    "BPMS-222",
+    "BPMS-223",
+    "BPMS-224",
+    "BPMS-225",
+    "BPMS-226",
+    "BPMS-227",
+    "BPMS-228",
+    "BPMS-229"
    ]
   },
   {
@@ -516,17 +541,19 @@
    "end": "2028-03-31",
    "gate": "Demand",
    "scope": "Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)",
-   "total": 6,
+   "total": 8,
    "done": 0,
    "in_progress": 0,
-   "not_started": 6,
+   "not_started": 8,
    "epics": [
     "BPMS-200",
     "BPMS-201",
     "BPMS-202",
     "BPMS-203",
     "BPMS-204",
-    "BPMS-205"
+    "BPMS-205",
+    "BPMS-230",
+    "BPMS-231"
    ]
   }
  ],
@@ -1225,7 +1252,7 @@
    "title": "OIDC SSO, SAML-broker, SSO enforcement, JIT",
    "priority": "P1",
    "release": "R4",
-   "status": "Not started"
+   "status": "In progress"
   },
   {
    "id": "BPMS-141",
@@ -1329,6 +1356,70 @@
    "title": "KMS / OpenBao root key adapters and yearly automatic root rotation",
    "priority": "P1",
    "release": "R4",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-222",
+   "area": "HR",
+   "title": "0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-223",
+   "area": "HR",
+   "title": "0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-224",
+   "area": "HR",
+   "title": "0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-225",
+   "area": "HR",
+   "title": "0.5 HR: team calendar (who's out, privacy) and org chart",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-226",
+   "area": "HR",
+   "title": "0.5 HR: shift patterns and weekly rosters (draft, publish, notify), my schedule",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-227",
+   "area": "HR",
+   "title": "0.5 HR: attendance (clock in/out, punch import CSV/API), derived daily status",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-228",
+   "area": "HR",
+   "title": "0.5 HR: regularization requests on the engine (originals kept)",
+   "priority": "P1",
+   "release": "HR",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-229",
+   "area": "HR",
+   "title": "0.5 HR: attendance register and reports, month close, payroll-ready export",
+   "priority": "P1",
+   "release": "HR",
    "status": "Not started"
   },
   {
@@ -1527,6 +1618,22 @@
    "id": "BPMS-205",
    "area": "AI",
    "title": "Governed AI agent steps",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-230",
+   "area": "HR",
+   "title": "Future: payroll calculation (components, pay groups, monthly run from closed attendance, country rules as plug-ins, bank file)",
+   "priority": "P2",
+   "release": "POST",
+   "status": "Not started"
+  },
+  {
+   "id": "BPMS-231",
+   "area": "HR",
+   "title": "Future: releasing documents to people (payslips, letters) generated per person, encrypted, batch release, My documents, ack or e-sign",
    "priority": "P2",
    "release": "POST",
    "status": "Not started"
