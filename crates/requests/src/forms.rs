@@ -264,7 +264,7 @@ mod tests {
     fn unknown_missing_and_mistyped_fields_are_listed() {
         let errs = validate(
             &form("hr.leave-request"),
-            &obj(json!({"leave_type": "holiday", "start_date": "13/10/2026", "extra": 1})),
+            &obj(json!({"leave_type": "holiday", "start_half": "morning", "start_date": "13/10/2026", "extra": 1})),
             false,
         )
         .err()
@@ -274,8 +274,8 @@ mod tests {
             got,
             [
                 ("/extra", "unknown_field"),
-                ("/leave_type", "invalid_option"),
                 ("/start_date", "invalid"),
+                ("/start_half", "invalid_option"),
                 ("/end_date", "required")
             ]
         );

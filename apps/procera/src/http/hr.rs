@@ -44,6 +44,7 @@ pub fn router() -> Router<AppState> {
         .route("/members/{id}/time-off", get(member_time_off))
         .route("/members/{id}/time-off/adjustments", post(adjust))
         .route("/time-off/balances", get(all_balances))
+        .route("/time-off/quote", post(quote))
 }
 
 fn internal(e: impl std::fmt::Display) -> ApiError {
@@ -796,7 +797,8 @@ struct OnQuery {
 
 /// `GET /me/time-off?on=`: my policy and balances for the leave year containing `on` (default
 /// today): per type `{leave_type, year_start, year_end, yearly_days, accrual, granted, carried,
-/// taken, pending, adjusted, expired, available, entries}`. Procera writes due grants first.
+/// taken, pending, adjusted, expired, available, entries}`, and my leave `requests` (BPMS-224).
+/// Procera writes due grants first.
 async fn my_time_off(
     State(s): State<AppState>,
     me: WsMember,
@@ -805,9 +807,11 @@ async fn my_time_off(
     let on = q.on.as_deref().map(date).transpose()?;
     let m = members(&s)?;
     let mut tx = me.tx(m).await?;
-    let (policy, items) = hr(&s)?.balances(&mut tx, me.actor.membership, today(&s), on).await?;
+    let h = hr(&s)?;
+    let (policy, items) = h.balances(&mut tx, me.actor.membership, today(&s), on).await?;
+    let requests = h.leave_requests_of(&mut tx, me.actor.membership, today(&s)).await?;
     tx.commit().await.map_err(internal)?;
-    Ok(Json(json!({ "policy": policy, "items": items })).into_response())
+    Ok(Json(json!({ "policy": policy, "items": items, "requests": requests })).into_response())
 }
 
 /// `GET /members/{id}/time-off?on=`: someone's policy and balances, as `/me/time-off` (themselves,
@@ -879,4 +883,50 @@ async fn all_balances(State(s): State<AppState>, me: WsMember) -> Result<Respons
     let items = h.all_balances(&mut tx, today(&s)).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(json!({ "types": types, "items": items })).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct QuoteReq {
+    leave_type: String,
+    start_date: String,
+    #[serde(default)]
+    start_half: Option<String>,
+    end_date: String,
+    #[serde(default)]
+    end_half: Option<String>,
+    #[serde(default)]
+    has_note: bool,
+}
+
+/// `POST /time-off/quote {leave_type, start_date, start_half?, end_date, end_half?, has_note?}`: how
+/// many days a leave request would take for me, date by date, my balance before and after, and any
+/// problems (`[{field, code, message}]`) the request would be refused for. Changes nothing.
+async fn quote(
+    State(s): State<AppState>,
+    me: WsMember,
+    Json(r): Json<QuoteReq>,
+) -> Result<Response, ApiError> {
+    let mut vars = std::collections::BTreeMap::new();
+    vars.insert("leave_type".to_string(), json!(r.leave_type));
+    vars.insert("start_date".to_string(), json!(r.start_date));
+    vars.insert("end_date".to_string(), json!(r.end_date));
+    if let Some(h) = &r.start_half {
+        vars.insert("start_half".to_string(), json!(h));
+    }
+    if let Some(h) = &r.end_half {
+        vars.insert("end_half".to_string(), json!(h));
+    }
+    if r.has_note {
+        vars.insert("supporting_document".to_string(), json!(["note"]));
+    }
+    let ask = procera_hr::requests::ask_from(&vars).ok_or_else(|| {
+        ApiError::new(422, "validation_failed", "Validation failed").detail("Dates look like 2026-10-02.")
+    })?;
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "time_off:request", Resource::Workspace).await?;
+    let q = hr(&s)?.quote_leave(&mut tx, me.actor.membership, &ask, today(&s), None).await?;
+    tx.commit().await.map_err(internal)?;
+    Ok(Json(q).into_response())
 }

@@ -29,6 +29,7 @@ use crate::resolve::{Site, resolve};
 
 #[derive(Clone)]
 pub struct Effects {
+    pub(crate) hooks: crate::hooks::HookSlot,
     pub(crate) catalogue: Arc<Catalogue>,
     pub(crate) notify: Notify,
     pub(crate) ids: Arc<dyn IdGen>,
@@ -267,9 +268,22 @@ impl Effects {
             crate::escalate::cancel(tx, key).await?;
         }
         let status = status(rt, st);
+        let was: String = sqlx::query_scalar("SELECT status FROM requests WHERE instance_id = $1")
+            .bind(iid)
+            .fetch_one(tx.conn())
+            .await
+            .map_err(db)?;
         sqlx::query("UPDATE requests SET status = $2, current_step = $3, updated_at = $4, ended_at = $5 WHERE instance_id = $1")
             .bind(iid).bind(status).bind(current_step(rt, st)).bind(at).bind(st.ended_at)
             .execute(tx.conn()).await.map_err(db)?;
+        // Domain hooks follow every change after the start (the start itself is the service's).
+        if cx.before.is_some()
+            && was != status
+            && let Some(h) = self.hooks.get().cloned()
+        {
+            let r = crate::hooks::HookRequest { key: &rt.key, id: Some(iid), initiator, vars: &st.variables };
+            h.status_changed(tx, r, Some(&was), status).await?;
+        }
         // Tell the requester what happened, once per decision or outcome.
         let finished_now =
             st.status == InstanceStatus::Completed && cx.before.is_some_and(|b| !b.status.is_final());

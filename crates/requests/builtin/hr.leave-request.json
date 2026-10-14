@@ -2,9 +2,11 @@
   "schemaVersion": 1,
   "process": { "key": "hr.leave-request", "version": 1, "name": { "en": "Leave request" }, "criticality": "standard" },
   "variables": [
-    { "name": "leave_type", "type": { "enum": ["annual", "sick", "unpaid", "other"] }, "classification": "internal", "required": true },
+    { "name": "leave_type", "type": "text", "classification": "internal", "required": true },
     { "name": "start_date", "type": "date", "classification": "internal", "required": true },
+    { "name": "start_half", "type": { "enum": ["full", "second_half"] }, "classification": "internal" },
     { "name": "end_date", "type": "date", "classification": "internal", "required": true },
+    { "name": "end_half", "type": { "enum": ["full", "first_half"] }, "classification": "internal" },
     { "name": "reason", "type": "text", "classification": "internal" }
   ],
   "nodes": [

@@ -127,6 +127,13 @@ async fn types(
                 .detail(format!("{other}: use mine or all")));
         }
     };
+    // A leave request's type is one of the workspace's leave types (BPMS-224), or the original four.
+    let leave_choices = match &s.hr {
+        Some(h) if listed.iter().any(|t| t.key == crate::hr_hooks::LEAVE) => {
+            Some(h.leave_choices(&mut tx).await.map_err(internal)?)
+        }
+        _ => None,
+    };
     tx.rollback().await.map_err(internal)?;
     let mut items = Vec::new();
     for t in &listed {
@@ -135,6 +142,14 @@ async fn types(
             "category": t.category, "icon": t.icon,
             "form": procera_requests::RequestType::priced(&t.start_form, &offer.currency),
         });
+        if let (true, Some(choices), Some(fields)) =
+            (t.key == crate::hr_hooks::LEAVE, &leave_choices, item["form"]["fields"].as_array_mut())
+            && let Some(f) = fields.iter_mut().find(|f| f["name"] == "leave_type")
+        {
+            f["type"] = json!("enum");
+            f["options"] =
+                json!(choices.iter().map(|(k, n)| json!({ "value": k, "label": n })).collect::<Vec<_>>());
+        }
         if all {
             item["enabled"] = json!(offer.enabled(&t.key));
             item["audience"] = serde_json::to_value(offer.audience(&t.key)?).map_err(internal)?;

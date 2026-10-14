@@ -230,6 +230,7 @@ pub const CONTRACT: &[Entry] = &[
     emits("PUT", "/api/v1/members/{id}/hr", &[&["member.hr_updated"]]),
     // HR: leave types, policies and balances (BPMS-223). Reading a balance writes due grants and
     // accruals: system ledger entries, not audited actions.
+    exempt("POST", "/api/v1/time-off/quote", "a read: counts the days of a leave request and checks it"),
     emits("POST", "/api/v1/leave-types", &[&["leave_type.created"]]),
     emits("PATCH", "/api/v1/leave-types/{id}", &[&["leave_type.updated"]]),
     emits("POST", "/api/v1/leave-types/defaults", &[&["leave_type.defaults_created"]]),

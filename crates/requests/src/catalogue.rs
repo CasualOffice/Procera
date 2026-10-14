@@ -281,7 +281,9 @@ const DEFS: &[Def] = &[
         labels: &[
             ("leave_type", "Type of leave"),
             ("start_date", "First day"),
+            ("start_half", "Half day at the start"),
             ("end_date", "Last day"),
+            ("end_half", "Half day at the end"),
             ("reason", "Reason"),
         ],
         files: &[("supporting_document", "Supporting document"), ("attachments", "Attachments")],
@@ -294,7 +296,7 @@ const DEFS: &[Def] = &[
         title: |v| {
             format!(
                 "{} leave, {} to {}",
-                capitalised(s(v, "leave_type")),
+                capitalised(&s(v, "leave_type").replace('_', " ")),
                 s(v, "start_date"),
                 s(v, "end_date")
             )
@@ -897,10 +899,11 @@ mod tests {
         }
         let leave = c.get("hr.leave-request").unwrap_or_else(|| panic!("leave"));
         let kinds: Vec<&str> = leave.start_form.fields.iter().map(|f| f.ty).collect();
-        assert_eq!(kinds, ["enum", "date", "date", "text", "file", "file"]);
-        assert!(leave.start_form.fields[5].multiple && !leave.start_form.fields[5].required);
-        assert_eq!(leave.task_forms["revise"].fields.len(), 6, "a sent-back request can change its files");
-        assert!(!leave.start_form.fields[3].required);
+        // The type is text: HR time off checks it against the workspace's leave types (BPMS-224).
+        assert_eq!(kinds, ["text", "date", "enum", "date", "enum", "text", "file", "file"]);
+        assert!(leave.start_form.fields[7].multiple && !leave.start_form.fields[7].required);
+        assert_eq!(leave.task_forms["revise"].fields.len(), 8, "a sent-back request can change its files");
+        assert!(!leave.start_form.fields[5].required && !leave.start_form.fields[2].required);
         let pr = c.get("fin.purchase-requisition").unwrap_or_else(|| panic!("pr"));
         assert_eq!(pr.start_form.fields[0].currency.as_deref(), Some("EUR"));
         assert!(pr.description("USD").contains("5,000 USD"));

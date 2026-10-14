@@ -276,7 +276,39 @@ impl Requests {
             .ok_or_else(|| RequestError::Internal(format!("{key} has no build for {}", offer.currency)))?;
         let form = RequestType::priced(&rt.start_form, &offer.currency);
         let vars =
-            self.values(tx, &form, input, false, "input", (actor.membership, &BTreeSet::new())).await?;
+            match self.values(tx, &form, input, false, "input", (actor.membership, &BTreeSet::new())).await {
+                Ok(v) => v,
+                // The domain's own checks on what was sent, so every problem shows at once (BPMS-224).
+                Err(RequestError::Invalid(mut errs)) => {
+                    if let Some(h) = self.hooks.get().cloned() {
+                        let raw: BTreeMap<String, Value> = input.clone().into_iter().collect();
+                        let more = h
+                            .check(
+                                tx,
+                                crate::hooks::HookRequest {
+                                    key,
+                                    id: None,
+                                    initiator: actor.membership,
+                                    vars: &raw,
+                                },
+                            )
+                            .await
+                            .map_err(RequestError::Internal)?;
+                        for e in more.into_iter().map(|e| e.under("input")) {
+                            if !errs.iter().any(|x| x.pointer == e.pointer) {
+                                errs.push(e);
+                            }
+                        }
+                        let order = |p: &str| {
+                            let name = p.trim_start_matches("/input/");
+                            form.fields.iter().position(|f| f.name == name).map_or(-1, |i| i as i64)
+                        };
+                        errs.sort_by_key(|e| order(&e.pointer));
+                    }
+                    return Err(RequestError::Invalid(errs));
+                }
+                Err(e) => return Err(e),
+            };
         let files = crate::attach::in_vars(&form, &vars);
         if let Some(check) = rt.check {
             let errs = check(&vars);
@@ -284,6 +316,19 @@ impl Requests {
                 return Err(RequestError::Invalid(errs.into_iter().map(|e| e.under("input")).collect()));
             }
         }
+        if let Some(h) = self.hooks.get().cloned() {
+            let errs = h
+                .check(
+                    tx,
+                    crate::hooks::HookRequest { key, id: None, initiator: actor.membership, vars: &vars },
+                )
+                .await
+                .map_err(RequestError::Internal)?;
+            if !errs.is_empty() {
+                return Err(RequestError::Invalid(errs.into_iter().map(|e| e.under("input")).collect()));
+            }
+        }
+        let hook_vars = vars.clone();
         let initiator = self.principal(tx, actor.membership).await?;
         put_calendar_if_absent(
             tx,
@@ -313,6 +358,15 @@ impl Requests {
             .await?;
         }
         let started = self.started(tx, a.instance_id).await?;
+        if let Some(h) = self.hooks.get().cloned() {
+            let r = crate::hooks::HookRequest {
+                key,
+                id: Some(a.instance_id),
+                initiator: actor.membership,
+                vars: &hook_vars,
+            };
+            h.status_changed(tx, r, None, &started.status).await.map_err(RequestError::Internal)?;
+        }
         crate::attach::link(tx, a.instance_id, &files, actor.membership, self.clock.now()).await?;
         self.audit(
             tx,

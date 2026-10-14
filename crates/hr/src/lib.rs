@@ -10,6 +10,7 @@ pub mod dates;
 pub mod days;
 pub mod import;
 pub mod leave;
+pub mod requests;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

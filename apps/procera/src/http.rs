@@ -326,6 +326,9 @@ impl AppState {
                 Arc::new(procera_kernel::UuidV7Gen),
                 &self.public_url,
             )?);
+            if let (Some(r), Some(hr)) = (&self.requests, &self.hr) {
+                r.set_hooks(Arc::new(crate::hr_hooks::HrHooks { hr: hr.clone(), clock: self.clock.clone() }));
+            }
         }
         Ok(self)
     }

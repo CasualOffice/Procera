@@ -7,6 +7,7 @@ use tracing_subscriber::EnvFilter;
 mod announcement_ack;
 mod audit_exports;
 mod bus;
+mod hr_hooks;
 mod http;
 mod reack;
 mod retention;

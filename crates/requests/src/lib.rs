@@ -20,6 +20,7 @@ pub mod email_actions;
 mod escalate;
 pub mod forms;
 pub mod handler;
+pub mod hooks;
 pub mod incidents;
 mod offer;
 pub mod policy;
@@ -137,6 +138,7 @@ pub struct Requests {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) ids: Arc<dyn IdGen>,
     pub(crate) effects: handler::Effects,
+    pub(crate) hooks: hooks::HookSlot,
 }
 
 impl std::fmt::Debug for Requests {
@@ -156,7 +158,9 @@ impl Requests {
         public_url: &str,
     ) -> Result<Self, String> {
         let catalogue = Arc::new(Catalogue::builtin()?);
+        let hooks: hooks::HookSlot = Arc::default();
         let effects = handler::Effects {
+            hooks: hooks.clone(),
             catalogue: catalogue.clone(),
             notify,
             ids: ids.clone(),
@@ -170,7 +174,12 @@ impl Requests {
         ]));
         let engine = Engine::new(db.clone(), clock.clone(), ids.clone(), programs)
             .with_effects(Arc::new(effects.clone()));
-        Ok(Self { db, engine, catalogue, members, clock, ids, effects })
+        Ok(Self { db, engine, catalogue, members, clock, ids, effects, hooks })
+    }
+
+    /// Installs the domain hooks (once; later calls are ignored).
+    pub fn set_hooks(&self, h: Arc<dyn hooks::RequestHooks>) {
+        let _ = self.hooks.set(h);
     }
 
     pub fn engine(&self) -> &Engine {
