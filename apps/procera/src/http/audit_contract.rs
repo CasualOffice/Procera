@@ -217,6 +217,17 @@ pub const CONTRACT: &[Entry] = &[
     ),
     emits("PUT", "/api/v1/sso", &[&["sso.configured"]]),
     emits("DELETE", "/api/v1/sso", &[&["sso.removed"]]),
+    // HR: locations and holidays (BPMS-222).
+    emits("POST", "/api/v1/work-locations", &[&["work_location.created"]]),
+    emits("PATCH", "/api/v1/work-locations/{id}", &[&["work_location.updated"]]),
+    emits("POST", "/api/v1/holiday-calendars", &[&["holiday_calendar.created"]]),
+    emits("PATCH", "/api/v1/holiday-calendars/{id}", &[&["holiday_calendar.updated"]]),
+    emits("DELETE", "/api/v1/holiday-calendars/{id}", &[&["holiday_calendar.deleted"]]),
+    emits("PUT", "/api/v1/holiday-calendars/{id}/holidays/{date}", &[&["holiday.set"]]),
+    emits("DELETE", "/api/v1/holiday-calendars/{id}/holidays/{date}", &[&["holiday.removed"]]),
+    emits("POST", "/api/v1/holiday-calendars/{id}/import", &[&["holiday_calendar.imported"]]),
+    emits("POST", "/api/v1/holiday-calendars/{id}/copy-year", &[&["holiday_calendar.year_copied"]]),
+    emits("PUT", "/api/v1/members/{id}/hr", &[&["member.hr_updated"]]),
     // Email-actionable approvals (BPMS-145): the decision's own records plus the email marker.
     emits(
         "POST",
@@ -439,6 +450,7 @@ mod tests {
             ("/api/v1", include_str!("webhooks.rs")),
             ("/api/v1", include_str!("email_actions.rs")),
             ("/api/v1", include_str!("sso.rs")),
+            ("/api/v1", include_str!("hr.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

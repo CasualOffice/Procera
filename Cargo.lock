@@ -2956,6 +2956,7 @@ dependencies = [
  "procera-db",
  "procera-engine",
  "procera-files",
+ "procera-hr",
  "procera-identity",
  "procera-kernel",
  "procera-keys",
@@ -3172,6 +3173,21 @@ dependencies = [
  "uuid",
  "zeroize",
  "zip",
+]
+
+[[package]]
+name = "procera-hr"
+version = "0.0.0"
+dependencies = [
+ "procera-db",
+ "procera-kernel",
+ "proptest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "time",
+ "uuid",
 ]
 
 [[package]]

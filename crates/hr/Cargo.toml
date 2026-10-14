@@ -1,0 +1,25 @@
+[package]
+name = "procera-hr"
+description = "HR time and attendance (docs/25): work locations, holiday calendars, leave day counting; later policies, balances, rosters and attendance."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+procera-db.workspace = true
+procera-kernel.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "postgres", "uuid", "json", "time", "macros"] }
+thiserror.workspace = true
+time = { workspace = true }
+uuid.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+
+[lints]
+workspace = true

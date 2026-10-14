@@ -19,6 +19,7 @@ pub mod email_actions;
 pub mod encryption;
 pub mod error;
 pub mod files;
+pub mod hr;
 pub mod library;
 pub mod notifications;
 pub mod overview;
@@ -90,6 +91,8 @@ pub struct AppState {
     pub webhooks: Option<procera_webhooks::Webhooks>,
     /// Single sign-on (BPMS-140).
     pub sso: Option<procera_sso::Sso>,
+    /// HR time and attendance (docs/25, BPMS-222..).
+    pub hr: Option<procera_hr::Hr>,
     /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
     pub mailers: Option<procera_notify::Mailers>,
     /// What the system console reports about storage, scanning and the public URL (read-only).
@@ -258,6 +261,7 @@ impl AppState {
                 self.clock.clone(),
                 Arc::new(procera_kernel::UuidV7Gen),
             ));
+            self.hr = Some(procera_hr::Hr::new(self.clock.clone(), Arc::new(procera_kernel::UuidV7Gen)));
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
@@ -349,6 +353,7 @@ impl AppState {
             signing: None,
             webhooks: None,
             sso: None,
+            hr: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -388,6 +393,7 @@ impl AppState {
             signing: None,
             webhooks: None,
             sso: None,
+            hr: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -435,6 +441,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", webhooks::router())
         .nest("/api/v1", email_actions::router())
         .nest("/api/v1", sso::router())
+        .nest("/api/v1", hr::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))
