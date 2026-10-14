@@ -40,7 +40,7 @@ pub fn router() -> Router<AppState> {
         .route("/me/mfa/webauthn/{id}", delete(remove_passkey))
 }
 
-fn identity(s: &AppState) -> Result<&Identity, ApiError> {
+pub(crate) fn identity(s: &AppState) -> Result<&Identity, ApiError> {
     s.identity.as_ref().ok_or_else(|| ApiError::unavailable("database"))
 }
 
@@ -69,7 +69,7 @@ fn cookie_name(s: &AppState) -> &'static str {
     if s.secure_cookies { "__Host-procera_refresh" } else { "procera_refresh" }
 }
 
-fn refresh_cookie(s: &AppState, value: &str, max_age: Duration) -> HeaderValue {
+pub(crate) fn refresh_cookie(s: &AppState, value: &str, max_age: Duration) -> HeaderValue {
     let secure = if s.secure_cookies { "; Secure" } else { "" };
     HeaderValue::from_str(&format!(
         "{}={value}; Path=/; HttpOnly; SameSite=Strict; Max-Age={}{secure}",

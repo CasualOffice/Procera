@@ -31,6 +31,7 @@ pub mod retention;
 pub mod search;
 pub mod settings;
 pub mod signing;
+pub mod sso;
 pub mod system;
 pub mod system_console;
 pub mod system_email;
@@ -87,6 +88,8 @@ pub struct AppState {
     pub signing: Option<procera_signing::Signing>,
     /// Outgoing webhooks (BPMS-143).
     pub webhooks: Option<procera_webhooks::Webhooks>,
+    /// Single sign-on (BPMS-140).
+    pub sso: Option<procera_sso::Sso>,
     /// The SMTP transport in use: `PROCERA_SMTP_URL`, else the platform email settings (BPMS-065).
     pub mailers: Option<procera_notify::Mailers>,
     /// What the system console reports about storage, scanning and the public URL (read-only).
@@ -244,6 +247,17 @@ impl AppState {
                 Arc::new(procera_kernel::UuidV7Gen),
             );
             self.webhooks = Some(webhooks.clone());
+            self.sso = Some(procera_sso::Sso::new(
+                db.clone(),
+                procera_keys::Keys::new(
+                    db.clone(),
+                    keys.clone(),
+                    self.clock.clone(),
+                    Arc::new(procera_kernel::UuidV7Gen),
+                ),
+                self.clock.clone(),
+                Arc::new(procera_kernel::UuidV7Gen),
+            ));
             let bus = crate::bus::AppBus {
                 db: db.clone(),
                 members: members.clone(),
@@ -334,6 +348,7 @@ impl AppState {
             requests: None,
             signing: None,
             webhooks: None,
+            sso: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -372,6 +387,7 @@ impl AppState {
             requests: None,
             signing: None,
             webhooks: None,
+            sso: None,
             mailers: None,
             platform_info: PlatformInfo::default(),
             public_url: "http://127.0.0.1:8080".into(),
@@ -418,6 +434,7 @@ pub fn router(state: AppState) -> Router {
         .nest("/api/v1", signing::router())
         .nest("/api/v1", webhooks::router())
         .nest("/api/v1", email_actions::router())
+        .nest("/api/v1", sso::router())
         .nest("/sysapi/v1", system::router())
         .layer(axum::middleware::from_fn_with_state(state.clone(), probe::audit_not_found))
         .layer(axum::middleware::from_fn_with_state(state.clone(), tokens::layer))

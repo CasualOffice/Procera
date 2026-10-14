@@ -2968,6 +2968,7 @@ dependencies = [
  "procera-search",
  "procera-settings",
  "procera-signing",
+ "procera-sso",
  "procera-webhooks",
  "rust_xlsxwriter",
  "serde",
@@ -3460,6 +3461,28 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "procera-sso"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "jsonwebtoken",
+ "procera-crypto",
+ "procera-db",
+ "procera-kernel",
+ "procera-keys",
+ "procera-webhooks",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sqlx",
+ "thiserror",
+ "time",
  "tracing",
  "uuid",
 ]

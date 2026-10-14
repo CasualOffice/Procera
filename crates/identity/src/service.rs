@@ -441,6 +441,38 @@ impl Identity {
         Ok(LoginOutcome::Authenticated(Box::new(tokens)))
     }
 
+    /// Signs in through a workspace's identity provider (BPMS-140): the provider vouched for the user,
+    /// so the session opens straight in `workspace` with `amr` `sso` (and `mfa` when the provider
+    /// reported a second factor).
+    pub async fn sso_login(
+        &self,
+        user_id: Uuid,
+        workspace: Uuid,
+        provider_mfa: bool,
+        client: &ClientInfo,
+    ) -> Result<Tokens, IdentityError> {
+        let mut tx = self.db.begin_system().await?;
+        let user = self.load_user(&mut tx, user_id).await?.ok_or(IdentityError::InvalidCredentials)?;
+        if user.status != "active" {
+            return Err(IdentityError::InvalidCredentials);
+        }
+        let amr: &[&str] = if provider_mfa { &["sso", "mfa"] } else { &["sso"] };
+        let tokens =
+            self.issue(&mut tx, &user, None, "workspace", Some(workspace), amr, self.now(), client).await?;
+        let reason = format!("workspace {workspace}");
+        self.audit(
+            &mut tx,
+            Some(user.subject_ref),
+            "login.sso_succeeded",
+            Outcome::Allowed,
+            client,
+            Some(&reason),
+        )
+        .await?;
+        tx.commit().await?;
+        Ok(tokens)
+    }
+
     /// Second factor: TOTP code or a single-use recovery code.
     pub async fn complete_mfa(
         &self,

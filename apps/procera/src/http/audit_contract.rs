@@ -208,6 +208,15 @@ pub const CONTRACT: &[Entry] = &[
     emits("POST", "/api/v1/envelopes/{id}/remind", &[&["envelope.reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/remind", &[&["envelope.batch_reminded"], &[]]),
     emits("POST", "/api/v1/envelope-batches/{id}/void", &[&["envelope.batch_voided"], &[]]),
+    // Single sign-on (BPMS-140): provider settings; finding workspaces for an email is a read
+    // (signing in itself is audited on the system chain as login.sso_succeeded).
+    exempt(
+        "POST",
+        "/api/v1/auth/sso/discover",
+        "a read: which workspaces' providers vouch for an email domain",
+    ),
+    emits("PUT", "/api/v1/sso", &[&["sso.configured"]]),
+    emits("DELETE", "/api/v1/sso", &[&["sso.removed"]]),
     // Email-actionable approvals (BPMS-145): the decision's own records plus the email marker.
     emits(
         "POST",
@@ -429,6 +438,7 @@ mod tests {
             ("/api/v1", include_str!("signing.rs")),
             ("/api/v1", include_str!("webhooks.rs")),
             ("/api/v1", include_str!("email_actions.rs")),
+            ("/api/v1", include_str!("sso.rs")),
             ("/sysapi/v1", include_str!("system.rs")),
             ("/sysapi/v1", include_str!("system_console.rs")),
             ("/sysapi/v1", include_str!("system_email.rs")),

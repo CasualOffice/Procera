@@ -251,6 +251,71 @@ pub async fn post(
     })
 }
 
+/// A response kept whole (up to 1 MB): discovery documents, key sets, token answers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Full {
+    pub status: u16,
+    pub body: Vec<u8>,
+}
+
+const MAX_FULL: usize = 1024 * 1024;
+
+fn client(target: &Target, addr: SocketAddr) -> Result<reqwest::Client, EgressError> {
+    reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(TIMEOUT)
+        .connect_timeout(Duration::from_secs(5))
+        .resolve(&target.host, addr)
+        .no_proxy()
+        .user_agent("Procera/1")
+        .build()
+        .map_err(|e| EgressError::Failed(e.to_string()))
+}
+
+async fn read_full(mut res: reqwest::Response) -> Result<Full, EgressError> {
+    let status = res.status().as_u16();
+    let mut body = Vec::new();
+    while let Some(c) =
+        res.chunk().await.map_err(|_| EgressError::Failed("the response was cut off".into()))?
+    {
+        if body.len() + c.len() > MAX_FULL {
+            return Err(EgressError::Failed("the response is too large".into()));
+        }
+        body.extend_from_slice(&c);
+    }
+    Ok(Full { status, body })
+}
+
+/// GETs `target` from the checked address `addr` (no redirects, 10 s, ≤ 1 MB).
+pub async fn get(target: &Target, addr: SocketAddr) -> Result<Full, EgressError> {
+    let res = client(target, addr)?
+        .get(target.url.clone())
+        .header("accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| {
+            EgressError::Failed(if e.is_timeout() { "timed out".into() } else { "couldn't connect".into() })
+        })?;
+    read_full(res).await
+}
+
+/// POSTs `body` to `target` from `addr` and keeps the whole answer (≤ 1 MB).
+pub async fn post_full(
+    target: &Target,
+    addr: SocketAddr,
+    headers: &[(String, String)],
+    body: Vec<u8>,
+) -> Result<Full, EgressError> {
+    let mut req = client(target, addr)?.post(target.url.clone()).body(body);
+    for (k, v) in headers {
+        req = req.header(k, v);
+    }
+    let res = req.send().await.map_err(|e| {
+        EgressError::Failed(if e.is_timeout() { "timed out".into() } else { "couldn't connect".into() })
+    })?;
+    read_full(res).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -151,7 +151,8 @@ impl FromRequestParts<AppState> for WsMember {
         }
         // MFA required by role (docs/20 §2.3 auth.mfa.required_roles, ⚡: read from the database).
         // An API token counts: making one needed a recent sign-in that met this rule (step-up).
-        let has_mfa = claims.amr.iter().any(|a| a == "otp" || a == "hwk" || a == "token");
+        // Single sign-on counts too: the identity provider applies its own second-factor policy.
+        let has_mfa = claims.amr.iter().any(|a| a == "otp" || a == "hwk" || a == "token" || a == "sso");
         if !has_mfa {
             let required =
                 super::settings::settings(s)?.effective(&mut tx, "auth.mfa.required_roles").await?.value;
@@ -175,6 +176,42 @@ impl FromRequestParts<AppState> for WsMember {
                     "This workspace requires multi-factor authentication for your role",
                 )
                 .detail("Enrol at POST /api/v1/me/mfa/totp, then sign in again."));
+            }
+        }
+        // Single sign-on required (BPMS-140): a session that didn't come through the provider is
+        // refused, except for owners (break-glass) and API tokens.
+        if !claims.amr.iter().any(|a| a == "sso" || a == "token") {
+            let key = procera_cache::CacheKey::system(&format!("sso-required:{ws}"));
+            let required = match s.cache.get(&key).await.and_then(|b| String::from_utf8(b).ok()) {
+                Some(v) => v == "1",
+                None => {
+                    let r: bool = sqlx::query_scalar(
+                        "SELECT COALESCE((SELECT enabled AND required FROM sso_configs), false)",
+                    )
+                    .fetch_one(tx.conn())
+                    .await
+                    .map_err(|e| MembersError::Internal(e.to_string()))?;
+                    s.cache.set(&key, if r { b"1" } else { b"0" }, std::time::Duration::from_secs(30)).await;
+                    r
+                }
+            };
+            if required {
+                let owner: bool = sqlx::query_scalar(
+                    "SELECT EXISTS (SELECT 1 FROM role_grants g JOIN roles r ON r.workspace_id = g.workspace_id AND r.id = g.role_id
+                      WHERE r.key = 'workspace.owner' AND g.membership_id = $1 AND (g.expires_at IS NULL OR g.expires_at > now()))",
+                )
+                .bind(membership)
+                .fetch_one(tx.conn())
+                .await
+                .map_err(|e| MembersError::Internal(e.to_string()))?;
+                if !owner {
+                    return Err(ApiError::new(
+                        403,
+                        "sso_required",
+                        "This workspace signs in through its identity provider",
+                    )
+                    .detail("Sign out, then choose “Sign in with SSO”."));
+                }
             }
         }
         tx.rollback().await.map_err(|e| MembersError::Internal(e.to_string()))?;
