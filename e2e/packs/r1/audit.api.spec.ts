@@ -272,6 +272,18 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/auth/sso/discover', () => own.post('/api/v1/auth/sso/discover', { headers: oh, data: { email: 'someone@audit-sso.test' } }));
   await step('DELETE', '/api/v1/sso', () => own.delete('/api/v1/sso', { headers: oh }));
   await idp.close();
+  // HR locations and holidays (BPMS-222): a calendar with holidays, a location on it, a member's HR record.
+  const hcal = await (await step('POST', '/api/v1/holiday-calendars', () => own.post('/api/v1/holiday-calendars', { headers: oh, data: { name: 'Audit holidays' } }))).json();
+  await step('PATCH', '/api/v1/holiday-calendars/{id}', () => own.patch(`/api/v1/holiday-calendars/${hcal.id}`, { headers: oh, data: { name: 'Audit holidays 2' } }));
+  await step('PUT', '/api/v1/holiday-calendars/{id}/holidays/{date}', () => own.put(`/api/v1/holiday-calendars/${hcal.id}/holidays/2030-01-01`, { headers: oh, data: { name: 'New Year' } }));
+  await step('DELETE', '/api/v1/holiday-calendars/{id}/holidays/{date}', () => own.delete(`/api/v1/holiday-calendars/${hcal.id}/holidays/2030-01-01`, { headers: oh }));
+  await step('POST', '/api/v1/holiday-calendars/{id}/import', () => own.post(`/api/v1/holiday-calendars/${hcal.id}/import`, { headers: oh, data: { text: '2030-12-25,Christmas' } }));
+  await step('POST', '/api/v1/holiday-calendars/{id}/copy-year', () => own.post(`/api/v1/holiday-calendars/${hcal.id}/copy-year`, { headers: oh, data: { from: 2030, to: 2031 } }));
+  const wloc = await (await step('POST', '/api/v1/work-locations', () => own.post('/api/v1/work-locations', { headers: oh, data: { name: 'Audit office', timezone: 'Europe/London', holiday_calendar_id: hcal.id } }))).json();
+  await step('PATCH', '/api/v1/work-locations/{id}', () => own.patch(`/api/v1/work-locations/${wloc.id}`, { headers: oh, data: { name: 'Audit office', timezone: 'Europe/London', work_week: [1, 2, 3, 4], holiday_calendar_id: null } }));
+  const myMembership = (await (await own.get('/api/v1/me/permissions', { headers: oh })).json()).membership_id as string;
+  await step('PUT', '/api/v1/members/{id}/hr', () => own.put(`/api/v1/members/${myMembership}/hr`, { headers: oh, data: { employee_no: 'AUD-1', work_location_id: wloc.id } }));
+  await step('DELETE', '/api/v1/holiday-calendars/{id}', () => own.delete(`/api/v1/holiday-calendars/${hcal.id}`, { headers: oh }));
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
   await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));

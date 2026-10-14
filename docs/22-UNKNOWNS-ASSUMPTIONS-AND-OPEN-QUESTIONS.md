@@ -25,8 +25,8 @@ Purpose: to make sure **nothing turns into a wild card**. Every uncertainty that
 | OQ-15 | ~~Forgotten passwords~~ **Decided 2026-10-12 (owner): option A.** Self-service "Forgot password?" by email link, change password while signed in, and admin controls (send reset link, require a password change at next sign-in, sign out everywhere, reset two-step verification). Designed in docs/06 §3.6.1; two-step verification is kept on reset (A-39). | — | Product owner | Closed |
 | OQ-16 | IR v1 fixes an approval's outcomes (approve, reject, send back). Should process owners choose which ones a step offers (e.g. an approval with no send-back), which needs an IR change (`outcomes` on `human.approval` meaning "only these")? Raised by the Guided Studio (0.3). | Keep the fixed three for 0.3; the studio shows them read-only | Product owner | 0.4 |
 | OQ-17 | Leave years: the calendar year for everyone, or a start month per policy (e.g. April for Indian financial years)? (docs/25 §12) | Per policy in the model (`year_start_month`), defaulting to the workspace setting; the policy screen shows it only when it differs | Product owner | 0.5 |
-| OQ-18 | Clock-in from outside the office: allowed by default (IP recorded), or only from allow-listed networks? (docs/25 §12) | Allowed, IP shown on the day; optional `attendance.ip_allowlist` setting | Product owner | 0.5 |
-| OQ-19 | A holiday added after leave was approved over that date: re-credit automatically or leave it to HR? (docs/25 §12) | Re-credit automatically with a ledger entry and a notification to the person | Product owner | 0.5 |
+| OQ-18 | ~~Clock-in from outside the office~~ **Decided 2026-10-14 (owner): allowed by default**, the IP recorded and shown on the day; an optional `attendance.ip_allowlist` setting restricts it. | — | Product owner | Closed |
+| OQ-19 | ~~A holiday added after leave was approved over that date~~ **Decided 2026-10-14 (owner): re-credit automatically** with a ledger entry and a notification to the person. | — | Product owner | Closed |
 
 ## 2. Technical unknowns (resolved by spikes or research)
 

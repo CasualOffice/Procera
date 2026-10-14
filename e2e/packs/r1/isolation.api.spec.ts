@@ -30,7 +30,15 @@ test.describe('R1 isolation sweep @r1 @security', () => {
     const me = await (await a.owner.c.get('/api/v1/me/permissions', { headers: h })).json();
     const owner = me.membership_id as string;
 
+    const hcal = await (await a.owner.c.post('/api/v1/holiday-calendars', { headers: h, data: { name: 'A holidays' } })).json();
+    const wloc = await (await a.owner.c.post('/api/v1/work-locations', { headers: h, data: { name: 'A office', timezone: 'UTC' } })).json();
     const probes: [string, string, unknown?][] = [
+      ['GET', `/api/v1/work-locations/${wloc.id}`],
+      ['PATCH', `/api/v1/work-locations/${wloc.id}`, { name: 'taken', timezone: 'UTC' }],
+      ['GET', `/api/v1/holiday-calendars/${hcal.id}`],
+      ['GET', `/api/v1/holiday-calendars/${hcal.id}/holidays?year=2030`],
+      ['PUT', `/api/v1/holiday-calendars/${hcal.id}/holidays/2030-01-01`, { name: 'taken' }],
+      ['GET', `/api/v1/members/${owner}/hr`],
       ['GET', `/api/v1/artifacts/${doc.artifact.id}`],
       ['GET', `/api/v1/versions/${doc.version.id}`],
       ['GET', `/api/v1/versions/${doc.version.id}/export?format=html`],

@@ -139,8 +139,8 @@ Sensitive types (sick, medical, parental by default) also appear as "Out" in not
 anyone but the person, their manager and HR. Webhook events carry ids and dates, never the type.
 
 New permissions (docs/12 catalogue): `time_off:request`, `time_off:view_all`, `time_off:manage_policies`,
-`time_off:adjust_balances`, `holiday:manage`, `attendance:punch`, `attendance:view_all`,
-`attendance:manage_rosters`, `attendance:regularize_any`, `attendance:close_period`. Manager visibility
+`time_off:adjust_balances`, `attendance:punch`, `attendance:view_all`,
+`attendance:manage_rosters`, `attendance:regularize_any`, `attendance:close_period`. Locations and holiday calendars use the existing `calendar:manage` (reads: `directory:view`); HR records use `directory:manage`. Manager visibility
 comes from the reporting line (a new `reports_to` relation evaluated in Cedar), not from a role.
 Built-in role templates gain an **HR administrator** with all of the above; **Member** gets
 `time_off:request` and `attendance:punch`.

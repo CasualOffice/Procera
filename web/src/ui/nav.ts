@@ -1,9 +1,9 @@
-import { Activity, Archive, Bell, BookOpen, ClipboardCheck, FileCheck, FilePlus2, Files, FileSignature, FileText, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, ListChecks, Megaphone, Network, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, type LucideIcon, UserCog, UserPlus, Users, UsersRound, Webhook, Workflow } from 'lucide-react';
+import { Activity, Archive, Bell, BookOpen, CalendarDays, ClipboardCheck, FileCheck, FilePlus2, Files, FileSignature, FileText, Gauge, History, House, Inbox, KeyRound, LayoutTemplate, ListChecks, Megaphone, Network, ScrollText, Send, Settings, ShieldCheck, SlidersHorizontal, SquarePen, type LucideIcon, UserCog, UserPlus, Users, UsersRound, Webhook, Workflow } from 'lucide-react';
 import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns' | 'documents'
-  | 'admin' | 'webhooks' | 'sso' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'webhooks' | 'sso' | 'holidays' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -38,6 +38,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
     ]) },
     { label: 'People', items: pick([
       any('member:invite', 'role:view') && { key: 'members', label: 'Members', to: '/admin/members', icon: Users, keywords: 'people users invite' },
+      (can('calendar:manage') || can('directory:manage')) && { key: 'holidays', label: 'Holidays and locations', to: '/admin/holidays', icon: CalendarDays, keywords: 'holiday holidays calendar public bank location office site time zone work week working days' },
       can('directory:manage') && { key: 'departments', label: 'Departments', to: '/admin/departments', icon: Network, keywords: 'org chart teams hierarchy head structure' },
       can('directory:manage') && { key: 'groups', label: 'Groups', to: '/admin/groups', icon: UsersRound, keywords: 'sets teams fire wardens auditors audience' },
       can('role:view') && { key: 'roles', label: 'Roles & access', to: '/admin/roles', icon: UserCog, keywords: 'permissions custom role grant scope expiry rbac' },

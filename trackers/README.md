@@ -9,9 +9,9 @@
 Overall   ██████████████░░░░░░░░░░░░░░░░  61/135 epics done  (45%)
 Partial   ██████████████░░░░░░░░░░░░░░░░  47% counting in-progress epics as half done
 Tests     280 automated E2E scenarios · 454 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 5 · blocked 0 · not started 69 · deferred 0
+Status    done 61 · in review 0 · in progress 6 · blocked 0 · not started 68 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 53 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 54 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -39,6 +39,7 @@ Evidence  automated tests 53 · code merged 13  (separate from status; none user
 | BPMS-143 | Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events | **In progress** | Automated tests | Outgoing webhooks (0.4, migration 0052, crate procera-webhooks): endpoints with sealed whsec_ secrets (roll keeps the previous for 24 h), a public catalogue of 15 thin events (requests, documents, announcements, acknowledgements, memberships, signatures) queued by the outbox bus, Standard Webhooks v1 signatures, an in-process SSRF guard (resolve, block non-public ranges, pinned address, no redirects, 10 s, 4 KB kept; PROCERA_EGRESS_ALLOW for internal ranges), retries 1 m to 12 h then failed, 410 / three failures turn an endpoint off and notify its creator, delivery log with replay and test events; Admin › Webhooks page; developer docs page. E2E-R4-WH-01..03, E2E-R4-UI-06, AUD-01. Remaining: inbound webhooks and the HTTP connector (with connectors), Ed25519 v1a. |
 | BPMS-144 | Public API hardening, OpenAPI, CLI, TS/Python SDKs | **In progress** | Automated tests | Personal API tokens (0.4 slice 1, migration 0049): prc_live_<lookup>_<secret>, HMAC under a root-derived key, last 4 shown, 1-365 days, step-up to create, permissions ⊆ the creator's; requests act as the creator with every Access::check narrowed by a task-local token scope (only for the creator); never auth/session/account/token management, decisions, delegation, acknowledgements; last used time and address; revoke own or anyone's (api_token:manage); Account › API tokens page with a read-only preset and show-once dialog. E2E-R4-TOK-01..02 (+R4-11), E2E-R4-UI-01, AUD-01. Next: webhooks, OpenAPI document, CLI. |
 | BPMS-145 | Email-actionable approvals, reply-by-email, web push | **In progress** | Automated tests | Email-actionable approvals (0.4, migration 0053): plain approval steps email each candidate Approve/Reject links (single use, SHA-256 stored, due date or 7 days, every link of the step spent on use, workspace switch notify.email_actions.enabled); a signed-out confirm page shows the request, its open answers and who decides, never decides on GET, and decides once through the normal path (audit work.decided_by_email). E2E-R4-EA-01..02, E2E-R4-UI-07, AUD-01. Remaining: reply-by-email, web push. |
+| BPMS-222 | 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them | **In progress** | Automated tests | Slice 1 (0.5, migration 0055, crate procera-hr): holiday calendars with optional holidays, CSV/iCal import, copy a year; work locations (IANA zone checked by Postgres, work week, day hours, calendar), archived only when empty; member HR records (employee no., type, location, start, probation); free-text profile locations become work locations (trigger); /me/holidays; leave day counting kernel (half days, sandwich rule, roster overrides; property tests); Admin › Holidays and locations. E2E-R5-HR-01, E2E-R5-UI-01, AUD-01. Remaining: engine business calendars from locations, Home holiday card, profile location picker. |
 
 ## Done
 
@@ -253,7 +254,7 @@ _SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (
 
 _docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)_
 
-- [ ] **BPMS-222** (P1, M) 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them
+- [ ] **BPMS-222** (P1, M) 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them **[In progress]**
 - [ ] **BPMS-223** (P1, L) 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments
 - [ ] **BPMS-224** (P1, L) 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page
 - [ ] **BPMS-225** (P1, M) 0.5 HR: team calendar (who's out, privacy) and org chart
@@ -324,7 +325,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 338 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 340 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 19 / 16 / 50 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |
