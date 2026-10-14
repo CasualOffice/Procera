@@ -4,6 +4,7 @@ import { softAuthenticator } from '../../fixtures/passkey';
 import { totp } from '../../fixtures/totp';
 import { freshAuth } from '../../fixtures/workspace';
 import { pdfPages, upload } from '../../fixtures/files';
+import { oidcProvider } from '../../fixtures/oidc';
 
 // E2E-R1-AUD-01 — audit coverage contract (FR-T01, BPMS-026). Calls every mutating route once and checks
 // the audit events it appended against the route table served by /__test/audit/contract. Events are
@@ -265,6 +266,12 @@ test('E2E-R1-AUD-01 every mutating route appends exactly its contracted audit ev
   await step('POST', '/api/v1/webhooks/deliveries/{id}/replay', () => own.post(`/api/v1/webhooks/deliveries/${tested.id}/replay`, { headers: oh }));
   await step('POST', '/api/v1/webhooks/{id}/rotate-secret', () => own.post(`/api/v1/webhooks/${hook.id}/rotate-secret`, { headers: oh }));
   await step('DELETE', '/api/v1/webhooks/{id}', () => own.delete(`/api/v1/webhooks/${hook.id}`, { headers: oh }));
+  // Single sign-on (BPMS-140): set the provider (its discovery document answers), then remove it.
+  const idp = await oidcProvider({ clientId: 'procera', clientSecret: 'audit' });
+  await step('PUT', '/api/v1/sso', () => own.put('/api/v1/sso', { headers: oh, data: { issuer: idp.issuer, client_id: 'procera', client_secret: 'audit', domains: ['audit-sso.test'] } }));
+  await step('POST', '/api/v1/auth/sso/discover', () => own.post('/api/v1/auth/sso/discover', { headers: oh, data: { email: 'someone@audit-sso.test' } }));
+  await step('DELETE', '/api/v1/sso', () => own.delete('/api/v1/sso', { headers: oh }));
+  await idp.close();
   // API tokens (BPMS-144): create, revoke as owner, revoke as admin (a repeat is a no-op).
   const tok = await (await step('POST', '/api/v1/me/api-tokens', () => own.post('/api/v1/me/api-tokens', { headers: oh, data: { name: 'Audit token', permissions: ['request:view_own'] } }))).json();
   await step('DELETE', '/api/v1/me/api-tokens/{id}', () => own.delete(`/api/v1/me/api-tokens/${tok.id}`, { headers: oh }));

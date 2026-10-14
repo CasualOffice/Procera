@@ -36,7 +36,7 @@ async function passwordSignIn(page: Page, email: string, password: string) {
   await page.goto(`${WEB}/sign-in`);
   await page.getByRole('textbox', { name: 'Work email' }).fill(email);
   await page.getByRole('textbox', { name: 'Password', exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
 
 const home = (page: Page) => expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();

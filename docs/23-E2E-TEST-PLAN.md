@@ -439,7 +439,7 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 
 | ID | Scenario | Proves |
 |---|---|---|
-| E2E-R4-01 | OIDC SSO via Keycloak; SSO enforcement blocks local login except break-glass owner | FR-P02 |
+| E2E-R4-01 | (in E2E-R4-SSO-01..02, UI-08) OIDC SSO via a standards-conformant provider (a mock OIDC provider in e2e; Keycloak in the interop pack later); SSO enforcement blocks local login except break-glass owner | FR-P02 |
 | E2E-R4-02 | SCIM create/update/deactivate → access revoked and work re-routed < 5 min | INT-003, SEC-04 |
 | E2E-R4-03 | Scoped admin (Finance dept) cannot see or grant outside scope; escalation attempt denied | CFG-018 |
 | E2E-R4-04 | (in E2E-R4-WH-01..03) Webhook delivered with valid Standard Webhooks signature; replay outside tolerance rejected by receiver; retries on 500; disabled on 410 | WH-01–04 |
@@ -464,6 +464,9 @@ Implemented in `e2e/packs/r1/campaigns.api.spec.ts`, `announcements.api.spec.ts`
 | E2E-R4-EA-01 | API: the manager's leave approval email carries a link; reading it (twice) decides nothing and shows who decides; rejecting without a reason and nonsense outcomes refused; approving decides once (request approved, decided by the manager); a second use is 409 and the page says used; unknown tokens 404 | FR-N03, E2E-R4-06 |
 | E2E-R4-EA-02 | API: a step decided in My work closes its link (409); with `notify.email_actions.enabled` off the next email has no link | FR-N03 |
 | E2E-R4-UI-07 | Browser, signed out: the Reject link opens the confirm page with the request, its answers and “deciding as”; Reject stays off until a reason; confirming rejects with that comment; opening the link again says it was used; axe | FR-N03 |
+| E2E-R4-SSO-01 | API: a provider whose discovery doesn't answer is refused (422); saving stores domains lower-cased and never returns the secret; discover finds the workspace for a trusted-domain email and nothing for others; a member signs in through the provider (code + PKCE + nonce) into the workspace with `amr` `sso`,`mfa`; the same state can't be reused; a later sign-in matches by subject although the email changed; a wrong nonce, an unverified email, an untrusted domain and a non-member are each sent back to sign-in with the reason | FR-P02, E2E-R4-01 |
+| E2E-R4-SSO-02 | API: with SSO required, a member's earlier password session is refused (403 `sso_required`) while the owner's still works (break-glass); signing in through the provider works; removing SSO lets the password session back in | FR-P02, E2E-R4-01 |
+| E2E-R4-UI-08 | Browser: Admin › Single sign-on shows the redirect URL; the owner sets issuer, client, secret and domain and saves (the secret field then says Saved); signed out, a member chooses Sign in with SSO, enters their email, and an unverified email comes back with the reason; then they go through the provider and land in the workspace; axe | BPMS-140 |
 | E2E-R4-TOK-01 | API: a personal token (`prc_live_…`, shown once) reads within its permissions; refused outside them (members, audit), for decisions, the account and token management; a wrong secret is 401; last used is recorded; revoked → 401 at once | 06 §3.5, BPMS-144 |
 | E2E-R4-TOK-02 | API: a member can't give a token permissions they lack (403) or unknown ones (422), nor list or revoke others' tokens | 12 §4 |
 | E2E-R4-UI-01 | Browser: Account › API tokens — make a read-only token, copy it from the show-once dialog, a script reads with it and is refused an invite, revoke it in the list → 401; axe | BPMS-144 |

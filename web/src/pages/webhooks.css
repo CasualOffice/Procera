@@ -18,5 +18,3 @@
 .hook-deliveries-head { display: flex; align-items: center; justify-content: space-between; }
 .hook-deliveries-head h3 { margin: 0; font-size: 0.875rem; }
 .hook-payload { margin: var(--space-2) 0 0; padding: var(--space-3); max-width: 40rem; overflow: auto; font-family: var(--font-mono); font-size: 0.75rem; background: var(--color-bg); border: 1px solid var(--line); border-radius: 0.5rem; white-space: pre-wrap; }
-.link-button { background: none; border: 0; padding: 0; font: inherit; color: var(--color-link, inherit); cursor: pointer; text-decoration: underline; text-underline-offset: 0.15em; }
-.link-button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }

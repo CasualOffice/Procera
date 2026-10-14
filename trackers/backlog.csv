@@ -85,7 +85,7 @@ BPMS-218,FILE,"Separate preview origin for file previews (own domain/host, cooki
 BPMS-219,DES,"Designer next: editable parallel and notify steps, connect on the canvas, owner-chosen approval outcomes (OQ-16), review in the designer",P1,R3,FE,FR-E01/E11,Every built-in editable in the studio,L,BPMS-100,Not started,—
 BPMS-220,FORM,"Form builder next: form artifacts, calculated fields, repeating groups, prefill, lookups, sections, preview as a role, PDF of submission",P1,R3,Fullstack,"FR-E03, FX-F01–F04",Server = client validation,L,BPMS-101,Not started,—
 BPMS-221,LIB,"Dependents to update: when an SOP or policy a published process pins gets a new version, list the processes to republish",P1,R3,Fullstack,FR-E11,Every pinned dependent listed,M,BPMS-084,Not started,—
-BPMS-140,IAM,"OIDC SSO, SAML-broker, SSO enforcement, JIT",P1,R4,Platform,"FR-P02, INT-001/002",Deprovision test,L,,Not started,—
+BPMS-140,IAM,"OIDC SSO, SAML-broker, SSO enforcement, JIT",P1,R4,Platform,"FR-P02, INT-001/002",Deprovision test,L,,In progress,Automated tests
 BPMS-141,IAM,SCIM 2.0 server,P1,R4,Platform,INT-003,<5 min deprovision,M,BPMS-140,Not started,—
 BPMS-142,IAM,Scoped/delegated admins; IP allowlists,P1,R4,Platform,"CFG-018, FR-W06",No escalation,M,BPMS-024,Not started,—
 BPMS-143,INT,"Webhooks (Standard Webhooks), HTTP connector via egress proxy, inbound events",P1,R4,Backend,"INT-*, WH/SSRF",SEC SSRF tests,L,BPMS-029,In progress,Automated tests

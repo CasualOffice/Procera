@@ -18,7 +18,7 @@ async function signIn(page: Page, email: string, recovery: string) {
   await expect(page).toHaveURL(/\/sign-in$/);
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel(/^Password/).fill(PW);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Two-step verification' })).toBeVisible();
   await page.getByLabel('Code').fill(recovery);
   await page.getByRole('button', { name: 'Verify' }).click();
@@ -55,10 +55,10 @@ test.describe('app shell @r1 @ui', () => {
     await page.goto(`${WEB}/sign-in`);
     await page.getByLabel('Work email').fill(ownerEmail);
     await page.getByLabel(/^Password/).fill('not the password at all');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('don’t match an account');
     await page.getByLabel(/^Password/).fill(PW);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByLabel('Code').fill('000000');
     await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByRole('alert')).toContainText('code didn’t work');

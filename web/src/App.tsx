@@ -61,6 +61,7 @@ import { Security } from './pages/Security';
 import { ApiTokens } from './pages/ApiTokens';
 import { EmailApprove } from './pages/EmailApprove';
 import { Webhooks } from './pages/Webhooks';
+import { SingleSignOn } from './pages/SingleSignOn';
 import { Signatures } from './pages/signing/Signatures';
 import { BatchPage } from './pages/signing/BatchPage';
 import { Ceremony } from './pages/signing/Ceremony';
@@ -173,6 +174,7 @@ export function App() {
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
   if (path === '/admin/files') return <AppShell current="files" crumbs={[ADMIN, 'Files']}><FilesAdmin /></AppShell>;
   if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
+  if (path === '/admin/sso') return <AppShell current="sso" crumbs={[ADMIN, 'Single sign-on']}><SingleSignOn /></AppShell>;
   if (path === '/admin/webhooks') return <AppShell current="webhooks" crumbs={[ADMIN, 'Webhooks']}><Webhooks /></AppShell>;
   if (path === '/admin/retention') return <AppShell current="retention" crumbs={[ADMIN, 'Retention']}><Retention /></AppShell>;
   if (path === '/admin/people') return <AppShell current="people" crumbs={[ADMIN, 'People & access']}><AdminPeople /></AppShell>;

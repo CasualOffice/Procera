@@ -25,7 +25,7 @@ async function signInPassword(page: Page, email: string) {
   await page.goto(`${WEB}/sign-in`);
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel(/^Password/).fill(PW);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening)/ })).toBeVisible();
 }
 
@@ -72,7 +72,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await fresh.goto(`${WEB}/sign-in`);
     await fresh.getByLabel('Work email').fill(m.email);
     await fresh.getByLabel(/^Password/).fill(PW);
-    await fresh.getByRole('button', { name: 'Sign in' }).click();
+    await fresh.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(fresh.getByRole('heading', { level: 1, name: 'Choose a workspace' })).toBeVisible();
     await expect(fresh.getByRole('button', { name: /Acme/ })).toHaveCount(0);
     // And the API agrees.
@@ -663,7 +663,7 @@ test.describe('R1 gate @r1 @ui', () => {
     await page.goto(`${WEB}/system`);
     await page.getByLabel('Work email').fill(sysEmail);
     await page.getByLabel(/^Password/).fill(PW);
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByLabel('Code').fill(sys.recovery[0]!);
     await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Workspaces' })).toBeVisible();

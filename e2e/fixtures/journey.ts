@@ -29,7 +29,7 @@ export async function signInForm(page: Page, email: string) {
   await expect(page.getByRole('heading', { level: 1, name: 'Sign in to Procera' })).toBeVisible();
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel(/^Password/).fill(PW);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
 }
 
 /** The owner invites `email` from Members (Member role unless another is named). */

@@ -52,7 +52,7 @@ counts as not set. Logs are JSON lines on standard error; standard output is res
 | `PROCERA_S3_ALLOW_HTTP` | `false` | — | No | Plain HTTP endpoints, for development or a private network only. |
 | `PROCERA_S3_PREFIX` | (none) | — | No | A folder inside the bucket, so several environments can share one bucket. |
 | `PROCERA_CLAMD_ADDR` | (none) | none | Recommended | ClamAV `clamd` address (`host:port`, e.g. `clamav:3310`). Without it, uploads are checked only for the EICAR test file. |
-| `PROCERA_EGRESS_ALLOW` | (none) | none | Only for internal receivers | Comma-separated address ranges (CIDR, e.g. `10.0.0.0/8,192.168.10.5/32`) that webhooks may reach even though they are private. Without it, webhooks go only to public `https` addresses on ports 443, 80, 8443 or 8080; with it, the listed ranges also accept plain `http` and any port. |
+| `PROCERA_EGRESS_ALLOW` | (none) | none | Only for internal receivers | Comma-separated address ranges (CIDR, e.g. `10.0.0.0/8,192.168.10.5/32`) that webhooks and single sign-on providers may reach even though they are private. Without it, webhooks go only to public `https` addresses on ports 443, 80, 8443 or 8080; with it, the listed ranges also accept plain `http` and any port. |
 | `PROCERA_LOG` | (none) | `info` | No | Log filter in `tracing` EnvFilter syntax, e.g. `warn`, `debug`, `info,procera_notify=debug`. |
 
 ### `procera migrate`
@@ -138,12 +138,23 @@ comes from (default, profile, workspace, department or platform minimum). The ca
 | Category | Covers |
 |---|---|
 | **General & branding** | Name, logo, colours, language, time zone and the words Procera uses |
-| **Sign-in & security** | Passwords, two-step verification, session length and admin access logging |
+| **Sign-in & security** | Passwords, two-step verification, session length and admin access logging. Single sign-on has its own page, **Admin › Single sign-on** (see below) |
 | **People & directory** | Who can join, what happens when someone leaves, positions |
 | **Documents & reviews** | Who must review before publishing, review cycles, numbering |
 | **Acknowledgements & announcements** | When people must re-acknowledge, campaign reminders and escalation, announcement rules |
 | **Notifications** | Which channels Procera uses, digests and quiet hours |
 | **Data, retention & files** | Upload limits, malware scanning, and how long records are kept |
+
+#### Single sign-on (OpenID Connect)
+
+In **Admin › Single sign-on**, copy the redirect URL (`<PROCERA_PUBLIC_URL>/api/v1/auth/sso/callback`)
+into a new OpenID Connect web application at your provider (Okta, Microsoft Entra ID, Google Workspace,
+Keycloak and others), then enter its issuer URL, client ID, client secret and the email domains it vouches
+for. Procera checks the provider's `/.well-known/openid-configuration` before saving. Members whose
+verified email is in a trusted domain can then choose **Sign in with SSO**; they must already be members
+(invite them as usual). **Require it** turns off passwords for everyone except workspace owners, who keep
+password + two-step verification so a provider outage can't lock you out. A provider on a private network
+must be listed in `PROCERA_EGRESS_ALLOW`. Decisions and limits: docs/22 A-50.
 
 Some settings can be overridden per department. The configuration profile chosen when the workspace was
 created only sets the starting values. The full catalogue is in

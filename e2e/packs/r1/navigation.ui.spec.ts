@@ -27,7 +27,7 @@ test.describe('navigation and onboarding @r1 @ui', () => {
     await finn.goto(`${WEB}/sign-in`);
     await finn.getByRole('textbox', { name: 'Work email' }).fill(email);
     await finn.getByRole('textbox', { name: 'Password', exact: true }).fill(PW);
-    await finn.getByRole('button', { name: 'Sign in' }).click();
+    await finn.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(finn.getByRole('heading', { name: 'Needs you' })).toBeVisible();
     await expect(sidebarLinks(finn)).toHaveText(['Home', 'Library', 'Requests', 'My work', 'Announcements']);
     await expect(finn.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: /^Notifications/ })).toBeVisible();

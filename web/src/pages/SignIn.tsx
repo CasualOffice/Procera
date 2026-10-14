@@ -1,7 +1,7 @@
 import { KeyRound } from 'lucide-react';
 import { useState } from 'react';
 import { Form } from 'react-aria-components';
-import { ApiError } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import { PASSWORD_HINT, passwordProblem } from '../lib/password';
 import { PasskeyCancelled, passkeysSupported } from '../lib/passkey';
 import { Link, useRoute } from '../lib/router';
@@ -29,6 +29,23 @@ export function SignIn() {
   const [tried, setTried] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sso, setSso] = useState(false);
+  const [ssoChoices, setSsoChoices] = useState<{ id: string; name: string }[] | null>(null);
+  const ssoGo = (ws: string) => {
+    const next = query.get('next');
+    const back = next && next.startsWith('/') && !next.startsWith('//') ? next : '/';
+    window.location.assign(`/api/v1/auth/sso/start?workspace=${encodeURIComponent(ws)}&return_to=${encodeURIComponent(back)}`);
+  };
+  const ssoFind = async () => {
+    setError(null); setSsoChoices(null); setBusy(true);
+    try {
+      const r = await api<{ items: { id: string; name: string }[] }>('/api/v1/auth/sso/discover', { method: 'POST', body: { email: email.trim() } });
+      if (r.items.length === 1) ssoGo(r.items[0]!.id);
+      else if (r.items.length > 1) setSsoChoices(r.items);
+      else setError('Your organisation doesn’t sign in with SSO here. Use your password instead.');
+    } catch { setError('Couldn’t check single sign-on. Try again.'); }
+    finally { setBusy(false); }
+  };
 
   const step = (r: SignInStep) => {
     if (r.changeToken) { setChangeToken(r.changeToken); setTried(false); return; }
@@ -135,7 +152,22 @@ export function SignIn() {
       <p className="lede">Welcome back. Sign in with your work account.</p>
       {query.get('mfa') === 'on' && !error && <Notice tone="success" title="Two-step verification is on">Sign in again. You’ll be asked for a code from your app.</Notice>}
       {query.get('reset') === 'done' && !error && <Notice tone="success" title="Your password is changed">Sign in with your new password. You were signed out everywhere else.</Notice>}
+      {query.get('sso_error') && !error && <Notice tone="danger" title="Single sign-on didn’t work">{query.get('sso_error')}</Notice>}
       {error && <Notice tone="danger" title={error} />}
+      {sso ? (
+        <Form className="stack" onSubmit={(e) => { e.preventDefault(); void ssoFind(); }}>
+          <TextField label="Work email" type="email" value={email} onChange={setEmail} isRequired autoComplete="username" autoFocus description="We’ll send you to your organisation’s sign-in page." />
+          {ssoChoices && (
+            <div className="sso-choices" role="group" aria-label="Choose a workspace">
+              {ssoChoices.map((w) => <Button key={w.id} variant="secondary" className="btn-block" onPress={() => ssoGo(w.id)}>{w.name}</Button>)}
+            </div>
+          )}
+          <div className="actions">
+            <Button type="submit" className="btn-block" isDisabled={busy || !email.includes('@')}>{busy ? 'Checking…' : 'Continue with SSO'}</Button>
+          </div>
+          <p className="auth-forgot"><button type="button" className="link-button" onClick={() => { setSso(false); setSsoChoices(null); setError(null); }}>Sign in with a password instead</button></p>
+        </Form>
+      ) : (
       <Form
         className="stack"
         onSubmit={(e) => {
@@ -149,7 +181,10 @@ export function SignIn() {
         <div className="actions">
           <Button type="submit" className="btn-block" isDisabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</Button>
         </div>
+        <p className="auth-or" aria-hidden="true"><span>or</span></p>
+        <Button variant="secondary" className="btn-block" onPress={() => { setSso(true); setError(null); }}>Sign in with SSO</Button>
       </Form>
+      )}
       <p className="auth-foot">Protected by two-step verification. Lost your authenticator? Ask your workspace admin.</p>
     </>
   );

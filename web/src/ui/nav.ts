@@ -3,7 +3,7 @@ import { term } from '../lib/terms';
 
 export type NavKey =
   | 'home' | 'inbox' | 'requests' | 'work' | 'team' | 'policies' | 'library' | 'my-documents' | 'announcements' | 'manage-announcements' | 'templates' | 'campaigns' | 'documents'
-  | 'admin' | 'webhooks' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
+  | 'admin' | 'webhooks' | 'sso' | 'overview' | 'request-oversight' | 'operations' | 'processes' | 'members' | 'departments' | 'groups' | 'roles' | 'people' | 'settings' | 'retention' | 'encryption' | 'files' | 'audit' | 'none';
 export interface NavItem { key: NavKey; label: string; to: string; icon: LucideIcon; keywords?: string }
 export interface NavGroup { label: string; items: NavItem[] }
 
@@ -56,6 +56,7 @@ export function adminNav(can: (p: string) => boolean): NavGroup[] {
       can('file:view_all') && { key: 'files', label: 'Files', to: '/admin/files', icon: Files, keywords: 'uploads attachments storage quota quarantine malware' },
       can('workspace:settings.view') && { key: 'retention', label: 'Retention', to: '/admin/retention', icon: Archive, keywords: 'records keep delete drafts logs disposition' },
       can('workspace:settings.view') && { key: 'encryption', label: 'Encryption', to: '/admin/encryption', icon: KeyRound, keywords: 'keys rotate kek security crypto' },
+      can('workspace:settings.view') && { key: 'sso', label: 'Single sign-on', to: '/admin/sso', icon: ShieldCheck, keywords: 'sso oidc okta entra azure google keycloak identity provider login saml' },
       can('connector:view') && { key: 'webhooks', label: 'Webhooks', to: '/admin/webhooks', icon: Webhook, keywords: 'integrations events callbacks http notify systems api automation' },
     ]) },
     { label: 'Workspace', items: pick([
