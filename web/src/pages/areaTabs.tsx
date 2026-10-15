@@ -23,3 +23,15 @@ export function AnnouncementTabs({ current }: { current: 'feed' | 'manage' }) {
     ]} />
   );
 }
+
+/** Time off views (BPMS-225): my balances and requests, who's out, and the reporting lines. */
+export function TimeOffTabs({ current }: { current: 'mine' | 'calendar' | 'org' }) {
+  const { can } = useSession();
+  return (
+    <SectionTabs label="Time off views" tabs={[
+      can('time_off:request') && { label: 'My time off', to: '/time-off', current: current === 'mine' },
+      can('directory:view') && { label: 'Team calendar', to: '/time-off/calendar', current: current === 'calendar' },
+      can('directory:view') && { label: 'Org chart', to: '/org-chart', current: current === 'org' },
+    ]} />
+  );
+}

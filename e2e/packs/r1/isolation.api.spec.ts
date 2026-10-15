@@ -74,6 +74,8 @@ test.describe('R1 isolation sweep @r1 @security', () => {
       if (res.status() !== 404) problems.push(`${method} ${path} → ${res.status()}`);
     }
     expect(problems).toEqual([]);
+    // An object named in the query (not audited as a probe, which reads the path): still 404.
+    expect((await b.owner.c.get(`/api/v1/team-calendar?from=2030-01-01&to=2030-01-31&scope=department&id=${dept.id}`, { headers: b.owner.headers })).status()).toBe(404);
 
     // Each probe is on record in B's audit log as a denied access to that object id.
     const denied = await (await b.owner.c.get('/api/v1/audit/events?action=access.denied&page[size]=100', { headers: b.owner.headers })).json();

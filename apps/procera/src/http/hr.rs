@@ -45,6 +45,8 @@ pub fn router() -> Router<AppState> {
         .route("/members/{id}/time-off/adjustments", post(adjust))
         .route("/time-off/balances", get(all_balances))
         .route("/time-off/quote", post(quote))
+        .route("/team-calendar", get(team_calendar))
+        .route("/org-chart", get(org_chart))
 }
 
 fn internal(e: impl std::fmt::Display) -> ApiError {
@@ -929,4 +931,63 @@ async fn quote(
     let q = hr(&s)?.quote_leave(&mut tx, me.actor.membership, &ask, today(&s), None).await?;
     tx.commit().await.map_err(internal)?;
     Ok(Json(q).into_response())
+}
+
+#[derive(Debug, Deserialize)]
+struct CalendarQuery {
+    from: String,
+    to: String,
+    #[serde(default)]
+    scope: Option<String>,
+    #[serde(default)]
+    id: Option<Uuid>,
+}
+
+/// `GET /team-calendar?from=&to=&scope=team|department|location|everyone&id=`: who's out between two
+/// dates (≤ 92 days) → `{from, to, people [{id, name, title, department, location_id, me}],
+/// absences [{membership_id, start_date, start_half, end_date, end_half, state, label, colour,
+/// request_id?, days?}], holidays [{location_id, date, name, optional}], work_weeks}`. `team` (default)
+/// is me, my manager, my manager's other reports and my reports; `department`/`location` default to
+/// mine. Colleagues see approved time off as "Out"; the person, their manager chain and HR
+/// (`time_off:view_all`) see the type and pending requests. `everyone` needs `time_off:view_all`.
+async fn team_calendar(
+    State(s): State<AppState>,
+    me: WsMember,
+    Query(q): Query<CalendarQuery>,
+) -> Result<Response, ApiError> {
+    use procera_hr::calendar::Scope;
+    let (from, to) = (date(&q.from)?, date(&q.to)?);
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "directory:view", Resource::Workspace).await?;
+    let view_all = allowed(&s, &me, &mut tx, "time_off:view_all").await?;
+    let scope = match q.scope.as_deref() {
+        None | Some("team") => Scope::Team,
+        Some("department") => Scope::Department(q.id),
+        Some("location") => Scope::Location(q.id),
+        Some("everyone") if view_all => Scope::Everyone,
+        Some("everyone") => {
+            return Err(ApiError::new(403, "forbidden", "You do not have permission for this action")
+                .detail("time_off:view_all"));
+        }
+        Some(other) => {
+            return Err(ApiError::new(400, "bad_request", "Unknown scope")
+                .detail(format!("{other}: use team, department, location or everyone")));
+        }
+    };
+    let cal = hr(&s)?.team_calendar(&mut tx, me.actor.membership, scope, from, to, view_all).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(cal).into_response())
+}
+
+/// `GET /org-chart`: everyone active with their manager, title, department and location, and whether
+/// they're out today (approved leave, never why) → `{items: [{id, name, title, department, location,
+/// manager_id, out_today}]}` (`directory:view`).
+async fn org_chart(State(s): State<AppState>, me: WsMember) -> Result<Response, ApiError> {
+    let m = members(&s)?;
+    let mut tx = me.tx(m).await?;
+    me.require(m, &mut tx, "directory:view", Resource::Workspace).await?;
+    let items = hr(&s)?.org_chart(&mut tx, today(&s)).await?;
+    tx.rollback().await.map_err(internal)?;
+    Ok(Json(json!({ "items": items })).into_response())
 }

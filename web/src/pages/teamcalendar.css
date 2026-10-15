@@ -1,0 +1,64 @@
+/* Team calendar and org chart (BPMS-225, docs/25 §8) */
+.tc-bar { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--space-3); margin: var(--space-4) 0 var(--space-3); }
+.tc-bar .select { min-width: 12rem; }
+.tc-month { display: flex; align-items: center; gap: 0.25rem; }
+.tc-month-name { margin: 0 0.25rem; min-width: 9.5rem; text-align: center; font-size: 1rem; font-weight: var(--font-weight-semibold); }
+.tc-today { margin: 0 0 var(--space-3); font-size: 0.8125rem; color: var(--color-text-secondary); }
+.tc-today strong { color: var(--color-text); font-weight: var(--font-weight-medium); }
+.tc-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-container); background: var(--color-surface); box-shadow: var(--shadow-xs); }
+.tc { border-collapse: separate; border-spacing: 0; font-size: 0.75rem; min-width: 100%; }
+.tc th, .tc td { padding: 0; border-bottom: 1px solid var(--line-subtle); }
+.tc tr:last-child th, .tc tr:last-child td { border-bottom: 0; }
+.tc-person-h, .tc-person { position: sticky; left: 0; z-index: 1; background: var(--color-surface); border-right: 1px solid var(--line); text-align: left; min-width: 13rem; max-width: 13rem; }
+.tc-person-h { padding: 0 0.75rem; font-weight: var(--font-weight-medium); color: var(--color-text-secondary); background: var(--color-bg); }
+.tc-person { display: flex; align-items: center; gap: 0.5rem; height: 2.5rem; padding: 0 0.75rem; font-weight: var(--font-weight-regular, 400); }
+.tc tr.is-me .tc-person { background: #FBF7EE; }
+.tc-pname { display: grid; min-width: 0; line-height: 1.2; }
+.tc-pname > span:first-child { font-size: 0.8125rem; font-weight: var(--font-weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-ptitle { font-size: 0.6875rem; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-day-h { width: 1.875rem; min-width: 1.875rem; height: 2.5rem; background: var(--color-bg); font-weight: var(--font-weight-medium); color: var(--color-text-secondary); text-align: center; }
+.tc-day-h.is-wkend { background: var(--color-surface-muted); color: var(--color-text-on-tinted); }
+.tc-day-h.is-today { color: var(--color-accent-text); }
+.tc-day-h.is-today .tc-dn { display: inline-grid; place-items: center; width: 1.375rem; height: 1.375rem; border-radius: 50%; background: var(--color-accent-strong); color: var(--color-text-inverse); }
+.tc-wd { display: block; font-size: 0.625rem; letter-spacing: 0.04em; }
+.tc-dn { display: block; font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.tc-cell { position: relative; height: 2.5rem; text-align: center; border-left: 1px solid var(--line-subtle); }
+.tc-cell.is-off { background: repeating-linear-gradient(135deg, transparent 0 0.25rem, rgba(55, 53, 47, 0.045) 0.25rem 0.5rem); }
+.tc-cell.is-hol { background: #FDF3E7; }
+.tc-cell.is-today { box-shadow: inset 1px 0 0 var(--color-brand), inset -1px 0 0 var(--color-brand); }
+.tc-ab { --ab: #2F6FA8; position: absolute; inset: 0.5rem 0.125rem; border-radius: 0.25rem; background: var(--ab); display: block; }
+a.tc-ab:hover { filter: brightness(1.08); }
+a.tc-ab:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.tc-ab.half-am { right: 50%; } .tc-ab.half-pm { left: 50%; }
+.tc-ab.is-pending { background: repeating-linear-gradient(135deg, var(--ab) 0 0.25rem, color-mix(in srgb, var(--ab) 45%, white) 0.25rem 0.5rem); }
+.ab-green { --ab: #3B7D4F; } .ab-pink { --ab: #B4457A; } .ab-purple { --ab: #6B4FB0; } .ab-orange { --ab: #B4621C; } .ab-yellow { --ab: #9A7414; }
+.ab-brown { --ab: #7A5640; } .ab-red { --ab: #B23A32; } .ab-gray { --ab: #8F8E89; } .ab-blue { --ab: #2F6FA8; }
+.tc-hol { position: absolute; left: 50%; top: 50%; width: 0.4375rem; height: 0.4375rem; margin: -0.21875rem 0 0 -0.21875rem; border-radius: 50%; background: #C77A2E; }
+.tc-legend { list-style: none; display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; margin: var(--space-3) 0 0; padding: 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.tc-legend li { display: inline-flex; align-items: center; gap: 0.375rem; }
+.tc-legend .tc-ab { position: static; width: 1rem; height: 0.625rem; }
+.tc-hol-key { position: static; margin: 0; }
+.tc-off-key { width: 1rem; height: 0.625rem; border-radius: 0.125rem; border: 1px solid var(--line); background: repeating-linear-gradient(135deg, transparent 0 0.1875rem, rgba(55, 53, 47, 0.1) 0.1875rem 0.375rem); }
+
+.oc-bar { max-width: 24rem; margin: var(--space-4) 0; }
+.oc-tree, .oc-group { list-style: none; margin: 0; padding: 0; }
+.oc-tree { display: grid; gap: 0.375rem; }
+.oc-group { position: relative; margin-left: 1.5rem; padding-left: 1.25rem; border-left: 1px solid var(--line); display: grid; gap: 0.375rem; padding-top: 0.375rem; }
+.oc-group > .oc-item { position: relative; }
+.oc-group > .oc-item::before { content: ''; position: absolute; left: -1.25rem; top: 1.5rem; width: 1rem; border-top: 1px solid var(--line); }
+.oc-card { display: flex; align-items: center; gap: 0.625rem; max-width: 34rem; padding: 0.5rem 0.75rem 0.5rem 0.375rem; background: var(--color-surface); border: 1px solid var(--line); border-radius: var(--radius-container); box-shadow: var(--shadow-xs); }
+.oc-card.is-hit { border-color: var(--color-brand); box-shadow: 0 0 0 1px var(--color-brand); }
+.oc-toggle { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border: 0; border-radius: 0.25rem; background: none; color: var(--color-text-secondary); cursor: pointer; flex: none; }
+.oc-toggle:hover { background: var(--color-surface-muted); }
+.oc-toggle:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.oc-toggle-gap { width: 1.5rem; flex: none; }
+.oc-main { flex: 1; display: grid; min-width: 0; }
+.oc-name { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; font-weight: var(--font-weight-medium); }
+.oc-sub { font-size: 0.75rem; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oc-count { font-size: 0.75rem; color: var(--color-text-secondary); white-space: nowrap; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tc-cell.is-hol { background: #3A2C1C; }
+  :root:not([data-theme="light"]) .tc tr.is-me .tc-person { background: #2A261E; }
+}
+:root[data-theme="dark"] .tc-cell.is-hol { background: #3A2C1C; }
+:root[data-theme="dark"] .tc tr.is-me .tc-person { background: #2A261E; }

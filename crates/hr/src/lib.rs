@@ -6,6 +6,7 @@
 //! Audit is the caller's: each mutation returns what changed so the HTTP layer records it in the
 //! same transaction.
 
+pub mod calendar;
 pub mod dates;
 pub mod days;
 pub mod import;

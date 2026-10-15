@@ -4,6 +4,7 @@ import { useResource } from '../lib/data';
 import { Button } from '../ui/components/Button';
 import { Notice } from '../ui/components/Notice';
 import { Empty, LoadError, Skeleton } from '../ui/States';
+import { TimeOffTabs } from './areaTabs';
 import { type LeaveRequest, MyRequests, RequestTimeOff } from './timeOffRequest';
 import { type Balance, BalanceCard, MONTHS, type PolicyOf } from './timeOffShared';
 
@@ -38,6 +39,7 @@ export function TimeOff() {
         </div>
         {data.items.length > 0 && <Button onPress={() => setAsking(true)}><Plus aria-hidden="true" size="1rem" /> Request time off</Button>}
       </div>
+      <TimeOffTabs current="mine" />
       {done && <Notice tone="success" title={done} />}
       <div className="to-layout">
         <div>

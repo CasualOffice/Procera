@@ -3,15 +3,15 @@
  "last_updated": "2026-10-15",
  "current_release": "P0",
  "totals": {
-  "Done": 61,
+  "Done": 62,
   "In review": 0,
   "In progress": 8,
   "Blocked": 0,
-  "Not started": 66,
+  "Not started": 65,
   "Deferred": 0,
   "all": 135
  },
- "e2e_scenarios": 286,
+ "e2e_scenarios": 288,
  "e2e_ids": [
   "E2E-P0-01",
   "E2E-P0-02",
@@ -296,9 +296,11 @@
   "E2E-R5-HR-01",
   "E2E-R5-HR-02",
   "E2E-R5-HR-03",
+  "E2E-R5-HR-04",
   "E2E-R5-UI-01",
   "E2E-R5-UI-02",
-  "E2E-R5-UI-03"
+  "E2E-R5-UI-03",
+  "E2E-R5-UI-04"
  ],
  "releases": [
   {
@@ -479,9 +481,9 @@
    "gate": "G-HR",
    "scope": "docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)",
    "total": 8,
-   "done": 0,
+   "done": 1,
    "in_progress": 3,
-   "not_started": 5,
+   "not_started": 4,
    "epics": [
     "BPMS-222",
     "BPMS-223",
@@ -1394,7 +1396,7 @@
    "title": "0.5 HR: team calendar (who's out, privacy) and org chart",
    "priority": "P1",
    "release": "HR",
-   "status": "Not started"
+   "status": "Done"
   },
   {
    "id": "BPMS-226",

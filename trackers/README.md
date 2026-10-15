@@ -6,12 +6,12 @@
 ## At a glance
 
 ```text
-Overall   ██████████████░░░░░░░░░░░░░░░░  61/135 epics done  (45%)
-Partial   ██████████████░░░░░░░░░░░░░░░░  48% counting in-progress epics as half done
-Tests     286 automated E2E scenarios · 470 Rust tests (incl. property tests)
-Status    done 61 · in review 0 · in progress 8 · blocked 0 · not started 66 · deferred 0
+Overall   ██████████████░░░░░░░░░░░░░░░░  62/135 epics done  (46%)
+Partial   ███████████████░░░░░░░░░░░░░░░  49% counting in-progress epics as half done
+Tests     288 automated E2E scenarios · 470 Rust tests (incl. property tests)
+Status    done 62 · in review 0 · in progress 8 · blocked 0 · not started 65 · deferred 0
 Now       P0 — Spikes + G1 + design system  (2026-11-02 → 2026-11-20, gate G1)
-Evidence  automated tests 56 · code merged 13  (separate from status; none user-validated yet)
+Evidence  automated tests 57 · code merged 13  (separate from status; none user-validated yet)
 ```
 
 > **Status vs evidence.** Status says how far the work has got; evidence says what is proven: code merged → automated tests (cited E2E scenarios run in the full suite) → demonstrated → user validated → released. Pilots and usability studies raise evidence; merging code doesn't.
@@ -25,7 +25,7 @@ Evidence  automated tests 56 · code merged 13  (separate from status; none user
 | **R2** | Requests & Approvals | 2027-01-18 → 2027-03-12 | G-R2 | `██████████░░` | 18/22 |
 | **R3** | Operate & Sign | 2027-03-15 → 2027-05-07 | G-R3 | `█░░░░░░░░░░░` | 2/18 |
 | **R4** | Enterprise Connect | 2027-05-10 → 2027-07-02 | G-R4 | `░░░░░░░░░░░░` | 0/14 |
-| **HR** | HR time & attendance (0.5) | 2027-07-05 → 2027-08-27 | G-HR | `░░░░░░░░░░░░` | 0/8 |
+| **HR** | HR time & attendance (0.5) | 2027-07-05 → 2027-08-27 | G-HR | `██░░░░░░░░░░` | 1/8 |
 | **R5** | Cases & Compliance | 2027-07-05 → 2027-08-27 | G-R5 | `░░░░░░░░░░░░` | 0/11 |
 | **GA** | 1.0 hardening + release | 2027-08-30 → 2027-10-15 | G4/G5 | `░░░░░░░░░░░░` | 0/8 |
 | **POST** | Post-GA expansion | 2027-10-18 → 2028-03-31 | Demand | `░░░░░░░░░░░░` | 0/8 |
@@ -106,6 +106,7 @@ Evidence  automated tests 56 · code merged 13  (separate from status; none user
 - [x] **BPMS-216** My work bulk decisions with preview; acknowledgement and signature tabs — My work: kind filters with counts (All, Approvals, Tasks, Acknowledgements); "Decide several" selects plain approvals (nothing to fill in), Approve N… / Reject N… preview every request, decide each on its own with its revision as If-Match and report per item (an item decided elsewhere is named, never overwritten); Reject needs a reason. E2E-R2-UI-20. Person pickers stay disabled until people load. A signatures tab arrives with e-signing (0.4).
 - [x] **BPMS-066** Retention policy per record class (policy only) — Retention classes honoured by jobs (migration 0024, docs/14 §4): draft (deleted after retention.draft.inactive_after without edits; authors notified retention.draft.notice_before ahead; a never-published artifact goes with its only draft; drafts linked to change requests kept), operational (sent/failed emails, read notifications, sent digest items after retention.operational.keep_for), governance_record and audit never deleted by the app (disposition with certificates is P1); hourly in the scheduler, every run recorded and audited (retention.purged); Retention admin page with due drafts and period changes (reason + step-up). E2E-R1-RET-01..02, E2E-R1-UI-26.
 - [x] **BPMS-108** All requests / all work / workload / process health / ops monitor — Workload (FR-A03) shipped early with 0.2: GET /work/workload?scope=team|all (per person open / overdue / due in 7 days / oldest, away + delegate, coverage gaps) and /work/workload/{member} (their open steps); Team page for managers (team = reporting line, derived from the directory, no grant needed) and Requests oversight › Workload for admins; bulk reassign with a preview, refusals per step; a manager reassigns within their team without work:reassign (docs/12 §6). E2E-R2-UI-13. Ops monitor (PR-09): Admin › Operations lists technical incidents (dead-lettered jobs, failed reminder/escalation timers) apart from business exceptions; retry/dismiss with a reason (request:retry), audited incident.retried/incident.dismissed; E2E-R2-UI-14. Done for 0.2: workload (team + all) and Operations (E2E-R2-UI-13/14/16); process health, email bounces and timer lateness moved to BPMS-217.
+- [x] **BPMS-225** 0.5 HR: team calendar (who's out, privacy) and org chart — 0.5 scope shipped: GET /team-calendar (team, department, location, everyone for HR; ≤ 92 days) with holidays and work weeks per location; privacy by reporting line (the person, their manager chain and HR see type, days, pending and a link; colleagues see approved time off as Out); GET /org-chart with out-today; Team calendar month grid (sticky names, days off and holidays shaded, half days, pending striped, opens at today) and an Org chart tree with search; Time off area tabs. E2E-R5-HR-04, E2E-R5-UI-04, isolation.
 
 ## Release checklists
 
@@ -252,14 +253,14 @@ _SSO/SCIM, scoped admins, webhooks/API/CLI, email approvals, guests, e-sign v2 (
 </details>
 
 <details>
-<summary><b>HR — HR time & attendance (0.5)</b> · 2027-07-05 → 2027-08-27 · gate G-HR · 0/8 done</summary>
+<summary><b>HR — HR time & attendance (0.5)</b> · 2027-07-05 → 2027-08-27 · gate G-HR · 1/8 done</summary>
 
 _docs/25: locations + holidays, leave policies + ledger, leave requests, team calendar, shifts, attendance, regularization, month close (owner 2026-10-14)_
 
 - [ ] **BPMS-222** (P1, M) 0.5 HR: work locations (IANA zone, work week), holiday calendars with optional holidays, iCal/CSV import; engine calendars follow them **[In progress]**
 - [ ] **BPMS-223** (P1, L) 0.5 HR: leave types, policies by audience, accrual and rollover jobs, balance ledger, audited adjustments **[In progress]**
 - [ ] **BPMS-224** (P1, L) 0.5 HR: leave requests on the engine (day counting, half days, hold/take/release, cancel after approval), Time off page **[In progress]**
-- [ ] **BPMS-225** (P1, M) 0.5 HR: team calendar (who's out, privacy) and org chart
+- [x] **BPMS-225** (P1, M) 0.5 HR: team calendar (who's out, privacy) and org chart
 - [ ] **BPMS-226** (P1, M) 0.5 HR: shift patterns and weekly rosters (draft, publish, notify), my schedule
 - [ ] **BPMS-227** (P1, L) 0.5 HR: attendance (clock in/out, punch import CSV/API), derived daily status
 - [ ] **BPMS-228** (P1, M) 0.5 HR: regularization requests on the engine (originals kept)
@@ -327,7 +328,7 @@ _Chat platforms, HRIS/ERP, QES/Aadhaar, BPMN/DMN, mining, AI agents (old M12+)_
 | Integrations (INT) | 32 | [13-INTEGRATIONS.md](../docs/13-INTEGRATIONS.md) |
 | Config (CFG) | 25 | [20-WORKSPACE-CONFIGURATION.md](../docs/20-WORKSPACE-CONFIGURATION.md) |
 | AI (AI) | 25 | [16-AI-ASSISTANCE.md](../docs/16-AI-ASSISTANCE.md) |
-| E2E scenarios (E2E) | 344 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
+| E2E scenarios (E2E) | 346 | [23-E2E-TEST-PLAN.md](../docs/23-E2E-TEST-PLAN.md) |
 | Security tests | 37 | [06](../docs/06-SECURITY-AND-OPERATIONS.md) |
 | Test matrix | 40 | [15](../docs/15-TEST-STRATEGY-AND-CONFORMANCE.md) |
 | Open questions / unknowns / assumptions | 19 / 16 / 50 | [22](../docs/22-UNKNOWNS-ASSUMPTIONS-AND-OPEN-QUESTIONS.md) |

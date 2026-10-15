@@ -2366,6 +2366,18 @@
      "handler": "quote",
      "summary": "How many days a leave request would take for me, date by date, my balance before and after, and any problems (`[{field, code, message}]`) the request would be refused for. Changes nothing.",
      "exempt": "a read: counts the days of a leave request and checks it"
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/team-calendar",
+     "handler": "team_calendar",
+     "summary": "Who's out between two dates (≤ 92 days) → `{from, to, people [{id, name, title, department, location_id, me}], absences [{membership_id, start_date, start_half, end_date, end_half, state, label, colour, request_id?, days?}], holidays [{location_id, date, name, optional}], work_weeks}`. `team` (default) is me, my manager, my manager's other reports and my reports; `department`/`location` default to mine. Colleagues see approved time off as \"Out\"; the person, their manager chain and HR (`time_off:view_all`) see the type and pending requests. `everyone` needs `time_off:view_all`."
+    },
+    {
+     "method": "GET",
+     "path": "/api/v1/org-chart",
+     "handler": "org_chart",
+     "summary": "Everyone active with their manager, title, department and location, and whether they're out today (approved leave, never why) → `{items: [{id, name, title, department, location, manager_id, out_today}]}` (`directory:view`)."
     }
    ]
   },

@@ -64,6 +64,8 @@ import { Webhooks } from './pages/Webhooks';
 import { SingleSignOn } from './pages/SingleSignOn';
 import { Holidays } from './pages/Holidays';
 import { TimeOff } from './pages/TimeOff';
+import { TeamCalendar } from './pages/TeamCalendar';
+import { OrgChart } from './pages/OrgChart';
 import { TimeOffAdmin } from './pages/TimeOffAdmin';
 import { Signatures } from './pages/signing/Signatures';
 import { BatchPage } from './pages/signing/BatchPage';
@@ -177,6 +179,8 @@ export function App() {
   if (path === '/admin/overview') return <AppShell current="overview" crumbs={[ADMIN, 'Overview']}><AdminOverview /></AppShell>;
   if (path === '/admin/files') return <AppShell current="files" crumbs={[ADMIN, 'Files']}><FilesAdmin /></AppShell>;
   if (path === '/admin/encryption') return <AppShell current="encryption" crumbs={[ADMIN, 'Encryption']}><Encryption /></AppShell>;
+  if (path === '/time-off/calendar') return <AppShell current="time-off" crumbs={[['Time off', '/time-off'], 'Team calendar']}><TeamCalendar /></AppShell>;
+  if (path === '/org-chart') return <AppShell current="time-off" crumbs={[['Time off', '/time-off'], 'Org chart']}><OrgChart /></AppShell>;
   if (path === '/time-off') return <AppShell current="time-off" crumbs={['Time off']}><TimeOff /></AppShell>;
   if (path === '/admin/time-off') return <AppShell current="time-off-admin" crumbs={[ADMIN, 'Time off']}><TimeOffAdmin /></AppShell>;
   if (path === '/admin/holidays') return <AppShell current="holidays" crumbs={[ADMIN, 'Holidays and locations']}><Holidays /></AppShell>;
